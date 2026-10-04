@@ -1,3 +1,30 @@
+# Suscripta
+
+Micro-SaaS para autónomos y pequeñas empresas que **descubren y controlan automáticamente sus
+servicios y gastos recurrentes a partir de su correo de facturación**.
+
+> **Conecta el correo donde realmente recibes tus facturas y descubre automáticamente los
+> servicios que estás pagando.**
+
+No es un "gestor de suscripciones" ni un "gestor de renovaciones": es **descubrimiento
+automático desde el correo** (IMAP genérico, cualquier proveedor) más el control que se
+construye encima. Ver [docs/PRODUCT.md](docs/PRODUCT.md) §3 y §10.
+
+## Documentación del producto
+
+| Documento | Contenido |
+|---|---|
+| [docs/PRODUCT.md](docs/PRODUCT.md) | Problema, usuario, propuesta de valor, hipótesis de producto, funcionalidades, qué NO es el producto, flujo, casos de uso, diferenciación. |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Módulos, modelo de dominio, separación fuente/procesamiento/dominio/valor, extracción por capas, Messenger, persistencia, integraciones, multi-tenancy, frontend. |
+| [docs/SECURITY.md](docs/SECURITY.md) | Acceso al correo, credenciales, documentos, extracción e IA, aislamiento de tenants, retención, RGPD. |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | Fases de desarrollo con criterios de verificación (vertical end-to-end en la fase 3). |
+| [docs/DECISIONS.md](docs/DECISIONS.md) | Decisiones arquitectónicas (ADR) y su motivo. |
+| [docs/COMPETITORS.md](docs/COMPETITORS.md) | Análisis de soluciones similares, matriz de capacidades y hueco de mercado. |
+
+> Estado actual: **documentación y arquitectura**. No hay todavía código de producto.
+
+---
+
 # Symfony Docker
 
 A [Docker](https://www.docker.com/)-based installer and runtime for the [Symfony](https://symfony.com) web framework,
