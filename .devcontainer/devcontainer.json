@@ -1,0 +1,35 @@
+{
+    "name": "Symfony Docker",
+    "dockerComposeFile": [
+        "../compose.yaml",
+        "../compose.override.yaml",
+        "compose.devcontainer.yaml"
+    ],
+    "service": "php",
+    "workspaceFolder": "/app",
+    "features": {
+        "ghcr.io/devcontainers/features/node:1": {}
+    },
+    "remoteUser": "nonroot",
+    "postCreateCommand": "npm install -g intelephense",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "bmewburn.vscode-intelephense-client",
+                "xdebug.php-debug"
+            ],
+            "settings": {
+                "launch": {
+                    "version": "0.2.0",
+                    "configurations": [
+                        {
+                            "name": "Debug PHP",
+                            "type": "php",
+                            "request": "launch"
+                        }
+                    ]
+                }
+            }
+        }
+    }
+}

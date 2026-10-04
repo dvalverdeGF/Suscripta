@@ -1,0 +1,7 @@
+---
+# Dev Container-specific overrides: enable XDebug
+services:
+  php:
+    environment:
+      XDEBUG_MODE: "${XDEBUG_MODE:-develop,debug}"
+      XDEBUG_CONFIG: "client_host=127.0.0.1 start_with_request=yes"
