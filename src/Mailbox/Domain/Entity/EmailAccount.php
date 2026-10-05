@@ -16,7 +16,10 @@ use Doctrine\ORM\Mapping as ORM;
 
 use const FILTER_VALIDATE_EMAIL;
 
+use function in_array;
 use function sprintf;
+use function str_ends_with;
+use function str_starts_with;
 
 use Symfony\Component\Uid\Uuid;
 
@@ -80,6 +83,29 @@ class EmailAccount implements TenantAwareInterface
     /** Carpeta que se sincroniza. `INBOX` por defecto; el usuario puede cambiarla. */
     #[ORM\Column(name: 'imap_folder', type: Types::STRING, length: 120)]
     private string $imapFolder = 'INBOX';
+
+    /**
+     * Dirección dedicada de ingesta por reenvío (D-21).
+     *
+     * Es única y no adivinable: quien la conozca puede inyectar correo, así que
+     * se trata como un secreto y se puede rotar desde la interfaz.
+     */
+    #[ORM\Column(name: 'forwarding_address', type: Types::STRING, length: 180, nullable: true)]
+    private ?string $forwardingAddress = null;
+
+    /**
+     * Remitentes autorizados a reenviar a esa dirección.
+     *
+     * Sin esta lista, cualquiera que descubriera la dirección podría meter
+     * facturas falsas en el inventario (SECURITY.md §2.4).
+     *
+     * @var list<string>
+     */
+    #[ORM\Column(name: 'forwarding_senders', type: Types::JSON)]
+    private array $forwardingSenders = [];
+
+    #[ORM\Column(name: 'forwarding_enabled', type: Types::BOOLEAN)]
+    private bool $forwardingEnabled = false;
 
     #[ORM\Column(name: 'last_sync_at', type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?DateTimeImmutable $lastSyncAt = null;
@@ -282,6 +308,127 @@ class EmailAccount implements TenantAwareInterface
         $this->lastSyncStatus = $status;
         $this->lastSyncError = null === $error ? null : mb_substr($error, 0, 2000);
         $this->touch();
+    }
+
+    /**
+     * Activa la ingesta por reenvío con una dirección dedicada.
+     *
+     * @param list<string> $senders remitentes autorizados
+     */
+    public function enableForwarding(string $address, array $senders): void
+    {
+        $address = mb_strtolower(trim($address));
+
+        if (false === filter_var($address, FILTER_VALIDATE_EMAIL)) {
+            throw new InvalidArgumentException(sprintf('"%s" no es una dirección de ingesta válida.', $address));
+        }
+
+        $this->forwardingAddress = $address;
+        $this->forwardingSenders = $this->normalizeSenders($senders);
+        $this->forwardingEnabled = true;
+        $this->touch();
+    }
+
+    /**
+     * Cambia la dirección de ingesta conservando los remitentes autorizados.
+     *
+     * Rotar la dirección es la respuesta a una fuga: si alguien la ha
+     * descubierto, se cambia y la antigua deja de servir.
+     */
+    public function rotateForwardingAddress(string $address): void
+    {
+        if (null === $this->forwardingAddress) {
+            throw new InvalidArgumentException('La cuenta no tiene activada la ingesta por reenvío.');
+        }
+
+        $this->enableForwarding($address, $this->forwardingSenders);
+    }
+
+    public function disableForwarding(): void
+    {
+        $this->forwardingEnabled = false;
+        $this->touch();
+    }
+
+    /**
+     * @param list<string> $senders
+     */
+    public function setForwardingSenders(array $senders): void
+    {
+        $this->forwardingSenders = $this->normalizeSenders($senders);
+        $this->touch();
+    }
+
+    public function isForwardingEnabled(): bool
+    {
+        return $this->forwardingEnabled && null !== $this->forwardingAddress;
+    }
+
+    public function getForwardingAddress(): ?string
+    {
+        return $this->forwardingAddress;
+    }
+
+    /** @return list<string> */
+    public function getForwardingSenders(): array
+    {
+        return $this->forwardingSenders;
+    }
+
+    /**
+     * ¿Está este remitente autorizado a reenviar a esta cuenta?
+     *
+     * Se acepta la dirección completa o su dominio (`@ejemplo.com`), porque un
+     * autónomo suele reenviar desde su propia dirección y no siempre desde la
+     * misma.
+     */
+    public function isSenderAuthorized(string $sender): bool
+    {
+        $sender = mb_strtolower(trim($sender));
+
+        if ('' === $sender) {
+            return false;
+        }
+
+        foreach ($this->forwardingSenders as $allowed) {
+            if ($allowed === $sender) {
+                return true;
+            }
+
+            if (str_starts_with($allowed, '@') && str_ends_with($sender, $allowed)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param list<string> $senders
+     *
+     * @return list<string>
+     */
+    private function normalizeSenders(array $senders): array
+    {
+        $normalized = [];
+
+        foreach ($senders as $sender) {
+            $sender = mb_strtolower(trim($sender));
+
+            if ('' === $sender) {
+                continue;
+            }
+
+            if (!str_starts_with($sender, '@') && false === filter_var($sender, FILTER_VALIDATE_EMAIL)) {
+                throw new InvalidArgumentException(sprintf('"%s" no es una dirección ni un dominio válido.', $sender));
+            }
+
+            if (!in_array($sender, $normalized, true)) {
+                $normalized[] = $sender;
+            }
+        }
+
+        return $normalized;
     }
 
     public function getLastSyncAt(): ?DateTimeImmutable

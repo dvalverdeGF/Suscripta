@@ -40,6 +40,10 @@ security:
         - { path: ^/reset-password, roles: PUBLIC_ACCESS }
         - { path: ^/verify/email, roles: PUBLIC_ACCESS }
         - { path: ^/health$, roles: PUBLIC_ACCESS }
+        # La ingesta por reenvío llega de un servidor de correo, sin sesión. La
+        # autenticación es la propia dirección dedicada más la lista de
+        # remitentes autorizados (SECURITY.md §2.4).
+        - { path: ^/mail/inbound$, roles: PUBLIC_ACCESS }
         - { path: ^/, roles: ROLE_USER }
 
 when@test:

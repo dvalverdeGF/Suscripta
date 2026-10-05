@@ -35,6 +35,13 @@ enum AuditAction: string
     case EMAIL_ACCOUNT_DELETED = 'email_account.deleted';
     case EMAIL_SYNC_STARTED = 'email_sync.started';
     case EMAIL_SYNC_FINISHED = 'email_sync.finished';
+    case EMAIL_SYNC_CURSOR_RESET = 'email_sync.cursor_reset';
+    case EMAIL_FORWARDING_ENABLED = 'email_forwarding.enabled';
+    case EMAIL_FORWARDING_ROTATED = 'email_forwarding.rotated';
+    case EMAIL_FORWARDING_DISABLED = 'email_forwarding.disabled';
+    case EMAIL_FORWARDING_SENDERS_UPDATED = 'email_forwarding.senders_updated';
+    case EMAIL_FORWARDING_RECEIVED = 'email_forwarding.received';
+    case EMAIL_FORWARDING_REJECTED = 'email_forwarding.rejected';
 
     // Documentos y datos derivados
     case DOCUMENT_UPLOADED = 'document.uploaded';
@@ -88,6 +95,13 @@ enum AuditAction: string
             self::EMAIL_ACCOUNT_DELETED => 'Cuenta de correo eliminada',
             self::EMAIL_SYNC_STARTED => 'Sincronización iniciada',
             self::EMAIL_SYNC_FINISHED => 'Sincronización finalizada',
+            self::EMAIL_SYNC_CURSOR_RESET => 'Cursor de sincronización reiniciado',
+            self::EMAIL_FORWARDING_ENABLED => 'Ingesta por reenvío activada',
+            self::EMAIL_FORWARDING_ROTATED => 'Dirección de ingesta rotada',
+            self::EMAIL_FORWARDING_DISABLED => 'Ingesta por reenvío desactivada',
+            self::EMAIL_FORWARDING_SENDERS_UPDATED => 'Remitentes autorizados actualizados',
+            self::EMAIL_FORWARDING_RECEIVED => 'Correo reenviado recibido',
+            self::EMAIL_FORWARDING_REJECTED => 'Correo reenviado rechazado',
             self::DOCUMENT_UPLOADED => 'Documento subido',
             self::DOCUMENT_VIEWED => 'Documento consultado',
             self::DOCUMENT_DOWNLOADED => 'Documento descargado',

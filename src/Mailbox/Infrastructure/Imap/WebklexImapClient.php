@@ -34,6 +34,7 @@ use Webklex\PHPIMAP\Config;
 use Webklex\PHPIMAP\Connection\Protocols\ImapProtocol;
 use Webklex\PHPIMAP\IMAP;
 use Webklex\PHPIMAP\Message;
+use Webklex\PHPIMAP\Query\WhereQuery;
 
 /**
  * Adaptador de `webklex/php-imap` (D-05).
@@ -97,6 +98,90 @@ final class WebklexImapClient implements ImapClientInterface
         ?DateTimeImmutable $since = null,
         int $limit = 200,
     ): array {
+        return $this->fetch(
+            $config,
+            $folder,
+            $limit,
+            'desc',
+            static function (WhereQuery $query) use ($since): void {
+                if (null !== $since) {
+                    $query->whereSince($since);
+                }
+            },
+        );
+    }
+
+    public function getUidValidity(ImapConnectionConfig $config, string $folder): int
+    {
+        $client = $this->connect($config);
+
+        try {
+            /** @var ImapProtocol $connection */
+            $connection = $client->getConnection();
+            $status = $connection->folderStatus($folder, ['UIDVALIDITY'])->data();
+
+            if (!is_array($status) || !isset($status['uidvalidity'])) {
+                throw new ImapFetchException(sprintf('El servidor no ha informado del UIDVALIDITY de la carpeta "%s".', $folder));
+            }
+
+            return (int) $status['uidvalidity'];
+        } catch (ImapConnectionException|ImapFetchException $e) {
+            throw $e;
+        } catch (Throwable $e) {
+            throw new ImapConnectionException($this->humanize($e), 0, $e);
+        } finally {
+            $this->disconnect($client);
+        }
+    }
+
+    public function fetchHeadersAfter(
+        ImapConnectionConfig $config,
+        string $folder,
+        int $afterUid,
+        int $limit = 200,
+    ): array {
+        return $this->fetch(
+            $config,
+            $folder,
+            $limit,
+            'asc',
+            static fn (WhereQuery $query) => self::whereUidRange($query, sprintf('%d:*', max(1, $afterUid + 1))),
+        );
+    }
+
+    public function fetchHeadersBefore(
+        ImapConnectionConfig $config,
+        string $folder,
+        int $beforeUid,
+        int $limit = 200,
+    ): array {
+        return $this->fetch(
+            $config,
+            $folder,
+            $limit,
+            'desc',
+            static fn (WhereQuery $query) => self::whereUidRange($query, sprintf('1:%d', max(1, $beforeUid - 1))),
+        );
+    }
+
+    /**
+     * Lectura de cabeceras compartida por las tres variantes.
+     *
+     * Nunca descarga cuerpos ni marca los mensajes como leídos: `FT_PEEK` está
+     * fijado en la configuración del cliente y `setFetchBody(false)` evita
+     * pedir el contenido.
+     *
+     * @param callable(WhereQuery): void $constrain
+     *
+     * @return list<ImapMessageHeader>
+     */
+    private function fetch(
+        ImapConnectionConfig $config,
+        string $folder,
+        int $limit,
+        string $order,
+        callable $constrain,
+    ): array {
         $limit = max(1, min($limit, self::MAX_MESSAGES));
         $client = $this->connect($config);
 
@@ -110,13 +195,11 @@ final class WebklexImapClient implements ImapClientInterface
             $query = $imapFolder->query()
                 ->setFetchBody(false)
                 ->setFetchFlags(false)
-                ->setFetchOrder('desc')
+                ->setFetchOrder($order)
                 ->leaveUnread()
                 ->limit($limit);
 
-            if (null !== $since) {
-                $query->whereSince($since);
-            }
+            $constrain($query);
 
             $messages = $query->get();
 
@@ -140,6 +223,18 @@ final class WebklexImapClient implements ImapClientInterface
         } finally {
             $this->disconnect($client);
         }
+    }
+
+    /**
+     * Añade un rango de UID a la búsqueda.
+     *
+     * `whereUid()` cita siempre el valor (`UID "100:*"`), que no es IMAP válido
+     * para un rango. `CUSTOM` es la vía que ofrece la librería para pasar un
+     * criterio literal sin que lo reescriba.
+     */
+    private static function whereUidRange(WhereQuery $query, string $range): void
+    {
+        $query->where('CUSTOM UID '.$range);
     }
 
     public function fetchBody(ImapConnectionConfig $config, string $folder, int $uid): ImapMessageBody

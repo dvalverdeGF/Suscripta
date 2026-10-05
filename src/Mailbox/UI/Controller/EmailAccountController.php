@@ -8,14 +8,21 @@ use App\Identity\Domain\Entity\User;
 use App\Mailbox\Application\ConnectEmailAccount;
 use App\Mailbox\Application\DeleteEmailAccount;
 use App\Mailbox\Application\DisconnectEmailAccount;
+use App\Mailbox\Application\Forwarding\DisableEmailForwarding;
+use App\Mailbox\Application\Forwarding\EnableEmailForwarding;
+use App\Mailbox\Application\Forwarding\RotateForwardingAddress;
+use App\Mailbox\Application\SyncEmailAccount;
 use App\Mailbox\Application\TestEmailAccountConnection;
 use App\Mailbox\Application\UpdateEmailAccount;
 use App\Mailbox\Domain\Entity\EmailAccount;
 use App\Mailbox\Domain\Exception\ImapConnectionException;
 use App\Mailbox\Domain\Repository\EmailAccountRepositoryInterface;
 use App\Mailbox\Domain\Repository\EmailMessageRepositoryInterface;
+use App\Mailbox\Domain\Repository\EmailSyncRunRepositoryInterface;
 use App\Mailbox\UI\Form\EmailAccountFormData;
 use App\Mailbox\UI\Form\EmailAccountFormType;
+use App\Mailbox\UI\Form\ForwardingFormData;
+use App\Mailbox\UI\Form\ForwardingFormType;
 use App\Shared\Domain\Exception\InvalidArgumentException;
 
 use function count;
@@ -44,6 +51,7 @@ final class EmailAccountController extends AbstractController
     public function __construct(
         private readonly EmailAccountRepositoryInterface $accounts,
         private readonly EmailMessageRepositoryInterface $messages,
+        private readonly EmailSyncRunRepositoryInterface $runs,
     ) {
     }
 
@@ -93,7 +101,111 @@ final class EmailAccountController extends AbstractController
         return $this->render('mail/accounts/show.html.twig', [
             'account' => $account,
             'messageCount' => $this->messages->countForAccount($account->getId()),
+            'runs' => $this->runs->findRecentForAccount($account->getId()),
+            'forwardingForm' => $this->createForm(
+                ForwardingFormType::class,
+                ForwardingFormData::fromSenders($account->getForwardingSenders()),
+                ['csrf_token_id' => 'mail_account_forwarding_'.$account->getId()->toRfc4122()],
+            )->createView(),
         ]);
+    }
+
+    /**
+     * Sincroniza el buzón a petición del usuario.
+     *
+     * La sincronización programada ya corre sola, pero poder lanzarla a mano es
+     * lo que hace que el producto se sienta inmediato: conectas el correo y
+     * quieres ver resultados, no esperar a la siguiente pasada.
+     */
+    #[Route('/{id}/sync', name: 'sync', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    public function sync(EmailAccount $account, Request $request, SyncEmailAccount $syncEmailAccount): Response
+    {
+        $this->assertCsrf($request, 'mail_account_sync_'.$account->getId()->toRfc4122());
+
+        try {
+            $run = $syncEmailAccount($account, $this->actorId());
+        } catch (ImapConnectionException|InvalidArgumentException $exception) {
+            $this->addFlash('error', $exception->getMessage());
+
+            return $this->redirectToRoute('app_mail_accounts_show', ['id' => $account->getId()->toRfc4122()]);
+        }
+
+        $this->addFlash('success', sprintf(
+            'Lectura terminada: %d mensajes revisados, %d nuevos, %d descubrimientos.',
+            $run->getMessagesSeen(),
+            $run->getMessagesProcessed(),
+            $run->getDiscoveriesCreated(),
+        ));
+
+        return $this->redirectToRoute('app_mail_accounts_show', ['id' => $account->getId()->toRfc4122()]);
+    }
+
+    /**
+     * Activa la ingesta por reenvío o cambia los remitentes autorizados.
+     *
+     * Es la alternativa a dar acceso al buzón (D-21): se entrega una dirección
+     * dedicada y el usuario reenvía ahí sus facturas.
+     */
+    #[Route('/{id}/forwarding', name: 'forwarding', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    public function forwarding(EmailAccount $account, Request $request, EnableEmailForwarding $enableForwarding): Response
+    {
+        $data = ForwardingFormData::fromSenders($account->getForwardingSenders());
+        $form = $this->createForm(ForwardingFormType::class, $data, [
+            'csrf_token_id' => 'mail_account_forwarding_'.$account->getId()->toRfc4122(),
+        ]);
+        $form->handleRequest($request);
+
+        if (!$form->isSubmitted() || !$form->isValid()) {
+            $this->addFlash('error', 'No hemos podido guardar los remitentes. Revisa las direcciones.');
+
+            return $this->redirectToRoute('app_mail_accounts_show', ['id' => $account->getId()->toRfc4122()]);
+        }
+
+        $wasEnabled = $account->isForwardingEnabled();
+
+        try {
+            $enableForwarding($account, $data->toSenders(), $this->actorId());
+        } catch (InvalidArgumentException $exception) {
+            $this->addFlash('error', $exception->getMessage());
+
+            return $this->redirectToRoute('app_mail_accounts_show', ['id' => $account->getId()->toRfc4122()]);
+        }
+
+        $this->addFlash('success', $wasEnabled
+            ? 'Remitentes autorizados actualizados.'
+            : 'Reenvío activado. Copia la dirección y configúrala en tu correo.');
+
+        return $this->redirectToRoute('app_mail_accounts_show', ['id' => $account->getId()->toRfc4122()]);
+    }
+
+    #[Route('/{id}/forwarding/rotate', name: 'forwarding_rotate', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    public function rotateForwarding(EmailAccount $account, Request $request, RotateForwardingAddress $rotateForwardingAddress): Response
+    {
+        $this->assertCsrf($request, 'mail_account_forwarding_rotate_'.$account->getId()->toRfc4122());
+
+        try {
+            $rotateForwardingAddress($account, $this->actorId());
+        } catch (InvalidArgumentException $exception) {
+            $this->addFlash('error', $exception->getMessage());
+
+            return $this->redirectToRoute('app_mail_accounts_show', ['id' => $account->getId()->toRfc4122()]);
+        }
+
+        $this->addFlash('success', 'Dirección cambiada. La anterior ya no acepta correo: actualízala en tu proveedor.');
+
+        return $this->redirectToRoute('app_mail_accounts_show', ['id' => $account->getId()->toRfc4122()]);
+    }
+
+    #[Route('/{id}/forwarding/disable', name: 'forwarding_disable', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    public function disableForwarding(EmailAccount $account, Request $request, DisableEmailForwarding $disableEmailForwarding): Response
+    {
+        $this->assertCsrf($request, 'mail_account_forwarding_disable_'.$account->getId()->toRfc4122());
+
+        $disableEmailForwarding($account, $this->actorId());
+
+        $this->addFlash('success', 'Reenvío desactivado. La dirección deja de aceptar correo.');
+
+        return $this->redirectToRoute('app_mail_accounts_show', ['id' => $account->getId()->toRfc4122()]);
     }
 
     #[Route('/{id}/edit', name: 'edit', methods: ['GET', 'POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]

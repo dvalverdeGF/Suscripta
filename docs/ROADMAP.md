@@ -309,7 +309,7 @@ documento de otra organización; el fichero no es accesible por URL directa.
 
 ## Fase 8 — Conexión de correo completa (IMAP y reenvío)
 
-> **Estado:** ⬜ Pendiente.
+> **Estado:** ✅ Completada.
 
 
 **Objetivo:** ingesta robusta, incremental y multi-proveedor.
@@ -331,6 +331,81 @@ credenciales y mensajes; nunca se ejecuta una operación de escritura sobre el b
 reenviado desde una dirección no autorizada se rechaza; funciona con al menos tres proveedores
 distintos; **con dos cuentas conectadas a la vez, una factura presente en ambas genera un solo
 descubrimiento**.
+
+**Implementado**
+
+- **`EmailSyncCursor`** (`email_sync_cursor`): `uidValidity` + `lastSeenUid` + `backfillCursor`
+  por cuenta y carpeta, con `UNIQUE (email_account_id, folder)`. `observeUidValidity()` detecta
+  la renumeración del servidor y reinicia el cursor; `advanceTo()` nunca retrocede.
+- **Lectura incremental real.** `ImapClientInterface` pasa de 4 a 7 métodos:
+  `getUidValidity()`, `fetchHeadersAfter()` y `fetchHeadersBefore()`. `WebklexImapClient`
+  comparte una única implementación privada (`fetch()`) para las tres lecturas de cabeceras y
+  aísla el truco del rango de UID (`CUSTOM UID 100:*`) en un solo método, porque la API de alto
+  nivel entrecomilla cualquier valor no numérico y el servidor lo rechaza.
+- **Backfill progresivo.** La primera pasada lee la ventana acotada (6 meses por defecto) y,
+  a continuación, un lote hacia atrás. El backfill termina cuando el lote vuelve vacío, llega
+  incompleto o alcanza el UID 1. `EmailSyncRun` gana `messagesBackfilled`.
+- **Vía de reenvío completa.** `ForwardingAddressFactory` genera
+  `inbox-<32 hex>@<dominio>` con `random_bytes(16)`; `EnableEmailForwarding`,
+  `RotateForwardingAddress`, `DisableEmailForwarding` y `UpdateForwardingSenders` la gestionan;
+  `IngestForwardedEmail` valida destinatario, estado, remitente autorizado, tamaño y caudal, y
+  encola el mensaje. `InboundEmailController` expone `POST /mail/inbound`.
+- **`EmailMessage.source`** (`imap` / `forwarding`) y **`uid` nullable**: un reenvío nunca
+  estuvo en una carpeta IMAP. La deduplicación de reenvíos se apoya en `messageId` y
+  `contentHash`, que usa la **misma normalización** que el pipeline para compartir la caché de
+  extracción (D-37).
+- **UI completa:** botón «Sincronizar ahora», panel de reenvío (dirección, remitentes
+  autorizados, rotar, desactivar) y tabla «Últimas lecturas» con estado, revisados, nuevos y
+  descubrimientos.
+- **Desconectar** borra credenciales, mensajes indexados y cursores, y desactiva el reenvío;
+  los servicios confirmados permanecen (`SECURITY.md` §6).
+
+**Verificación realizada**
+
+- `tests/Unit/Mailbox/Application/SyncEmailAccountTest.php` (23 pruebas): lectura incremental,
+  reinicio por `uidValidity`, backfill, orden de lectura, idempotencia.
+- `tests/Unit/Mailbox/Application/MultiProviderSyncTest.php` (8 pruebas): **Gmail, Microsoft
+  365, servidor IMAP propio y correo de hosting** recorren el mismo camino genérico; se
+  comprueba que los parámetros que llegan al cliente son exactamente los configurados y que la
+  contraseña nunca aparece en la descripción de la conexión.
+- `tests/Unit/Mailbox/Application/EmailAccountRemovalTest.php` (8 pruebas): desconectar
+  destruye credenciales, borra mensajes y cursores, desactiva el reenvío y conserva la cuenta;
+  borrar además la marca como eliminada y no toca los mensajes de otra cuenta.
+- `tests/Unit/Mailbox/Application/Forwarding/*` (38 pruebas) y
+  `tests/Unit/Mailbox/Domain/Entity/EmailAccountForwardingTest.php` (13 pruebas): generación,
+  rotación, autorización por dirección y por dominio, y **rechazo de dominios parecidos**.
+- `tests/Functional/Mailbox/InboundEmailTest.php` (15 pruebas): los siete estados de ingesta,
+  deduplicación, auditoría, endpoint público, `405` y el contrato «encolado, no procesado en la
+  petición».
+- `tests/Functional/Mailbox/EmailAccountTest.php` (29 pruebas): UI de sincronización y de
+  reenvío, CSRF, y el contrato de **solo lectura** sobre los 7 métodos del cliente IMAP.
+- `tests/Functional/Processing/CrossAccountDedupTest.php` (2 pruebas): **la misma factura en
+  dos cuentas de la misma organización produce un único descubrimiento con dos evidencias**;
+  dos importes distintos producen dos descubrimientos.
+
+**Fallos reales encontrados y corregidos**
+
+1. **El correo reenviado se procesaba dentro de la petición HTTP del proveedor.**
+   `IngestForwardedEmail` despachaba `ProcessEmailMessageMessage` **sin**
+   `TransportNamesStamp`. Como `messenger.yaml` no declara `routing:` para ese mensaje —el
+   pipeline se enruta explícitamente por mensaje—, Messenger lo trató como síncrono y ejecutó
+   todo el pipeline (billing score, extracción, matching) antes de responder. Riesgo de
+   *timeout* y de trabajo duplicado en cada reintento del proveedor. Se corrigió despachando
+   con `[new TransportNamesStamp(['mail_processing'])]` y se añadió una prueba de regresión que
+   comprueba que el mensaje queda en estado `RECEIVED`.
+2. **Desconectar no borraba los mensajes ni los cursores.** `SECURITY.md` §6 y esta misma fase
+   dicen que desconectar elimina credenciales, cursores y mensajes asociados, pero
+   `DisconnectEmailAccount` solo borraba las credenciales. Se corrigió añadiendo el borrado de
+   mensajes y cursores, y **desactivando el reenvío**: una cuenta «desconectada» seguía
+   aceptando correo reenviado porque `findByForwardingAddress()` no miraba el estado.
+3. **`InMemoryTransport` se vacía entre peticiones.** Implementa `ResetInterface` y
+   `Kernel::boot()` reinicia los servicios cuando no hay petición en curso, así que la cola no
+   sobrevive de una petición a la siguiente ni con `disableReboot()`. Las pruebas tienen que
+   vaciar la cola inmediatamente después de cada petición. Además `get()` lee
+   `func_num_args()` y devuelve **un solo** sobre por defecto, y su firma declara cero
+   parámetros, así que PHPStan rechaza `get(100)`.
+4. **`assertSame` sobre dos `Uuid` compara identidad, no valor.** Varias aserciones
+   comparaban objetos; se normalizaron a `->toRfc4122()`.
 
 ## Fase 9 — Pipeline: ingesta, metadatos, filtros y billing score (niveles 0–2)
 

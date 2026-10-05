@@ -77,6 +77,21 @@ final class EmailAccountRepository extends DoctrineRepository implements EmailAc
             ->getOneOrNullResult();
     }
 
+    public function findByForwardingAddress(string $address): ?EmailAccount
+    {
+        return $this->entityManager
+            ->createQueryBuilder()
+            ->select('a')
+            ->from(EmailAccount::class, 'a')
+            ->where('a.forwardingAddress = :address')
+            ->andWhere('a.forwardingEnabled = true')
+            ->andWhere('a.deletedAt IS NULL')
+            ->setParameter('address', mb_strtolower(trim($address)))
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
     public function countForOrganization(): int
     {
         return (int) $this->entityManager

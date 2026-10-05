@@ -35,6 +35,6 @@ final readonly class ProcessEmailMessageHandler
             return;
         }
 
-        ($this->processEmailMessage)($emailMessage);
+        ($this->processEmailMessage)($emailMessage, body: $message->body);
     }
 }

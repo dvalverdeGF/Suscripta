@@ -48,6 +48,55 @@ interface ImapClientInterface
     ): array;
 
     /**
+     * `UIDVALIDITY` de la carpeta.
+     *
+     * Es el número que el servidor cambia cuando renumera los UID. Sin
+     * comprobarlo, un cursor guardado podría hacer que la sincronización se
+     * saltara mensajes nuevos en silencio (ARCHITECTURE.md §13.2).
+     *
+     * @throws ImapConnectionException
+     * @throws ImapFetchException
+     */
+    public function getUidValidity(ImapConnectionConfig $config, string $folder): int;
+
+    /**
+     * Cabeceras de los mensajes con UID **mayor** que `$afterUid`, de más
+     * antiguo a más reciente.
+     *
+     * Es la lectura incremental: solo lo que ha llegado desde la última vez.
+     *
+     * @return list<ImapMessageHeader>
+     *
+     * @throws ImapConnectionException
+     * @throws ImapFetchException
+     */
+    public function fetchHeadersAfter(
+        ImapConnectionConfig $config,
+        string $folder,
+        int $afterUid,
+        int $limit = 200,
+    ): array;
+
+    /**
+     * Cabeceras de los mensajes con UID **menor** que `$beforeUid`, de más
+     * reciente a más antiguo.
+     *
+     * Es la lectura hacia atrás del backfill progresivo: recupera histórico sin
+     * bloquear la llegada de correo nuevo.
+     *
+     * @return list<ImapMessageHeader>
+     *
+     * @throws ImapConnectionException
+     * @throws ImapFetchException
+     */
+    public function fetchHeadersBefore(
+        ImapConnectionConfig $config,
+        string $folder,
+        int $beforeUid,
+        int $limit = 200,
+    ): array;
+
+    /**
      * Cuerpo de un mensaje concreto, sin marcarlo como leído.
      *
      * @throws ImapConnectionException

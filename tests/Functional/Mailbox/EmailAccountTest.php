@@ -13,10 +13,15 @@ use App\Mailbox\Domain\Entity\EmailAccount;
 use App\Mailbox\Domain\Enum\EmailAccountStatus;
 use App\Mailbox\Domain\Enum\ImapEncryption;
 use App\Mailbox\Domain\Repository\EmailAccountRepositoryInterface;
+use App\Mailbox\Domain\Repository\EmailMessageRepositoryInterface;
+use App\Mailbox\Domain\Repository\EmailSyncCursorRepositoryInterface;
 use App\Tests\Support\Imap\RecordingImapClient;
 use DateTimeImmutable;
 use ReflectionClass;
 use ReflectionMethod;
+
+use function sprintf;
+
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -237,6 +242,49 @@ final class EmailAccountTest extends WebTestCase
         self::assertFalse($reloaded->isConfigured());
     }
 
+    public function testDisconnectingTakesTheIndexedMailWithIt(): void
+    {
+        $account = $this->connect();
+        $this->readOneMessage($account);
+
+        self::assertGreaterThan(0, $this->messages()->countForAccount($account->getId()), 'La lectura ha indexado el mensaje.');
+
+        $this->show($account);
+        $this->client->submitForm('Desconectar');
+        $this->client->followRedirect();
+
+        self::assertSame(0, $this->messages()->countForAccount($account->getId()), 'Desconectar borra los mensajes indexados (SECURITY.md §6).');
+        self::assertCount(0, $this->cursors()->findForAccount($account->getId()), 'Desconectar borra también el cursor de sincronización.');
+    }
+
+    public function testDisconnectingStopsAcceptingForwardedMail(): void
+    {
+        $account = $this->connect();
+
+        $this->show($account);
+        $this->client->request('POST', '/mail/accounts/'.$account->getId()->toRfc4122().'/forwarding', [
+            'forwarding_form' => [
+                'senders' => 'yo@miempresa.com',
+                '_token' => $this->tokenFrom('/forwarding', 'forwarding_form[_token]'),
+            ],
+        ]);
+        $this->client->followRedirect();
+
+        $enabled = $this->accounts()->find($account->getId());
+        self::assertNotNull($enabled);
+        $address = (string) $enabled->getForwardingAddress();
+        self::assertNotNull($this->accounts()->findByForwardingAddress($address));
+
+        $this->show($enabled);
+        $this->client->submitForm('Desconectar');
+        $this->client->followRedirect();
+
+        self::assertNull(
+            $this->accounts()->findByForwardingAddress($address),
+            'Si el usuario deja de compartir su correo, la dirección de reenvío no puede seguir aceptando mensajes.',
+        );
+    }
+
     public function testDeletingAMailboxRemovesItAndItsData(): void
     {
         $account = $this->connect();
@@ -327,7 +375,11 @@ final class EmailAccountTest extends WebTestCase
         $reflection = new ReflectionClass(ImapClientInterface::class);
         $names = array_map(static fn (ReflectionMethod $method): string => $method->getName(), $reflection->getMethods());
 
-        self::assertSame(['testConnection', 'listFolders', 'fetchHeaders', 'fetchBody'], $names, 'El contrato de IMAP es de solo lectura: no existe ninguna operación de escritura.');
+        self::assertSame(
+            ['testConnection', 'listFolders', 'fetchHeaders', 'getUidValidity', 'fetchHeadersAfter', 'fetchHeadersBefore', 'fetchBody'],
+            $names,
+            'El contrato de IMAP es de solo lectura: no existe ninguna operación de escritura.',
+        );
     }
 
     public function testTheBodyIsNotDownloadedWhenListingMailboxes(): void
@@ -341,6 +393,278 @@ final class EmailAccountTest extends WebTestCase
 
         self::assertCount(0, $this->imap->fetchBodyCalls);
         self::assertCount(0, $this->imap->fetchHeadersCalls);
+    }
+
+    /**
+     * Extrae el token CSRF del formulario que apunta a la acción indicada.
+     *
+     * Se lee del HTML en lugar de pedírselo al gestor de tokens porque así se
+     * comprueba de paso que el formulario se renderiza de verdad.
+     */
+    private function tokenFrom(string $actionSuffix, string $field = '_token'): string
+    {
+        $node = $this->client->getCrawler()->filter(sprintf('form[action$="%s"] input[name="%s"]', $actionSuffix, $field));
+
+        self::assertGreaterThan(0, $node->count(), sprintf('No se ha encontrado el formulario "%s".', $actionSuffix));
+
+        $token = $node->first()->attr('value');
+
+        self::assertNotNull($token);
+
+        return $token;
+    }
+
+    private function show(EmailAccount $account): void
+    {
+        $this->client->request('GET', '/mail/accounts/'.$account->getId()->toRfc4122());
+        self::assertResponseIsSuccessful();
+    }
+
+    private function messages(): EmailMessageRepositoryInterface
+    {
+        return self::getContainer()->get(EmailMessageRepositoryInterface::class);
+    }
+
+    private function cursors(): EmailSyncCursorRepositoryInterface
+    {
+        return self::getContainer()->get(EmailSyncCursorRepositoryInterface::class);
+    }
+
+    /**
+     * Sincroniza el buzón con un mensaje de factura, para poder comprobar
+     * después qué se lleva por delante una desconexión.
+     */
+    private function readOneMessage(EmailAccount $account): void
+    {
+        $this->imap->reset();
+        $this->imap->willReturnHeaders([
+            new ImapMessageHeader(
+                uid: 1,
+                messageId: '<factura-1@miempresa.com>',
+                fromAddress: 'facturacion@miempresa.com',
+                fromName: 'Mi Empresa',
+                replyTo: null,
+                toAddresses: ['facturas@miempresa.com'],
+                subject: 'Factura de octubre',
+                receivedAt: new DateTimeImmutable('2026-10-03 08:00:00'),
+                sizeBytes: 2048,
+                contentType: 'multipart/mixed',
+                attachmentNames: ['factura.pdf'],
+                attachmentTypes: ['application/pdf'],
+            ),
+        ]);
+
+        $this->show($account);
+        $this->client->request('POST', '/mail/accounts/'.$account->getId()->toRfc4122().'/sync', [
+            '_token' => $this->tokenFrom('/sync'),
+        ]);
+        $this->client->followRedirect();
+    }
+
+    public function testTheShowPageOffersToSyncNow(): void
+    {
+        $account = $this->connect();
+
+        $this->show($account);
+
+        self::assertSelectorTextContains('.page-header__actions', 'Sincronizar ahora');
+    }
+
+    public function testSyncingNowReadsTheMailboxAndReportsTheResult(): void
+    {
+        $account = $this->connect();
+        $this->imap->reset();
+
+        $this->show($account);
+        $token = $this->tokenFrom('/sync');
+
+        $this->client->request('POST', '/mail/accounts/'.$account->getId()->toRfc4122().'/sync', ['_token' => $token]);
+
+        self::assertResponseRedirects('/mail/accounts/'.$account->getId()->toRfc4122());
+        $this->client->followRedirect();
+
+        self::assertSelectorTextContains('.flash-region', 'Lectura terminada: 0 mensajes revisados, 0 nuevos, 0 descubrimientos.');
+        self::assertCount(1, $this->imap->uidValidityCalls, 'La lectura incremental empieza por conocer el UIDVALIDITY.');
+        self::assertCount(1, $this->imap->fetchHeadersCalls);
+    }
+
+    public function testTheSyncHistoryIsListedAfterReading(): void
+    {
+        $account = $this->connect();
+
+        $this->show($account);
+        $this->client->request('POST', '/mail/accounts/'.$account->getId()->toRfc4122().'/sync', [
+            '_token' => $this->tokenFrom('/sync'),
+        ]);
+        $this->client->followRedirect();
+
+        self::assertSelectorTextContains('.app-main', 'Últimas lecturas');
+        self::assertSelectorTextContains('.app-main', 'Completada');
+    }
+
+    public function testSyncingWithoutAValidTokenIsRejected(): void
+    {
+        $account = $this->connect();
+
+        $this->client->request('POST', '/mail/accounts/'.$account->getId()->toRfc4122().'/sync', ['_token' => 'no-es-un-token']);
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testForwardingIsOfferedButOffByDefault(): void
+    {
+        $account = $this->connect();
+
+        $this->show($account);
+
+        self::assertSelectorTextContains('.app-main', 'Reenviar facturas sin dar acceso al buzón');
+        self::assertSelectorTextContains('.app-main', 'Activar reenvío');
+        self::assertFalse($account->isForwardingEnabled());
+        self::assertNull($account->getForwardingAddress());
+    }
+
+    public function testEnablingForwardingGeneratesAnAddressAndStoresTheSenders(): void
+    {
+        $account = $this->connect();
+
+        $this->show($account);
+        $this->client->request('POST', '/mail/accounts/'.$account->getId()->toRfc4122().'/forwarding', [
+            'forwarding_form' => [
+                'senders' => "yo@miempresa.com\n@migestoria.com",
+                '_token' => $this->tokenFrom('/forwarding', 'forwarding_form[_token]'),
+            ],
+        ]);
+
+        self::assertResponseRedirects('/mail/accounts/'.$account->getId()->toRfc4122());
+        $this->client->followRedirect();
+
+        self::assertSelectorTextContains('.flash-region', 'Reenvío activado.');
+
+        $reloaded = $this->accounts()->find($account->getId());
+        self::assertNotNull($reloaded);
+        self::assertTrue($reloaded->isForwardingEnabled());
+        self::assertSame(['yo@miempresa.com', '@migestoria.com'], $reloaded->getForwardingSenders());
+
+        $address = $reloaded->getForwardingAddress();
+        self::assertNotNull($address);
+        self::assertMatchesRegularExpression('/^inbox-[0-9a-f]{32}@inbound\.suscripta\.local$/', $address);
+
+        // La dirección se muestra para que el usuario pueda copiarla.
+        self::assertSelectorTextContains('.app-main', (string) $address);
+    }
+
+    public function testTheForwardingAddressIsNotDerivedFromTheMailbox(): void
+    {
+        $account = $this->connect();
+
+        $this->show($account);
+        $this->client->request('POST', '/mail/accounts/'.$account->getId()->toRfc4122().'/forwarding', [
+            'forwarding_form' => [
+                'senders' => 'yo@miempresa.com',
+                '_token' => $this->tokenFrom('/forwarding', 'forwarding_form[_token]'),
+            ],
+        ]);
+        $this->client->followRedirect();
+
+        $reloaded = $this->accounts()->find($account->getId());
+        self::assertNotNull($reloaded);
+
+        $address = (string) $reloaded->getForwardingAddress();
+
+        self::assertStringNotContainsString('facturas', $address);
+        self::assertStringNotContainsString('miempresa', $address);
+    }
+
+    public function testRotatingTheForwardingAddressInvalidatesThePreviousOne(): void
+    {
+        $account = $this->connect();
+
+        $this->show($account);
+        $this->client->request('POST', '/mail/accounts/'.$account->getId()->toRfc4122().'/forwarding', [
+            'forwarding_form' => [
+                'senders' => 'yo@miempresa.com',
+                '_token' => $this->tokenFrom('/forwarding', 'forwarding_form[_token]'),
+            ],
+        ]);
+        $this->client->followRedirect();
+
+        $before = $this->accounts()->find($account->getId());
+        self::assertNotNull($before);
+        $previous = (string) $before->getForwardingAddress();
+
+        $this->show($before);
+        $this->client->request('POST', '/mail/accounts/'.$account->getId()->toRfc4122().'/forwarding/rotate', [
+            '_token' => $this->tokenFrom('/forwarding/rotate'),
+        ]);
+
+        self::assertResponseRedirects('/mail/accounts/'.$account->getId()->toRfc4122());
+        $this->client->followRedirect();
+
+        self::assertSelectorTextContains('.flash-region', 'Dirección cambiada.');
+
+        $after = $this->accounts()->find($account->getId());
+        self::assertNotNull($after);
+
+        self::assertNotSame($previous, $after->getForwardingAddress());
+        self::assertSame(['yo@miempresa.com'], $after->getForwardingSenders(), 'Cambiar la dirección no toca los remitentes.');
+        self::assertNull($this->accounts()->findByForwardingAddress($previous), 'La dirección anterior deja de resolver.');
+    }
+
+    public function testDisablingForwardingStopsAcceptingMailButKeepsTheAddress(): void
+    {
+        $account = $this->connect();
+
+        $this->show($account);
+        $this->client->request('POST', '/mail/accounts/'.$account->getId()->toRfc4122().'/forwarding', [
+            'forwarding_form' => [
+                'senders' => 'yo@miempresa.com',
+                '_token' => $this->tokenFrom('/forwarding', 'forwarding_form[_token]'),
+            ],
+        ]);
+        $this->client->followRedirect();
+
+        $enabled = $this->accounts()->find($account->getId());
+        self::assertNotNull($enabled);
+        $address = (string) $enabled->getForwardingAddress();
+
+        $this->show($enabled);
+        $this->client->request('POST', '/mail/accounts/'.$account->getId()->toRfc4122().'/forwarding/disable', [
+            '_token' => $this->tokenFrom('/forwarding/disable'),
+        ]);
+
+        self::assertResponseRedirects('/mail/accounts/'.$account->getId()->toRfc4122());
+        $this->client->followRedirect();
+
+        self::assertSelectorTextContains('.flash-region', 'Reenvío desactivado.');
+
+        $disabled = $this->accounts()->find($account->getId());
+        self::assertNotNull($disabled);
+
+        self::assertFalse($disabled->isForwardingEnabled());
+        self::assertSame($address, $disabled->getForwardingAddress(), 'La dirección se conserva por si se vuelve a activar.');
+        self::assertNull($this->accounts()->findByForwardingAddress($address), 'Una dirección desactivada ya no acepta correo.');
+    }
+
+    public function testAnInvalidForwardingSenderIsRejected(): void
+    {
+        $account = $this->connect();
+
+        $this->show($account);
+        $this->client->request('POST', '/mail/accounts/'.$account->getId()->toRfc4122().'/forwarding', [
+            'forwarding_form' => [
+                'senders' => 'esto-no-es-un-correo',
+                '_token' => $this->tokenFrom('/forwarding', 'forwarding_form[_token]'),
+            ],
+        ]);
+
+        self::assertResponseRedirects('/mail/accounts/'.$account->getId()->toRfc4122());
+        $this->client->followRedirect();
+
+        self::assertSelectorTextContains('.flash-region', 'no es una dirección ni un dominio válido');
+
+        $reloaded = $this->accounts()->find($account->getId());
+        self::assertNotNull($reloaded);
+        self::assertFalse($reloaded->isForwardingEnabled(), 'Un remitente inválido no activa el reenvío.');
     }
 
     public function testAnUnusedImportIsNotSilentlyIgnored(): void

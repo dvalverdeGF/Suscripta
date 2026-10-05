@@ -51,6 +51,14 @@ class EmailSyncRun implements TenantAwareInterface
     #[ORM\Column(name: 'messages_skipped', type: Types::INTEGER)]
     private int $messagesSkipped = 0;
 
+    /**
+     * Mensajes recuperados del histórico en esta pasada. Se cuenta aparte
+     * porque el backfill es progresivo: una pasada normal no recupera nada y
+     * una de backfill no trae correo nuevo.
+     */
+    #[ORM\Column(name: 'messages_backfilled', type: Types::INTEGER)]
+    private int $messagesBackfilled = 0;
+
     #[ORM\Column(name: 'discoveries_created', type: Types::INTEGER)]
     private int $discoveriesCreated = 0;
 
@@ -115,6 +123,11 @@ class EmailSyncRun implements TenantAwareInterface
         return $this->messagesSkipped;
     }
 
+    public function getMessagesBackfilled(): int
+    {
+        return $this->messagesBackfilled;
+    }
+
     public function getDiscoveriesCreated(): int
     {
         return $this->discoveriesCreated;
@@ -138,6 +151,11 @@ class EmailSyncRun implements TenantAwareInterface
     public function countSkipped(int $count = 1): void
     {
         $this->messagesSkipped += $count;
+    }
+
+    public function countBackfilled(int $count = 1): void
+    {
+        $this->messagesBackfilled += $count;
     }
 
     public function countDiscovery(int $count = 1): void

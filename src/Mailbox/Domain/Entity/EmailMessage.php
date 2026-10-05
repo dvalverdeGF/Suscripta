@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Mailbox\Domain\Entity;
 
+use App\Mailbox\Domain\Enum\EmailMessageSource;
 use App\Mailbox\Domain\Enum\ExtractionTier;
 use App\Mailbox\Domain\Enum\MessageClassification;
 use App\Mailbox\Domain\Enum\MessageProcessingState;
@@ -52,8 +53,16 @@ class EmailMessage implements TenantAwareInterface
     #[ORM\Column(type: Types::STRING, length: 120)]
     private string $folder;
 
-    #[ORM\Column(type: Types::INTEGER)]
-    private int $uid;
+    /**
+     * UID de IMAP. Es `null` en los mensajes que llegan por reenvío, porque no
+     * existen en ningún buzón (D-21). La deduplicación de esos mensajes se apoya
+     * en `messageId`.
+     */
+    #[ORM\Column(type: Types::INTEGER, nullable: true)]
+    private ?int $uid;
+
+    #[ORM\Column(type: Types::STRING, length: 20, enumType: EmailMessageSource::class)]
+    private EmailMessageSource $source;
 
     #[ORM\Column(name: 'message_id', type: Types::STRING, length: 255, nullable: true)]
     private ?string $messageId = null;
@@ -156,10 +165,15 @@ class EmailMessage implements TenantAwareInterface
         Uuid $organizationId,
         Uuid $emailAccountId,
         string $folder,
-        int $uid,
+        ?int $uid = null,
+        EmailMessageSource $source = EmailMessageSource::IMAP,
     ) {
-        if ($uid < 1) {
+        if (null !== $uid && $uid < 1) {
             throw new InvalidArgumentException(sprintf('El UID de IMAP debe ser positivo, se recibió %d.', $uid));
+        }
+
+        if (EmailMessageSource::IMAP === $source && null === $uid) {
+            throw new InvalidArgumentException('Un mensaje leído del buzón necesita un UID de IMAP.');
         }
 
         $this->id = Uuid::v7();
@@ -167,6 +181,7 @@ class EmailMessage implements TenantAwareInterface
         $this->emailAccountId = $emailAccountId;
         $this->folder = $folder;
         $this->uid = $uid;
+        $this->source = $source;
         $this->createdAt = new DateTimeImmutable();
     }
 
@@ -195,9 +210,14 @@ class EmailMessage implements TenantAwareInterface
         return $this->folder;
     }
 
-    public function getUid(): int
+    public function getUid(): ?int
     {
         return $this->uid;
+    }
+
+    public function getSource(): EmailMessageSource
+    {
+        return $this->source;
     }
 
     public function getMessageId(): ?string

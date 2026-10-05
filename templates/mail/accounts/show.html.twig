@@ -9,6 +9,12 @@
             <p class="page-header__subtitle">{{ account.emailAddress }}</p>
         </div>
         <div class="page-header__actions">
+            {% if account.isConfigured %}
+                <form method="post" action="{{ path('app_mail_accounts_sync', {id: account.id.toRfc4122()}) }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('mail_account_sync_' ~ account.id.toRfc4122()) }}">
+                    <button type="submit" class="btn btn--primary btn--sm">Sincronizar ahora</button>
+                </form>
+            {% endif %}
             <a class="btn btn--secondary btn--sm" href="{{ path('app_mail_accounts_edit', {id: account.id.toRfc4122()}) }}">Editar</a>
         </div>
     </div>
@@ -84,6 +90,105 @@
                     </form>
                 {% endif %}
             </div>
+        </div>
+    </div>
+
+    <div class="card mb-6">
+        <div class="card__header">
+            <h2 class="card__title">Reenviar facturas sin dar acceso al buzón</h2>
+        </div>
+        <div class="card__body">
+            {% if account.isForwardingEnabled %}
+                <p class="text-muted">
+                    Reenvía tus facturas a esta dirección y las leeremos igual que si
+                    tuviéramos acceso al buzón. No necesitamos tu contraseña.
+                </p>
+                <div class="field">
+                    <span class="field__label">Tu dirección de ingesta</span>
+                    <p class="num"><code>{{ account.forwardingAddress }}</code></p>
+                    <p class="field__hint">
+                        Trátala como una contraseña: quien la conozca podría intentar
+                        enviarte facturas falsas. Si se filtra, cámbiala.
+                    </p>
+                </div>
+            {% else %}
+                <p class="text-muted">
+                    Si prefieres no darnos acceso a tu correo, activa el reenvío: te
+                    damos una dirección dedicada y tú reenvías ahí tus facturas.
+                    No hace falta contraseña ni autorizar ninguna aplicación.
+                </p>
+            {% endif %}
+
+            {{ form_start(forwardingForm, {action: path('app_mail_accounts_forwarding', {id: account.id.toRfc4122()})}) }}
+                {{ form_row(forwardingForm.senders) }}
+                <div class="form-actions">
+                    <button type="submit" class="btn btn--primary">
+                        {{ account.isForwardingEnabled ? 'Guardar remitentes' : 'Activar reenvío' }}
+                    </button>
+                </div>
+            {{ form_end(forwardingForm) }}
+
+            {% if account.isForwardingEnabled %}
+                <div class="cluster mt-4">
+                    <form method="post" action="{{ path('app_mail_accounts_forwarding_rotate', {id: account.id.toRfc4122()}) }}"
+                          data-controller="confirm"
+                          data-confirm-message-value="La dirección actual dejará de aceptar correo. Tendrás que actualizarla en tu proveedor.">
+                        <input type="hidden" name="_token" value="{{ csrf_token('mail_account_forwarding_rotate_' ~ account.id.toRfc4122()) }}">
+                        <button type="submit" class="btn btn--secondary btn--sm">Cambiar la dirección</button>
+                    </form>
+                    <form method="post" action="{{ path('app_mail_accounts_forwarding_disable', {id: account.id.toRfc4122()}) }}"
+                          data-controller="confirm"
+                          data-confirm-message-value="La dirección dejará de aceptar correo. Podrás volver a activarla.">
+                        <input type="hidden" name="_token" value="{{ csrf_token('mail_account_forwarding_disable_' ~ account.id.toRfc4122()) }}">
+                        <button type="submit" class="btn btn--ghost btn--sm">Desactivar reenvío</button>
+                    </form>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card mb-6">
+        <div class="card__header">
+            <h2 class="card__title">Últimas lecturas</h2>
+        </div>
+        <div class="card__body{% if runs is not empty %} card__body--flush{% endif %}">
+            {% if runs is empty %}
+                <p class="text-muted">Todavía no hemos leído este buzón.</p>
+            {% else %}
+                <div class="table-wrapper">
+                    <table class="table table--responsive">
+                        <thead>
+                            <tr>
+                                <th scope="col">Cuándo</th>
+                                <th scope="col">Resultado</th>
+                                <th scope="col" class="text-right">Revisados</th>
+                                <th scope="col" class="text-right">Nuevos</th>
+                                <th scope="col" class="text-right">Descubrimientos</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for run in runs %}
+                                <tr>
+                                    <td data-label="Cuándo">
+                                        <time datetime="{{ run.startedAt|date('c') }}">{{ run.startedAt|date('d/m/Y H:i') }}</time>
+                                    </td>
+                                    <td data-label="Resultado">
+                                        <span class="badge badge--{{ run.status.value == 'completed' ? 'success' : (run.status.value == 'failed' ? 'danger' : 'info') }}">
+                                            {{ run.status.label() }}
+                                        </span>
+                                        {% if run.error %}
+                                            <p class="text-sm text-muted">{{ run.error }}</p>
+                                        {% endif %}
+                                    </td>
+                                    <td data-label="Revisados" class="text-right num">{{ run.messagesSeen }}</td>
+                                    <td data-label="Nuevos" class="text-right num">{{ run.messagesProcessed }}</td>
+                                    <td data-label="Descubrimientos" class="text-right num">{{ run.discoveriesCreated }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
         </div>
     </div>
 

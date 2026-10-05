@@ -27,7 +27,7 @@ final readonly class ImapMessageHeader
      * @param list<string> $attachmentTypes
      */
     public function __construct(
-        public int $uid,
+        public ?int $uid,
         public ?string $messageId,
         public ?string $fromAddress,
         public ?string $fromName,

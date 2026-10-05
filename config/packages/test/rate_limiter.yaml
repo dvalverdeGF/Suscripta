@@ -1,0 +1,9 @@
+framework:
+    rate_limiter:
+        # En los tests el límite se sube para que una prueba funcional que envía
+        # varios correos seguidos no choque con él. El límite real se prueba
+        # aparte, con su propio test.
+        inbound_email:
+            policy: 'sliding_window'
+            limit: 1000
+            interval: '1 hour'

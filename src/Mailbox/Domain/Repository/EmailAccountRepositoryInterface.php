@@ -27,6 +27,15 @@ interface EmailAccountRepositoryInterface
 
     public function findByAddress(string $emailAddress): ?EmailAccount;
 
+    /**
+     * Cuenta cuya dirección de ingesta por reenvío es esta (D-21).
+     *
+     * Se busca **sin** contexto de organización: la petición llega de fuera, sin
+     * sesión, y es la propia dirección la que determina a qué organización
+     * pertenece el correo.
+     */
+    public function findByForwardingAddress(string $address): ?EmailAccount;
+
     public function countForOrganization(): int;
 
     public function save(EmailAccount $account, bool $flush = true): void;

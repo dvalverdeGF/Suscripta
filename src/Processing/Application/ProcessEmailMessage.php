@@ -93,15 +93,15 @@ final readonly class ProcessEmailMessage
      * @throws ImapConnectionException
      * @throws ImapFetchException
      */
-    public function __invoke(EmailMessage $message, ?Uuid $actorUserId = null): ?Discovery
+    public function __invoke(EmailMessage $message, ?Uuid $actorUserId = null, ?string $body = null): ?Discovery
     {
         return $this->tenantContext->runAs(
             $message->getOrganizationId(),
-            fn (): ?Discovery => $this->process($message, $actorUserId),
+            fn (): ?Discovery => $this->process($message, $actorUserId, $body),
         );
     }
 
-    private function process(EmailMessage $message, ?Uuid $actorUserId): ?Discovery
+    private function process(EmailMessage $message, ?Uuid $actorUserId, ?string $body = null): ?Discovery
     {
         if ($message->getProcessingState()->isTerminal()) {
             return null;
@@ -136,7 +136,7 @@ final readonly class ProcessEmailMessage
         );
 
         // ── Nivel 3: descarga perezosa del cuerpo y extracción determinista ─
-        $body = $this->fetchBody($message);
+        $body ??= $this->fetchBody($message);
         $message->setContentHash(self::contentHash($body));
 
         $rescored = $this->billingScore->score($header, $body);
@@ -327,6 +327,12 @@ final readonly class ProcessEmailMessage
      */
     private function fetchBody(EmailMessage $message): string
     {
+        // Un mensaje reenviado no está en ningún buzón: su cuerpo llegó con la
+        // petición y ya se ha consumido. Sin UID no hay nada que descargar.
+        if (null === $message->getUid() || !$message->getSource()->requiresMailboxAccess()) {
+            return '';
+        }
+
         $account = $this->accounts->find($message->getEmailAccountId());
 
         if (null === $account || !$account->isConfigured()) {

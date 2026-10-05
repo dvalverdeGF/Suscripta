@@ -68,10 +68,21 @@ superficie de riesgo:
 - Se **verifica el remitente**: solo se procesan correos cuyo `From`/`Return-Path` esté
   autorizado por el usuario, o que incluyan un token de verificación. El resto se descarta y se
   registra.
-- Se aplican límites de tamaño y de frecuencia por dirección para evitar abuso.
+- Se aplican límites de tamaño (25 MB) y de frecuencia (ventana deslizante por cuenta) para
+  evitar abuso.
 - El contenido reenviado se trata exactamente igual que el obtenido por IMAP: minimización,
   sin cuerpo completo, y misma política de retención.
-- La dirección puede rotarse y desactivarse desde la UI.
+- La dirección puede rotarse y desactivarse desde la UI. **Desconectar la cuenta la desactiva
+  también**: si el usuario cree haber dejado de compartir su correo, la dirección no puede
+  seguir aceptando mensajes.
+- **La respuesta HTTP no revela el motivo del rechazo.** Aceptado y duplicado devuelven `200`
+  (para que el proveedor no reintente); cualquier rechazo devuelve `202` con el mismo cuerpo.
+  Distinguir «dirección desconocida» de «remitente no autorizado» convertiría el endpoint en un
+  oráculo para descubrir direcciones válidas. El motivo real queda en el libro de auditoría.
+- **La autorización por dominio se compara sobre el dominio completo**, no por sufijo de
+  cadena: autorizar `@ovh.com` no autoriza `atacante@falso-ovh.com` ni `atacante@ovh.com.evil.io`.
+- **Sin lista de remitentes autorizados la dirección no acepta a nadie.** Una dirección sin
+  lista sería un buzón abierto.
 
 ## 3. Documentos
 

@@ -188,14 +188,15 @@ entidad `EmailAttachment` separada.
 
 | Entidad | Campos clave |
 |---|---|
-| `EmailAccount` | id, organizationId, provider, emailAddress, displayName, status, credentialsEncrypted, oauthTokenEncrypted (nullable), imapHost, imapPort, imapEncryption, imapUsername, lastSyncAt, lastSyncStatus, lastSyncError, createdAt, updatedAt, deletedAt |
-| `EmailSyncCursor` | id, emailAccountId, folderName, uidValidity, lastSeenUid, lastSyncAt |
-| `EmailSyncRun` | id, emailAccountId, startedAt, finishedAt, status, messagesSeen, messagesProcessed, messagesSkipped, discoveriesCreated, error |
-| `EmailMessage` | id, organizationId, emailAccountId, folder, uid, messageId, threadId, fromAddress, fromName, replyTo, senderDomain, toAddresses (json), subject, receivedAt, sizeBytes, contentType, hasAttachments, attachmentNames (json), attachmentTypes (json), bodyHash, contentHash, bodyExcerpt (nullable), billingScore, billingReasons (json), processingState, classification, classificationConfidence, extractionTier, extractorUsed, aiUsed, aiCostMinor, attempts, lastError, processedAt, createdAt |
+| `EmailAccount` | id, organizationId, provider, emailAddress, displayName, status, credentialsEncrypted, oauthTokenEncrypted (nullable), imapHost, imapPort, imapEncryption, imapUsername, forwardingAddress (nullable), forwardingSenders (json), forwardingEnabled, lastSyncAt, lastSyncStatus, lastSyncError, createdAt, updatedAt, deletedAt |
+| `EmailSyncCursor` | id, organizationId, emailAccountId, folder, uidValidity, lastSeenUid, backfillCursor (nullable), lastSyncAt, createdAt, updatedAt |
+| `EmailSyncRun` | id, emailAccountId, startedAt, finishedAt, status, messagesSeen, messagesProcessed, messagesSkipped, messagesBackfilled, discoveriesCreated, error |
+| `EmailMessage` | id, organizationId, emailAccountId, folder, uid (nullable), source, messageId, threadId, fromAddress, fromName, replyTo, senderDomain, toAddresses (json), subject, receivedAt, sizeBytes, contentType, hasAttachments, attachmentNames (json), attachmentTypes (json), bodyHash, contentHash, bodyExcerpt (nullable), billingScore, billingReasons (json), processingState, classification, classificationConfidence, extractionTier, extractorUsed, aiUsed, aiCostMinor, attempts, lastError, processedAt, createdAt |
 | `MessageProcessingEvent` | id, emailMessageId, fromState, toState, reason, extractor, tier, aiUsageId (nullable), durationMs, data (json), occurredAt |
 
 **`EmailAccount.provider`**: `imap`, `forwarding`, `gmail`, `microsoft` (los dos últimos, reservados).
 **`EmailAccount.status`**: `pending`, `active`, `error`, `disabled`.
+**`EmailMessage.source`**: `imap` (leído del buzón) o `forwarding` (recibido por reenvío). Ver §4.5.1.
 **`EmailMessage.processingState`**: máquina de estados explícita — ver §13.5.
 **`EmailMessage.classification`**: `invoice`, `receipt`, `payment_confirmation`,
 `renewal_notice`, `price_change`, `plan_change`, `expiration_notice`, `other`, `unknown`.
@@ -237,7 +238,39 @@ así que la deduplicación no puede ser solo por cuenta:
 **Cursor de sincronización:** `EmailSyncCursor` guarda `uidValidity` + `lastSeenUid` por
 carpeta **y por cuenta**. Si `uidValidity` cambia, el cursor se invalida y se reprocesa la
 ventana acotada. Esto responde al requisito *"conocer hasta dónde se ha sincronizado cada
-cuenta"*.
+cuenta"*. El detalle del algoritmo está en §13.2.
+
+**`EmailMessage.uid` es nullable.** Un mensaje leído del buzón siempre tiene UID; uno recibido
+por reenvío no, porque nunca estuvo en una carpeta IMAP. La restricción
+`UNIQUE (email_account_id, folder, uid)` sigue siendo válida porque PostgreSQL trata cada
+`NULL` como distinto, así que varios reenvíos conviven en la misma cuenta y carpeta. La
+deduplicación de los reenvíos se apoya entonces en `messageId` y en `contentHash`.
+
+### 4.5.1 Ingesta por reenvío
+
+La vía de reenvío (D-21) existe para quien no quiere —o no puede— dar acceso a su buzón. El
+usuario activa el reenvío en su proveedor hacia una dirección que **generamos nosotros** y que
+solo acepta correo de los remitentes que él autorice.
+
+| Concepto | Decisión |
+|---|---|
+| Dirección | `inbox-<32 hex>@<dominio>`, generada con `random_bytes(16)`. Es un **secreto**: no se deriva de la cuenta ni de la organización, y por eso se puede rotar. |
+| Autorización | `forwardingSenders` es una lista de direcciones o de dominios (`@miempresa.com`). Sin lista, la dirección no acepta a nadie: sería un buzón abierto. |
+| Comparación | Por dirección completa o por dominio, con `str_ends_with` sobre el dominio normalizado. `@ovh.com` **no** autoriza `atacante@falso-ovh.com`. |
+| Rotación | Cambiar la dirección invalida la anterior de inmediato. |
+| Desactivación | `forwardingEnabled = false` basta: `findByForwardingAddress()` exige que esté activo. La dirección se conserva por si se vuelve a activar. |
+| Límite de tamaño | 25 MB por mensaje. |
+| Límite de caudal | *Rate limiter* `inbound_email` (ventana deslizante, 120/hora por cuenta). |
+| Respuesta | `200` para aceptado **y** duplicado (para que el proveedor no reintente), `202` para cualquier rechazo, `400` para un cuerpo inválido. El motivo real **no** se revela: sería un oráculo para descubrir direcciones válidas. Queda en el libro de auditoría. |
+| Procesamiento | El mensaje se **encola** en `mail_processing`; nunca se procesa dentro de la petición HTTP del proveedor. |
+
+El cuerpo del mensaje viaja con el mensaje de la cola (`ProcessEmailMessageMessage::$body`)
+porque un reenvío no se puede volver a leer del buzón. Es un dato **transitorio**: no se
+persiste (D-10); lo único que sobrevive es el extracto corto que el pipeline decide guardar.
+
+**Desconectar una cuenta** borra credenciales, mensajes indexados y cursores, y desactiva el
+reenvío. Los servicios ya confirmados permanecen: son datos del usuario, no del correo
+(`SECURITY.md` §6).
 
 **Conocimiento del buzón:**
 
@@ -907,6 +940,40 @@ comprueba el estado actual antes de escribir y registra su transición en
 **Regla explícita:** *si el mismo correo vuelve a aparecer durante una sincronización, no
 debe volver a consumir IA.* Se garantiza comprobando, antes de cualquier llamada de IA, que
 no exista ya un `ExtractedDocument` válido para ese `contentHash` (§13.14).
+
+**Algoritmo de lectura incremental.** Cada pasada de sincronización sigue este orden:
+
+1. **`UIDVALIDITY`.** Se pregunta al servidor antes de leer nada. Si cambió respecto al
+   cursor, el servidor ha renumerado la carpeta: los UID guardados ya no significan lo mismo,
+   así que el cursor se reinicia (`lastSeenUid = 0`, `backfillCursor = null`) y se deja
+   constancia en el libro de auditoría (`EMAIL_SYNC_CURSOR_RESET`). El reinicio **no** se
+   audita en el primer contacto, para no llenar el registro de ruido.
+2. **Correo nuevo.** Si el cursor es inicial, se lee la **ventana acotada** (por defecto 6
+   meses) con `fetchHeaders(since:)`. Si no, se lee **solo lo posterior a `lastSeenUid`** con
+   `fetchHeadersAfter()`. En ambos casos se piden **solo cabeceras**: `setFetchBody(false)` y
+   `setFetchFlags(false)`, de modo que el cuerpo no se descarga nunca en esta fase (§13.3).
+3. **Backfill progresivo.** Si el cursor tiene `backfillCursor`, se lee un lote **anterior** a
+   ese punto con `fetchHeadersBefore()`. El backfill avanza hacia atrás en lotes y termina
+   cuando el lote vuelve vacío, cuando llega incompleto o cuando alcanza el UID 1. Así el
+   histórico se completa sin bloquear la primera sincronización ni castigar al servidor.
+4. **Persistencia y avance.** Los mensajes se guardan, el cursor avanza a
+   `max(uid)` —**nunca hacia atrás**— y se registra `lastSyncAt`. El `EmailSyncRun` cierra con
+   `messagesSeen`, `messagesProcessed`, `messagesSkipped` y `messagesBackfilled`.
+
+**Rango de UID en IMAP.** La búsqueda por rango (`UID 100:*`) no se puede expresar con la API
+de alto nivel del cliente: cualquier valor no numérico se entrecomilla y el servidor lo
+rechaza. Se emite como criterio literal (`CUSTOM UID 100:*`), que es la única forma de que
+llegue sin comillas. Está aislado en un único método para que el día que el cliente lo
+soporte nativamente el cambio sea de una línea.
+
+**Orden de lectura.** El cliente devuelve los mensajes en orden ascendente de UID, así que
+para leer «lo más nuevo» hay que invertir el orden y para leer «lo más antiguo» no. La lectura
+hacia delante usa orden ascendente y la de backfill descendente; confundirlos haría que el
+backfill releyera siempre los mismos mensajes.
+
+**Backpressure.** Cada pasada está acotada por `limit` (por defecto 200 mensajes) y por un
+tope duro de 500 por lectura. Un buzón con años de correo no se procesa de golpe: se procesa
+en pasadas sucesivas, y el backfill es lo último que se completa.
 
 ### 13.3 Nivel 1 — Metadatos
 

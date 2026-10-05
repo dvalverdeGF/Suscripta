@@ -15,8 +15,16 @@ use Symfony\Component\Uid\Uuid;
  */
 final readonly class ProcessEmailMessageMessage
 {
+    /**
+     * Cuerpo del mensaje, solo cuando la vía de ingesta lo trae consigo.
+     *
+     * Los correos reenviados (D-21) no están en ningún buzón del que
+     * descargarlos, así que el cuerpo viaja con la petición. Es un dato de paso
+     * por la cola, no un almacén: se descarta al procesar (D-10).
+     */
     public function __construct(
         public Uuid $emailMessageId,
+        public ?string $body = null,
     ) {
     }
 }

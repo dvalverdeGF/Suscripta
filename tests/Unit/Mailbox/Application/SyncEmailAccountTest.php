@@ -24,6 +24,7 @@ use App\Shared\Application\Clock;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Enum\AuditAction;
 use App\Shared\Domain\Exception\InvalidArgumentException;
+use App\Tests\Support\Mailbox\InMemoryEmailSyncCursorRepository;
 use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -36,9 +37,10 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * La sincronización es el nivel 0 y 1 del pipeline y la única parte que habla
- * con el buzón. Dos cosas se comprueban aquí y en ningún otro sitio: que
- * **nunca** se descarga un cuerpo, y que volver a sincronizar no duplica ni
- * vuelve a costar nada (D-37).
+ * con el buzón. Aquí se comprueban las tres propiedades que sostienen todo lo
+ * demás: que **nunca** se descarga un cuerpo, que volver a sincronizar no
+ * duplica ni vuelve a costar nada (D-37), y que la lectura es incremental de
+ * verdad — es decir, que la segunda pasada no vuelve a pedir lo que ya vio.
  */
 #[CoversClass(SyncEmailAccount::class)]
 final class SyncEmailAccountTest extends TestCase
@@ -57,11 +59,42 @@ final class SyncEmailAccountTest extends TestCase
 
     private AuditLoggerInterface&MockObject $audit;
 
+    private InMemoryEmailSyncCursorRepository $cursors;
+
     /** @var list<EmailMessage> */
     private array $saved = [];
 
     /** @var list<AuditAction> */
     private array $audited = [];
+
+    /**
+     * El `UIDVALIDITY` que reporta el servidor. Es una propiedad y no un
+     * `willReturn` fijo porque una prueba necesita cambiarlo a mitad, y un
+     * stub registrado en `setUp()` gana sobre cualquier stub posterior.
+     */
+    private int $uidValidity = 1;
+
+    /** @var list<array{folder: string, afterUid: int, limit: int}> */
+    private array $incrementalCalls = [];
+
+    /** @var list<array{folder: string, beforeUid: int, limit: int}> */
+    private array $backfillCalls = [];
+
+    /**
+     * Lotes que devuelve el servidor. Son propiedades y no `willReturn` porque
+     * un stub registrado en `setUp()` gana sobre cualquier stub posterior, así
+     * que la única forma de cambiar la respuesta a mitad de una prueba es
+     * cambiar el valor que el stub lee.
+     *
+     * @var list<ImapMessageHeader>
+     */
+    private array $windowBatch = [];
+
+    /** @var list<ImapMessageHeader> */
+    private array $incrementalBatch = [];
+
+    /** @var list<ImapMessageHeader> */
+    private array $backfillBatch = [];
 
     protected function setUp(): void
     {
@@ -73,9 +106,16 @@ final class SyncEmailAccountTest extends TestCase
         $this->imap = $this->createMock(ImapClientInterface::class);
         $this->cipher = $this->createMock(CredentialCipherInterface::class);
         $this->audit = $this->createMock(AuditLoggerInterface::class);
+        $this->cursors = new InMemoryEmailSyncCursorRepository();
 
         $this->saved = [];
         $this->audited = [];
+        $this->uidValidity = 1;
+        $this->incrementalCalls = [];
+        $this->backfillCalls = [];
+        $this->windowBatch = [];
+        $this->incrementalBatch = [];
+        $this->backfillBatch = [];
 
         $this->messages
             ->method('save')
@@ -90,17 +130,41 @@ final class SyncEmailAccountTest extends TestCase
             });
 
         $this->cipher->method('decrypt')->willReturn('secreto');
+
+        // Por defecto el servidor no ha renumerado nunca la carpeta.
+        $this->imap->method('getUidValidity')->willReturnCallback(fn (): int => $this->uidValidity);
+
+        $this->imap
+            ->method('fetchHeaders')
+            ->willReturnCallback(fn (): array => $this->windowBatch);
+
+        $this->imap
+            ->method('fetchHeadersAfter')
+            ->willReturnCallback(function (ImapConnectionConfig $config, string $folder, int $afterUid, int $limit): array {
+                $this->incrementalCalls[] = ['folder' => $folder, 'afterUid' => $afterUid, 'limit' => $limit];
+
+                return $this->incrementalBatch;
+            });
+
+        $this->imap
+            ->method('fetchHeadersBefore')
+            ->willReturnCallback(function (ImapConnectionConfig $config, string $folder, int $beforeUid, int $limit): array {
+                $this->backfillCalls[] = ['folder' => $folder, 'beforeUid' => $beforeUid, 'limit' => $limit];
+
+                return $this->backfillBatch;
+            });
     }
 
-    private function sync(): SyncEmailAccount
+    private function sync(?TenantContext $tenantContext = null): SyncEmailAccount
     {
         return new SyncEmailAccount(
             accounts: $this->accounts,
             messages: $this->messages,
             runs: $this->runs,
+            cursors: $this->cursors,
             imapClient: $this->imap,
             cipher: $this->cipher,
-            tenantContext: new TenantContext(),
+            tenantContext: $tenantContext ?? new TenantContext(),
             auditLogger: $this->audit,
             clock: new Clock(new MockClock(new DateTimeImmutable('2026-10-05 10:00:00'))),
         );
@@ -138,7 +202,23 @@ final class SyncEmailAccountTest extends TestCase
      */
     private function imapReturns(array $headers): void
     {
-        $this->imap->method('fetchHeaders')->willReturn($headers);
+        $this->windowBatch = $headers;
+    }
+
+    /**
+     * @param list<ImapMessageHeader> $headers
+     */
+    private function imapReturnsBackfill(array $headers): void
+    {
+        $this->backfillBatch = $headers;
+    }
+
+    /**
+     * @param list<ImapMessageHeader> $headers
+     */
+    private function imapReturnsIncremental(array $headers): void
+    {
+        $this->incrementalBatch = $headers;
     }
 
     public function testAnUnconfiguredAccountIsRejectedBeforeTouchingTheMailbox(): void
@@ -314,21 +394,194 @@ final class SyncEmailAccountTest extends TestCase
         $this->imapReturns([]);
 
         $tenantContext = new TenantContext();
-        $clock = new Clock(new MockClock(new DateTimeImmutable('2026-10-05 10:00:00')));
 
-        $sync = new SyncEmailAccount(
-            accounts: $this->accounts,
-            messages: $this->messages,
-            runs: $this->runs,
-            imapClient: $this->imap,
-            cipher: $this->cipher,
-            tenantContext: $tenantContext,
-            auditLogger: $this->audit,
-            clock: $clock,
-        );
-
-        $sync($this->account());
+        $this->sync($tenantContext)($this->account());
 
         self::assertNull($tenantContext->getOrganizationId());
+    }
+
+    /**
+     * La primera pasada no tiene UID del que partir, así que pide por fecha.
+     * La segunda ya sabe hasta dónde leyó y pide solo lo que ha llegado: es la
+     * diferencia entre analizar un buzón entero cada vez y analizar lo nuevo.
+     */
+    public function testTheSecondSyncAsksOnlyForWhatArrivedAfterTheLastSeenUid(): void
+    {
+        $this->imapReturns([$this->header(10), $this->header(11)]);
+
+        $account = $this->account();
+        ($this->sync())($account);
+
+        $this->imapReturnsIncremental([$this->header(12)]);
+        $this->imap->expects(self::never())->method('fetchHeaders');
+
+        $run = ($this->sync())($account);
+
+        self::assertSame(
+            [['folder' => 'INBOX', 'afterUid' => 11, 'limit' => 200]],
+            $this->incrementalCalls,
+        );
+        self::assertSame(1, $run->getMessagesProcessed());
+        self::assertSame(12, $this->cursors->all()[0]->getLastSeenUid());
+    }
+
+    public function testTheCursorIsPersistedWithTheFolderAndTheUidValidity(): void
+    {
+        $this->imapReturns([$this->header(4)]);
+
+        ($this->sync())($this->account());
+
+        $cursor = $this->cursors->all()[0];
+
+        self::assertSame('INBOX', $cursor->getFolder());
+        self::assertSame(1, $cursor->getUidValidity());
+        self::assertSame(4, $cursor->getLastSeenUid());
+        self::assertNotNull($cursor->getLastSyncAt());
+    }
+
+    /**
+     * Si el servidor renumera la carpeta, los UID guardados dejan de apuntar al
+     * mismo mensaje. Seguir usándolos haría que el sistema se saltara correo
+     * nuevo en silencio, que es el peor fallo posible de una sincronización
+     * incremental.
+     */
+    public function testAChangedUidValidityResetsTheCursorAndIsAudited(): void
+    {
+        $this->imapReturns([$this->header(10)]);
+        $account = $this->account();
+        ($this->sync())($account);
+
+        $this->audited = [];
+        $this->uidValidity = 99;
+        // Tras el reinicio el cursor vuelve a ser inicial, así que la lectura
+        // vuelve a ser por ventana y no por UID.
+        $this->imapReturns([$this->header(1)]);
+
+        ($this->sync())($account);
+
+        $cursor = $this->cursors->all()[0];
+
+        self::assertSame(99, $cursor->getUidValidity());
+        self::assertSame(1, $cursor->getLastSeenUid());
+        self::assertContains(AuditAction::EMAIL_SYNC_CURSOR_RESET, $this->audited);
+    }
+
+    /**
+     * La primera toma de contacto con una carpeta no es un reinicio: el cursor
+     * todavía no sabía nada. Auditarlo llenaría el registro de ruido.
+     */
+    public function testTheFirstContactWithAFolderIsNotAuditedAsAReset(): void
+    {
+        $this->imapReturns([$this->header(1)]);
+
+        ($this->sync())($this->account());
+
+        self::assertNotContains(AuditAction::EMAIL_SYNC_CURSOR_RESET, $this->audited);
+    }
+
+    /**
+     * Un buzón con más correo del que cabe en una pasada no se analiza de
+     * golpe: se recuerda por dónde iba la lectura hacia atrás y cada pasada
+     * avanza un tramo más.
+     */
+    public function testAFullWindowLeavesABackfillCursorForTheNextPass(): void
+    {
+        $this->imapReturns([$this->header(100), $this->header(101)]);
+        $this->imapReturnsBackfill([$this->header(98), $this->header(99)]);
+
+        ($this->sync())($this->account(), limit: 2);
+
+        $cursor = $this->cursors->all()[0];
+
+        self::assertTrue($cursor->hasBackfillPending());
+        self::assertSame(98, $cursor->getBackfillCursor());
+    }
+
+    public function testTheBackfillStartsFromTheLowestUidOfTheFirstWindow(): void
+    {
+        $this->imapReturns([$this->header(100), $this->header(101)]);
+        $this->imapReturnsBackfill([$this->header(98), $this->header(99)]);
+
+        ($this->sync())($this->account(), limit: 2);
+
+        self::assertSame(
+            [['folder' => 'INBOX', 'beforeUid' => 100, 'limit' => 2]],
+            $this->backfillCalls,
+        );
+    }
+
+    public function testTheNextPassReadsBackwardsFromTheBackfillCursor(): void
+    {
+        $this->imapReturns([$this->header(100), $this->header(101)]);
+        $this->imapReturnsBackfill([$this->header(98), $this->header(99)]);
+        $account = $this->account();
+        ($this->sync())($account, limit: 2);
+
+        $this->backfillCalls = [];
+        $this->imapReturnsBackfill([$this->header(96), $this->header(97)]);
+
+        $run = ($this->sync())($account, limit: 2);
+
+        self::assertSame(
+            [['folder' => 'INBOX', 'beforeUid' => 98, 'limit' => 2]],
+            $this->backfillCalls,
+        );
+        self::assertSame(2, $run->getMessagesBackfilled());
+        self::assertSame(96, $this->cursors->all()[0]->getBackfillCursor());
+    }
+
+    public function testAShortBackfillBatchEndsTheBackfill(): void
+    {
+        $this->imapReturns([$this->header(100), $this->header(101)]);
+        $this->imapReturnsBackfill([$this->header(99)]);
+
+        ($this->sync())($this->account(), limit: 2);
+
+        self::assertFalse($this->cursors->all()[0]->hasBackfillPending());
+    }
+
+    public function testAnEmptyBackfillBatchEndsTheBackfill(): void
+    {
+        $this->imapReturns([$this->header(100), $this->header(101)]);
+
+        ($this->sync())($this->account(), limit: 2);
+
+        self::assertFalse($this->cursors->all()[0]->hasBackfillPending());
+    }
+
+    /**
+     * El correo nuevo se lee **antes** que el histórico: lo que acaba de llegar
+     * es lo que el usuario espera ver, y el histórico puede esperar.
+     */
+    public function testNewMailIsReadBeforeTheBackfill(): void
+    {
+        $this->imapReturns([$this->header(100), $this->header(101)]);
+        $this->imapReturnsBackfill([$this->header(98), $this->header(99)]);
+        $account = $this->account();
+        ($this->sync())($account, limit: 2);
+
+        $this->incrementalCalls = [];
+        $this->backfillCalls = [];
+
+        ($this->sync())($account, limit: 2);
+
+        self::assertCount(1, $this->incrementalCalls);
+        self::assertCount(1, $this->backfillCalls);
+    }
+
+    public function testTheBackfillIsCountedSeparatelyFromTheNewMail(): void
+    {
+        $this->imapReturns([$this->header(100), $this->header(101)]);
+        $this->imapReturnsBackfill([$this->header(98), $this->header(99)]);
+        $account = $this->account();
+        ($this->sync())($account, limit: 2);
+
+        $this->imapReturnsIncremental([$this->header(102)]);
+        $this->imapReturnsBackfill([$this->header(96), $this->header(97)]);
+
+        $run = ($this->sync())($account, limit: 2);
+
+        self::assertSame(3, $run->getMessagesProcessed());
+        self::assertSame(2, $run->getMessagesBackfilled());
     }
 }

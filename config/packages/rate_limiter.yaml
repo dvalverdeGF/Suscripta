@@ -1,0 +1,10 @@
+framework:
+    rate_limiter:
+        # La dirección de ingesta por reenvío es pública por definición: cualquiera
+        # que la conozca puede intentar escribir en ella. El límite no protege de
+        # un atacante decidido, pero evita que un bucle de reenvío mal configurado
+        # en el correo del propio usuario llene la cola (SECURITY.md §2.4).
+        inbound_email:
+            policy: 'sliding_window'
+            limit: 120
+            interval: '1 hour'
