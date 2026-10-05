@@ -1,0 +1,20 @@
+{% set flash_levels = {
+    'success': 'alert--success',
+    'warning': 'alert--warning',
+    'error': 'alert--danger',
+    'danger': 'alert--danger',
+    'info': 'alert--info',
+} %}
+
+{# `app.flashes` consume el flash bag: se lee una sola vez y se agrupa aquí. #}
+{% set all_flashes = app.flashes %}
+
+{% if all_flashes is not empty %}
+    <div class="flash-region" role="status" aria-live="polite">
+        {% for type, messages in all_flashes %}
+            {% for message in messages %}
+                <div class="alert {{ flash_levels[type] ?? 'alert--info' }}">{{ message }}</div>
+            {% endfor %}
+        {% endfor %}
+    </div>
+{% endif %}

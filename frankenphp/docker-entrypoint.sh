@@ -61,6 +61,10 @@ if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
 		if find ./migrations -iname '*.php' -print -quit | grep --quiet .; then
 			php bin/console doctrine:migrations:migrate --no-interaction --all-or-nothing
 		fi
+
+		# Crea las tablas de infraestructura del transporte Doctrine de
+		# Messenger (messenger_messages). Es idempotente. Ver ARCHITECTURE.md §6.
+		php bin/console messenger:setup-transports --no-interaction
 	fi
 
 	echo 'PHP app ready!'

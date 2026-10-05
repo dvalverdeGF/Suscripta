@@ -1,0 +1,93 @@
+framework:
+    messenger:
+        failure_transport: failed
+
+        transports:
+            # Trabajo general (baja prioridad, sin límite estricto de concurrencia).
+            async:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                retry_strategy:
+                    max_retries: 3
+                    delay: 1000
+                    multiplier: 2
+                    max_delay: 30000
+
+            # Sincronización de buzones. Concurrencia baja: respeta los límites del servidor IMAP.
+            mail_sync:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    queue_name: mail_sync
+                retry_strategy:
+                    max_retries: 5
+                    delay: 5000
+                    multiplier: 2
+                    max_delay: 300000
+
+            # Procesado por mensaje. Alto volumen, reintentable.
+            mail_processing:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    queue_name: mail_processing
+                retry_strategy:
+                    max_retries: 3
+                    delay: 2000
+                    multiplier: 2
+                    max_delay: 60000
+
+            # OCR de documentos sin capa de texto. CPU-intensivo, concurrencia muy baja.
+            ocr:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    queue_name: ocr
+                retry_strategy:
+                    max_retries: 2
+                    delay: 10000
+                    multiplier: 2
+                    max_delay: 120000
+
+            # Llamadas a proveedores de IA. Concurrencia limitada y guard de presupuesto.
+            ai:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    queue_name: ai
+                retry_strategy:
+                    max_retries: 2
+                    delay: 15000
+                    multiplier: 3
+                    max_delay: 300000
+
+            # Entrega de avisos.
+            notifications:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    queue_name: notifications
+                retry_strategy:
+                    max_retries: 4
+                    delay: 5000
+                    multiplier: 2
+                    max_delay: 300000
+
+            # Mensajes agotados. Inspección manual + alerta a administración.
+            failed:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    queue_name: failed
+
+            sync: 'sync://'
+
+        routing:
+            # El pipeline de correo se enruta explícitamente en cada mensaje mediante
+            # `MessageBusInterface::dispatch($msg, [new TransportNamesStamp(...)])`.
+            # Ver ARCHITECTURE.md §6.2 y §13.
+
+when@test:
+    framework:
+        messenger:
+            transports:
+                async: 'in-memory://'
+                mail_sync: 'in-memory://'
+                mail_processing: 'in-memory://'
+                ocr: 'in-memory://'
+                ai: 'in-memory://'
+                notifications: 'in-memory://'
+                failed: 'in-memory://'

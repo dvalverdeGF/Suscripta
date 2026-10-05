@@ -1,0 +1,168 @@
+/*
+ * Suscripta — Design tokens
+ * Única fuente de verdad para color, tipografía, espaciado, radios y sombras.
+ * Ningún componente debe usar valores literales: siempre var(--token).
+ * Ver ARCHITECTURE.md §12.
+ */
+
+:root {
+    /* ---------- Color: superficies ---------- */
+    --color-bg: #f6f7f9;
+    --color-surface: #ffffff;
+    --color-surface-raised: #ffffff;
+    --color-surface-sunken: #eef0f4;
+    --color-surface-hover: #f2f4f7;
+
+    /* ---------- Color: texto ---------- */
+    --color-text: #14181f;
+    --color-text-muted: #5b6472;
+    --color-text-subtle: #8a93a1;
+    --color-text-inverse: #ffffff;
+
+    /* ---------- Color: bordes ---------- */
+    --color-border: #dfe3e9;
+    --color-border-strong: #c3cad4;
+    --color-border-focus: #2f6fed;
+
+    /* ---------- Color: marca ---------- */
+    --color-primary: #2f6fed;
+    --color-primary-hover: #2559c4;
+    --color-primary-active: #1d47a0;
+    --color-primary-subtle: #e8f0fe;
+    --color-primary-contrast: #ffffff;
+
+    /* ---------- Color: semánticos ---------- */
+    --color-success: #1a7f4b;
+    --color-success-subtle: #e4f5ec;
+    --color-warning: #9a6400;
+    --color-warning-subtle: #fdf3e0;
+    --color-danger: #b3261e;
+    --color-danger-subtle: #fdecea;
+    --color-info: #1f6f8b;
+    --color-info-subtle: #e6f3f7;
+
+    /* ---------- Tipografía ---------- */
+    --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+    --text-xs: 0.75rem;    /* 12px */
+    --text-sm: 0.8125rem;  /* 13px */
+    --text-base: 0.875rem; /* 14px */
+    --text-md: 1rem;       /* 16px */
+    --text-lg: 1.125rem;   /* 18px */
+    --text-xl: 1.375rem;   /* 22px */
+    --text-2xl: 1.75rem;   /* 28px */
+    --text-3xl: 2.25rem;   /* 36px */
+
+    --leading-tight: 1.2;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.65;
+
+    --weight-regular: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+    --weight-bold: 700;
+
+    /* ---------- Espaciado (escala 4px) ---------- */
+    --space-0: 0;
+    --space-1: 0.25rem;  /* 4 */
+    --space-2: 0.5rem;   /* 8 */
+    --space-3: 0.75rem;  /* 12 */
+    --space-4: 1rem;     /* 16 */
+    --space-5: 1.25rem;  /* 20 */
+    --space-6: 1.5rem;   /* 24 */
+    --space-8: 2rem;     /* 32 */
+    --space-10: 2.5rem;  /* 40 */
+    --space-12: 3rem;    /* 48 */
+    --space-16: 4rem;    /* 64 */
+
+    /* ---------- Radios ---------- */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-full: 9999px;
+
+    /* ---------- Sombras ---------- */
+    --shadow-xs: 0 1px 2px rgba(20, 24, 31, 0.06);
+    --shadow-sm: 0 1px 3px rgba(20, 24, 31, 0.08), 0 1px 2px rgba(20, 24, 31, 0.04);
+    --shadow-md: 0 4px 12px rgba(20, 24, 31, 0.08), 0 1px 3px rgba(20, 24, 31, 0.05);
+    --shadow-lg: 0 12px 32px rgba(20, 24, 31, 0.12), 0 2px 8px rgba(20, 24, 31, 0.06);
+
+    /* ---------- Foco ---------- */
+    --focus-ring: 0 0 0 3px rgba(47, 111, 237, 0.35);
+
+    /* ---------- Layout ---------- */
+    --container-max: 80rem;      /* 1280px */
+    --container-padding: var(--space-4);
+    --sidebar-width: 15rem;      /* 240px */
+    --topbar-height: 3.5rem;     /* 56px */
+
+    /* ---------- Z-index ---------- */
+    --z-base: 0;
+    --z-sticky: 100;
+    --z-dropdown: 200;
+    --z-overlay: 300;
+    --z-modal: 400;
+    --z-toast: 500;
+
+    /* ---------- Movimiento ---------- */
+    --duration-fast: 120ms;
+    --duration-base: 200ms;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+    /* ---------- Táctil ---------- */
+    --touch-target: 44px;
+}
+
+/*
+ * Breakpoints (mobile-first). No existen custom media queries en CSS estable,
+ * así que se documentan aquí y se usan literalmente en las media queries:
+ *   --bp-sm: 30rem  (480px)  móvil grande
+ *   --bp-md: 48rem  (768px)  tablet
+ *   --bp-lg: 64rem  (1024px) escritorio
+ * Criterio de aceptación: sin scroll horizontal a 320px de ancho.
+ */
+
+@media (min-width: 48rem) {
+    :root {
+        --container-padding: var(--space-6);
+    }
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --color-bg: #10141a;
+        --color-surface: #171c24;
+        --color-surface-raised: #1d232c;
+        --color-surface-sunken: #0c1015;
+        --color-surface-hover: #212832;
+
+        --color-text: #e8ecf2;
+        --color-text-muted: #a3adbb;
+        --color-text-subtle: #7b8593;
+
+        --color-border: #2a323d;
+        --color-border-strong: #3a4451;
+
+        --color-primary: #6f9dff;
+        --color-primary-hover: #8bb1ff;
+        --color-primary-active: #a5c3ff;
+        --color-primary-subtle: #1b2740;
+        --color-primary-contrast: #0b1220;
+
+        --color-success: #4ec98a;
+        --color-success-subtle: #12291f;
+        --color-warning: #e0b155;
+        --color-warning-subtle: #2b2313;
+        --color-danger: #f2837c;
+        --color-danger-subtle: #2e1a19;
+        --color-info: #6cc0d8;
+        --color-info-subtle: #12262c;
+
+        --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+        --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.45);
+        --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+        --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
+    }
+}

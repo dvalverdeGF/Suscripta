@@ -1,0 +1,85 @@
+{#
+    Tema de formularios de Suscripta.
+
+    Extiende el tema por defecto de Symfony y sólo añade las clases del sistema
+    de diseño propio (ARCHITECTURE.md §12, DECISIONS.md D-28). Se delega en
+    `parent()` para no reimplementar la lógica de Symfony: así el tema sigue
+    funcionando cuando el framework cambia.
+#}
+{% use 'form_div_layout.html.twig' %}
+
+{% block form_row -%}
+    {%- set row_attr = row_attr|merge({class: ['field', row_attr.class|default('')]|join(' ')|trim}) -%}
+    {{- parent() -}}
+{%- endblock form_row %}
+
+{% block form_label -%}
+    {%- set label_attr = label_attr|merge({class: ['field__label', label_attr.class|default('')]|join(' ')|trim}) -%}
+    {{- parent() -}}
+{%- endblock form_label %}
+
+{% block form_help -%}
+    {%- set help_attr = help_attr|merge({class: ['field__hint', help_attr.class|default('')]|join(' ')|trim}) -%}
+    {{- parent() -}}
+{%- endblock form_help %}
+
+{% block form_errors -%}
+    {%- if errors|length > 0 -%}
+        {%- if form is rootform -%}
+            <div class="alert alert--danger" role="alert">
+                {%- for error in errors -%}
+                    <p class="m-0">{{ error.message }}</p>
+                {%- endfor -%}
+            </div>
+        {%- else -%}
+            {%- for error in errors -%}
+                <p class="field__error" role="alert">{{ error.message }}</p>
+            {%- endfor -%}
+        {%- endif -%}
+    {%- endif -%}
+{%- endblock form_errors %}
+
+{% block form_widget_simple -%}
+    {%- set type = type|default('text') -%}
+    {%- if type not in ['range', 'color', 'hidden', 'file'] -%}
+        {%- set attr = attr|merge({class: ['input', attr.class|default('')]|join(' ')|trim}) -%}
+    {%- endif -%}
+    {{- parent() -}}
+{%- endblock form_widget_simple %}
+
+{% block textarea_widget -%}
+    {%- set attr = attr|merge({class: ['textarea', attr.class|default('')]|join(' ')|trim}) -%}
+    {{- parent() -}}
+{%- endblock textarea_widget %}
+
+{% block choice_widget_collapsed -%}
+    {%- set attr = attr|merge({class: ['select', attr.class|default('')]|join(' ')|trim}) -%}
+    {{- parent() -}}
+{%- endblock choice_widget_collapsed %}
+
+{% block checkbox_row -%}
+    {%- set row_attr = row_attr|merge({class: ['field', row_attr.class|default('')]|join(' ')|trim}) -%}
+    <div{% with {attr: row_attr} %}{{ block('attributes') }}{% endwith %}>
+        {{- form_widget(form) -}}
+        {{- form_errors(form) -}}
+    </div>
+{%- endblock checkbox_row %}
+
+{% block checkbox_widget -%}
+    <label class="checkbox">
+        <input type="checkbox" {{ block('widget_attributes') }}{% if value is defined %} value="{{ value }}"{% endif %}{% if checked %} checked="checked"{% endif %} />
+        <span>{{ label|trans(label_translation_parameters, translation_domain) }}</span>
+    </label>
+{%- endblock checkbox_widget %}
+
+{% block radio_widget -%}
+    <label class="radio">
+        <input type="radio" {{ block('widget_attributes') }}{% if value is defined %} value="{{ value }}"{% endif %}{% if checked %} checked="checked"{% endif %} />
+        <span>{{ label|trans(label_translation_parameters, translation_domain) }}</span>
+    </label>
+{%- endblock radio_widget %}
+
+{% block button_widget -%}
+    {%- set attr = attr|merge({class: ['btn', 'btn--primary', attr.class|default('')]|join(' ')|trim}) -%}
+    {{- parent() -}}
+{%- endblock button_widget %}

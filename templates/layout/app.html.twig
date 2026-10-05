@@ -1,0 +1,48 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+    <div class="app-shell" data-controller="sidebar">
+        <header class="topbar">
+            <button type="button"
+                    class="topbar__toggle"
+                    data-sidebar-target="toggle"
+                    data-action="sidebar#toggle"
+                    aria-controls="app-sidebar"
+                    aria-expanded="false"
+                    aria-label="Mostrar u ocultar el menú">
+                <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                    <path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" fill="none"/>
+                </svg>
+            </button>
+
+            <a class="topbar__brand" href="{{ path('app_dashboard') }}">
+                <span aria-hidden="true">Suscripta</span>
+                <span class="visually-hidden">Suscripta — inicio</span>
+            </a>
+
+            <span class="topbar__spacer"></span>
+
+            {% block topbar_actions %}{% endblock %}
+
+            {% if app.user %}
+                <form method="post" action="{{ path('app_logout') }}">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('logout') }}">
+                    <button type="submit" class="btn btn--ghost btn--sm">Salir</button>
+                </form>
+            {% endif %}
+        </header>
+
+        <div class="app-shell__body">
+            <nav id="app-sidebar" class="sidebar" data-sidebar-target="panel" aria-label="Navegación principal">
+                {% include 'layout/_nav.html.twig' %}
+            </nav>
+
+            <main id="main" class="app-main">
+                <div class="container">
+                    {% include 'layout/_flashes.html.twig' %}
+                    {% block main %}{% endblock %}
+                </div>
+            </main>
+        </div>
+    </div>
+{% endblock %}

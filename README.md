@@ -15,11 +15,12 @@ construye encima. Ver [docs/PRODUCT.md](docs/PRODUCT.md) §3 y §10.
 | Documento | Contenido |
 |---|---|
 | [docs/PRODUCT.md](docs/PRODUCT.md) | Problema, usuario, propuesta de valor, hipótesis de producto, funcionalidades, qué NO es el producto, flujo, casos de uso, diferenciación. |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Módulos, modelo de dominio, separación fuente/procesamiento/dominio/valor, extracción por capas, Messenger, persistencia, integraciones, multi-tenancy, frontend. |
-| [docs/SECURITY.md](docs/SECURITY.md) | Acceso al correo, credenciales, documentos, extracción e IA, aislamiento de tenants, retención, RGPD. |
-| [docs/ROADMAP.md](docs/ROADMAP.md) | Fases de desarrollo con criterios de verificación (vertical end-to-end en la fase 3). |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Módulos, modelo de dominio, separación fuente/procesamiento/dominio/valor, extracción por capas, **pipeline de análisis de correo (§13)**, Messenger, persistencia, integraciones, multi-tenancy, frontend. |
+| [docs/SECURITY.md](docs/SECURITY.md) | Acceso al correo, credenciales, documentos, extracción e IA, control de coste de IA, aislamiento de tenants, retención, RGPD. |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | Fases de desarrollo con criterios de verificación (vertical end-to-end en la fase 3; pipeline de análisis en las fases 9–14). |
 | [docs/DECISIONS.md](docs/DECISIONS.md) | Decisiones arquitectónicas (ADR) y su motivo. |
 | [docs/COMPETITORS.md](docs/COMPETITORS.md) | Análisis de soluciones similares, matriz de capacidades y hueco de mercado. |
+| [docs/LEARNING.md](docs/LEARNING.md) | **Especificación de origen del pipeline de análisis de correo.** Documento de requisitos; el diseño resultante está en `ARCHITECTURE.md` §13. |
 
 > Estado actual: **documentación y arquitectura**. No hay todavía código de producto.
 

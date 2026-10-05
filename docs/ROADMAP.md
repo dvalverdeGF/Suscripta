@@ -19,10 +19,19 @@ El orden propuesto en el encargo original se ha ajustado por cuatro motivos:
    memoria** y solo persiste la propuesta; la entidad `Document` llega en la fase 7.
 4. **La detección de recurrencia y el matching se separan de la extracción**, porque son
    problemas distintos (uno determinista, otro con IA) y se pueden verificar por separado.
+5. **Las fases 9 a 14 siguen el orden del pipeline de análisis** (`ARCHITECTURE.md` §13), de
+   lo más barato y determinista a lo más caro: filtros → extracción determinista → parsers →
+   IA → validación → matching → aprendizaje → control de coste. **Nunca se implementa un
+   nivel caro antes que el barato que lo hace innecesario la mayor parte del tiempo.**
 
 **IMAP no es una funcionalidad experimental de última fase.** Aparece en la fase 3 en su
 versión mínima (conectar, leer, encontrar una factura) y se endurece en la fase 8. La
 arquitectura lo contempla desde el principio (`ARCHITECTURE.md` §4.10, `DECISIONS.md` D-23).
+
+**La IA no es una funcionalidad de última fase, pero tampoco temprana.** Llega en la fase 11,
+**después** de que existan filtros, extracción determinista y conocimiento de proveedores,
+porque sin ellos la IA sería el único mecanismo y el producto no sería viable ni económica ni
+legalmente. El control de coste (fase 14) es requisito para operar con IA en producción.
 
 ## Fase 0 — Base del proyecto
 
@@ -105,8 +114,12 @@ Sistema calcula próximos costes
 - Sincronización **manual y acotada**: una carpeta, una ventana corta (p. ej. últimos 6 meses),
   un número limitado de mensajes.
 - `EmailMessage` con metadatos mínimos (remitente, asunto, fecha, `messageId`, `bodyHash`).
-- Prefiltro determinista por remitente/asunto/adjunto y **una** extracción por reglas para los
-  proveedores más comunes (importe, moneda, periodicidad). Sin OCR, sin IA.
+- **Esqueleto del pipeline** (`ARCHITECTURE.md` §13) en su versión mínima: identidad y
+  deduplicación (nivel 0), metadatos (nivel 1), filtro determinista con `billingScore` (nivel
+  2) y **una** extracción por reglas para los proveedores más comunes (nivel 3). Sin OCR, sin
+  IA, sin conocimiento de proveedores persistido.
+- **La máquina de estados y `MessageProcessingEvent` se implementan ya en esta fase**, aunque
+  solo se usen cuatro estados. Añadirlos después obligaría a reprocesar todo el histórico.
 - `Discovery` con `proposedData` y evidencia, y una bandeja de revisión mínima.
 - Confirmar → crea `Service` + `ServicePrice` + `ServiceEvent` con `source = email_discovery`.
 - Dashboard mínimo: servicios detectados y próximos cobros calculados.
@@ -199,53 +212,142 @@ reenviado desde una dirección no autorizada se rechaza; funciona con al menos t
 distintos; **con dos cuentas conectadas a la vez, una factura presente en ambas genera un solo
 descubrimiento**.
 
-## Fase 9 — Extracción por capas
+## Fase 9 — Pipeline: ingesta, metadatos, filtros y billing score (niveles 0–2)
 
-**Objetivo:** convertir mensajes en datos estructurados, con el mínimo envío a terceros.
+**Objetivo:** que el sistema sepa, de forma barata y explicable, **qué correos merecen
+procesarse**. Es la fase que hace viable económicamente todo lo demás.
 
-- Prefiltro determinista barato (remitente, asunto, adjuntos, dominios conocidos).
-- `DocumentClassifierInterface` con implementación por reglas.
-- `InvoiceExtractorInterface` con parser determinista (PDF/texto) donde sea fiable.
-- **OCR** para documentos sin capa de texto, ejecutado en nuestra infraestructura.
-- `AiProviderInterface` con implementación nula por defecto y adaptador opcional, activado
-  solo con consentimiento explícito (D-08).
-- Registro de `extractionMethod` por extracción, para medir el valor real de cada capa.
-- Deduplicación por hash y por `messageId`.
+- **Nivel 0 — identidad y deduplicación.** Clave primaria `emailAccountId + folder + uid`
+  (con `uidValidity`), clave secundaria `emailAccountId + messageId`, y `contentHash` como
+  clave de caché de extracción. Procesamiento idempotente (D-37).
+- **Nivel 1 — metadatos.** Extracción de cabeceras con `BODY.PEEK[HEADER]`: `From`, `Reply-To`,
+  `To`, `Subject`, `Date`, `Message-ID`, UID, `Content-Type`, nombres y tipos de adjuntos,
+  tamaño y dominio del remitente. **Sin descargar cuerpo ni adjuntos.**
+- **Nivel 2 — filtros deterministas.** `BillingClassifierInterface` con pesos configurables y
+  `billingScore` 0–100, más `billingReasons` persistidos (D-31).
+- **Máquina de estados** (`RECEIVED`, `IGNORED`, `CANDIDATE`, …) y `MessageProcessingEvent`
+  como log append-only de transiciones (D-32).
+- Listas configurables de remitentes ignorados y de proveedores conocidos.
+- Mensajes de Messenger del pipeline y transporte `mail_processing`.
 
-**Verificación:** un conjunto de facturas de prueba se clasifica y extrae correctamente; sin
-proveedor de IA configurado el sistema sigue funcionando; las capas 1–3 no envían datos fuera;
-los fallos no bloquean el lote.
+**Verificación:** con un buzón real, el sistema descarta la mayoría de mensajes **sin
+descargar su contenido**; cada decisión es explicable desde `billingReasons`; reprocesar el
+mismo mensaje no cambia nada y no cuesta nada; el porcentaje de descartes en el nivel 2 es
+medible.
 
-## Fase 10 — Detección de recurrencia y matching
+## Fase 10 — Extracción determinista y conocimiento de proveedores (niveles 3–4)
 
-**Objetivo:** decidir si un gasto es recurrente y a qué servicio pertenece.
+**Objetivo:** extraer por código todo lo que sea fiablemente extraíble, y no volver a pagar por
+lo que ya se sabe.
 
-- `RecurrenceDetectorInterface` determinista (intervalos entre facturas, importes).
-- `ServiceDiscoveryInterface` para emparejar con servicios existentes (proveedor + importe +
-  periodicidad).
-- Cálculo de `nextChargeAt` a partir del historial.
-- Puntuación de confianza (`confidenceScore`).
+- **Nivel 3 — extracción determinista.** Importes, monedas, fechas, números de factura,
+  periodos, correos, dominios, URLs, identificadores y referencias de pedido mediante regex,
+  parsers, análisis de HTML y extracción de texto de PDF (`smalot/pdfparser`).
+- **OCR** (`OcrEngineInterface`, Tesseract) **solo** para documentos sin capa de texto,
+  ejecutado en nuestra infraestructura, en transporte propio con concurrencia muy baja.
+- `ExtractedDocument` como DTO persistido en JSON, con `rawSignals` para poder explicar y
+  depurar la extracción.
+- **Nivel 4 — conocimiento de proveedores.** `Provider`, `ProviderIdentity` (dominio,
+  remitente, patrón) y `ProviderParser` (parser de código + `config` declarativa).
+- Escalera de resolución: identidad → parser conocido → patrones → (si nada basta) IA.
+- Contadores `successCount` / `failureCount` por parser, con degradación a IA en lugar de fallo
+  duro.
 
-**Verificación:** con historiales sintéticos, la periodicidad detectada es correcta; los
-emparejamientos ambiguos quedan en confianza baja; no se fija `nextChargeAt` con datos
-irregulares.
+**Verificación:** un conjunto de facturas reales se extrae correctamente **sin IA**; un
+proveedor conocido se resuelve por parser en la segunda factura; un PDF escaneado pasa por OCR
+y no por IA; las capas 1–3 no envían datos fuera del sistema; un parser que falla degrada a IA
+y no rompe el lote.
 
-## Fase 11 — Descubrimientos y revisión (completo)
+## Fase 11 — IA económica y avanzada con validación (niveles 5–7)
 
-**Objetivo:** el usuario confirma, corrige o ignora, con evidencia visible.
+**Objetivo:** resolver la incertidumbre que las reglas no cubren, **sin que la IA sea el camino
+por defecto** y sin que pueda corromper el dominio.
 
+- **Nivel 5 — IA económica.** `DocumentExtractorInterface` + `AiProviderInterface` con
+  adaptador de modelo económico. **Desactivada por defecto** (D-08).
+- **Redacción previa al envío:** eliminar HTML innecesario, firmas, avisos legales, tracking y
+  contenido irrelevante; limitar longitud; extraer texto del PDF; enviar como contexto los
+  datos ya obtenidos determinísticamente.
+- **Contrato de salida estructurado** (proveedor, servicio, plan, tipo de documento, importe,
+  moneda, periodicidad, fechas, confianza).
+- **Nivel 6 — IA avanzada** con umbral configurable, solo para confianza insuficiente, campos
+  contradictorios, proveedor desconocido con documento complejo, PDF difícil o información
+  insuficiente (D-30).
+- **Nivel 7 — validación obligatoria.** DTO tipado → Symfony Validator → reglas de negocio.
+  Se rechazan importes negativos o absurdos, fechas incoherentes (`renewalDate < invoiceDate`),
+  periodicidades imposibles y campos obligatorios ausentes (D-34).
+- Registro de `extractionTier` por extracción, para medir el valor real de cada capa.
+
+**Verificación:** sin proveedor de IA configurado el sistema sigue funcionando; con IA
+configurada, un documento ambiguo se resuelve y uno con datos imposibles se rechaza y queda en
+`REQUIRES_REVIEW`; se puede cambiar de proveedor de IA sin tocar el dominio; el texto enviado
+no contiene firmas, tracking ni el correo completo.
+
+## Fase 12 — Service matching y descubrimientos (nivel 8)
+
+**Objetivo:** decidir a qué servicio pertenece un documento, **sin crear servicios
+automáticamente**.
+
+- `ServiceMatcherInterface` con puntuación ponderada (proveedor +40, dominio +20, nombre +20,
+  moneda +5, periodicidad +5, similitud de importe +5, remitente +5) y umbrales configurables
+  (≥70 HIGH, 40–69 MEDIUM, <40 LOW). Ver D-35.
+- `Discovery.matchScore` y `matchReasons` persistidos, para poder explicar la asociación.
+- `RecurrenceDetectorInterface` determinista (intervalos entre facturas, importes) y cálculo de
+  `nextChargeAt`.
 - `DiscoveryEvidence` con enlace a correo y documentos de origen.
 - Bandeja de descubrimientos con evidencia, filtros y acciones en lote.
-- Confirmar → crea `Service` + `ServicePrice` + `ServiceEvent`.
-- Editar → permite corregir antes de confirmar.
-- Ignorar → descarta y no vuelve a proponer lo mismo.
-- Expiración de descubrimientos antiguos.
+- Confirmar → `Service` + `ServicePrice` + `ServiceEvent`; editar; ignorar (y no volver a
+  proponer lo mismo); expiración de descubrimientos antiguos.
 - Alertas de tipo `new_service_detected`.
 
-**Verificación:** confirmar un descubrimiento crea el servicio con su precio inicial; ignorar
-no vuelve a proponerlo; el flujo completo funciona sin intervención manual en la base de datos.
+**Verificación:** con historiales sintéticos la periodicidad detectada es correcta; los
+emparejamientos ambiguos quedan en confianza media y pasan por revisión; **ningún servicio se
+crea sin confirmación**; confirmar crea el servicio con su precio inicial; ignorar no vuelve a
+proponerlo; el flujo completo funciona sin tocar la base de datos a mano.
 
-## Fase 12 — Detección de cambios
+## Fase 13 — Aprendizaje del buzón
+
+**Objetivo:** que el coste marginal de procesar un buzón **decrezca con el tiempo**.
+
+- `MailboxKnowledgeEntry` por cuenta de correo: `sender_mapping`, `subject_pattern`,
+  `ignored_sender`, `document_pattern`, `provider_hint` (D-33).
+- Alimentación desde confirmaciones, correcciones, proveedores conocidos, patrones observados y
+  parsers que han funcionado.
+- Promoción **explícita** (no automática) de conocimiento del buzón a `ProviderIdentity` /
+  `ProviderParser` globales.
+- Pantalla de conocimiento aprendido: ver, editar y borrar lo que el sistema ha aprendido.
+- Poda por `hitCount` + `lastUsedAt`.
+- **Sin machine learning** (D-39).
+
+**Verificación:** la segunda sincronización de un buzón ya procesado consume **menos IA** que
+la primera, de forma medible; corregir un proveedor hace que el siguiente correo del mismo
+remitente se resuelva sin IA; el usuario puede ver y borrar lo aprendido; un patrón aprendido en
+un buzón no afecta a otro.
+
+## Fase 14 — Control de coste de IA y observabilidad
+
+**Objetivo:** que el coste sea **acotado, medible y predecible**. Es requisito para operar con
+IA en producción, no una optimización posterior.
+
+- `AiUsage` obligatorio en cada llamada, incluso si falla (organización, cuenta, mensaje,
+  documento, operación, proveedor, modelo, nivel, tokens, coste estimado, latencia, resultado).
+- `AiBudget` por organización y periodo, con `hardStop` y guard comprobado **antes** de cada
+  llamada (D-36).
+- Al alcanzar el techo: no más IA, el pipeline continúa por reglas y los mensajes quedan en
+  `DEFERRED` con el motivo.
+- Transporte `ai` con concurrencia limitada y rate limit propio. **Nunca llamadas ilimitadas
+  durante una sincronización.**
+- Caché de extracción por `contentHash`: un reintento o un duplicado no vuelven a consumir IA.
+- Panel de observabilidad: coste por usuario y mes, % de mensajes resueltos sin IA, tasa de
+  escalado a IA avanzada, tiempo medio por mensaje y por nivel.
+- Alertas internas al superar umbrales de coste.
+
+**Verificación:** ninguna ruta del pipeline puede hacer llamadas de IA ilimitadas; al agotar el
+presupuesto el sistema sigue procesando por reglas y deja el resto en `DEFERRED`; reprocesar un
+mensaje ya extraído cuesta cero; se puede responder con datos a *"¿cuánto cuesta procesar el
+buzón de este usuario?"* y *"¿cuánto cuesta de IA un usuario medio al mes?"*.
+
+## Fase 15 — Detección de cambios
 
 **Objetivo:** detectar lo que ha cambiado y avisar.
 
@@ -259,16 +361,17 @@ no vuelve a proponerlo; el flujo completo funciona sin intervención manual en l
 **Verificación:** cada tipo de alerta tiene test con datos sintéticos; las inferencias se
 muestran como sugerencias, no como hechos.
 
-## Fase 13 — Hardening de seguridad y RGPD
+## Fase 16 — Hardening de seguridad y RGPD
 
 **Objetivo:** cumplir `SECURITY.md` de punta a punta.
 
 - Exportación de datos (`ExportOrganizationData`).
-- Borrado de organización y de cuenta de correo con cascada completa.
-- Purga programada según política de retención (correo, documentos y datos estructurados por
-  separado).
+- Borrado de organización y de cuenta de correo con cascada completa, incluido el conocimiento
+  aprendido del buzón.
+- Purga programada según política de retención (correo, documentos, datos estructurados y
+  metadatos de procesamiento por separado).
 - Revisión de cabeceras, CSRF, rate limiting y validación de subidas.
-- Auditoría completa de acciones sensibles.
+- Auditoría completa de acciones sensibles, incluidos los envíos a proveedores de IA.
 - Revisión de dependencias y de secretos.
 - Tests de aislamiento ampliados a todos los módulos.
 - Revisión de las afirmaciones de privacidad publicadas: **solo se afirma lo que la
@@ -277,13 +380,14 @@ muestran como sugerencias, no como hechos.
 **Verificación:** checklist de `SECURITY.md` §11 completo; exportar y borrar datos funciona;
 ningún secreto en logs.
 
-## Fase 14 — Preparación SaaS
+## Fase 17 — Preparación SaaS
 
 **Objetivo:** dejar el producto listo para planes y crecimiento.
 
-- `EntitlementCheckerInterface` con implementación de límites.
+- `EntitlementCheckerInterface` con implementación de límites (servicios, cuentas de correo,
+  documentos procesados y **presupuesto de IA por plan**).
 - Onboarding guiado (conectar correo o continuar sin él).
-- Observabilidad: métricas de sincronización, extracción y alertas.
+- Observabilidad de producto: métricas de sincronización, extracción, coste de IA y alertas.
 - Backups y restauración documentados.
 - Rendimiento: índices revisados, consultas del dashboard optimizadas.
 - Documentación de operación y despliegue.

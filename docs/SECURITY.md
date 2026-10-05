@@ -91,7 +91,7 @@ superficie de riesgo:
 
 **No se asume que todos los documentos deban enviarse a una API externa de IA.** La extracción
 se aplica en cascada y se detiene en cuanto hay suficiente confianza (ver `ARCHITECTURE.md`
-§4.11):
+§4.11 y el pipeline completo en §13):
 
 | Capa | Datos que salen del sistema |
 |---|---|
@@ -114,14 +114,25 @@ puede implicar transferencia a un tercero, y solo con consentimiento explícito.
   - Consentimiento del usuario a nivel de organización.
   - Contrato de encargado de tratamiento (DPA) con el proveedor.
   - Registro en la política de privacidad.
-- Antes de enviar contenido se aplica **minimización y redacción**: se envían solo los campos
-  necesarios (importes, fechas, nombre del proveedor), no el documento completo, salvo que sea
-  imprescindible.
+- Antes de enviar contenido se aplica **minimización y redacción**:
+  - se elimina el HTML innecesario y se conserva el texto;
+  - se eliminan firmas, avisos legales y pies de página;
+  - se eliminan píxeles de seguimiento y enlaces de *tracking*;
+  - se elimina contenido irrelevante (hilos citados, navegación, publicidad);
+  - se limita la longitud del texto enviado;
+  - se extrae el texto útil del PDF en lugar de enviar el binario;
+  - se aprovechan los datos ya obtenidos determinísticamente y se envían como contexto
+    estructurado, para que el modelo no tenga que redescubrirlos.
+- **Nunca se envía el buzón completo.** Tampoco se envían correos irrelevantes: un mensaje que
+  no supera el filtro determinista no llega a ningún proveedor de IA.
+- **Nada que se pueda extraer localmente se envía.** Si una expresión regular, un parser o el
+  texto embebido del PDF resuelven el campo, no viaja a ningún tercero.
 - **Nunca** se envían credenciales, tokens ni datos de otras organizaciones.
-- Los resultados de IA son **propuestas**, nunca escrituras directas: pasan por `Discovery` y
-  requieren confirmación.
+- Los resultados de IA son **propuestas**, nunca escrituras directas: pasan por validación
+  obligatoria (`ARCHITECTURE.md` §13.9) y, si no alcanzan confianza alta, por `Discovery` y
+  confirmación del usuario.
 - Se registra qué proveedor y qué versión de modelo procesó cada documento (trazabilidad), y
-  qué capa resolvió cada extracción (`extractionMethod`), para poder medir el valor real de la
+  qué capa resolvió cada extracción (`extractionTier`), para poder medir el valor real de la
   IA y reducir su uso.
 
 ### 4.3 Evolución hacia procesamiento más privado
@@ -132,6 +143,27 @@ resultado de la extracción, no cómo se obtuvo.
 
 **Mientras eso no esté implementado y verificado, no se afirma que el procesamiento sea
 "100 % privado" ni "100 % UE"** (D-25).
+
+### 4.4 Control de coste y trazabilidad de la IA
+
+El coste de IA es también un riesgo de seguridad: un bucle de reintentos o un umbral mal
+ajustado pueden generar una factura ilimitada y, con ella, una denegación de servicio
+económica.
+
+- **Registro obligatorio.** Cada llamada deja una fila en `AiUsage`, **incluso si falla**, con
+  organización, cuenta, mensaje, documento, operación, proveedor, modelo, nivel, tokens de
+  entrada y salida, coste estimado, latencia y resultado. Sin este registro no se puede
+  auditar qué salió del sistema ni cuánto costó.
+- **Presupuesto con parada dura.** `AiBudget` fija un techo por organización y periodo. Al
+  alcanzarlo **no se hacen más llamadas**: el pipeline continúa por reglas y los mensajes
+  afectados quedan en `DEFERRED`. El guard se comprueba **antes** de cada llamada.
+- **Nunca hay llamadas ilimitadas durante una sincronización.** El transporte `ai` tiene
+  concurrencia limitada y *rate limit* propio.
+- **Caché por `contentHash`.** Antes de cualquier llamada se comprueba si ya existe una
+  extracción válida para ese contenido. Un reintento, una resincronización o un mensaje
+  duplicado **no consumen IA de nuevo** (D-37).
+- **Trazabilidad de proveedor.** `AiUsage.provider` y `AiUsage.model` permiten auditar qué
+  tercero procesó cada documento y migrar de proveedor con datos en la mano.
 
 ## 5. Aislamiento entre organizaciones (multi-tenant)
 
@@ -156,6 +188,7 @@ parte del diseño:
 | **Correo** | `EmailAccount`, `EmailMessage`, cursores, extractos de cuerpo | Alta: comunicaciones de terceros |
 | **Documentos** | `Document` (adjuntos y ficheros conservados) | Alta: contenido financiero |
 | **Datos estructurados** | `Service`, `ServicePrice`, `Invoice`, `Discovery`, `Alert` | Media: datos del negocio del usuario |
+| **Metadatos de procesamiento** | `MessageProcessingEvent`, `MailboxKnowledgeEntry`, `AiUsage`, `AiBudget` | Media: revelan patrones del buzón y proveedores de IA usados |
 
 El correo y los documentos son **evidencia temporal**; los datos estructurados son **el
 producto**. Por eso el correo se purga antes y los servicios confirmados sobreviven a la
@@ -171,6 +204,10 @@ desconexión del buzón.
 | Descubrimientos ignorados | 90 días | Purga programada |
 | Alertas resueltas | 12 meses | Purga programada |
 | `AuditLog` | 24 meses | Purga programada (append-only hasta entonces) |
+| `MessageProcessingEvent` | 12 meses | Purga programada |
+| `MailboxKnowledgeEntry` | Mientras la cuenta esté conectada | Borrado al desconectar la cuenta; poda por `lastUsedAt` |
+| `AiUsage` | 24 meses | Purga programada (agregado anonimizado se conserva para métricas) |
+| `AiBudget` | Mientras exista la organización | Cascada al borrar la organización |
 
 - **Desconectar una cuenta de correo** elimina credenciales, cursores y mensajes asociados. Los
   servicios ya confirmados **permanecen** (son datos del usuario, no del correo).
@@ -190,6 +227,10 @@ Se registra en `AuditLog` (append-only) toda acción sensible:
 - Altas, bajas y cambios de rol de miembros de la organización.
 - Exportación y borrado de datos.
 - Cambios en la configuración de notificaciones y de privacidad.
+- **Envío de contenido a un proveedor de IA** (proveedor, modelo, organización, cuenta y
+  documento), y cambios en el consentimiento de IA de la organización.
+- **Alcanzar el presupuesto de IA** de una organización y las ampliaciones de presupuesto.
+- **Edición o borrado del conocimiento aprendido** del buzón (`MailboxKnowledgeEntry`).
 
 Cada entrada incluye actor, acción, objetivo, metadatos, IP y user-agent. El log **no** contiene
 secretos ni contenido de correo.
@@ -250,5 +291,13 @@ Antes de considerar terminada cada fase del roadmap:
 - [ ] Las dependencias nuevas se revisan por vulnerabilidades y licencia.
 - [ ] Si se añade una capa de extracción, se verifica que las capas 1–3 no envían datos fuera
       del sistema y que la capa de IA sigue desactivada por defecto.
+- [ ] Toda llamada de IA escribe en `AiUsage` y pasa por el guard de `AiBudget` **antes** de
+      ejecutarse.
+- [ ] Ningún camino del pipeline puede hacer llamadas de IA ilimitadas durante una
+      sincronización.
+- [ ] Un reintento, una resincronización o un mensaje duplicado no vuelven a consumir IA
+      (caché por `contentHash`).
+- [ ] La salida de IA pasa por validación (tipos, rangos, coherencia) antes de persistirse.
+- [ ] El conocimiento aprendido del buzón es editable y borrable por el usuario.
 - [ ] Ninguna afirmación de privacidad publicada supera lo que la implementación y los
       proveedores sostienen (D-25).

@@ -121,6 +121,10 @@ Los umbrales concretos se fijarán antes de la prueba, no después de ver los re
 - **Conexión de correo (IMAP, solo lectura)**, con **varias cuentas por organización**, y
   **descubrimiento** de servicios recurrentes.
 - **Descubrimientos pendientes de revisar**: confirmar, editar o ignorar.
+- **Explicabilidad**: para cada correo procesado, el usuario puede ver por qué se procesó o se
+  ignoró, qué se extrajo y de dónde (§6.4).
+- **Aprendizaje del buzón**: el sistema recuerda lo que el usuario confirma y corrige, de modo
+  que cada vez necesita analizar menos correo y es más rápido y más barato (§6.5).
 
 ### 4.2 Conexión de correo: alcance
 
@@ -245,6 +249,53 @@ Posible cambio de precio detectado.
 
 [Revisar]
 ```
+
+### 6.4 Explicabilidad: por qué el sistema hizo lo que hizo
+
+El usuario está conectando su **buzón de facturación**. Tiene derecho a saber qué se ha hecho
+con él. Por eso la explicación no es una pantalla de depuración escondida: es parte del
+producto.
+
+Para cada correo procesado, el usuario puede ver:
+
+- **Por qué se procesó o se ignoró**, con los motivos concretos: *"el remitente es un proveedor
+  conocido"*, *"el asunto contiene una palabra de facturación"*, *"tiene un PDF adjunto"*,
+  *"se detectó un importe"*.
+- **Qué se extrajo**: proveedor, servicio, importe, moneda, periodicidad, fechas.
+- **Cómo se extrajo**: si bastaron reglas y parsers o si fue necesario un modelo de IA.
+- **De dónde salió**: los correos y documentos concretos que sustentan la propuesta.
+- **Con qué se asoció**: por qué el sistema cree que es el mismo servicio que ya tenía
+  (*"coincide el proveedor y el importe"*).
+
+**Por qué importa.** Un gasto recurrente mal detectado es peor que un gasto no detectado: el
+usuario toma decisiones de dinero con esa información. Un sistema que dice "29,90 €" sin poder
+explicar de dónde sale no es utilizable para eso.
+
+**Consecuencia de diseño.** El sistema **no envía todos los correos a una IA**. La mayoría se
+resuelven con reglas y parsers, que son explicables por construcción. La IA se reserva para lo
+que de verdad es ambiguo, y su resultado se valida antes de usarse.
+
+### 6.5 El sistema aprende de tu buzón
+
+El sistema **no vuelve a analizar desde cero** lo que ya ha visto. Cuando el usuario confirma
+un descubrimiento o corrige un dato, esa información se guarda como conocimiento del buzón:
+
+```text
+invoice@ovh.com  →  OVH  →  factura  →  hosting
+```
+
+A partir de ahí, el mismo tipo de correo se resuelve **sin IA y sin intervención del usuario**.
+
+**Qué nota el usuario:**
+
+- La primera sincronización tarda más y pregunta más: es normal, el sistema está conociendo el
+  buzón.
+- Las siguientes son más rápidas y generan menos descubrimientos que revisar.
+- Las correcciones se aplican de forma **predecible**: el usuario puede ver y editar lo que el
+  sistema ha aprendido.
+
+**Qué NO es.** No es una caja negra que "aprende sola". Es conocimiento explícito, inspeccionable
+y editable. Si el sistema se equivoca, el usuario puede ver por qué y corregirlo.
 
 ## 7. Pantallas principales
 
@@ -417,6 +468,22 @@ servicios confirmados permanecen.
 - **Accionabilidad:** % de alertas abiertas que el usuario reconoce o descarta (no ignoradas
   en bloque).
 - **Precisión:** % de descubrimientos confirmados sin edición (proxy de calidad del extractor).
+
+**Métricas del pipeline de análisis** (ver `ARCHITECTURE.md` §13.16). Son las que determinan si
+el producto es económicamente viable, y por eso se miden desde el primer día:
+
+- **% de mensajes resueltos sin IA.** Cuanto más alto, mejor: significa que reglas, parsers y
+  conocimiento del buzón bastan. Objetivo: crecer con la antigüedad del buzón.
+- **Coste de IA por usuario y mes.** Es el dato que fija el precio del producto. Sin él, el
+  modelo de negocio es una apuesta.
+- **Coste de IA por buzón en la primera sincronización frente a las siguientes.** Mide si el
+  aprendizaje funciona de verdad.
+- **% de mensajes descartados en el filtro determinista** (nivel 2). Mide cuánto trabajo se
+  ahorra antes de descargar contenido.
+- **Tasa de escalado a IA avanzada.** Si es alta, el umbral o el modelo económico están mal
+  ajustados.
+- **Tasa de confirmación de descubrimientos.** Mide la precisión percibida.
+- **Tiempo medio de procesamiento por mensaje**, por nivel de extracción.
 
 ## 13. Modelo de negocio (no implementado en v1)
 

@@ -25,6 +25,17 @@
 	encode zstd br gzip
 
 	mercure {
+		# El hub lleva nombre porque SERVER_NAME declara dos direcciones
+		# (localhost y php:80) y Caddy genera un servidor por cada una: el
+		# módulo Mercure sólo admite un hub sin nombre por aplicación HTTP.
+		name suscripta
+
+		# El módulo Mercure incluido en la imagen exige el modo "issuer" o,
+		# explícitamente, el modo de compatibilidad con la versión 8 del
+		# protocolo. Se opta por lo segundo para mantener la configuración
+		# estándar de la plantilla.
+		protocol_version_compatibility 8
+
 		# Publisher JWT key
 		publisher_jwt {env.MERCURE_PUBLISHER_JWT_KEY} {env.MERCURE_PUBLISHER_JWT_ALG}
 		# Subscriber JWT key

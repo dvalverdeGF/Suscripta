@@ -1,0 +1,29 @@
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}Panel — Suscripta{% endblock %}
+
+{% block main %}
+    <div class="page-header">
+        <div class="page-header__title">
+            <h1>Panel</h1>
+            <p class="page-header__subtitle">Resumen de tus servicios y gastos recurrentes.</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card__body">
+            <div class="empty-state">
+                <p class="empty-state__title">Todavía no hay datos que mostrar</p>
+                <p class="empty-state__text">
+                    Conecta tu cuenta de correo de facturación para que Suscripta empiece a
+                    descubrir los servicios que pagas.
+                </p>
+                {% if route_exists('app_mail_accounts_index') %}
+                    <a class="btn btn--primary" href="{{ path('app_mail_accounts_index') }}">
+                        Conectar una cuenta de correo
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+{% endblock %}

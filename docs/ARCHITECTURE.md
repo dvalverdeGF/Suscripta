@@ -14,24 +14,38 @@
    código determinista y testeable. La IA se usa solo donde aporta valor real: clasificar
    texto libre y extraer datos de documentos no estructurados. La extracción es **por capas**
    (determinista → reglas → OCR → IA) y los proveedores de IA son **intercambiables**
-   (ver §4.10 y `DECISIONS.md` D-24).
-4. **Nada crítico sin supervisión.** El sistema propone; el usuario confirma. Ninguna
+   (ver §4.10, §13 y `DECISIONS.md` D-24, D-29).
+4. **Enriquecimiento progresivo.** Cada mensaje se procesa con el mecanismo **más barato,
+   rápido y determinista** que pueda resolverlo, y solo se escala al siguiente nivel cuando
+   el anterior no alcanza el umbral de confianza. El sistema **aprende del propio buzón**
+   para que el uso de IA decrezca con el tiempo. La regla que gobierna todo el pipeline es:
+   *la IA debe resolver incertidumbre, no sustituir a la lógica de negocio* (§13).
+5. **La IA propone; el sistema decide.** Ninguna salida de un modelo se persiste sin pasar
+   por el `Validator` de Symfony y por las reglas de negocio. Un importe negativo, una fecha
+   incoherente o una periodicidad imposible se rechazan aunque el modelo los devuelva con
+   confianza alta (§13.9, D-34).
+6. **La IA es un recurso con presupuesto.** Cada llamada se registra y se factura contra un
+   límite configurable por organización. Nunca hay llamadas ilimitadas durante una
+   sincronización (§13.13, D-36).
+7. **Nada crítico sin supervisión.** El sistema propone; el usuario confirma. Ninguna
    suscripción, cambio de precio o cancelación se registra automáticamente si hay
    incertidumbre.
-5. **Aislamiento por tenant desde la primera línea.** Toda entidad de negocio lleva
+8. **Aislamiento por tenant desde la primera línea.** Toda entidad de negocio lleva
    `organization_id` y toda consulta se filtra por él.
-6. **Abstracción solo donde hay una variación real prevista** (proveedor de correo,
+9. **Abstracción solo donde hay una variación real prevista** (proveedor de correo,
    proveedor de IA, almacenamiento de documentos, canal de notificación). No se crean
    interfaces "por si acaso".
-7. **El correo es una fuente, no el producto.** La conexión IMAP es una **capacidad
-   estratégica de primera clase**, presente en la arquitectura desde el principio, pero la
-   aplicación **no es un cliente de correo**. El dominio no depende de Gmail ni de ningún
-   proveedor concreto (ver §4.10 y `DECISIONS.md` D-23).
-8. **Privacidad como principio arquitectónico, no como marketing.** Solo lectura,
-   minimización de datos, separación de correo/documentos/datos estructurados, cifrado de
-   credenciales, borrado por cuenta, retención controlada y registro de accesos sensibles
-   (ver `SECURITY.md`). **No se hacen afirmaciones de "100 % privado" ni "100 % UE"** hasta
-   que la implementación y los proveedores utilizados permitan sostenerlas (D-25).
+10. **El correo es una fuente, no el producto.** La conexión IMAP es una **capacidad
+    estratégica de primera clase**, presente en la arquitectura desde el principio, pero la
+    aplicación **no es un cliente de correo**. El dominio no depende de Gmail ni de ningún
+    proveedor concreto (ver §4.10 y `DECISIONS.md` D-23).
+11. **Privacidad como principio arquitectónico, no como marketing.** Solo lectura,
+    minimización de datos, separación de correo/documentos/datos estructurados, cifrado de
+    credenciales, borrado por cuenta, retención controlada y registro de accesos sensibles
+    (ver `SECURITY.md`). **No se hacen afirmaciones de "100 % privado" ni "100 % UE"** hasta
+    que la implementación y los proveedores utilizados permitan sostenerlas (D-25).
+12. **Todo paso es idempotente, reintentable y observable.** Un reintento no puede duplicar
+    un `Discovery`, una `Invoice`, un `Document` ni un coste de IA (§13.14, D-37).
 
 ## 2. Stack técnico
 
@@ -41,8 +55,11 @@
 | Framework | Symfony 8.x | Instalado vía `composer create-project symfony/skeleton` en el primer arranque. |
 | Servidor | FrankenPHP + Caddy | Ya configurado en el repositorio (worker mode, HTTPS automático, Mercure). |
 | ORM | Doctrine ORM 3 + Migrations | Mapeo por **Attributes**. |
-| Base de datos | PostgreSQL 16+ | `compose.yaml` fija `POSTGRES_VERSION=15` por defecto; se subirá a 16/17. |
+| Base de datos | PostgreSQL 16+ | `compose.yaml` fija `POSTGRES_VERSION=16` por defecto. |
 | Mensajería | Symfony Messenger | Transporte Doctrine, varios transports + `failed`. |
+| Texto de PDF | `smalot/pdfparser` (capa de texto) | Extracción determinista, sin salir del sistema. |
+| OCR | Tesseract vía `thiagoalessio/tesseract_ocr` | **Opcional**, solo para PDF/imagen sin capa de texto. Se activa por configuración. |
+| IA | `symfony/http-client` + `AiProviderInterface` | Proveedores intercambiables (económico y avanzado). Desactivada por defecto. Ver §13. |
 | Vistas | Twig (SSR) + Turbo + Stimulus | Sin SPA. Ver §12 y `DECISIONS.md` (D-17). |
 | Assets | **AssetMapper** (sin Node/npm) | `symfony/asset-mapper`. Evita un toolchain Node en la imagen Docker. |
 | Tiempo real | **Mercure** | Ya incluido en la plantilla FrankenPHP. Progreso de sincronización en vivo. |
@@ -65,11 +82,13 @@ src/
 │   └── Infrastructure/# Doctrine types, TenantFilter, Audit, Storage, Mailer
 │
 ├── Identity/          # User, Organization, Membership, autenticación
-├── Catalog/           # Provider, Category (catálogo global + entradas propias del tenant)
+├── Catalog/           # Provider, Category, ProviderIdentity, ProviderParser (conocimiento global)
 ├── Services/          # Service, ServicePrice, ServiceEvent  ← núcleo del producto
 ├── Documents/         # Document, Invoice
-├── Mailbox/           # EmailAccount, EmailMessage, EmailSyncCursor, EmailSyncRun, IMAP
-├── Discovery/         # Discovery, matching, detección de recurrencia y de cambios
+├── Mailbox/           # EmailAccount, EmailMessage, EmailSyncCursor, EmailSyncRun, IMAP, reenvío
+├── Processing/        # Pipeline: BillingClassifier, extractores, validación, estados, MailboxKnowledge
+├── Ai/                # AiProviderInterface, adaptadores, AiUsage, AiBudget, guard de coste
+├── Discovery/         # Discovery, ServiceMatcher, detección de recurrencia y de cambios
 ├── Notifications/     # Alert, Notification, NotificationPreference, canales
 └── Dashboard/         # Consultas de lectura agregadas (sin entidades propias)
 ```
@@ -107,6 +126,14 @@ usuario. Motivo y alternativas en `DECISIONS.md` (D-02).
 |---|---|---|
 | `Provider` | id, organizationId (nullable), name, slug, aliases (json), website, logoPath, defaultCategoryId, isSystem | `organizationId = null` → catálogo global (OVH, Microsoft, GitHub…). No nulo → proveedor propio del tenant. |
 | `Category` | id, organizationId (nullable), name, slug, color, icon, isSystem | Categorías por defecto: Software, Hosting, Telecomunicaciones, Seguros, Suministros, Marketing, Formación, Otros. |
+| `ProviderIdentity` | id, providerId, type, value, confidence, source, hitCount, lastSeenAt, createdAt | **Cómo reconocemos a un proveedor.** `type`: `domain`, `sender`, `subject_pattern`, `attachment_pattern`. `source`: `seed`, `learned`, `user`. `UNIQUE (type, value)`. |
+| `ProviderParser` | id, providerId, key, version, enabled, config (json), successCount, failureCount, lastUsedAt | **Cómo extraemos de un proveedor.** `key` referencia un parser de código (`ovh`, `github`, `microsoft`); `config` permite patrones declarativos sin tocar código. |
+
+**Conocimiento de proveedores separado del catálogo.** `Provider` responde *quién es*; 
+`ProviderIdentity` responde *cómo lo reconocemos* (un proveedor puede facturar desde varios
+dominios y direcciones); `ProviderParser` responde *cómo extraemos sus datos*. Esta separación
+es la que permite que el sistema **aprenda** un proveedor nuevo sin crear código, y que un
+parser de código conviva con patrones configurados y con conocimiento aprendido (§13.7, D-33).
 
 ### 4.3 Núcleo: servicios y precios
 
@@ -158,13 +185,26 @@ entidad `EmailAttachment` separada.
 | `EmailAccount` | id, organizationId, provider, emailAddress, displayName, status, credentialsEncrypted, oauthTokenEncrypted (nullable), imapHost, imapPort, imapEncryption, imapUsername, lastSyncAt, lastSyncStatus, lastSyncError, createdAt, updatedAt, deletedAt |
 | `EmailSyncCursor` | id, emailAccountId, folderName, uidValidity, lastSeenUid, lastSyncAt |
 | `EmailSyncRun` | id, emailAccountId, startedAt, finishedAt, status, messagesSeen, messagesProcessed, messagesSkipped, discoveriesCreated, error |
-| `EmailMessage` | id, organizationId, emailAccountId, folder, uid, messageId, threadId, fromAddress, fromName, toAddresses (json), subject, receivedAt, sizeBytes, hasAttachments, bodyHash, bodyExcerpt (nullable), processingStatus, classification, classificationConfidence, attempts, lastError, processedAt, createdAt |
+| `EmailMessage` | id, organizationId, emailAccountId, folder, uid, messageId, threadId, fromAddress, fromName, replyTo, senderDomain, toAddresses (json), subject, receivedAt, sizeBytes, contentType, hasAttachments, attachmentNames (json), attachmentTypes (json), bodyHash, contentHash, bodyExcerpt (nullable), billingScore, billingReasons (json), processingState, classification, classificationConfidence, extractionTier, extractorUsed, aiUsed, aiCostMinor, attempts, lastError, processedAt, createdAt |
+| `MessageProcessingEvent` | id, emailMessageId, fromState, toState, reason, extractor, tier, aiUsageId (nullable), durationMs, data (json), occurredAt |
 
 **`EmailAccount.provider`**: `imap`, `forwarding`, `gmail`, `microsoft` (los dos últimos, reservados).
 **`EmailAccount.status`**: `pending`, `active`, `error`, `disabled`.
-**`EmailMessage.processingStatus`**: `pending`, `processing`, `processed`, `skipped`, `failed`.
+**`EmailMessage.processingState`**: máquina de estados explícita — ver §13.5.
 **`EmailMessage.classification`**: `invoice`, `receipt`, `payment_confirmation`,
 `renewal_notice`, `price_change`, `plan_change`, `expiration_notice`, `other`, `unknown`.
+**`EmailMessage.extractionTier`**: `deterministic`, `known_parser`, `ai_cheap`, `ai_advanced`.
+
+**`MessageProcessingEvent` es un log append-only** de las transiciones de estado de cada
+mensaje. Responde a *qué ocurrió, cuándo, con qué extractor, si intervino IA, con qué
+resultado y por qué se decidió* (§13.5, D-32). Es la base de la observabilidad del pipeline y
+de la explicación que se muestra al usuario.
+
+**Identidad estable del mensaje.** Un mensaje se identifica por
+`UNIQUE (email_account_id, folder, uid)` y, además, por `UNIQUE (email_account_id, message_id)`
+y `contentHash` (SHA-256 del contenido normalizado). El UID de IMAP **no es estable entre
+buzones ni tras un cambio de `uidValidity`**, y el `Message-ID` puede faltar o repetirse en
+copias; por eso se combinan los tres. Ver §13.2 y D-37.
 
 **Varias cuentas por organización (1:N).** `EmailAccount` pertenece a la organización, no al
 usuario: una organización puede conectar **varias cuentas** (p. ej. la del titular, la del
@@ -193,12 +233,34 @@ carpeta **y por cuenta**. Si `uidValidity` cambia, el cursor se invalida y se re
 ventana acotada. Esto responde al requisito *"conocer hasta dónde se ha sincronizado cada
 cuenta"*.
 
+**Conocimiento del buzón:**
+
+| Entidad | Campos clave |
+|---|---|
+| `MailboxKnowledgeEntry` | id, emailAccountId, kind, key, value (json), confidence, source, hitCount, lastUsedAt, createdAt |
+
+`kind`: `sender_mapping` (dirección → proveedor), `subject_pattern`, `ignored_sender`,
+`document_pattern`, `provider_hint`. `source`: `user_confirmed`, `user_corrected`, `learned`.
+
+Es el mecanismo por el que **el sistema aprende del propio buzón** y reduce el uso de IA con
+el tiempo: lo que se resolvió una vez con IA se resuelve la siguiente vez con conocimiento
+persistente (§13.12, D-33). Es **por cuenta de correo**, no por organización: dos buzones del
+mismo tenant pueden tener patrones distintos.
+
+**No es machine learning.** Es conocimiento estructurado y persistente, inspeccionable y
+editable por el usuario. No se introduce ML en v1 (D-39).
+
 ### 4.6 Descubrimientos
 
 | Entidad | Campos clave |
 |---|---|
-| `Discovery` | id, organizationId, type, status, confidence, confidenceScore, proposedData (json), matchedServiceId (nullable), sourceEmailMessageId (nullable), detectedAt, reviewedAt, reviewedByUserId, resultingServiceId (nullable), notes |
+| `Discovery` | id, organizationId, type, status, confidence, confidenceScore, matchScore, matchReasons (json), proposedData (json), matchedServiceId (nullable), sourceEmailMessageId (nullable), extractionTier, aiUsed, detectedAt, reviewedAt, reviewedByUserId, resultingServiceId (nullable), notes |
 | `DiscoveryEvidence` | id, discoveryId, emailMessageId (nullable), documentId (nullable), weight |
+
+**`Discovery.matchScore` y `matchReasons`** guardan el resultado del `ServiceMatcher` (§13.10):
+la puntuación de coincidencia con servicios existentes y el desglose de por qué. Permiten
+explicar al usuario *"creemos que esto es el mismo servicio que ya tienes porque coincide el
+proveedor y el importe"*, y son la materia prima del aprendizaje (§13.12).
 
 **`Discovery.type`**: `new_service`, `price_change`, `plan_change`, `cancellation`, `duplicate`.
 **`Discovery.status`**: `pending`, `confirmed`, `edited`, `ignored`, `expired`.
@@ -232,13 +294,30 @@ quién se ha avisado*. Añadir un canal nuevo no toca el dominio: solo se regist
 **`Alert.isInference`** marca las alertas que son sugerencias (duplicados, servicio inactivo,
 cambio de precio inferido) para que la UI las presente explícitamente como tales.
 
-### 4.8 Auditoría
+### 4.8 Auditoría y coste de IA
 
 | Entidad | Campos clave |
 |---|---|
 | `AuditLog` | id, organizationId (nullable), actorUserId (nullable), actorType, action, targetType, targetId, metadata (json), ipAddress, userAgent, createdAt |
+| `AiUsage` | id, organizationId, emailAccountId (nullable), emailMessageId (nullable), documentId (nullable), operation, provider, model, tier, inputTokens, outputTokens, estimatedCostMinor, currency, latencyMs, success, errorCode, metadata (json), createdAt |
+| `AiBudget` | id, organizationId, period, limitMinor, currency, hardStop, currentPeriodStart, currentSpendMinor, updatedAt |
 
-Append-only. Se escribe para acciones sensibles (ver `SECURITY.md`).
+Append-only. `AuditLog` se escribe para acciones sensibles (ver `SECURITY.md`).
+
+**`AiUsage` es obligatorio, no opcional.** Cada llamada a un proveedor de IA —económico o
+avanzado— deja una fila, incluso si falla. Responde a dos preguntas de negocio que no se
+pueden contestar a posteriori si no se registran desde el primer día:
+
+- *¿Cuánto nos cuesta procesar el buzón de este usuario?*
+- *¿Cuánto cuesta de IA un usuario medio al mes?*
+
+`AiBudget` define el techo por organización y periodo. Cuando se alcanza, **no se hacen más
+llamadas de IA**: el pipeline continúa por reglas, el mensaje queda en `DEFERRED` y se
+reanuda en el siguiente periodo o cuando el usuario amplía el presupuesto. Nunca hay llamadas
+ilimitadas durante una sincronización (§13.13, D-36).
+
+**`AiUsage.tier`**: `cheap`, `advanced`. **`AiUsage.operation`**: `classify`, `extract`,
+`escalate`, `embed` (reservado).
 
 ### 4.9 Límites de plan (SaaS)
 
@@ -264,11 +343,13 @@ capas con dependencias en un solo sentido: el dominio **no conoce** el correo.
 ```text
 FUENTE
 Correo electrónico (IMAP genérico, reenvío)
-  │  EmailAccount, EmailMessage
+  │  EmailAccount, EmailMessage, EmailSyncCursor, EmailSyncRun
   ▼
 PROCESAMIENTO
-Clasificación / extracción / matching
-  │  EmailClassifier, DocumentExtractor, ServiceMatcher, RecurrenceDetector
+Clasificación / extracción / validación / matching / aprendizaje
+  │  BillingClassifier, DocumentExtractor, ProviderResolver, ServiceMatcher,
+  │  RecurrenceDetector, MailboxKnowledgeEntry, MessageProcessingEvent
+  │  (el coste de IA se registra en AiUsage / AiBudget)
   ▼
 DOMINIO
 Servicios / costes / renovaciones
@@ -279,17 +360,20 @@ Alertas / histórico / previsiones
      Alert, Notification, dashboard, cálculos de coste
 ```
 
-**Regla de dependencia:** `Mailbox` (fuente) puede depender de `Shared`; `Discovery`
-(procesamiento) puede depender de `Mailbox`, `Documents` y `Services`; `Services` (dominio)
-**no depende de `Mailbox` ni de `Discovery`**. Un `Service` creado a mano y uno creado por
-descubrimiento son indistinguibles salvo por `Service.source`. Esto permite que el producto
-funcione sin correo y que el correo se pueda sustituir o ampliar sin tocar el dominio.
+**Regla de dependencia:** `Mailbox` (fuente) puede depender de `Shared`; `Processing` y
+`Discovery` (procesamiento) pueden depender de `Mailbox`, `Documents`, `Catalog` y `Ai`;
+`Services` (dominio) **no depende de `Mailbox`, `Processing`, `Ai` ni `Discovery`**. Un
+`Service` creado a mano y uno creado por descubrimiento son indistinguibles salvo por
+`Service.source`. Esto permite que el producto funcione sin correo, que el correo se pueda
+sustituir o ampliar sin tocar el dominio, y que el proveedor de IA cambie sin reescribir nada
+del negocio.
 
 ### 4.11 Extracción por capas
 
 La extracción **no asume que todos los documentos deban enviarse a una API externa de IA**.
 Se aplica en cascada, de lo más barato y determinista a lo más caro y difuso, y **se detiene
-en cuanto hay suficiente confianza**:
+en cuanto hay suficiente confianza**. Esta sección resume el principio; el diseño completo
+del pipeline (niveles, estados, interfaces, coste y aprendizaje) está en **§13**.
 
 | Capa | Qué hace | Coste | Datos salen del sistema |
 |---|---|---|---|
@@ -381,40 +465,56 @@ uso y renderizan. Las operaciones pesadas se delegan a Messenger.
 | `async` | Trabajo general | Transporte Doctrine. |
 | `mail_sync` | Sincronización de buzones | Concurrencia baja, respeta límites del servidor IMAP. |
 | `mail_processing` | Procesado por mensaje | Alto volumen, reintentable. |
-| `ai` | Llamadas a proveedores de IA | Concurrencia limitada y rate limit propio. |
+| `ocr` | OCR de documentos sin capa de texto | CPU-intensivo, concurrencia muy baja. |
+| `ai` | Llamadas a proveedores de IA | Concurrencia limitada, rate limit propio y guard de presupuesto. |
 | `notifications` | Entrega de avisos | Reintentos con backoff. |
 | `failed` | Mensajes agotados | Inspección manual + alerta a administración. |
 
 ### 6.2 Pipeline
 
 ```text
-SyncEmailAccountMessage          (IMAP)  ─┐
-IngestForwardedEmailMessage      (reenvío)─┤
-                                          ↓
-ProcessEmailMessageMessage        (prefiltro determinista barato)
+SyncEmailAccountMessage          (IMAP)    ─┐
+IngestForwardedEmailMessage     (reenvío) ─┤
+                                           ↓
+IngestEmailMessageMessage        Nivel 0 · identidad estable + deduplicación
         ↓
-ClassifyEmailMessageMessage       (DocumentClassifierInterface)
+ExtractEmailMetadataMessage      Nivel 1 · cabeceras, adjuntos, dominio (sin descargar cuerpo)
         ↓
-ExtractAttachmentMessage          (descarga + Document + dedup por hash)
+ScoreEmailMessageMessage         Nivel 2 · BillingClassifier → billingScore 0..100
+        │
+        ├── score < umbral ──────────────────────────────→ IGNORED (fin)
         ↓
-ExtractInvoiceDataMessage         (InvoiceExtractorInterface)
+ExtractDocumentDataMessage       Nivel 3 · extracción determinista
         ↓
-MatchServiceMessage               (ServiceDiscoveryInterface + reglas deterministas)
+ResolveProviderMessage           Nivel 4 · proveedor conocido + parser
+        │
+        ├── parser suficiente ────────────────────────────→ EXTRACTED
         ↓
-DetectRecurrenceMessage           (periodicidad, próximo cobro, cambios de precio)
+ExtractWithAiMessage             Nivel 5 · IA económica
+        │
+        ├── confianza insuficiente ───────────────────────→ Nivel 6 · IA avanzada
         ↓
-CreateDiscoveryMessage            (Discovery + Alert + Notification)
+ValidateExtractionMessage        Nivel 7 · Validator + reglas de negocio
+        ↓
+MatchServiceMessage              Nivel 8 · ServiceMatcher ponderado
+        │
+        ├── HIGH   → asociar a Service existente ─────────→ MATCHED
+        ├── MEDIUM → Discovery para revisión ─────────────→ DISCOVERY
+        └── LOW    → Discovery de servicio nuevo ─────────→ DISCOVERY
+        ↓
+DetectRecurrenceMessage          periodicidad, próximo cobro, cambios de precio
+        ↓
+CreateDiscoveryMessage           Discovery + Alert + Notification
         ↓
 SendNotificationMessage
 ```
 
 Las dos vías de ingesta (acceso al buzón y reenvío, ver `DECISIONS.md` D-21) convergen en
-`ProcessEmailMessageMessage`: el resto del pipeline no distingue el origen.
+`IngestEmailMessageMessage`: el resto del pipeline no distingue el origen.
 
-Cada paso de extracción (`ClassifyEmailMessageMessage`, `ExtractInvoiceDataMessage`,
-`MatchServiceMessage`) aplica las **capas de §4.11 en orden** y se detiene en cuanto alcanza
-el umbral de confianza. El paso a IA es el último recurso y solo se ejecuta si la organización
-lo ha autorizado.
+Cada paso aplica las **capas de §4.11 en orden** y se detiene en cuanto alcanza el umbral de
+confianza. El paso a IA es el último recurso y solo se ejecuta si la organización lo ha
+autorizado y queda presupuesto. El diseño completo está en **§13**.
 
 ### 6.3 Garantías
 
@@ -422,14 +522,20 @@ lo ha autorizado.
   `documentId`, `discoveryId`). Un middleware `DeduplicationMiddleware` consulta una tabla
   `processed_message (message_class, dedup_key, processed_at)` y descarta duplicados. Además,
   los handlers son idempotentes por diseño (comprobar estado antes de escribir).
+- **Nunca se paga dos veces por el mismo mensaje.** Antes de cualquier llamada de IA se
+  comprueba si el mensaje ya tiene una extracción válida o si su `contentHash` ya fue
+  procesado. Un reintento, una resincronización o un mensaje duplicado en dos carpetas **no
+  consumen IA de nuevo** (§13.14, D-37).
 - **Reintentos.** `retry_strategy` con backoff exponencial (3–5 intentos) y transporte
   `failed` al agotarse. Los errores permanentes (credenciales inválidas, formato no
   soportado) se marcan como no reintentables.
 - **Tolerancia a fallos.** Un mensaje que falla no bloquea el resto del lote. Los errores se
-  registran en `EmailMessage.lastError` / `EmailSyncRun.error`.
-- **Observabilidad.** `EmailSyncRun` por sincronización, `EmailMessage.processingStatus` por
-  mensaje, logs estructurados (Monolog) con `organizationId` y `emailAccountId`, y métricas
-  de Messenger.
+  registran en `EmailMessage.lastError` / `EmailSyncRun.error`. Un fallo de IA **no pierde el
+  mensaje**: queda en `DEFERRED` con el motivo y se reintenta más tarde.
+- **Observabilidad.** `EmailSyncRun` por sincronización, `EmailMessage.processingState` por
+  mensaje, `MessageProcessingEvent` como traza de transiciones, `AiUsage` como traza de coste,
+  logs estructurados (Monolog) con `organizationId` y `emailAccountId`, y métricas de
+  Messenger.
 - **Backpressure.** Lotes acotados (`--limit`), `--time-limit` y `--memory-limit` en los
   workers, rate limiting en IMAP y en el transporte `ai`.
 - **Sincronización acotada.** Nunca se recorre el buzón completo en cada sincronización: se
@@ -628,15 +734,709 @@ dinero, y se usa a menudo con prisa.
 - **Tailwind, Bootstrap, Sass o PostCSS.** El CSS es propio, con tokens de diseño y anidamiento
   nativo, servido por AssetMapper sin paso de compilación (D-28).
 
-## 13. Riesgos arquitectónicos abiertos
+## 13. Pipeline de análisis de correo
+
+### 13.1 Principio rector y flujo completo
+
+**La IA debe resolver incertidumbre, no sustituir a la lógica de negocio.**
+
+El pipeline **no envía cada correo a una IA**. Construye un **enriquecimiento progresivo**:
+cada mensaje se procesa con el mecanismo más barato, rápido y determinista capaz de
+resolverlo, y solo se escala al siguiente nivel cuando el anterior no alcanza el umbral de
+confianza. El sistema **aprende del propio buzón**, de modo que el uso de IA decrece con el
+tiempo.
+
+```text
+IMAP
+  ↓
+Ingesta
+  ↓
+Deduplicación
+  ↓
+Metadatos / headers
+  ↓
+Filtros deterministas
+  ↓
+Billing Score
+  ↓
+¿Es probablemente relevante?
+  ├── NO → Ignorar
+  └── SÍ
+        ↓
+Extracción determinista
+        ↓
+Identificación de proveedor conocido
+        ↓
+¿Existe conocimiento/parser suficiente?
+        ├── SÍ → Parser conocido
+        └── NO
+              ↓
+          IA económica
+              ↓
+        ¿Confianza suficiente?
+        ├── SÍ → continuar
+        └── NO → IA avanzada
+                         ↓
+                 datos estructurados
+                         ↓
+                 Service Matching
+                         ↓
+                 decisión
+```
+
+**Objetivo de coste.** No se trata de "usar poca IA" por sí mismo, sino de que **el coste
+marginal de procesar un buzón tienda a cero** a medida que el sistema conoce ese buzón. Un
+buzón nuevo puede requerir IA; el mismo buzón al mes siguiente, casi ninguna (§13.12).
+
+**Orden de los niveles.** Cada nivel es más caro que el anterior en CPU, red, almacenamiento
+o dinero. El pipeline **nunca ejecuta un nivel si el anterior ya resolvió el mensaje**.
+
+| Nivel | Nombre | Coste | Sale del sistema |
+|---|---|---|---|
+| 0 | Ingesta y deduplicación | Nulo | No |
+| 1 | Metadatos (cabeceras) | Nulo | No |
+| 2 | Filtros deterministas + billing score | Nulo | No |
+| 3 | Extracción determinista | Bajo | No |
+| 4 | Conocimiento de proveedores y parsers | Bajo | No |
+| 5 | IA económica | Medio | **Sí** |
+| 6 | IA avanzada | Alto | **Sí** |
+| 7 | Validación | Nulo | No |
+| 8 | Service matching | Nulo | No |
+
+### 13.2 Nivel 0 — Ingesta, identidad estable y deduplicación
+
+**El problema.** Un mensaje puede aparecer varias veces: en dos carpetas, en dos cuentas del
+mismo tenant, tras un reenvío, o al repetir una sincronización. Reprocesarlo no es solo
+desperdicio de CPU: **puede costar dinero** si vuelve a pasar por IA.
+
+**Señales de identidad y sus límites:**
+
+| Señal | Estable entre sincronizaciones | Única globalmente | Disponible sin descargar | Problema |
+|---|---|---|---|---|
+| `folder` + `uid` | Sí, mientras no cambie `uidValidity` | **No** (los UID se repiten entre buzones) | Sí | El servidor puede renumerar |
+| `Message-ID` | Sí | Casi (puede faltar, repetirse o falsificarse) | Sí | Ausente en algunos envíos |
+| `contentHash` (SHA-256) | Sí | **No** (dos correos idénticos legítimos) | No (requiere el contenido) | Coste de descarga |
+| `emailAccountId` + `folder` + `uid` | Sí | **Sí**, dentro de la cuenta | Sí | — |
+
+**Estrategia adoptada:**
+
+1. **Clave de deduplicación primaria:** `emailAccountId + folder + uid`. Es la única
+   combinación que es a la vez estable, única y gratuita. Se guarda junto con `uidValidity`
+   del cursor: si `uidValidity` cambia, la clave se invalida y se reprocesa la ventana
+   acotada.
+2. **Clave secundaria:** `emailAccountId + messageId`. Detecta el mismo mensaje movido de
+   carpeta (el UID cambia, el `Message-ID` no).
+3. **`contentHash`:** SHA-256 del contenido normalizado (cabeceras relevantes + texto). Se usa
+   para (a) deduplicar **documentos** por `checksumSha256`, (b) detectar el mismo mensaje
+   llegado a **dos cuentas** del mismo tenant, y (c) servir de **clave de caché de
+   extracción**: si ya existe una extracción válida para ese hash, no se vuelve a llamar a
+   IA.
+4. **Deduplicación entre cuentas:** a nivel de organización, no de cuenta. `Discovery` es
+   tenant-scoped (D-27), así que el mismo servicio detectado por dos buzones produce **un**
+   descubrimiento, no dos.
+
+**Idempotencia.** El procesamiento es idempotente en todos los niveles: cada handler
+comprueba el estado actual antes de escribir y registra su transición en
+`MessageProcessingEvent`. Repetir un mensaje ya procesado es una operación de coste nulo.
+
+**Regla explícita:** *si el mismo correo vuelve a aparecer durante una sincronización, no
+debe volver a consumir IA.* Se garantiza comprobando, antes de cualquier llamada de IA, que
+no exista ya un `ExtractedDocument` válido para ese `contentHash` (§13.14).
+
+### 13.3 Nivel 1 — Metadatos
+
+Antes de descargar o procesar contenido pesado se extraen **solo cabeceras**. IMAP permite
+pedir `BODY.PEEK[HEADER]` sin marcar el mensaje como leído y sin traer el cuerpo.
+
+| Campo | Uso en el pipeline |
+|---|---|
+| `From` | Identificación de proveedor, lista de ignorados |
+| `Reply-To` | Detección de remitentes de facturación enmascarados |
+| `To` | Detección de correo dirigido a la organización |
+| `Subject` | Palabras clave, patrones, nombre de servicio |
+| `Date` | Fecha de factura, orden temporal, periodicidad |
+| `Message-ID` | Identidad secundaria, deduplicación |
+| `IMAP UID` | Identidad primaria |
+| `Content-Type` | Detección de `multipart`, HTML vs texto |
+| Nombres de adjuntos | Patrón de factura, tipo de documento |
+| Tipos de adjuntos | PDF, imagen (candidata a OCR), XML (factura electrónica) |
+| Tamaño | Límite de descarga, coste estimado |
+| Dominio del remitente | Reconocimiento de proveedor, agrupación |
+
+**Regla:** el cuerpo y los adjuntos **no se descargan** hasta que el nivel 2 decide que el
+mensaje es candidato. Esto reduce tráfico, almacenamiento, CPU y coste de IA (§13.14).
+
+### 13.4 Nivel 2 — Filtros deterministas y billing score
+
+El primer filtro es barato y **explicable**. No depende solo de palabras clave: combina
+señales de remitente, dominio, adjuntos, patrones conocidos y listas configurables.
+
+**Señales léxicas** (en asunto, nombre de adjunto y, si ya se dispone, extracto del cuerpo):
+
+```text
+invoice · factura · receipt · recibo · payment · pago · subscription · suscripción
+renewal · renovación · billing · billing notice · statement · charge
+```
+
+**Señales estructurales:** remitente, dominio, existencia de PDF, nombre del adjunto,
+patrones conocidos, listas de remitentes ignorados, listas de proveedores conocidos.
+
+**Puntuación.** El resultado es un `billingScore` de 0 a 100, con los motivos desglosados:
+
+| Señal | Peso por defecto |
+|---|---|
+| Asunto con palabra clave de facturación | +25 |
+| Remitente o dominio en `ProviderIdentity` (proveedor conocido) | +20 |
+| Adjunto PDF | +15 |
+| Importe detectable en asunto o cuerpo | +15 |
+| Lenguaje de renovación o próximo cobro | +10 |
+| `local-part` de facturación (`invoice@`, `billing@`, `facturas@`) | +10 |
+| Nombre de adjunto con patrón de factura | +10 |
+| Remitente en lista de ignorados | −100 |
+| Boletín, `no-reply` de marketing, notificación social | −30 |
+| Respuesta o reenvío dentro de un hilo propio | −10 |
+
+**Umbral por defecto: `billingScore ≥ 40` → `CANDIDATE`.** Por debajo, el mensaje pasa a
+`IGNORED` y **no se descarga su contenido**.
+
+**Los pesos son configurables y están documentados**, no son reglas rígidas enterradas en el
+código. Viven en configuración versionada, se pueden ajustar por organización y se registran
+en `EmailMessage.billingReasons` para poder explicar la decisión.
+
+**Por qué no solo palabras clave.** Un boletín con la palabra "invoice" en el asunto no es una
+factura; una factura de un proveedor conocido con asunto en otro idioma sí lo es. El score
+pondera señales independientes en lugar de aplicar una lista de términos.
+
+### 13.5 Máquina de estados y trazabilidad
+
+Cada mensaje tiene un **estado explícito** que responde a *qué ocurrió, cuándo, con qué
+extractor, si intervino IA, con qué resultado y por qué*.
+
+| Estado | Significado | Transiciones |
+|---|---|---|
+| `RECEIVED` | Ingestado, identidad asignada, sin analizar | → `IGNORED`, `CANDIDATE`, `FAILED` |
+| `IGNORED` | Descartado por billing score o lista de exclusión | terminal (revisable a mano) |
+| `CANDIDATE` | Superó el filtro determinista; merece extracción | → `EXTRACTED`, `DEFERRED`, `FAILED` |
+| `EXTRACTED` | Datos extraídos y validados | → `CLASSIFIED`, `REQUIRES_REVIEW`, `FAILED` |
+| `CLASSIFIED` | Tipo de documento determinado con confianza suficiente | → `MATCHED`, `DISCOVERY`, `REQUIRES_REVIEW` |
+| `MATCHED` | Asociado a un `Service` existente con confianza alta | terminal |
+| `DISCOVERY` | Generó un `Discovery` pendiente de revisión | terminal (el `Discovery` sigue su ciclo) |
+| `REQUIRES_REVIEW` | Confianza insuficiente o datos contradictorios | → `EXTRACTED`, `IGNORED` |
+| `DEFERRED` | Sin presupuesto de IA o fallo transitorio | → `CANDIDATE`, `EXTRACTED`, `FAILED` |
+| `FAILED` | Error permanente | terminal |
+
+**Trazabilidad.** Cada transición escribe una fila en `MessageProcessingEvent` (append-only)
+con: estado origen, estado destino, motivo, extractor utilizado, nivel de extracción, si
+intervino IA (`aiUsageId`), duración y datos adicionales. Es la base de la observabilidad
+(§13.16) y de la explicación que se muestra al usuario (§13.11).
+
+**Por qué una máquina de estados explícita.** Sin ella, un pipeline con reintentos, escalado
+a IA y procesamiento diferido es imposible de depurar: no se sabe si un mensaje se ignoró por
+score, falló, o está esperando presupuesto. Con ella, cada mensaje tiene una respuesta
+consultable.
+
+### 13.6 Nivel 3 — Extracción determinista
+
+Antes de llamar a IA se extrae por código **todo lo que sea fiablemente extraíble**:
+
+- importes y monedas;
+- fechas (factura, vencimiento, periodo);
+- números de factura;
+- periodos de facturación;
+- direcciones de correo y dominios;
+- URLs;
+- identificadores y referencias de pedido.
+
+**Herramientas:** expresiones regulares, parsers, análisis de HTML, extracción de texto de PDF
+(`smalot/pdfparser`) y OCR **solo cuando el documento es una imagen o un PDF sin capa de
+texto**.
+
+**Regla:** no se usa IA para extraer algo que se puede obtener de forma fiable por código.
+
+**Resultado: `ExtractedDocument`.** Es un **DTO**, no una entidad. Se persiste como JSON en
+`Document` / `Discovery.proposedData`, coherente con D-14.
+
+```php
+final readonly class ExtractedDocument
+{
+    public function __construct(
+        public ?int $amountMinor,
+        public ?string $currency,
+        public ?string $invoiceNumber,
+        public ?\DateTimeImmutable $invoiceDate,
+        public ?\DateTimeImmutable $dueDate,
+        public ?BillingPeriod $billingPeriod,
+        public ?string $sender,
+        public ?string $senderDomain,
+        public ?string $subject,
+        public DocumentType $documentType,
+        public ?string $providerName,
+        public ?string $serviceName,
+        public ?string $plan,
+        public ?\DateTimeImmutable $renewalDate,
+        public float $confidence,
+        public ExtractionTier $tier,
+        public array $rawSignals,
+    ) {}
+}
+```
+
+`rawSignals` guarda las coincidencias concretas (qué regex, qué fragmento) para poder
+explicar y depurar la extracción sin volver a procesar el documento.
+
+### 13.7 Nivel 4 — Conocimiento de proveedores y parsers
+
+El sistema distingue entre **proveedor conocido** (`invoice@ovh.com` → `OVH`) y **proveedor
+desconocido** (cualquier remitente que todavía no sabemos identificar).
+
+**Modelo adoptado.** El conocimiento de proveedores se separa en tres piezas, porque
+responden a tres preguntas distintas:
+
+| Entidad | Pregunta que responde | Ámbito |
+|---|---|---|
+| `Provider` | *¿Quién es?* | Global o del tenant |
+| `ProviderIdentity` | *¿Cómo lo reconocemos?* | Global |
+| `ProviderParser` | *¿Cómo extraemos sus datos?* | Global |
+
+`ProviderIdentity` permite que un proveedor tenga **varios** dominios y direcciones
+(`ovh.com`, `ovh.es`, `invoice@ovh.com`, `billing@ovh.com`) sin duplicar el proveedor.
+`ProviderParser` referencia un parser de código por `key` (`ovh`, `github`, `microsoft`) y
+admite `config` declarativa para patrones que no requieren código.
+
+**Escalera de resolución:**
+
+```text
+remitente / dominio
+      ↓
+ProviderIdentity (dominio, remitente, patrón de asunto)
+      ↓
+¿proveedor conocido?
+  ├── NO → proveedor desconocido → IA (nivel 5)
+  └── SÍ
+        ↓
+   ¿ProviderParser disponible y habilitado?
+     ├── SÍ → parser específico → datos estructurados (sin IA)
+     └── NO → patrones configurados → si no basta, IA (nivel 5)
+```
+
+**La ventaja clave:** una vez conocido un proveedor, **no se llama a IA para cada factura
+futura**. El primer documento puede necesitar IA para comprender la estructura; a partir de
+ahí el sistema usa conocimiento persistente.
+
+**No se crean cientos de parsers a mano desde el primer día.** La arquitectura admite cuatro
+mecanismos que conviven y se complementan:
+
+1. **Parsers codificados** — para los proveedores de mayor volumen, escritos y testeados.
+2. **Patrones configurables** — `ProviderParser.config` declarativo, sin desplegar código.
+3. **Conocimiento aprendido** — `ProviderIdentity` y `MailboxKnowledgeEntry` generados a
+   partir de confirmaciones y correcciones del usuario (§13.12).
+4. **Fallback a IA** — cuando ninguno de los anteriores alcanza el umbral.
+
+**Confianza.** Cada `ProviderIdentity` lleva `confidence`, `source` (`seed`, `learned`,
+`user`) y `hitCount`. Una identidad confirmada por el usuario pesa más que una inferida, y una
+identidad que acierta repetidamente se refuerza.
+
+### 13.8 Niveles 5 y 6 — IA económica y escalado a IA avanzada
+
+**Nivel 5 — IA económica.** Se usa cuando las reglas y el conocimiento existente no bastan.
+Recibe **únicamente el contenido relevante**, nunca el correo completo:
+
+- se elimina el HTML innecesario y se conserva el texto;
+- se eliminan firmas, avisos legales y pies de página;
+- se eliminan píxeles de seguimiento y enlaces de tracking;
+- se elimina contenido irrelevante (hilos citados, navegación, publicidad);
+- se limita la longitud;
+- se extrae el texto útil del PDF;
+- se **aprovechan los datos ya obtenidos determinísticamente** y se envían como contexto
+  estructurado, para que el modelo no tenga que redescubrirlos.
+
+**Contrato de salida.** La IA devuelve **exclusivamente una estructura validable**:
+
+```json
+{
+  "provider": "...",
+  "service": "...",
+  "plan": "...",
+  "documentType": "invoice",
+  "amount": 29.90,
+  "currency": "EUR",
+  "billingPeriod": "monthly",
+  "invoiceDate": "2026-10-03",
+  "renewalDate": null,
+  "confidence": 0.93
+}
+```
+
+**Nivel 6 — IA avanzada.** Se escala a un modelo más capaz **solo** cuando:
+
+- la confianza del nivel 5 es insuficiente;
+- hay campos contradictorios entre sí;
+- el proveedor es desconocido y el documento es complejo;
+- el PDF es difícil (escaneado, multipágina, maquetación irregular);
+- falta información para decidir.
+
+El umbral es **configurable** y la IA avanzada **no es el camino por defecto**: es la
+excepción. Cada escalado queda registrado en `AiUsage` con `tier = advanced`, de modo que se
+puede medir cuánto cuesta y si aporta valor.
+
+**Desacoplamiento del proveedor.** El dominio no conoce ningún proveedor de IA concreto. Todo
+pasa por interfaces:
+
+```php
+interface DocumentExtractorInterface
+{
+    public function supports(ExtractionContext $context): bool;
+    public function extract(ExtractionContext $context): ExtractedDocument;
+    public function tier(): ExtractionTier;
+}
+
+interface AiProviderInterface
+{
+    public function name(): string;
+    public function tier(): AiTier;          // cheap | advanced
+    public function complete(AiRequest $request): AiResponse;
+}
+```
+
+Cambiar de proveedor —o pasar a un modelo autoalojado o europeo— **no toca el dominio ni los
+casos de uso**.
+
+### 13.9 Nivel 7 — Validación posterior a la IA
+
+**La IA no es una fuente de verdad.** Su salida es una *propuesta* que atraviesa una cadena de
+validación antes de convertirse en dato:
+
+```text
+salida de IA
+    ↓
+DTO tipado (no array suelto)
+    ↓
+Symfony Validator (tipos, rangos, formatos, campos obligatorios)
+    ↓
+reglas de negocio (coherencia, periodicidad, moneda, dominio)
+    ↓
+resultado válido  →  continuar
+resultado inválido →  REQUIRES_REVIEW o descarte
+```
+
+**Qué se valida:**
+
+- **Tipos:** importe numérico, moneda ISO 4217, fechas reales.
+- **Rangos:** importe positivo y por debajo de un máximo razonable; se rechaza
+  `amount = -8738291`.
+- **Coherencia interna:** `renewalDate` no puede ser anterior a `invoiceDate`; el periodo de
+  facturación debe ser compatible con la diferencia entre fechas.
+- **Periodicidad:** debe pertenecer al conjunto soportado (`monthly`, `quarterly`, `annual`…).
+- **Campos obligatorios:** sin importe y sin moneda no hay factura.
+- **Coherencia con el contexto:** si la extracción determinista ya encontró un importe y la IA
+  devuelve otro muy distinto, se marca para revisión en lugar de elegir uno.
+
+**Consecuencia:** un modelo que alucina no corrompe el dominio. Como mucho, genera un
+`Discovery` que el usuario rechaza.
+
+### 13.10 Nivel 8 — Service matching
+
+**Regla fundamental: nunca se crea un servicio automáticamente.** Primero se intenta
+**asociar** el documento a un `Service` existente. Solo si no hay coincidencia suficiente se
+propone uno nuevo.
+
+**Puntuación ponderada:**
+
+| Señal | Peso |
+|---|---|
+| Proveedor coincide | +40 |
+| Dominio del remitente coincide | +20 |
+| Nombre del servicio coincide | +20 |
+| Moneda coincide | +5 |
+| Periodicidad coincide | +5 |
+| Importe similar (±10 %) | +5 |
+| Remitente exacto coincide | +5 |
+
+**Umbrales (configurables):**
+
+| Puntuación | Resultado | Acción |
+|---|---|---|
+| ≥ 70 | **HIGH** | Asociación automática al `Service` existente → `MATCHED` |
+| 40–69 | **MEDIUM** | `Discovery` para revisión del usuario → `DISCOVERY` |
+| < 40 | **LOW** | `Discovery` de servicio nuevo → `DISCOVERY` |
+
+El desglose se guarda en `Discovery.matchScore` y `Discovery.matchReasons`, de modo que la
+interfaz puede explicar *por qué* el sistema cree que dos cosas son el mismo servicio.
+
+**Por qué ponderado y no reglas duras.** Un mismo servicio puede facturarse desde dominios
+distintos, con importes que cambian o con nombres ligeramente diferentes. Una regla dura
+("mismo dominio y mismo importe") falla en cuanto cambia cualquiera de los dos; una
+puntuación tolera la variación y expresa la incertidumbre en lugar de ocultarla.
+
+### 13.11 Discovery y confirmación
+
+Cuando la confianza no es suficiente, se crea un `Discovery` en estado `pending`. La interfaz
+muestra:
+
+- proveedor y servicio propuestos;
+- importe, moneda y periodicidad;
+- **evidencia**: *"encontramos 4 documentos similares"*, con enlaces a los correos y
+  documentos de origen;
+- acciones: **[Confirmar]** · **[Editar]** · **[Ignorar]**.
+
+**La confirmación se convierte en conocimiento.** Al confirmar, el sistema:
+
+1. crea o actualiza el `Service` y su `ServicePrice`;
+2. registra `ProviderIdentity` si el proveedor era nuevo;
+3. registra `MailboxKnowledgeEntry` para ese remitente y ese patrón;
+4. marca el `Discovery` como `confirmed` y el mensaje como `MATCHED`.
+
+A partir de ese momento, **el mismo tipo de correo se resuelve sin IA**.
+
+**Explicabilidad.** El usuario puede ver, para cualquier mensaje procesado, por qué se procesó
+o por qué se ignoró: `billingScore` con sus motivos, extractor utilizado, si intervino IA y
+qué `Discovery` generó. Es un requisito de producto, no un extra de depuración: el usuario
+está conectando su buzón de facturación y tiene derecho a saber qué se ha hecho con él.
+
+### 13.12 Aprendizaje del buzón
+
+El sistema aprende **del propio buzón** y reduce el uso de IA con el tiempo. El conocimiento
+vive en `MailboxKnowledgeEntry`, **por cuenta de correo**:
+
+```text
+invoice@ovh.com  →  OVH  →  factura  →  hosting
+```
+
+**No es machine learning.** Es conocimiento estructurado y persistente, inspeccionable y
+editable por el usuario. No se introduce ML en v1 (D-39): no hay necesidad demostrada y
+añadiría opacidad, coste y riesgo.
+
+**De dónde aprende:**
+
+- confirmaciones de `Discovery`;
+- correcciones del usuario (proveedor, servicio, importe, periodicidad);
+- proveedores y remitentes ya conocidos;
+- patrones de asunto y de adjunto observados;
+- parsers que han funcionado;
+- asociaciones previas documento → servicio.
+
+**Efecto esperado** (cifras ilustrativas del diseño, a validar con datos reales):
+
+| | Primera sincronización | Sincronizaciones posteriores |
+|---|---|---|
+| Mensajes vistos | 10.000 | 200 nuevos |
+| Candidatos (billing score) | 400 | 30 |
+| Requieren IA económica | 100 | 5 |
+| Requieren IA avanzada | 15 | 0 |
+
+La curva es el argumento económico del diseño: **el coste de IA por buzón decrece**, y el
+producto se vuelve más rentable cuanto más tiempo lleva un usuario.
+
+### 13.13 Control de coste de IA
+
+**Es un requisito crítico, no una optimización posterior.** Sin control de coste, un buzón
+grande o un bucle de reintentos puede generar una factura ilimitada.
+
+**Registro obligatorio.** Cada llamada deja una fila en `AiUsage` (§4.8), incluso si falla.
+Esto permite responder a las dos preguntas que no se pueden contestar a posteriori:
+
+- *¿Cuánto nos cuesta procesar el buzón de este usuario?*
+- *¿Cuánto cuesta de IA un usuario medio al mes?*
+
+**Presupuesto.** `AiBudget` define un techo por organización y periodo, con `hardStop`
+configurable. Cuando se alcanza:
+
+1. **no se hacen más llamadas de IA**;
+2. el pipeline **continúa por reglas** con lo que pueda resolver;
+3. los mensajes que necesitaban IA quedan en `DEFERRED` con el motivo;
+4. se reanudan en el siguiente periodo, o cuando el usuario amplía el presupuesto.
+
+**Nunca hay llamadas ilimitadas durante una sincronización.** El guard se comprueba **antes**
+de cada llamada, no después, y el transporte `ai` tiene concurrencia limitada y rate limit
+propio.
+
+**Medición de valor.** Como cada extracción registra su `tier` y su coste, se puede medir
+cuánto aporta realmente la IA frente a reglas y parsers, y ajustar los umbrales con datos.
+
+### 13.14 Idempotencia, reintentos y procesamiento progresivo
+
+**Idempotencia.** Todos los pasos son idempotentes y reintentables. Un reintento **no puede**:
+
+- perder el mensaje;
+- duplicar un `Discovery`;
+- duplicar una `Invoice`;
+- duplicar un coste de IA.
+
+Esto es especialmente importante con Symfony Messenger, donde un mensaje puede reentregarse
+tras un fallo del worker. La defensa es doble: el `DeduplicationMiddleware` (§6.3) descarta
+duplicados por clave natural, y cada handler comprueba el estado antes de escribir.
+
+**Antes de cualquier llamada de IA** se verifica que no exista ya un `ExtractedDocument`
+válido para ese `contentHash`. Si existe, se reutiliza: **coste cero**.
+
+**Fallo de IA.** Si la llamada falla, el mensaje **no se pierde**: queda en `DEFERRED` con el
+error registrado y se reintenta con backoff. Un fallo de IA nunca debe degradar a `FAILED` si
+el problema es transitorio.
+
+**Procesamiento progresivo.** Cada nivel se ejecuta solo cuando el anterior lo justifica:
+
+```text
+cabeceras  →  metadatos  →  candidato  →  cuerpo  →  adjunto  →  OCR  →  IA
+```
+
+Esto reduce tráfico IMAP, almacenamiento, CPU, coste de IA y tiempo total. Un mensaje que se
+ignora en el nivel 2 **nunca descarga su cuerpo ni sus adjuntos**.
+
+### 13.15 Privacidad del pipeline
+
+La privacidad es un principio arquitectónico (`SECURITY.md`), y el pipeline es donde más se
+juega:
+
+- **Minimización de lo que sale del sistema.** Solo se envía lo necesario: nunca el buzón
+  completo, nunca correos irrelevantes, nunca el cuerpo íntegro si basta un fragmento.
+- **Nada que se pueda extraer localmente se envía.** Si una regex o un parser resuelve el
+  campo, no viaja a ningún proveedor.
+- **Redacción previa.** Antes de enviar se eliminan firmas, avisos legales, tracking y
+  contenido irrelevante (§13.8).
+- **Trazabilidad de proveedor.** Se registra qué proveedor y qué modelo procesaron cada
+  documento (`AiUsage.provider`, `AiUsage.model`), para poder auditar y para poder migrar.
+- **Intercambiabilidad.** La arquitectura permite cambiar de proveedor de IA —o pasar a uno
+  autoalojado o europeo— **sin tocar el dominio**.
+- **Desactivada por defecto.** La capa de IA requiere consentimiento explícito de la
+  organización y un contrato de encargado de tratamiento (D-08).
+
+**No se hacen afirmaciones de "100 % privado" ni "100 % UE"** mientras la implementación y los
+proveedores utilizados no permitan sostenerlas (D-25).
+
+### 13.16 Observabilidad
+
+| Pregunta | Dónde se responde |
+|---|---|
+| ¿Qué pasó con este mensaje? | `EmailMessage.processingState` + `MessageProcessingEvent` |
+| ¿Por qué se ignoró? | `EmailMessage.billingScore` + `billingReasons` |
+| ¿Qué extractor lo resolvió? | `EmailMessage.extractorUsed` + `extractionTier` |
+| ¿Intervino IA? | `EmailMessage.aiUsed` + `aiUsageId` en el evento |
+| ¿Cuánto costó? | `AiUsage.estimatedCostMinor` |
+| ¿Cuánto llevamos gastado este mes? | `AiBudget.currentSpendMinor` |
+| ¿Cómo va la sincronización? | `EmailSyncRun` + eventos Mercure |
+| ¿Cuántos mensajes se resuelven sin IA? | Agregado sobre `extractionTier` |
+
+**Métricas de producto derivadas** (ver `PRODUCT.md` §12): porcentaje de mensajes resueltos
+sin IA, coste de IA por usuario y mes, tasa de confirmación de descubrimientos, tiempo medio
+de procesamiento por mensaje.
+
+### 13.17 Interfaces y responsabilidades
+
+**Interfaces del pipeline** (capa de aplicación; las implementaciones viven en infraestructura):
+
+```php
+interface BillingClassifierInterface
+{
+    public function score(EmailMessage $message, EmailMetadata $metadata): BillingScore;
+}
+
+interface DocumentTextExtractorInterface
+{
+    public function supports(Document $document): bool;
+    public function extractText(Document $document): ?string;
+}
+
+interface OcrEngineInterface
+{
+    public function isAvailable(): bool;
+    public function extractText(Document $document): ?string;
+}
+
+interface ProviderResolverInterface
+{
+    public function resolve(EmailMetadata $metadata, ?ExtractedDocument $partial): ?ProviderMatch;
+}
+
+interface DocumentExtractorInterface
+{
+    public function supports(ExtractionContext $context): bool;
+    public function extract(ExtractionContext $context): ExtractedDocument;
+    public function tier(): ExtractionTier;
+}
+
+interface AiProviderInterface
+{
+    public function name(): string;
+    public function tier(): AiTier;
+    public function complete(AiRequest $request): AiResponse;
+}
+
+interface AiBudgetGuardInterface
+{
+    public function canSpend(Organization $organization, AiTier $tier): bool;
+    public function record(AiUsage $usage): void;
+}
+
+interface ServiceMatcherInterface
+{
+    public function match(ExtractedDocument $document, Organization $organization): MatchResult;
+}
+
+interface MailboxKnowledgeRepositoryInterface
+{
+    public function find(EmailAccount $account, string $kind, string $key): ?MailboxKnowledgeEntry;
+    public function remember(EmailAccount $account, string $kind, string $key, array $value, string $source): void;
+}
+```
+
+**Responsabilidades por módulo:**
+
+| Módulo | Responsabilidad en el pipeline | Lo que **no** hace |
+|---|---|---|
+| `Mailbox` | Ingesta (IMAP, reenvío), identidad del mensaje, cursores, `EmailSyncRun` | No interpreta el contenido |
+| `Processing` | Clasificación, extracción, validación, máquina de estados, conocimiento del buzón | No conoce proveedores de IA concretos |
+| `Ai` | Adaptadores de proveedor, `AiUsage`, `AiBudget`, guard de presupuesto | No conoce el dominio |
+| `Catalog` | `Provider`, `ProviderIdentity`, `ProviderParser`: reconocimiento y parsers | No decide asociaciones |
+| `Documents` | `Document`, `Invoice`: persistencia del resultado | No extrae |
+| `Discovery` | `ServiceMatcher`, `Discovery`, recurrencia, cambios | No descarga correo |
+| `Notifications` | Alertas y entrega | No procesa correo |
+
+**Regla de dependencia:** `Processing` puede depender de `Mailbox`, `Documents`, `Catalog` y
+`Ai`; **`Services` (dominio) no depende de ninguno de ellos** (§4.10). El dominio solo ve el
+resultado de la extracción, nunca cómo se obtuvo.
+
+## 14. Riesgos arquitectónicos abiertos
+
+**Riesgos del dominio**
 
 - **Precisión del matching proveedor/servicio.** Un falso positivo crea ruido; mitigación:
   umbral de confianza alto para propuestas automáticas y revisión obligatoria.
 - **Detección de recurrencia con facturación irregular** (consumo variable, anual con importe
   distinto). Mitigación: marcar como `low confidence` y no fijar `nextChargeAt` automáticamente.
-- **Coste y latencia de la IA.** Mitigación: prefiltro determinista, transporte `ai` con rate
-  limit, caché por hash de documento.
-- **Compatibilidad de librerías con Symfony 8 / PHP 8.5.** Verificar antes de adoptar cada
-  dependencia.
 - **Volumen de correo.** Mitigación: ventana acotada, cursores, lotes y backfill progresivo.
 - **Multi-moneda.** v1 almacena la moneda pero no convierte; el dashboard agrupa por moneda.
+
+**Riesgos del pipeline de análisis (§13)**
+
+- **Falsos negativos del billing score.** Un umbral alto descarta facturas reales; uno bajo
+  dispara el coste. Mitigación: pesos configurables, `billingReasons` auditables, revisión
+  periódica de los `IGNORED` y posibilidad de que el usuario marque un correo como "esto sí
+  era una factura", lo que alimenta el aprendizaje.
+- **Falsos positivos del billing score.** Boletines y notificaciones que pasan el filtro.
+  Mitigación: pesos negativos explícitos, listas de ignorados y aprendizaje de remitentes.
+- **Deriva de los parsers de proveedor.** Un proveedor cambia su plantilla y el parser falla
+  en silencio. Mitigación: `ProviderParser.successCount` / `failureCount`, alerta al superar
+  una tasa de fallo y degradación automática a IA en lugar de fallo duro.
+- **Coste de IA descontrolado.** Mitigación: `AiBudget` con `hardStop`, guard **antes** de cada
+  llamada, transporte `ai` con concurrencia limitada y caché por `contentHash`.
+- **Alucinación del modelo.** Mitigación: validación obligatoria (§13.9) y confirmación del
+  usuario para todo lo que no sea de confianza alta.
+- **Crecimiento de `MailboxKnowledgeEntry`.** Un buzón con muchos remitentes genera muchas
+  entradas. Mitigación: `hitCount` + `lastUsedAt` para poder podar el conocimiento que no se
+  usa, y retención definida en `SECURITY.md`.
+- **Confusión entre conocimiento global y del buzón.** Un patrón aprendido en un buzón no debe
+  contaminar a otro. Mitigación: `MailboxKnowledgeEntry` es por cuenta; solo `ProviderIdentity`
+  y `ProviderParser` son globales, y su promoción a global es una decisión explícita.
+- **Dependencia de un proveedor de IA.** Mitigación: `AiProviderInterface`, IA desactivada por
+  defecto y capacidad de operar solo con reglas y parsers.
+- **Complejidad del pipeline.** Diez estados, nueve niveles e interfaces múltiples son mucho
+  andamiaje. Mitigación: la vertical de `ROADMAP.md` Fase 3 implementa el pipeline **completo
+  pero mínimo** (un proveedor, un parser, un umbral) antes de ampliarlo.
+
+**Riesgos técnicos**
+
+- **Compatibilidad de librerías con Symfony 8 / PHP 8.5.** Verificar antes de adoptar cada
+  dependencia.
+- **OCR en el contenedor.** Tesseract añade peso a la imagen y consumo de CPU. Mitigación:
+  extensión opcional, transporte `ocr` con concurrencia muy baja y activación por
+  configuración.

@@ -1,0 +1,46 @@
+{% set current_route = app.request.attributes.get('_route') %}
+
+{% set items = [
+    { route: 'app_dashboard', label: 'Panel', prefix: 'app_dashboard' },
+    { route: 'app_services_index', label: 'Servicios', prefix: 'app_services' },
+    { route: 'app_discoveries_index', label: 'Descubrimientos', prefix: 'app_discoveries' },
+    { route: 'app_documents_index', label: 'Documentos', prefix: 'app_documents' },
+    { route: 'app_alerts_index', label: 'Alertas', prefix: 'app_alerts' },
+] %}
+
+{% set settings_items = [
+    { route: 'app_mail_accounts_index', label: 'Cuentas de correo', prefix: 'app_mail_accounts' },
+    { route: 'app_settings_profile', label: 'Ajustes', prefix: 'app_settings' },
+] %}
+
+<ul class="nav">
+    {% for item in items %}
+        {% if route_exists(item.route) %}
+            <li>
+                <a class="nav__link" href="{{ path(item.route) }}"
+                   {% if current_route == item.prefix or (current_route starts with item.prefix ~ '_') %}aria-current="page"{% endif %}>
+                    {{ item.label }}
+                </a>
+            </li>
+        {% endif %}
+    {% endfor %}
+
+    {% set has_settings = false %}
+    {% for item in settings_items %}
+        {% if route_exists(item.route) %}{% set has_settings = true %}{% endif %}
+    {% endfor %}
+
+    {% if has_settings %}
+        <li class="nav__section" aria-hidden="true">Configuración</li>
+        {% for item in settings_items %}
+            {% if route_exists(item.route) %}
+                <li>
+                    <a class="nav__link" href="{{ path(item.route) }}"
+                       {% if current_route == item.prefix or (current_route starts with item.prefix ~ '_') %}aria-current="page"{% endif %}>
+                        {{ item.label }}
+                    </a>
+                </li>
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+</ul>

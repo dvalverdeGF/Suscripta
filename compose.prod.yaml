@@ -10,3 +10,26 @@ services:
       APP_SECRET: ${APP_SECRET}
       MERCURE_PUBLISHER_JWT_KEY: ${CADDY_MERCURE_JWT_SECRET}
       MERCURE_SUBSCRIBER_JWT_KEY: ${CADDY_MERCURE_JWT_SECRET}
+
+  # Consumidor de la cola asíncrona (Messenger). Ver ARCHITECTURE.md §6.
+  worker:
+    image: ${IMAGES_PREFIX:-}app-php-prod
+    build:
+      context: .
+      target: frankenphp_prod
+    restart: unless-stopped
+    # El worker no sirve HTTP: la sonda de Caddy del Dockerfile no aplica.
+    # Se comprueba que el proceso consumidor sigue vivo leyendo /proc/1.
+    healthcheck:
+      test: ["CMD-SHELL", "php -r 'exit(str_contains(file_get_contents(\"/proc/1/cmdline\"), \"messenger:consume\") ? 0 : 1);'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    command: ["php", "bin/console", "messenger:consume", "async", "--time-limit=3600", "--memory-limit=256M"]
+    environment:
+      APP_SECRET: ${APP_SECRET}
+      MESSENGER_TRANSPORT_DSN: doctrine://default?auto_setup=0
+    depends_on:
+      database:
+        condition: service_healthy

@@ -18,7 +18,6 @@ services:
     environment:
       FRANKENPHP_WORKER_CONFIG: watch
       FRANKENPHP_SITE_CONFIG: hot_reload
-      MERCURE_EXTRA_DIRECTIVES: demo
       # See https://xdebug.org/docs/all_settings#mode
       XDEBUG_MODE: "${XDEBUG_MODE:-develop}"
       APP_ENV: "${APP_ENV:-dev}"
@@ -28,3 +27,52 @@ services:
     tty: true
 ###> symfony/mercure-bundle ###
 ###< symfony/mercure-bundle ###
+
+###> doctrine/doctrine-bundle ###
+  database:
+    ports:
+      - "5432"
+###< doctrine/doctrine-bundle ###
+
+###> symfony/mailer ###
+  mailer:
+    image: axllent/mailpit
+    ports:
+      - "1025"
+      - "8025"
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+###< symfony/mailer ###
+
+  # Consumidor de la cola asíncrona (Messenger). Ver ARCHITECTURE.md §6.
+  worker:
+    image: ${IMAGES_PREFIX:-}app-php-dev
+    build:
+      context: .
+      target: frankenphp_dev
+    restart: unless-stopped
+    # El worker no sirve HTTP: la sonda de Caddy del Dockerfile no aplica.
+    # Se comprueba que el proceso consumidor sigue vivo leyendo /proc/1.
+    healthcheck:
+      test: ["CMD-SHELL", "php -r 'exit(str_contains(file_get_contents(\"/proc/1/cmdline\"), \"messenger:consume\") ? 0 : 1);'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    command: ["php", "bin/console", "messenger:consume", "mail_sync", "mail_processing", "ocr", "ai", "notifications", "async", "--time-limit=3600", "--memory-limit=256M", "-vv"]
+    volumes:
+      - ./:/app
+      - /app/var
+    environment:
+      APP_ENV: "${APP_ENV:-dev}"
+      APP_SECRET: "${APP_SECRET:-dev-only-not-a-real-secret}"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=${POSTGRES_VERSION:-16}&charset=${POSTGRES_CHARSET:-utf8}
+      MESSENGER_TRANSPORT_DSN: doctrine://default?auto_setup=0
+      MERCURE_URL: ${CADDY_MERCURE_URL:-http://php/.well-known/mercure}
+      MERCURE_PUBLIC_URL: ${CADDY_MERCURE_PUBLIC_URL:-https://${SERVER_NAME:-localhost}:${HTTPS_PORT:-443}/.well-known/mercure}
+      MERCURE_JWT_SECRET: ${CADDY_MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
+    depends_on:
+      database:
+        condition: service_healthy
+    tty: true

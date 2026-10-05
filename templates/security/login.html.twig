@@ -1,0 +1,51 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Entrar — Suscripta{% endblock %}
+
+{% block body %}
+    <main class="auth-layout">
+        <div class="auth-card card">
+            <div class="card__body">
+                <h1 class="auth-card__title">Entrar en Suscripta</h1>
+                <p class="text-muted mb-6">Descubre y controla tus servicios recurrentes.</p>
+
+                {% include 'layout/_flashes.html.twig' %}
+
+                {% if error %}
+                    <div class="alert alert--danger mb-4" role="alert">
+                        {{ error.messageKey|trans(error.messageData, 'security') }}
+                    </div>
+                {% endif %}
+
+                <form method="post" class="form">
+                    <div class="field">
+                        <label class="field__label" for="email">Correo electrónico</label>
+                        <input class="input" type="email" id="email" name="email"
+                               value="{{ last_username }}" required autofocus
+                               autocomplete="email" inputmode="email">
+                    </div>
+
+                    <div class="field">
+                        <label class="field__label" for="password">Contraseña</label>
+                        <input class="input" type="password" id="password" name="password"
+                               required autocomplete="current-password">
+                    </div>
+
+                    <label class="checkbox">
+                        <input type="checkbox" name="_remember_me" value="on">
+                        <span>Mantener la sesión iniciada</span>
+                    </label>
+
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
+
+                    <button type="submit" class="btn btn--primary btn--block">Entrar</button>
+                </form>
+
+                <p class="text-center text-sm mt-6 mb-0">
+                    ¿Todavía no tienes cuenta?
+                    <a href="{{ path('app_register') }}">Crear una cuenta</a>
+                </p>
+            </div>
+        </div>
+    </main>
+{% endblock %}

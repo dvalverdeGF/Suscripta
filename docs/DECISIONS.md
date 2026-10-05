@@ -646,3 +646,363 @@ aceptación: **sin scroll horizontal a 320 px**.
 fichero deja de ser coherente, o si más de una persona trabaja en la interfaz, se adopta
 Tailwind mediante `symfonycasts/tailwind-bundle` (binario standalone, sigue sin Node). La
 decisión no afecta al dominio ni a las plantillas Twig más allá de los nombres de clase.
+
+---
+
+## D-29 — Pipeline de enriquecimiento progresivo: la IA resuelve incertidumbre, no sustituye la lógica de negocio
+
+**Estado:** aceptada.
+
+**Contexto.** El producto recibe correo de facturación y debe identificar facturas, recibos,
+renovaciones y comunicaciones de servicios recurrentes. La tentación evidente es enviar cada
+correo a un modelo de lenguaje y dejar que devuelva los datos. Es la solución más rápida de
+escribir y la más cara de operar, la menos explicable y la más difícil de auditar.
+
+**Decisión.** El procesamiento es un **pipeline de enriquecimiento progresivo** de nueve
+niveles (0 a 8), ordenados de más barato y determinista a más caro y difuso. Cada nivel se
+ejecuta **solo si el anterior no alcanzó el umbral de confianza**. La IA es el nivel 5 (y el 6
+como excepción) y **nunca es el camino por defecto**.
+
+```text
+Ingesta → Dedup → Metadatos → Filtros → Billing Score
+   → Extracción determinista → Proveedor conocido / parser
+   → IA económica → (IA avanzada) → Validación → Service Matching → Decisión
+```
+
+**Por qué no enviar todos los correos a una IA.**
+
+1. **Coste.** Un buzón de 10.000 mensajes con IA por mensaje es económicamente inviable para
+   un producto de 5–20 €/mes. Con el pipeline, la mayoría de mensajes se descartan en el nivel
+   2 sin descargar siquiera el cuerpo.
+2. **Privacidad.** Enviar el buzón completo a un tercero es incompatible con el principio de
+   minimización y con las expectativas del usuario europeo (`SECURITY.md`).
+3. **Explicabilidad.** "El modelo dijo 29,90 €" no es una respuesta aceptable para un gasto
+   recurrente. "El remitente es OVH, el asunto contiene *facture*, hay un PDF y el importe
+   aparece en el texto" sí lo es.
+4. **Fiabilidad.** Un modelo alucina; una regex sobre una plantilla conocida, no. El dominio
+   no puede depender de la estabilidad de un proveedor externo.
+5. **Latencia y volumen.** Procesar 10.000 mensajes con IA tarda horas y consume cuota.
+
+**Por qué la IA no contiene lógica de negocio.** El cálculo de periodicidad, próximo cobro,
+comparación de precios, detección de duplicados y equivalencia mensual son **funciones puras
+testeables** en `Shared\Domain` / `Services\Domain`. Si vivieran en un *prompt*, no se podrían
+testear, versionar ni explicar, y cambiarían de resultado sin que nadie toque el código.
+
+**Alternativas.**
+1. **Todo a IA.** Descartada por coste, privacidad, explicabilidad y fiabilidad.
+2. **Solo reglas, sin IA.** Descartada: hay facturas de proveedores desconocidos con
+   maquetaciones libres que ninguna regla razonable cubre. Sin IA, el producto no arranca en
+   un buzón real.
+3. **Solo parsers por proveedor.** Descartada: exige escribir cientos de parsers antes de
+   tener un solo usuario.
+
+**Consecuencias.** Más código y más entidades que la alternativa "todo a IA" (estados,
+conocimiento, presupuesto, trazabilidad). A cambio, el coste marginal por buzón **decrece**
+con el tiempo, el sistema es auditable y el dominio es independiente del proveedor de IA.
+Ver `ARCHITECTURE.md` §13.
+
+---
+
+## D-30 — Dos niveles de IA (económica y avanzada) con umbral configurable
+
+**Estado:** aceptada.
+
+**Contexto.** No todos los documentos son igual de difíciles. La mayoría de facturas son
+plantillas repetidas; unas pocas son PDF escaneados, multipágina o con maquetación irregular.
+
+**Decisión.** Dos niveles de modelo, con umbral de escalado **configurable**:
+
+| Nivel | Uso | Cuándo |
+|---|---|---|
+| 5 · económica | Extracción estándar | Por defecto, cuando reglas y parsers no bastan |
+| 6 · avanzada | Extracción difícil | Confianza insuficiente, campos contradictorios, proveedor desconocido con documento complejo, PDF difícil, información insuficiente |
+
+**Por qué no usar siempre el modelo avanzado.** Cuesta entre 10 y 50 veces más por documento y
+no aporta nada en el 90 % de los casos. **Por qué no usar siempre el económico.** Falla en los
+documentos difíciles, y un fallo silencioso es peor que un coste mayor: genera un `Discovery`
+incorrecto que erosiona la confianza del usuario.
+
+**Alternativas.** Un único modelo intermedio. Descartada: obliga a elegir entre pagar de más en
+el caso fácil o fallar en el difícil.
+
+**Consecuencias.** Cada escalado se registra en `AiUsage` con `tier = advanced`, lo que permite
+medir si el escalado aporta valor y ajustar el umbral con datos en lugar de intuición.
+
+---
+
+## D-31 — Clasificador de facturación explicable (`BillingClassifier`)
+
+**Estado:** aceptada.
+
+**Contexto.** El primer filtro decide qué mensajes merecen procesamiento. Si es opaco, no se
+puede depurar por qué falta una factura ni por qué se procesan boletines.
+
+**Decisión.** Un componente independiente, `BillingClassifierInterface`, que devuelve
+`score` (0–100), `classification` y **`reasons`** (lista de motivos con su peso). Los pesos
+viven en configuración versionada, son ajustables por organización y están documentados
+(`ARCHITECTURE.md` §13.4).
+
+**Por qué no solo palabras clave.** Un boletín con "invoice" en el asunto no es una factura;
+una factura de un proveedor conocido con asunto en otro idioma sí lo es. El score combina
+señales independientes (remitente, dominio, adjunto, importe detectable, lenguaje de
+renovación, `local-part` de facturación) y admite pesos negativos (listas de ignorados,
+boletines, hilos propios).
+
+**Por qué explicable.** El usuario está conectando su buzón de facturación. Tiene derecho a
+saber por qué un correo se procesó o se ignoró. `billingReasons` se persiste en
+`EmailMessage` y se muestra en la interfaz.
+
+**Alternativas.** Clasificador opaco (ML o IA) para el primer filtro. Descartada: cara, no
+explicable y no ajustable por el usuario.
+
+**Consecuencias.** Los pesos hay que mantenerlos y revisarlos. A cambio, el filtro es
+gratuito, instantáneo, determinista y auditable.
+
+---
+
+## D-32 — Máquina de estados explícita y log de transiciones
+
+**Estado:** aceptada.
+
+**Contexto.** Un pipeline con reintentos, escalado a IA, procesamiento diferido y descarte
+temprano es imposible de depurar sin saber en qué punto está cada mensaje.
+
+**Decisión.** Diez estados explícitos (`RECEIVED`, `IGNORED`, `CANDIDATE`, `EXTRACTED`,
+`CLASSIFIED`, `MATCHED`, `DISCOVERY`, `REQUIRES_REVIEW`, `DEFERRED`, `FAILED`) y una entidad
+**append-only** `MessageProcessingEvent` que registra cada transición con: estado origen,
+estado destino, motivo, extractor, nivel de extracción, si intervino IA (`aiUsageId`),
+duración y datos adicionales.
+
+**Alternativas.** Un campo `status` con cuatro valores (`pending`, `processing`, `processed`,
+`failed`). Descartada: no distingue "ignorado por score" de "falló" ni de "esperando
+presupuesto", que son tres situaciones con acciones completamente distintas.
+
+**Consecuencias.** Una tabla más y más escritura. A cambio, cada mensaje tiene una respuesta
+consultable a *qué ocurrió, cuándo, con qué extractor, si intervino IA, con qué resultado y por
+qué*, que es exactamente lo que exige el requisito de observabilidad.
+
+---
+
+## D-33 — Conocimiento de proveedores (global) separado del conocimiento del buzón (por cuenta)
+
+**Estado:** aceptada.
+
+**Contexto.** El sistema debe reconocer proveedores y aprender de cada buzón. Mezclar ambos
+conocimientos produce contaminación cruzada: un patrón aprendido en el buzón de un usuario
+afectaría al de otro.
+
+**Decisión.** Tres entidades con ámbitos distintos:
+
+| Entidad | Pregunta | Ámbito |
+|---|---|---|
+| `Provider` | ¿Quién es? | Global o del tenant |
+| `ProviderIdentity` | ¿Cómo lo reconocemos? (dominio, remitente, patrón) | **Global** |
+| `ProviderParser` | ¿Cómo extraemos sus datos? | **Global** |
+| `MailboxKnowledgeEntry` | ¿Qué hemos aprendido de *este* buzón? | **Por cuenta de correo** |
+
+**Por qué separar `Provider` de `ProviderIdentity`.** Un proveedor factura desde varios
+dominios y direcciones (`ovh.com`, `ovh.es`, `invoice@ovh.com`, `billing@ovh.com`). Modelarlo
+como campos del proveedor obliga a duplicar el proveedor o a perder información.
+
+**Por qué el conocimiento del buzón es por cuenta.** Dos buzones del mismo tenant pueden tener
+patrones distintos (uno recibe facturas de OVH en francés, otro en español). Y un patrón
+aprendido de un usuario no debe aplicarse a otro sin revisión.
+
+**Por qué no es machine learning.** Es conocimiento estructurado, inspeccionable y editable por
+el usuario. No hay necesidad demostrada de ML (ver D-39).
+
+**Alternativas.** Un único almacén de patrones global. Descartada por contaminación cruzada y
+por privacidad: revelaría patrones de un tenant a otro.
+
+**Consecuencias.** La promoción de un patrón aprendido a conocimiento global es una **decisión
+explícita**, no automática. Es más trabajo, pero evita que un error de un buzón se propague.
+
+---
+
+## D-34 — Validación obligatoria de la salida de IA
+
+**Estado:** aceptada.
+
+**Contexto.** Un modelo de lenguaje puede devolver un importe negativo, una fecha imposible o
+una periodicidad inventada con una confianza declarada alta.
+
+**Decisión.** **La IA no es una fuente de verdad.** Su salida es una propuesta que atraviesa
+una cadena obligatoria antes de convertirse en dato:
+
+```text
+salida de IA → DTO tipado → Symfony Validator → reglas de negocio → resultado válido
+```
+
+Se valida: tipos (importe numérico, moneda ISO 4217, fechas reales), rangos (importe positivo y
+por debajo de un máximo razonable; se rechaza `amount = -8738291`), coherencia interna
+(`renewalDate` no anterior a `invoiceDate`; periodicidad compatible con la diferencia de
+fechas), pertenencia al conjunto de periodicidades soportadas, campos obligatorios y coherencia
+con lo ya extraído determinísticamente.
+
+**Alternativas.** Confiar en el modelo y validar "cuando haga falta". Descartada: el fallo se
+descubre en producción, en forma de gasto incorrecto en el dashboard del usuario.
+
+**Consecuencias.** Un modelo que alucina no corrompe el dominio: como mucho genera un
+`Discovery` que el usuario rechaza. El coste es que hay que mantener las reglas de validación
+en paralelo a los extractores.
+
+---
+
+## D-35 — Service matching ponderado con umbrales; nunca creación automática
+
+**Estado:** aceptada.
+
+**Contexto.** Un documento extraído debe asociarse a un servicio existente o proponer uno
+nuevo. Crear servicios automáticamente llena el dashboard de duplicados; no crear ninguno
+obliga al usuario a introducir todo a mano, que es justo lo que el producto quiere evitar.
+
+**Decisión.** **Nunca se crea un servicio automáticamente.** Primero se intenta asociar a un
+`Service` existente con una puntuación ponderada (proveedor +40, dominio +20, nombre del
+servicio +20, moneda +5, periodicidad +5, similitud de importe ±10 % +5, remitente exacto +5):
+
+| Puntuación | Resultado | Acción |
+|---|---|---|
+| ≥ 70 | HIGH | Asociación automática → `MATCHED` |
+| 40–69 | MEDIUM | `Discovery` para revisión → `DISCOVERY` |
+| < 40 | LOW | `Discovery` de servicio nuevo → `DISCOVERY` |
+
+Umbrales configurables. El desglose se persiste en `Discovery.matchScore` y
+`Discovery.matchReasons`.
+
+**Por qué ponderado y no reglas duras.** Un mismo servicio puede facturarse desde dominios
+distintos, con importes que cambian o con nombres ligeramente diferentes. Una regla dura
+("mismo dominio y mismo importe") falla en cuanto cambia cualquiera de los dos. Una puntuación
+tolera la variación y **expresa la incertidumbre en lugar de ocultarla**.
+
+**Alternativas.** Coincidencia exacta por dominio. Descartada por frágil. Asociación siempre
+automática al mejor candidato. Descartada: un falso positivo silencioso es peor que una
+pregunta.
+
+**Consecuencias.** El usuario revisa descubrimientos al principio. A medida que el sistema
+aprende (D-33), la proporción de asociaciones HIGH sube y las revisiones bajan.
+
+---
+
+## D-36 — Control de coste de IA con presupuesto y parada dura
+
+**Estado:** aceptada.
+
+**Contexto.** Sin control de coste, un buzón grande, un bucle de reintentos o un umbral mal
+ajustado generan una factura ilimitada. Es el riesgo económico más serio del producto.
+
+**Decisión.** Registro **obligatorio** de cada llamada en `AiUsage` (incluso si falla) y
+presupuesto por organización y periodo en `AiBudget`, con `hardStop` configurable. Al alcanzar
+el techo: **no se hacen más llamadas de IA**, el pipeline continúa por reglas, los mensajes
+afectados quedan en `DEFERRED` con el motivo, y se reanudan en el siguiente periodo o cuando el
+usuario amplía el presupuesto.
+
+El guard se comprueba **antes** de cada llamada, no después. El transporte `ai` tiene
+concurrencia limitada y rate limit propio. **Nunca hay llamadas ilimitadas durante una
+sincronización.**
+
+**Por qué `AiUsage` es obligatorio y no opcional.** Hay dos preguntas de negocio que no se
+pueden contestar a posteriori si no se registran desde el primer día: *¿cuánto nos cuesta
+procesar el buzón de este usuario?* y *¿cuánto cuesta de IA un usuario medio al mes?* Sin esos
+datos no se puede fijar el precio del producto.
+
+**Alternativas.** Sin límite, confiando en que el volumen sea bajo. Descartada: el modo de
+fallo es una factura de cuatro cifras. Límite solo por número de llamadas. Descartada: no
+refleja el coste real, que depende del modelo y del tamaño del documento.
+
+**Consecuencias.** Hay que mantener el catálogo de precios de los modelos y estimar tokens
+antes de la llamada. A cambio, el coste es acotado y medible, y se puede decidir el precio del
+producto con datos.
+
+---
+
+## D-37 — Idempotencia: nunca pagar dos veces por el mismo mensaje
+
+**Estado:** aceptada.
+
+**Contexto.** Un mensaje puede aparecer varias veces: en dos carpetas, en dos cuentas del
+mismo tenant, tras un reenvío, o al repetir una sincronización. Con Symfony Messenger, un
+mensaje puede reentregarse tras un fallo del worker. Reprocesar no es solo desperdicio de CPU:
+**puede costar dinero** si vuelve a pasar por IA.
+
+**Decisión.** Identidad estable por combinación de señales, porque ninguna basta sola:
+
+| Señal | Problema |
+|---|---|
+| `folder` + `uid` | Los UID se repiten entre buzones; se invalidan si cambia `uidValidity` |
+| `Message-ID` | Puede faltar, repetirse o falsificarse |
+| `contentHash` | Dos correos idénticos legítimos colisionan; requiere descargar el contenido |
+
+1. **Clave primaria de deduplicación:** `emailAccountId + folder + uid` (única, estable y
+   gratuita), guardada junto con `uidValidity`.
+2. **Clave secundaria:** `emailAccountId + messageId` (detecta el mensaje movido de carpeta).
+3. **`contentHash`:** deduplica documentos, detecta el mismo mensaje en dos cuentas y sirve de
+   **clave de caché de extracción**.
+4. **Deduplicación entre cuentas a nivel de organización:** `Discovery` es tenant-scoped, así
+   que el mismo servicio detectado por dos buzones produce un descubrimiento, no dos.
+
+**Antes de cualquier llamada de IA** se comprueba que no exista ya un `ExtractedDocument`
+válido para ese `contentHash`. Si existe, se reutiliza: coste cero.
+
+**Regla explícita:** *si el mismo correo vuelve a aparecer durante una sincronización, no debe
+volver a consumir IA.*
+
+**Alternativas.** Confiar solo en el UID de IMAP. Descartada: se rompe al cambiar `uidValidity`
+o al mover el mensaje de carpeta. Confiar solo en el `Message-ID`. Descartada: falta en correos
+reales.
+
+**Consecuencias.** Tres claves que mantener y un índice adicional. A cambio, un reintento, una
+resincronización o un duplicado no cuestan dinero.
+
+---
+
+## D-38 — Procesamiento progresivo y descarga diferida
+
+**Estado:** aceptada.
+
+**Contexto.** Descargar el cuerpo y los adjuntos de todos los mensajes de un buzón de 10.000
+correos consume tráfico, almacenamiento y CPU, y hace inviable el procesamiento.
+
+**Decisión.** Cada nivel del pipeline se ejecuta **solo cuando el anterior lo justifica**:
+
+```text
+cabeceras → metadatos → candidato → cuerpo → adjunto → OCR → IA
+```
+
+Un mensaje que se descarta en el nivel 2 (billing score) **nunca descarga su cuerpo ni sus
+adjuntos**. Las cabeceras se piden con `BODY.PEEK[HEADER]`, que no marca el mensaje como leído.
+
+**Alternativas.** Descargar todo y filtrar en local. Descartada: es exactamente el
+comportamiento que hace inviable el producto en buzones reales.
+
+**Consecuencias.** El pipeline tiene más pasos y el estado intermedio hay que persistirlo
+(por eso existe la máquina de estados, D-32). A cambio, el coste por mensaje descartado es
+prácticamente nulo.
+
+---
+
+## D-39 — Sin machine learning en v1
+
+**Estado:** aceptada.
+
+**Contexto.** El sistema "aprende" del buzón. La palabra *aprender* sugiere ML: clasificadores
+entrenados, embeddings, modelos propios.
+
+**Decisión.** **No se introduce machine learning en v1.** El aprendizaje se implementa como
+**conocimiento estructurado y persistente** (`MailboxKnowledgeEntry`, `ProviderIdentity`,
+`ProviderParser`), inspeccionable y editable por el usuario, alimentado por confirmaciones,
+correcciones y patrones observados.
+
+**Por qué.** No hay necesidad demostrada: el problema se resuelve con reglas, parsers y
+conocimiento explícito. El ML añadiría opacidad (contradice D-31 y D-34), coste de
+entrenamiento e inferencia, necesidad de datos etiquetados que todavía no existen, y riesgo de
+degradación silenciosa. Además, un usuario que corrige al sistema espera que la corrección se
+aplique de forma predecible, no que se diluya en un modelo.
+
+**Disparador de revisión.** Si con datos reales se comprueba que el conocimiento estructurado
+no cubre una proporción significativa de los casos y que existe volumen etiquetado suficiente,
+se revisa esta decisión. La arquitectura no lo impide: `BillingClassifierInterface` y
+`ProviderResolverInterface` permiten sustituir la implementación determinista por una
+estadística sin tocar el dominio.
+
+**Consecuencias.** Menos sofisticación aparente y más previsibilidad. El "aprendizaje" es
+auditable: el usuario puede ver y editar lo que el sistema ha aprendido.

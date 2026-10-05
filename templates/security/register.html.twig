@@ -1,0 +1,33 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Crear cuenta — Suscripta{% endblock %}
+
+{% block body %}
+    <main class="auth-layout">
+        <div class="auth-card card">
+            <div class="card__body">
+                <h1 class="auth-card__title">Crear cuenta</h1>
+                <p class="text-muted mb-6">
+                    Conecta tu correo de facturación y descubre automáticamente lo que estás pagando.
+                </p>
+
+                {% include 'layout/_flashes.html.twig' %}
+
+                {{ form_start(form, { attr: { class: 'form', novalidate: 'novalidate' } }) }}
+                    {{ form_errors(form) }}
+                    {{ form_row(form.displayName) }}
+                    {{ form_row(form.email) }}
+                    {{ form_row(form.plainPassword.first) }}
+                    {{ form_row(form.plainPassword.second) }}
+                    {{ form_row(form.acceptTerms) }}
+
+                    <button type="submit" class="btn btn--primary btn--block">Crear cuenta</button>
+                {{ form_end(form) }}
+
+                <p class="text-center text-sm mt-6 mb-0">
+                    ¿Ya tienes cuenta? <a href="{{ path('app_login') }}">Entrar</a>
+                </p>
+            </div>
+        </div>
+    </main>
+{% endblock %}

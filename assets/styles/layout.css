@@ -1,0 +1,149 @@
+/* Suscripta — Primitivas de layout */
+
+.container {
+    width: 100%;
+    max-width: var(--container-max);
+    margin-inline: auto;
+    padding-inline: var(--container-padding);
+}
+
+/* ---------- App shell ---------- */
+
+.app-shell {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    min-height: 100dvh;
+}
+
+.app-shell__body {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: start;
+}
+
+@media (min-width: 64rem) {
+    .app-shell__body {
+        grid-template-columns: var(--sidebar-width) 1fr;
+    }
+}
+
+.app-main {
+    min-width: 0; /* evita desbordamiento de tablas y grids */
+    padding-block: var(--space-6);
+}
+
+/* ---------- Stack / Cluster ---------- */
+
+.stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.stack--tight { gap: var(--space-2); }
+.stack--loose { gap: var(--space-8); }
+
+.cluster {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.cluster--between {
+    justify-content: space-between;
+}
+
+.cluster--end {
+    justify-content: flex-end;
+}
+
+/* ---------- Grid ---------- */
+
+.grid {
+    display: grid;
+    gap: var(--space-4);
+    grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
+}
+
+.grid--2 { grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr)); }
+.grid--4 { grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr)); }
+
+/* ---------- Página ---------- */
+
+.page-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-4);
+    margin-bottom: var(--space-6);
+}
+
+.page-header__title {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    min-width: 0;
+}
+
+.page-header__subtitle {
+    color: var(--color-text-muted);
+    font-size: var(--text-base);
+}
+
+.section {
+    margin-bottom: var(--space-8);
+}
+
+.section__title {
+    font-size: var(--text-md);
+    font-weight: var(--weight-semibold);
+    margin-bottom: var(--space-3);
+}
+
+/* ---------- Utilidades ---------- */
+
+.text-muted { color: var(--color-text-muted); }
+.text-subtle { color: var(--color-text-subtle); }
+.text-sm { font-size: var(--text-sm); }
+.text-xs { font-size: var(--text-xs); }
+.text-right { text-align: right; }
+.text-center { text-align: center; }
+.mono { font-family: var(--font-mono); }
+.nowrap { white-space: nowrap; }
+.truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+.mt-0 { margin-top: 0; }
+.mt-2 { margin-top: var(--space-2); }
+.mt-4 { margin-top: var(--space-4); }
+.mt-6 { margin-top: var(--space-6); }
+.mb-0 { margin-bottom: 0; }
+.mb-2 { margin-bottom: var(--space-2); }
+.mb-4 { margin-bottom: var(--space-4); }
+.mb-6 { margin-bottom: var(--space-6); }
+.hidden { display: none !important; }
+
+/* ---------- Pantallas de autenticación ---------- */
+
+.auth-layout {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100dvh;
+    padding: var(--space-6) var(--container-padding);
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 26rem;
+}
+
+.auth-card__title {
+    font-size: var(--text-xl);
+    margin-bottom: var(--space-2);
+}
