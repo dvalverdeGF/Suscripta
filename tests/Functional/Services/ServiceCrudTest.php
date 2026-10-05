@@ -169,7 +169,7 @@ final class ServiceCrudTest extends WebTestCase
         self::assertResponseRedirects();
 
         $this->client->followRedirect();
-        self::assertSelectorTextContains('.alert--danger', 'no puede ser anterior');
+        self::assertSelectorTextContains('.alert--danger', 'ajusta primero la fecha de alta del servicio');
 
         self::assertCount(1, $this->reload($service)->getPrices());
     }

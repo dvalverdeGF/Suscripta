@@ -16,6 +16,7 @@ use App\Services\Domain\Entity\Service;
 use App\Services\Domain\Enum\ServiceStatus;
 use App\Services\Domain\Repository\ServiceRepositoryInterface;
 use App\Services\Domain\Service\ServiceCostCalculator;
+use App\Services\Domain\Service\SpendEvolution;
 use App\Shared\Application\Clock;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\ValueObject\BillingPeriod;
@@ -339,6 +340,7 @@ final class BuildDashboardSummaryTest extends TestCase
             messages: $this->messages,
             categories: $this->categories,
             costs: new ServiceCostCalculator(),
+            evolution: new SpendEvolution(),
             tenantContext: $this->tenant,
             clock: new Clock(new MockClock(new DateTimeImmutable(self::NOW))),
         );

@@ -16,6 +16,7 @@ use App\Services\Domain\Entity\Service;
 use App\Services\Domain\Enum\ServiceStatus;
 use App\Services\Domain\Repository\ServiceFilters;
 use App\Services\Domain\Repository\ServiceRepositoryInterface;
+use App\Services\Domain\Service\PriceHistory;
 use App\Services\Domain\Service\ServiceCostCalculator;
 use App\Services\UI\Form\ServiceFormData;
 use App\Services\UI\Form\ServiceFormType;
@@ -52,6 +53,7 @@ final class ServiceController extends AbstractController
         private readonly ProviderRepositoryInterface $providers,
         private readonly CategoryRepositoryInterface $categories,
         private readonly ServiceCostCalculator $costCalculator,
+        private readonly PriceHistory $priceHistory,
         private readonly TenantContext $tenantContext,
     ) {
     }
@@ -123,6 +125,9 @@ final class ServiceController extends AbstractController
             'monthlyEquivalent' => $this->costCalculator->monthlyEquivalent($service),
             'annualCost' => $this->costCalculator->annualCost($service),
             'priceChangeRatio' => $this->costCalculator->priceChangeRatio($service),
+            'priceHistory' => $this->priceHistory->entries($service),
+            'totalVariation' => $this->priceHistory->totalVariation($service),
+            'totalVariationRatio' => $this->priceHistory->totalVariationRatio($service),
             'organizationId' => $organizationId,
         ]);
     }

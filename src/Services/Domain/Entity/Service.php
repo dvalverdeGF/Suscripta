@@ -417,6 +417,32 @@ class Service implements TenantAwareInterface
     }
 
     /**
+     * Precio que estaba vigente en una fecha concreta.
+     *
+     * Es lo que permite reconstruir cuánto costaba el servicio hace seis meses
+     * sin proyectar hacia atrás el precio de hoy, que es justo el error que
+     * hace que un usuario no se crea la evolución del gasto.
+     */
+    public function getPriceAt(DateTimeImmutable $date): ?ServicePrice
+    {
+        $match = null;
+
+        foreach ($this->prices as $price) {
+            if (!$price->covers($date)) {
+                continue;
+            }
+
+            // Si dos filas se solapan (datos importados a mano), gana la que
+            // entró en vigor más tarde: es la que el usuario esperaría ver.
+            if (null === $match || $price->getValidFrom() > $match->getValidFrom()) {
+                $match = $price;
+            }
+        }
+
+        return $match;
+    }
+
+    /**
      * Registra un precio nuevo cerrando el anterior.
      *
      * Es la única forma de cambiar el importe: nunca se muta una fila de

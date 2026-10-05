@@ -71,6 +71,28 @@
         </div>
     {% endif %}
 
+    {% if totalVariation is not null and totalVariationRatio is not null %}
+        <div class="card mb-6">
+            <div class="card__header">
+                <h2 class="card__title">Cuánto ha cambiado desde el principio</h2>
+            </div>
+            <div class="card__body">
+                <div class="cluster">
+                    <span class="badge badge--{{ totalVariation.amountMinor > 0 ? 'danger' : 'success' }}">
+                        {{ totalVariation.amountMinor > 0 ? '+' : '' }}{{ totalVariation.format() }}
+                    </span>
+                    <span class="badge badge--{{ totalVariation.amountMinor > 0 ? 'danger' : 'success' }}">
+                        {{ totalVariationRatio > 0 ? '+' : '' }}{{ (totalVariationRatio * 100)|number_format(1, ',', '.') }} %
+                    </span>
+                    <span class="text-muted text-sm">
+                        desde el primer precio registrado, el
+                        {{ priceHistory|first ? priceHistory|first.validFrom|date('d/m/Y') : '' }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
     <div class="card mb-6">
         <div class="card__header">
             <h2 class="card__title">Historial de precios</h2>
@@ -89,20 +111,33 @@
                                 <th scope="col">Desde</th>
                                 <th scope="col">Hasta</th>
                                 <th scope="col" class="num">Importe</th>
+                                <th scope="col" class="num">Variación</th>
                                 <th scope="col">Origen</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for price in service.prices %}
+                            {% for entry in priceHistory %}
                                 <tr>
-                                    <td data-label="Desde">{{ price.validFrom|date('d/m/Y') }}</td>
+                                    <td data-label="Desde">{{ entry.validFrom|date('d/m/Y') }}</td>
                                     <td data-label="Hasta">
-                                        {% if price.validTo %}{{ price.validTo|date('d/m/Y') }}{% else %}<span class="badge badge--success">Vigente</span>{% endif %}
+                                        {% if entry.validTo %}{{ entry.validTo|date('d/m/Y') }}{% else %}<span class="badge badge--success">Vigente</span>{% endif %}
                                     </td>
-                                    <td data-label="Importe" class="num">{{ price.amount.format() }}</td>
+                                    <td data-label="Importe" class="num">{{ entry.amount.format() }}</td>
+                                    <td data-label="Variación" class="num">
+                                        {% if entry.hasVariation %}
+                                            <span class="badge badge--{{ entry.isIncrease ? 'danger' : 'success' }}">
+                                                {{ entry.isIncrease ? '+' : '' }}{{ entry.variationAbsolute.format() }}
+                                                {% if entry.variationRatio is not null %}
+                                                    ({{ entry.variationRatio > 0 ? '+' : '' }}{{ (entry.variationRatio * 100)|number_format(1, ',', '.') }} %)
+                                                {% endif %}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-subtle">—</span>
+                                        {% endif %}
+                                    </td>
                                     <td data-label="Origen">
-                                        {{ price.source.label() }}
-                                        {% if price.note %}<span class="text-muted text-sm">· {{ price.note }}</span>{% endif %}
+                                        {{ entry.source.label() }}
+                                        {% if entry.note %}<span class="text-muted text-sm">· {{ entry.note }}</span>{% endif %}
                                     </td>
                                 </tr>
                             {% endfor %}

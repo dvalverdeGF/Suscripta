@@ -282,6 +282,50 @@
             {% endif %}
         </div>
 
+        {% if summary.spendEvolution|length > 1 %}
+            <div class="card mb-6">
+                <div class="card__header">
+                    <h2 class="card__title">Evolución del gasto</h2>
+                </div>
+                <div class="card__body card__body--flush">
+                    <div class="table-wrapper">
+                        <table class="table table--responsive">
+                            <caption class="visually-hidden">Coste mensual equivalente de los últimos meses</caption>
+                            <thead>
+                                <tr>
+                                    <th scope="col">Mes</th>
+                                    <th scope="col" class="num">Servicios</th>
+                                    <th scope="col" class="num">Al mes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for point in summary.spendEvolution %}
+                                    <tr>
+                                        <td data-label="Mes">{{ point.month|date('m/Y') }}</td>
+                                        <td data-label="Servicios" class="num">{{ point.serviceCount }}</td>
+                                        <td data-label="Al mes" class="num">
+                                            {% for code, total in point.byCurrency %}
+                                                {{ total.format() }}{% if not loop.last %} · {% endif %}
+                                            {% else %}
+                                                <span class="text-subtle">—</span>
+                                            {% endfor %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card__footer">
+                    <p class="text-muted text-sm m-0">
+                        Cada mes usa el precio que estaba vigente entonces, no el de hoy.
+                        La periodicidad de un servicio que haya cambiado de mensual a anual se
+                        aplica igual a todos los meses.
+                    </p>
+                </div>
+            </div>
+        {% endif %}
+
         {% if summary.servicesByStatus is not empty %}
             <div class="card mb-6">
                 <div class="card__header">

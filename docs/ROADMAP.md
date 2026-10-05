@@ -171,7 +171,8 @@ dominio; consultas sin N+1.
 
 ## Fase 5 — Historial de precios y cambios
 
-> **Estado:** ⬜ Pendiente.
+> **Estado:** ✅ **Completada.** El historial es inmutable y la evolución del gasto es
+> histórica: cada mes usa el precio que estaba vigente entonces, no el de hoy.
 
 
 **Objetivo:** hacer visible la evolución del coste.

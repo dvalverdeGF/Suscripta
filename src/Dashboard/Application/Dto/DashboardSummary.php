@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Dashboard\Application\Dto;
 
 use App\Discovery\Domain\Entity\Discovery;
+use App\Services\Domain\Dto\SpendPoint;
 use App\Services\Domain\Entity\Service;
 use App\Services\Domain\Enum\ServiceStatus;
 use App\Shared\Domain\ValueObject\Money;
@@ -31,6 +32,7 @@ final readonly class DashboardSummary
      * @param list<CategoryCost>                             $monthlyByCategory  ordenado de mayor a menor coste
      * @param list<Service>                                  $topServices        los más caros, por coste mensual
      * @param list<array{status: ServiceStatus, total: int}> $servicesByStatus
+     * @param list<SpendPoint>                               $spendEvolution     del mes más antiguo al más reciente
      */
     public function __construct(
         public int $activeServices,
@@ -44,6 +46,7 @@ final readonly class DashboardSummary
         public array $monthlyByCategory,
         public array $topServices,
         public array $servicesByStatus,
+        public array $spendEvolution,
         public int $connectedMailboxes,
         public int $indexedMessages,
     ) {

@@ -148,7 +148,7 @@ class ServicePrice
         }
 
         if ($validTo < $this->validFrom) {
-            throw new InvalidArgumentException('La fecha de fin no puede ser anterior a la de inicio.');
+            throw new InvalidArgumentException('El precio nuevo no puede entrar en vigor antes que el vigente. Si necesitas registrar precios anteriores, ajusta primero la fecha de alta del servicio.');
         }
 
         $this->validTo = $validTo;

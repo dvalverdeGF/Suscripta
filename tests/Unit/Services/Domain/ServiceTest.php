@@ -21,6 +21,38 @@ use Symfony\Component\Uid\Uuid;
 #[CoversClass(Service::class)]
 final class ServiceTest extends TestCase
 {
+    public function testGetPriceAtReturnsTheRowInForceOnThatDate(): void
+    {
+        $service = $this->service();
+        $service->changePrice(Money::of(1000, Currency::EUR), new DateTimeImmutable('2026-01-15'));
+        $service->changePrice(Money::of(1500, Currency::EUR), new DateTimeImmutable('2026-07-01'));
+
+        self::assertSame(1000, $service->getPriceAt(new DateTimeImmutable('2026-03-01'))?->getAmountMinor());
+        self::assertSame(1500, $service->getPriceAt(new DateTimeImmutable('2026-09-01'))?->getAmountMinor());
+        // El día exacto del cambio ya cuenta como el precio nuevo.
+        self::assertSame(1500, $service->getPriceAt(new DateTimeImmutable('2026-07-01'))?->getAmountMinor());
+    }
+
+    public function testGetPriceAtReturnsNullBeforeTheFirstPrice(): void
+    {
+        $service = $this->service();
+        $service->changePrice(Money::of(1000, Currency::EUR), new DateTimeImmutable('2026-01-15'));
+
+        self::assertNull($service->getPriceAt(new DateTimeImmutable('2025-12-31')));
+    }
+
+    public function testGetPriceAtPrefersTheMostRecentRowWhenTwoOverlap(): void
+    {
+        $service = $this->service();
+        $service->changePrice(Money::of(1000, Currency::EUR), new DateTimeImmutable('2026-01-15'));
+        $service->changePrice(Money::of(1500, Currency::EUR), new DateTimeImmutable('2026-07-01'));
+
+        // Una fila importada a mano que se solapa con la vigente no debe ganar.
+        $service->changePrice(Money::of(2000, Currency::EUR), new DateTimeImmutable('2026-08-01'));
+
+        self::assertSame(2000, $service->getPriceAt(new DateTimeImmutable('2026-09-01'))?->getAmountMinor());
+    }
+
     private function service(
         BillingPeriod $period = BillingPeriod::MONTHLY,
         Currency $currency = Currency::EUR,

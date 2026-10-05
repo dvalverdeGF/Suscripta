@@ -15,6 +15,7 @@ use App\Services\Domain\Entity\Service;
 use App\Services\Domain\Enum\ServiceStatus;
 use App\Services\Domain\Repository\ServiceRepositoryInterface;
 use App\Services\Domain\Service\ServiceCostCalculator;
+use App\Services\Domain\Service\SpendEvolution;
 use App\Shared\Application\Clock;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\ValueObject\Money;
@@ -48,6 +49,7 @@ final readonly class BuildDashboardSummary
     private const PENDING_LIMIT = 5;
     private const PRICE_CHANGE_WINDOW_DAYS = 90;
     private const TOP_SERVICES_LIMIT = 5;
+    private const SPEND_EVOLUTION_MONTHS = 6;
 
     public function __construct(
         private ServiceRepositoryInterface $services,
@@ -56,6 +58,7 @@ final readonly class BuildDashboardSummary
         private EmailMessageRepositoryInterface $messages,
         private CategoryRepositoryInterface $categories,
         private ServiceCostCalculator $costs,
+        private SpendEvolution $evolution,
         private TenantContext $tenantContext,
         private Clock $clock,
     ) {
@@ -86,6 +89,11 @@ final readonly class BuildDashboardSummary
             monthlyByCategory: $this->monthlyByCategory($services),
             topServices: $this->topServices($services),
             servicesByStatus: $this->servicesByStatus($services),
+            spendEvolution: $this->evolution->monthly(
+                $services,
+                $now->modify('-'.(self::SPEND_EVOLUTION_MONTHS - 1).' months'),
+                $now,
+            ),
             connectedMailboxes: count($accounts),
             indexedMessages: $indexedMessages,
         );
