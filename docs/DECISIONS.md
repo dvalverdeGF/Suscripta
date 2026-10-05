@@ -946,6 +946,32 @@ válido para ese `contentHash`. Si existe, se reutiliza: coste cero.
 **Regla explícita:** *si el mismo correo vuelve a aparecer durante una sincronización, no debe
 volver a consumir IA.*
 
+**Implementación (fase 9).** La comprobación se materializa en la tabla `extraction_cache`,
+con clave única `(organization_id, content_hash)`. Guarda **solo el resultado estructurado**
+(`ExtractedDocument` serializado), nunca el cuerpo del mensaje (D-10). En un acierto se
+incrementa `hitCount`, se actualiza `lastUsedAt` y se refrescan `sender`, `senderDomain` y
+`subject` con los del mensaje actual (`withSenderContext()`), porque el mismo cuerpo puede
+llegar desde otra cuenta o con otro asunto. La transición a `EXTRACTED` se registra con el
+extractor `cache`, para que la observabilidad distinga «lo resolvió la caché» de «lo resolvió
+el extractor».
+
+**La caché está acotada por organización, a propósito.** Compartirla entre tenants sería más
+barato, pero convertiría el acierto de caché en un canal lateral: un cliente podría deducir
+que otro ha recibido exactamente el mismo correo. El ahorro no compensa la fuga.
+
+**Un cuerpo vacío nunca se cachea.** `contentHash('')` es un hash válido, así que la guarda no
+puede ser «el hash está vacío»: sería código muerto y haría que todos los mensajes sin cuerpo
+compartieran una única entrada. La condición es que el cuerpo, ya recortado, no esté vacío.
+
+**Alternativas.** Reutilizar el log `MessageProcessingEvent` como caché. Descartada: es un log
+append-only pensado para auditoría, no para consulta por clave; usarlo obligaría a recorrer
+todas las transiciones de un mensaje para encontrar la extracción. Caché global (sin
+`organization_id`). Descartada por el canal lateral descrito arriba.
+
+**Consecuencias.** Una tabla más y una política de purga pendiente (fase 13). A cambio, un
+reintento, una resincronización o un duplicado no cuestan dinero, y el ahorro es medible
+(`hitCount`, `app:mail:stats`).
+
 **Alternativas.** Confiar solo en el UID de IMAP. Descartada: se rompe al cambiar `uidValidity`
 o al mover el mensaje de carpeta. Confiar solo en el `Message-ID`. Descartada: falta en correos
 reales.
@@ -1095,3 +1121,49 @@ para SQL, así que la ausencia de organización llega como `''` (dos comillas) y
 vacía. La comprobación original contra `''` nunca se cumplía y la consulta acababa con
 `organization_id = ''`, que PostgreSQL rechaza por no ser un UUID válido. Ver
 `TenantFilter::NO_ORGANIZATION`.
+
+---
+
+## D-42 — La lista de remitentes ignorados compara por etiquetas completas
+
+**Estado:** aceptada.
+
+**Contexto.** El nivel 2 del pipeline (§13.4) descarta mensajes de remitentes que nunca son
+facturas: redes sociales, boletines, notificaciones de marketing. La lista vive en
+configuración (`ignored_senders`) y en la práctica necesita tres formas de entrada: una
+dirección concreta (`facturas@proveedor.com`), un dominio entero (`@proveedor.com`) y el
+dominio del remitente sin arroba (`proveedor.com`).
+
+La primera implementación comparaba la dirección completa del remitente contra la lista con
+`in_array()`. Con eso, las entradas de dominio **nunca coincidían**: `linkedin.com` no es
+igual a `messages-noreply@linkedin.com`, así que la penalización de −100 era código muerto y
+los mensajes de esas plataformas seguían llegando al pipeline.
+
+**Decisión.** La coincidencia se resuelve en tres pasos —dirección exacta, `@dominio`,
+dominio del remitente— y la comparación de dominios es **por etiquetas completas**:
+
+```php
+$domain === $candidate || str_ends_with($domain, '.'.$candidate)
+```
+
+Así `linkedin.com` coincide con `mail.linkedin.com`, pero **no** con `falsolinkedin.com` ni con
+`linkedin.com.evil.io`. La entrada que produjo la coincidencia se registra en
+`billingReasons`, para que la decisión siga siendo explicable.
+
+**Por qué no un `str_ends_with()` a secas.** Sería más corto y estaría mal: bastaría con
+registrar un dominio que termine en el nombre del proveedor legítimo (`falsolinkedin.com`) para
+colarse en la bandeja de entrada de todos los clientes. La lista de ignorados es una decisión
+de producto, pero su comparación es una decisión de seguridad.
+
+**Alternativas.**
+
+- *Comparar solo direcciones exactas.* Descartada: obliga a enumerar cada remitente de cada
+  plataforma y se queda obsoleta en cuanto cambian.
+- *Comparar por sufijo de cadena.* Descartada por el vector de suplantación descrito arriba.
+- *Expresiones regulares en configuración.* Descartada: traslada a quien configura el riesgo de
+  escribir un patrón demasiado laxo, y no es inspeccionable de un vistazo.
+
+**Consecuencias.** La lista de ignorados funciona por fin como está documentada, y las entradas
+`newsletter` y `marketing` —que no eran ni direcciones ni dominios— se retiraron de la
+configuración: ya estaban cubiertas por `newsletter_local_parts`. La semántica queda cubierta
+por pruebas que incluyen los dos casos de suplantación.

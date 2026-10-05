@@ -163,6 +163,116 @@ final class BillingScoreCalculatorTest extends TestCase
     }
 
     /**
+     * La lista de remitentes ignorados se documenta como "se comparan por
+     * dominio", pero comparar la dirección completa hacía que `linkedin.com`
+     * nunca coincidiera con `messages-noreply@seeedin.com`: la penalización
+     * era código muerto y los boletines de esas plataformas entraban al
+     * pipeline.
+     */
+    public function testAnIgnoredBareDomainMatchesAnyAddressOnIt(): void
+    {
+        $weights = BillingScoreWeights::fromArray(['ignored_senders' => ['linkedin.com']]);
+
+        $result = $this->calculator($weights)->score($this->header(
+            subject: 'Factura de tu suscripción',
+            from: 'messages-noreply@linkedin.com',
+        ));
+
+        self::assertContains('ignored_sender', array_column($result->reasonsAsArray(), 'signal'));
+        self::assertFalse($result->isCandidate());
+    }
+
+    public function testAnIgnoredDomainAlsoCoversItsSubdomains(): void
+    {
+        $weights = BillingScoreWeights::fromArray(['ignored_senders' => ['linkedin.com']]);
+
+        $result = $this->calculator($weights)->score($this->header(
+            subject: 'Factura de tu suscripción',
+            from: 'no-reply@mail.linkedin.com',
+        ));
+
+        self::assertContains('ignored_sender', array_column($result->reasonsAsArray(), 'signal'));
+    }
+
+    /**
+     * La comparación es por etiquetas completas. Si fuera por subcadena,
+     * `x.com` descartaría el correo de `max.com` y perderíamos facturas reales
+     * sin que nadie se enterara.
+     */
+    public function testAnIgnoredDomainDoesNotMatchALookalikeDomain(): void
+    {
+        $weights = BillingScoreWeights::fromArray(['ignored_senders' => ['linkedin.com']]);
+
+        $result = $this->calculator($weights)->score($this->header(
+            subject: 'Factura 2026-10',
+            from: 'facturas@falsolinkedin.com',
+        ));
+
+        self::assertNotContains('ignored_sender', array_column($result->reasonsAsArray(), 'signal'));
+    }
+
+    public function testAnIgnoredDomainDoesNotMatchASuffixAttack(): void
+    {
+        $weights = BillingScoreWeights::fromArray(['ignored_senders' => ['linkedin.com']]);
+
+        $result = $this->calculator($weights)->score($this->header(
+            subject: 'Factura 2026-10',
+            from: 'facturas@linkedin.com.evil.io',
+        ));
+
+        self::assertNotContains('ignored_sender', array_column($result->reasonsAsArray(), 'signal'));
+    }
+
+    public function testAnIgnoredAtDomainMatchesAnyAddressOnIt(): void
+    {
+        $weights = BillingScoreWeights::fromArray(['ignored_senders' => ['@linkedin.com']]);
+
+        $result = $this->calculator($weights)->score($this->header(
+            subject: 'Factura de tu suscripción',
+            from: 'cualquiera@linkedin.com',
+        ));
+
+        self::assertContains('ignored_sender', array_column($result->reasonsAsArray(), 'signal'));
+    }
+
+    public function testAnIgnoredExactAddressDoesNotMatchAnotherAddressOnTheSameDomain(): void
+    {
+        $weights = BillingScoreWeights::fromArray(['ignored_senders' => ['ruido@linkedin.com']]);
+
+        $result = $this->calculator($weights)->score($this->header(
+            subject: 'Factura 2026-10',
+            from: 'facturas@linkedin.com',
+        ));
+
+        self::assertNotContains('ignored_sender', array_column($result->reasonsAsArray(), 'signal'));
+    }
+
+    public function testAnIgnoredAddressIsMatchedCaseInsensitively(): void
+    {
+        $weights = BillingScoreWeights::fromArray(['ignored_senders' => ['ruido@linkedin.com']]);
+
+        $result = $this->calculator($weights)->score($this->header(
+            subject: 'Factura 2026-10',
+            from: 'Ruido@LinkedIn.com',
+        ));
+
+        self::assertContains('ignored_sender', array_column($result->reasonsAsArray(), 'signal'));
+    }
+
+    /**
+     * Un remitente sin dominio no debe coincidir con una entrada de dominio:
+     * `''` no es un dominio.
+     */
+    public function testAMessageWithoutASenderIsNotMatchedByAnIgnoredDomain(): void
+    {
+        $weights = BillingScoreWeights::fromArray(['ignored_senders' => ['linkedin.com']]);
+
+        $result = $this->calculator($weights)->score($this->header(subject: 'Factura 2026-10'));
+
+        self::assertNotContains('ignored_sender', array_column($result->reasonsAsArray(), 'signal'));
+    }
+
+    /**
      * Un boletín con la palabra "invoice" en el asunto no es una factura: por
      * eso el score combina señales independientes en lugar de buscar palabras.
      */

@@ -126,3 +126,7 @@ sync: ## Sincroniza los buzones activos
 .PHONY: alerts
 alerts: ## Recalcula los avisos de cobros, renovaciones y plazos
 	$(EXEC) bin/console app:alerts:generate -v
+
+.PHONY: stats
+stats: ## Muestra el embudo del pipeline de correo por organización
+	$(EXEC) bin/console app:mail:stats

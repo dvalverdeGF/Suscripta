@@ -96,7 +96,13 @@ parameters:
             - billing
             - statement
 
-        # Remitentes que nunca son facturas. Se comparan por dominio.
+        # Remitentes que nunca son facturas. Admite tres formas:
+        #   facturas@proveedor.com  → dirección exacta
+        #   @proveedor.com          → cualquier dirección de ese dominio
+        #   proveedor.com           → el dominio del remitente
+        # La comparación de dominios es por etiquetas completas, así que
+        # `linkedin.com` no descarta el correo de `falsolinkedin.com`.
+        # Los boletines se penalizan aparte, con `newsletter_local_parts`.
         ignored_senders:
             - linkedin.com
             - facebookmail.com
@@ -106,8 +112,6 @@ parameters:
             - tiktok.com
             - youtube.com
             - googlealerts-noreply@google.com
-            - newsletter
-            - marketing
 
         # Partes locales típicas de boletines.
         newsletter_local_parts:

@@ -193,6 +193,7 @@ entidad `EmailAttachment` separada.
 | `EmailSyncRun` | id, emailAccountId, startedAt, finishedAt, status, messagesSeen, messagesProcessed, messagesSkipped, messagesBackfilled, discoveriesCreated, error |
 | `EmailMessage` | id, organizationId, emailAccountId, folder, uid (nullable), source, messageId, threadId, fromAddress, fromName, replyTo, senderDomain, toAddresses (json), subject, receivedAt, sizeBytes, contentType, hasAttachments, attachmentNames (json), attachmentTypes (json), bodyHash, contentHash, bodyExcerpt (nullable), billingScore, billingReasons (json), processingState, classification, classificationConfidence, extractionTier, extractorUsed, aiUsed, aiCostMinor, attempts, lastError, processedAt, createdAt |
 | `MessageProcessingEvent` | id, emailMessageId, fromState, toState, reason, extractor, tier, aiUsageId (nullable), durationMs, data (json), occurredAt |
+| `ExtractionCache` | id, organizationId, contentHash, document (json), tier, confidence, hitCount, lastUsedAt, createdAt |
 
 **`EmailAccount.provider`**: `imap`, `forwarding`, `gmail`, `microsoft` (los dos últimos, reservados).
 **`EmailAccount.status`**: `pending`, `active`, `error`, `disabled`.
@@ -206,6 +207,13 @@ entidad `EmailAttachment` separada.
 mensaje. Responde a *qué ocurrió, cuándo, con qué extractor, si intervino IA, con qué
 resultado y por qué se decidió* (§13.5, D-32). Es la base de la observabilidad del pipeline y
 de la explicación que se muestra al usuario.
+
+**`ExtractionCache` es la memoria de extracción.** Guarda el `ExtractedDocument` ya resuelto
+para un `contentHash`, con clave única `(organization_id, content_hash)`, para que un mensaje
+repetido —o el mismo correo llegado a dos cuentas del mismo tenant— no vuelva a pagar
+extracción ni IA. Guarda **solo el resultado estructurado**, nunca el cuerpo (D-10), y está
+acotada por organización a propósito: compartirla entre tenants sería un canal lateral
+(§13.2).
 
 **Identidad estable del mensaje.** Un mensaje se identifica por
 `UNIQUE (email_account_id, folder, uid)` y, además, por `UNIQUE (email_account_id, message_id)`
@@ -941,6 +949,27 @@ comprueba el estado actual antes de escribir y registra su transición en
 debe volver a consumir IA.* Se garantiza comprobando, antes de cualquier llamada de IA, que
 no exista ya un `ExtractedDocument` válido para ese `contentHash` (§13.14).
 
+**Caché de extracción.** La comprobación anterior se materializa en la tabla
+`extraction_cache`, con clave única `(organization_id, content_hash)`. Guarda **solo el
+resultado estructurado** (`ExtractedDocument` serializado), nunca el cuerpo del mensaje
+(D-10). Cuando hay acierto:
+
+1. se incrementa `hitCount` y se actualiza `lastUsedAt`;
+2. se reutiliza el documento, refrescando `sender`, `senderDomain` y `subject` con los del
+   mensaje actual —el mismo cuerpo puede llegar desde otra cuenta o con otro asunto, y
+   proponer datos de un correo que el usuario no ha visto sería desconcertante—;
+3. la transición a `EXTRACTED` se registra con el extractor `cache`, de modo que la
+   observabilidad distingue «lo resolvió la caché» de «lo resolvió el extractor».
+
+**La caché está acotada por organización, a propósito.** Compartirla entre tenants sería más
+barato, pero convertiría el acierto de caché en un canal lateral: un cliente podría deducir
+que otro ha recibido exactamente el mismo correo. El ahorro no compensa la fuga.
+
+**Un cuerpo vacío nunca se cachea.** `contentHash('')` es un hash perfectamente válido, así
+que la guarda no puede ser «el hash está vacío»: sería código muerto y haría que **todos** los
+mensajes sin cuerpo compartieran una única entrada. La condición es que el cuerpo, ya
+recortado, no esté vacío.
+
 **Algoritmo de lectura incremental.** Cada pasada de sincronización sigue este orden:
 
 1. **`UIDVALIDITY`.** Se pregunta al servidor antes de leer nada. Si cambió respecto al
@@ -1039,6 +1068,29 @@ en `EmailMessage.billingReasons` para poder explicar la decisión.
 factura; una factura de un proveedor conocido con asunto en otro idioma sí lo es. El score
 pondera señales independientes en lugar de aplicar una lista de términos.
 
+**Formas de entrada en `ignored_senders`.** La lista de remitentes ignorados admite tres
+formas, porque en la práctica hacen falta las tres:
+
+| Entrada | Coincide con | Ejemplo |
+|---|---|---|
+| `facturas@proveedor.com` | Esa dirección exacta | `facturas@proveedor.com` |
+| `@proveedor.com` | Cualquier dirección de ese dominio | `avisos@proveedor.com` |
+| `proveedor.com` | El dominio del remitente | `mail.proveedor.com` |
+
+La comparación de dominios es **por etiquetas completas**, no por sufijo de cadena: se acepta
+`mail.linkedin.com` para la entrada `linkedin.com`, pero **no** `falsolinkedin.com` ni
+`linkedin.com.evil.io`. Comparar con `str_ends_with()` a secas convertiría la lista de
+ignorados en un vector de suplantación: bastaría con registrar un dominio que termine en el
+nombre del proveedor legítimo para colarse en la bandeja de entrada.
+
+La coincidencia se registra en `billingReasons` con la entrada concreta que la produjo, para
+que la decisión siga siendo explicable. La semántica completa está en D-42.
+
+**El clasificador es un puerto, no una clase.** `ProcessEmailMessage` depende de
+`BillingClassifierInterface` (D-31), no de la implementación concreta. Así el score se puede
+sustituir —por una versión por organización, por una que consulte conocimiento aprendido del
+buzón (§13.12) o por un doble en pruebas— sin tocar el orquestador.
+
 ### 13.5 Máquina de estados y trazabilidad
 
 Cada mensaje tiene un **estado explícito** que responde a *qué ocurrió, cuándo, con qué
@@ -1115,6 +1167,14 @@ final readonly class ExtractedDocument
 
 `rawSignals` guarda las coincidencias concretas (qué regex, qué fragmento) para poder
 explicar y depurar la extracción sin volver a procesar el documento.
+
+**Serialización y reutilización.** `ExtractedDocument` sabe volver de su forma en array
+(`fromArray()`), que es lo que permite persistirlo en `Discovery.proposedData`, en el evento
+`EXTRACTED` y en la caché de extracción. La vuelta es **defensiva**: un campo desconocido o de
+tipo inesperado degrada a `null` en lugar de lanzar, porque un dato corrupto en la caché no
+debe tumbar el procesamiento de un mensaje. `withSenderContext()` refresca los tres campos que
+dependen del mensaje concreto (`sender`, `senderDomain`, `subject`) al reutilizar una
+extracción cacheada.
 
 ### 13.7 Nivel 4 — Conocimiento de proveedores y parsers
 
@@ -1447,6 +1507,13 @@ proveedores utilizados no permitan sostenerlas (D-25).
 | ¿Cuánto llevamos gastado este mes? | `AiBudget.currentSpendMinor` |
 | ¿Cómo va la sincronización? | `EmailSyncRun` + eventos Mercure |
 | ¿Cuántos mensajes se resuelven sin IA? | Agregado sobre `extractionTier` |
+| ¿Cuánto descarta el nivel 2? | `app:mail:stats` sobre `EmailMessageRepository::countByState()` |
+
+**`app:mail:stats`.** Una decisión de coste que no se mide se degrada sola (D-36). El comando
+imprime, por organización, el embudo completo del pipeline: leídos, descartados, porcentaje de
+descarte, candidatos, descubrimientos, en revisión, fallidos y entradas en caché. Es de solo
+lectura y acepta `--organization` para acotar. Cuando no hay mensajes, el porcentaje se
+muestra como `—` y no como `0,0 %`: un cero fingiría una medición que no existe.
 
 **Métricas de producto derivadas** (ver `PRODUCT.md` §12): porcentaje de mensajes resueltos
 sin IA, coste de IA por usuario y mes, tasa de confirmación de descubrimientos, tiempo medio
@@ -1459,7 +1526,7 @@ de procesamiento por mensaje.
 ```php
 interface BillingClassifierInterface
 {
-    public function score(EmailMessage $message, EmailMetadata $metadata): BillingScore;
+    public function score(ImapMessageHeader $header, ?string $bodyText = null): BillingScoreResult;
 }
 
 interface DocumentTextExtractorInterface
@@ -1510,6 +1577,11 @@ interface MailboxKnowledgeRepositoryInterface
     public function remember(EmailAccount $account, string $kind, string $key, array $value, string $source): void;
 }
 ```
+
+**Estado de implementación.** `BillingClassifierInterface` está implementada
+(`BillingScoreCalculator`, D-31). El resto son el contrato acordado para las fases 10–14: se
+documentan aquí para que las implementaciones no inventen firmas distintas, pero todavía no
+existen en el código.
 
 **Responsabilidades por módulo:**
 

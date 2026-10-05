@@ -72,3 +72,8 @@ services:
         factory: ['App\Processing\Application\Billing\BillingScoreWeights', 'fromArray']
         arguments:
             $config: '%app.processing.billing_score%'
+
+    # El pipeline depende del puerto, no de la implementación: qué merece
+    # analizarse es una política de producto y debe poder sustituirse sin tocar
+    # el orquestador (D-31).
+    App\Processing\Domain\Billing\BillingClassifierInterface: '@App\Processing\Application\Billing\BillingScoreCalculator'

@@ -41,6 +41,10 @@ use App\Shared\Domain\Enum\AuditAction;
 use App\Shared\Domain\ValueObject\BillingPeriod;
 use App\Shared\Domain\ValueObject\Currency;
 use App\Shared\Domain\ValueObject\Money;
+use App\Tests\Support\Processing\InMemoryExtractionCacheRepository;
+
+use function count;
+
 use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -80,6 +84,8 @@ final class ProcessEmailMessageTest extends TestCase
 
     private ServiceRepositoryInterface&MockObject $services;
 
+    private InMemoryExtractionCacheRepository $cache;
+
     /** @var list<Discovery> */
     private array $savedDiscoveries = [];
 
@@ -106,6 +112,7 @@ final class ProcessEmailMessageTest extends TestCase
         $this->audit = $this->createMock(AuditLoggerInterface::class);
         $this->identities = $this->createMock(ProviderIdentityRepositoryInterface::class);
         $this->services = $this->createMock(ServiceRepositoryInterface::class);
+        $this->cache = new InMemoryExtractionCacheRepository();
 
         $this->savedDiscoveries = [];
         $this->savedEvidence = [];
@@ -156,6 +163,7 @@ final class ProcessEmailMessageTest extends TestCase
             stateMachine: new MessageStateMachine($this->events, $clock),
             imapClient: $this->imap,
             cipher: $this->cipher,
+            extractionCache: $this->cache,
             tenantContext: new TenantContext(),
             auditLogger: $this->audit,
             clock: $clock,
@@ -440,6 +448,7 @@ final class ProcessEmailMessageTest extends TestCase
             stateMachine: new MessageStateMachine($this->events, $clock),
             imapClient: $this->imap,
             cipher: $this->cipher,
+            extractionCache: $this->cache,
             tenantContext: $tenantContext,
             auditLogger: $this->audit,
             clock: $clock,
@@ -460,5 +469,139 @@ final class ProcessEmailMessageTest extends TestCase
 
         self::assertGreaterThanOrEqual(40, $message->getBillingScore());
         self::assertNotSame([], $message->getBillingReasons());
+    }
+
+    /**
+     * El mismo cuerpo no debe analizarse dos veces. Es la garantía de coste del
+     * pipeline: un reenvío, un recordatorio o un reintento del worker no pueden
+     * volver a pagar por el mismo contenido (D-37).
+     */
+    public function testTheExtractionIsCachedForTheSameBody(): void
+    {
+        $this->knownProvider('OVH', 'ovh.com');
+        $this->withBody('Factura nº: FRA-1. Total 29,90 €. Facturación mensual.');
+
+        $this->orchestrator()($this->message());
+
+        $entries = $this->cache->all();
+
+        self::assertCount(1, $entries);
+        self::assertSame(2990, $entries[0]->getDocument()->amountMinor);
+        self::assertSame(0, $entries[0]->getHitCount());
+        self::assertSame($this->organizationId->toRfc4122(), $entries[0]->getOrganizationId()->toRfc4122());
+    }
+
+    public function testASecondMessageWithTheSameBodyReusesTheCachedExtraction(): void
+    {
+        $this->knownProvider('OVH', 'ovh.com');
+        $this->withBody('Factura nº: FRA-1. Total 29,90 €. Facturación mensual.');
+
+        $orchestrator = $this->orchestrator();
+
+        $orchestrator($this->message());
+
+        $second = $this->message('RV: Factura OVH 2026-10', 'reenvio@miempresa.com');
+        $discovery = $orchestrator($second);
+
+        self::assertCount(1, $this->cache->all());
+        self::assertSame(1, $this->cache->all()[0]->getHitCount());
+        self::assertNotNull($discovery);
+
+        $extracted = $this->lastEventOf(MessageProcessingState::EXTRACTED);
+
+        self::assertNotNull($extracted);
+        self::assertSame('cache', $extracted->getExtractor());
+    }
+
+    /**
+     * Un acierto de caché devuelve la extracción de otro correo. El importe es
+     * del contenido, pero el asunto y el remitente son de **este** mensaje: si
+     * se conservaran los del original, la propuesta mostraría al usuario datos
+     * de un correo que no ha visto.
+     */
+    public function testACacheHitRefreshesTheSenderAndSubject(): void
+    {
+        $this->knownProvider('OVH', 'ovh.com');
+        $this->withBody('Factura nº: FRA-1. Total 29,90 €. Facturación mensual.');
+
+        $orchestrator = $this->orchestrator();
+
+        $orchestrator($this->message());
+
+        $second = $this->message('RV: Factura OVH 2026-10', 'reenvio@miempresa.com');
+        $discovery = $orchestrator($second);
+
+        self::assertNotNull($discovery);
+
+        $proposed = $discovery->getProposedData();
+
+        self::assertSame('reenvio@miempresa.com', $proposed['sender']);
+        self::assertSame('miempresa.com', $proposed['senderDomain']);
+        self::assertSame('RV: Factura OVH 2026-10', $proposed['subject']);
+        self::assertSame(2990, $proposed['amountMinor']);
+    }
+
+    /**
+     * `contentHash('')` es un hash perfectamente válido. Sin la guarda, todos
+     * los correos sin cuerpo compartirían una única entrada y se reutilizarían
+     * extracciones entre mensajes que no tienen nada que ver.
+     */
+    public function testABlankBodyIsNeverCached(): void
+    {
+        $this->knownProvider('OVH', 'ovh.com');
+        $this->withBody('');
+
+        $this->orchestrator()($this->message());
+
+        self::assertSame([], $this->cache->all());
+    }
+
+    public function testTheCacheIsNotWrittenTwiceForTheSameBody(): void
+    {
+        $this->knownProvider('OVH', 'ovh.com');
+        $this->withBody('Factura nº: FRA-1. Total 29,90 €. Facturación mensual.');
+
+        $orchestrator = $this->orchestrator();
+
+        $orchestrator($this->message());
+        $orchestrator($this->message('Otra factura', 'facturacion@ovh.com'));
+
+        self::assertCount(1, $this->cache->all());
+    }
+
+    /**
+     * Reprocesar un mensaje ya resuelto no puede costar nada: ni una descarga
+     * de cuerpo, ni una extracción, ni un descubrimiento duplicado.
+     */
+    public function testReprocessingATerminalMessageCostsNothing(): void
+    {
+        $this->knownProvider('OVH', 'ovh.com');
+        $this->withBody('Factura nº: FRA-1. Total 29,90 €. Facturación mensual.');
+
+        $orchestrator = $this->orchestrator();
+        $message = $this->message();
+
+        $orchestrator($message);
+
+        $discoveriesAfterFirstPass = count($this->savedDiscoveries);
+        $eventsAfterFirstPass = count($this->savedEvents);
+
+        self::assertNull($orchestrator($message));
+        self::assertCount($discoveriesAfterFirstPass, $this->savedDiscoveries);
+        self::assertCount($eventsAfterFirstPass, $this->savedEvents);
+        self::assertCount(1, $this->cache->all());
+    }
+
+    private function lastEventOf(MessageProcessingState $state): ?MessageProcessingEvent
+    {
+        $found = null;
+
+        foreach ($this->savedEvents as $event) {
+            if ($event->getToState() === $state) {
+                $found = $event;
+            }
+        }
+
+        return $found;
     }
 }

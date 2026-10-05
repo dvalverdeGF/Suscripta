@@ -7,12 +7,14 @@ namespace App\Processing\Application\Billing;
 use App\Catalog\Domain\Enum\ProviderIdentityType;
 use App\Catalog\Domain\Repository\ProviderIdentityRepositoryInterface;
 use App\Mailbox\Application\Imap\ImapMessageHeader;
+use App\Processing\Domain\Billing\BillingClassifierInterface;
 use App\Processing\Domain\Dto\BillingScoreResult;
 use App\Processing\Domain\Dto\BillingSignal;
 
 use function in_array;
 use function max;
 use function mb_strtolower;
+use function mb_substr;
 use function min;
 use function preg_match;
 use function sprintf;
@@ -34,7 +36,7 @@ use function trim;
  * El resultado es siempre explicable: cada punto viene de una `BillingSignal`
  * con su peso y su detalle, y se guarda en `EmailMessage.billingReasons`.
  */
-final readonly class BillingScoreCalculator
+final readonly class BillingScoreCalculator implements BillingClassifierInterface
 {
     /**
      * Importe con separador decimal y, opcionalmente, símbolo de moneda.
@@ -99,9 +101,8 @@ final readonly class BillingScoreCalculator
             $signals[] = new BillingSignal('invoice_attachment_name', $this->weights->invoiceAttachmentName, $attachmentMatch);
         }
 
-        if (null !== $header->fromAddress && '' !== $header->fromAddress
-            && in_array(mb_strtolower($header->fromAddress), $this->weights->ignoredSenders, true)) {
-            $signals[] = new BillingSignal('ignored_sender', $this->weights->ignoredSender, $header->fromAddress);
+        if (null !== $ignored = $this->ignoredSenderMatch($header)) {
+            $signals[] = new BillingSignal('ignored_sender', $this->weights->ignoredSender, $ignored);
         }
 
         if ('' !== $localPart && in_array($localPart, $this->weights->newsletterLocalParts, true)) {
@@ -149,6 +150,56 @@ final readonly class BillingScoreCalculator
         }
 
         return null;
+    }
+
+    /**
+     * ¿Está el remitente en la lista de ignorados?
+     *
+     * La lista admite tres formas, y confundirlas es un error caro: una entrada
+     * mal interpretada descarta facturas reales en silencio.
+     *
+     * - `facturas@proveedor.com` → dirección exacta.
+     * - `@proveedor.com` → cualquier dirección de ese dominio.
+     * - `proveedor.com` → el dominio del remitente.
+     *
+     * La comparación de dominios es **por etiquetas completas**: `linkedin.com`
+     * coincide con `mail.linkedin.com` pero no con `falsolinkedin.com` ni con
+     * `linkedin.com.evil.io`. Una comparación por subcadena sobre la dirección
+     * completa haría que `x.com` descartara el correo de `max.com`.
+     */
+    private function ignoredSenderMatch(ImapMessageHeader $header): ?string
+    {
+        $address = null === $header->fromAddress ? '' : mb_strtolower($header->fromAddress);
+        $domain = $header->senderDomain() ?? '';
+
+        foreach ($this->weights->ignoredSenders as $entry) {
+            if (str_starts_with($entry, '@')) {
+                if ('' !== $domain && $this->domainMatches($domain, mb_substr($entry, 1))) {
+                    return $entry;
+                }
+
+                continue;
+            }
+
+            if (str_contains($entry, '@')) {
+                if ($address === $entry) {
+                    return $entry;
+                }
+
+                continue;
+            }
+
+            if ('' !== $domain && $this->domainMatches($domain, $entry)) {
+                return $entry;
+            }
+        }
+
+        return null;
+    }
+
+    private function domainMatches(string $domain, string $candidate): bool
+    {
+        return $domain === $candidate || str_ends_with($domain, '.'.$candidate);
     }
 
     private function hasPdfAttachment(ImapMessageHeader $header): bool

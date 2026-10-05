@@ -21,11 +21,13 @@ use App\Mailbox\Domain\Exception\ImapConnectionException;
 use App\Mailbox\Domain\Exception\ImapFetchException;
 use App\Mailbox\Domain\Repository\EmailAccountRepositoryInterface;
 use App\Mailbox\Domain\Repository\EmailMessageRepositoryInterface;
-use App\Processing\Application\Billing\BillingScoreCalculator;
 use App\Processing\Application\Extraction\DeterministicExtractor;
 use App\Processing\Application\Matching\ServiceMatcher;
+use App\Processing\Domain\Billing\BillingClassifierInterface;
 use App\Processing\Domain\Dto\ExtractedDocument;
 use App\Processing\Domain\Dto\ServiceMatchResult;
+use App\Processing\Domain\Entity\ExtractionCache;
+use App\Processing\Domain\Repository\ExtractionCacheRepositoryInterface;
 use App\Shared\Application\Audit\AuditLoggerInterface;
 use App\Shared\Application\Clock;
 use App\Shared\Application\TenantContext;
@@ -67,16 +69,24 @@ final readonly class ProcessEmailMessage
      */
     private const int EXCERPT_LENGTH = 500;
 
+    /**
+     * Nombre con el que se registra una extracción servida desde la caché. Que
+     * aparezca en el log de transiciones es lo que permite medir cuánto ahorra
+     * la caché sin instrumentar nada más.
+     */
+    private const string CACHE_EXTRACTOR = 'cache';
+
     public function __construct(
         private EmailMessageRepositoryInterface $messages,
         private EmailAccountRepositoryInterface $accounts,
-        private BillingScoreCalculator $billingScore,
+        private BillingClassifierInterface $billingScore,
         private DeterministicExtractor $extractor,
         private ServiceMatcher $matcher,
         private DiscoveryRepositoryInterface $discoveries,
         private MessageStateMachine $stateMachine,
         private ImapClientInterface $imapClient,
         private CredentialCipherInterface $cipher,
+        private ExtractionCacheRepositoryInterface $extractionCache,
         private TenantContext $tenantContext,
         private AuditLoggerInterface $auditLogger,
         private Clock $clock,
@@ -137,23 +147,34 @@ final readonly class ProcessEmailMessage
 
         // ── Nivel 3: descarga perezosa del cuerpo y extracción determinista ─
         $body ??= $this->fetchBody($message);
-        $message->setContentHash(self::contentHash($body));
+        $contentHash = self::contentHash($body);
+        $message->setContentHash($contentHash);
 
         $rescored = $this->billingScore->score($header, $body);
         $message->applyBillingScore($rescored->score, $rescored->reasonsAsArray());
 
-        $document = $this->extractor->extract($header, $body);
+        // La caché se consulta antes de extraer: un reenvío, un recordatorio o
+        // un reintento del mismo correo no deben pagar dos veces por el mismo
+        // análisis (D-37).
+        $cached = $this->cachedExtraction($header, $body, $contentHash);
+        $document = $cached ?? $this->extractor->extract($header, $body);
+        $extractorName = null !== $cached ? self::CACHE_EXTRACTOR : $this->extractor->name();
+
+        if (null === $cached) {
+            $this->remember($message, $body, $contentHash, $document);
+        }
+
         $message->applyClassification(
             $this->classificationOf($document),
             (int) round($document->confidence * 100),
         );
-        $message->recordExtraction($document->tier, $this->extractor->name());
+        $message->recordExtraction($document->tier, $extractorName);
 
         $this->stateMachine->transition(
             $message,
             MessageProcessingState::EXTRACTED,
             sprintf('Extracción determinista con confianza %.2f.', $document->confidence),
-            extractor: $this->extractor->name(),
+            extractor: $extractorName,
             tier: $document->tier,
             data: $document->toArray(),
         );
@@ -164,7 +185,7 @@ final readonly class ProcessEmailMessage
                 $message,
                 MessageProcessingState::REQUIRES_REVIEW,
                 'Faltan datos para calcular un coste recurrente.',
-                extractor: $this->extractor->name(),
+                extractor: $extractorName,
                 tier: $document->tier,
             );
             $message->markProcessed($this->clock->now());
@@ -177,7 +198,7 @@ final readonly class ProcessEmailMessage
             $message,
             MessageProcessingState::CLASSIFIED,
             'Documento de facturación reconocido.',
-            extractor: $this->extractor->name(),
+            extractor: $extractorName,
             tier: $document->tier,
         );
 
@@ -185,10 +206,10 @@ final readonly class ProcessEmailMessage
         $match = $this->matcher->match($document);
 
         if ($match->isHighConfidence()) {
-            return $this->associate($message, $document, $match, $actorUserId);
+            return $this->associate($message, $document, $match, $extractorName, $actorUserId);
         }
 
-        return $this->propose($message, $document, $match, $body, $actorUserId);
+        return $this->propose($message, $document, $match, $body, $extractorName, $actorUserId);
     }
 
     /**
@@ -203,13 +224,14 @@ final readonly class ProcessEmailMessage
         EmailMessage $message,
         ExtractedDocument $document,
         ServiceMatchResult $match,
+        string $extractorName,
         ?Uuid $actorUserId,
     ): ?Discovery {
         $this->stateMachine->transition(
             $message,
             MessageProcessingState::MATCHED,
             $match->explain(),
-            extractor: $this->extractor->name(),
+            extractor: $extractorName,
             tier: $document->tier,
             data: ['matchScore' => $match->score, 'serviceId' => $match->serviceId?->toRfc4122()],
         );
@@ -239,6 +261,7 @@ final readonly class ProcessEmailMessage
         ExtractedDocument $document,
         ServiceMatchResult $match,
         string $body,
+        string $extractorName,
         ?Uuid $actorUserId,
     ): Discovery {
         $type = $match->isMediumConfidence() ? DiscoveryType::PRICE_CHANGE : DiscoveryType::NEW_SERVICE;
@@ -247,7 +270,7 @@ final readonly class ProcessEmailMessage
             $message,
             MessageProcessingState::DISCOVERY,
             $match->explain(),
-            extractor: $this->extractor->name(),
+            extractor: $extractorName,
             tier: $document->tier,
             data: ['matchScore' => $match->score, 'type' => $type->value],
         );
@@ -325,6 +348,61 @@ final readonly class ProcessEmailMessage
      * el buzón después de la sincronización, y solo ocurre para los mensajes
      * que han superado el filtro determinista (D-38).
      */
+    /**
+     * Devuelve la extracción ya calculada para este contenido, si existe.
+     *
+     * Un cuerpo vacío no identifica nada: todos los mensajes sin cuerpo
+     * compartirían el mismo hash y se reutilizarían extracciones entre correos
+     * que no tienen nada que ver. Por eso la caché solo se consulta cuando hay
+     * texto real.
+     */
+    private function cachedExtraction(ImapMessageHeader $header, string $body, string $contentHash): ?ExtractedDocument
+    {
+        if ('' === trim($body)) {
+            return null;
+        }
+
+        $entry = $this->extractionCache->findForContentHash($contentHash);
+
+        if (null === $entry) {
+            return null;
+        }
+
+        $entry->recordHit($this->clock->now());
+        $this->extractionCache->save($entry);
+
+        // El importe y las fechas son del contenido, pero el asunto y el
+        // remitente son de este mensaje: se refrescan para que la propuesta no
+        // muestre datos de un correo que el usuario no ha visto.
+        return $entry->getDocument()->withSenderContext(
+            $header->fromAddress,
+            $header->senderDomain(),
+            $header->subject,
+        );
+    }
+
+    private function remember(EmailMessage $message, string $body, string $contentHash, ExtractedDocument $document): void
+    {
+        // Un cuerpo vacío no identifica nada: `contentHash('')` es un hash
+        // perfectamente válido, así que sin esta guarda todos los correos sin
+        // cuerpo compartirían una única entrada y se reutilizarían extracciones
+        // entre mensajes que no tienen nada que ver.
+        if ('' === trim($body)) {
+            return;
+        }
+
+        if (null !== $this->extractionCache->findForContentHash($contentHash)) {
+            return;
+        }
+
+        $this->extractionCache->save(new ExtractionCache(
+            organizationId: $message->getOrganizationId(),
+            contentHash: $contentHash,
+            document: $document,
+            createdAt: $this->clock->now(),
+        ));
+    }
+
     private function fetchBody(EmailMessage $message): string
     {
         // Un mensaje reenviado no está en ningún buzón: su cuerpo llegó con la

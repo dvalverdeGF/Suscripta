@@ -409,8 +409,7 @@ descubrimiento**.
 
 ## Fase 9 — Pipeline: ingesta, metadatos, filtros y billing score (niveles 0–2)
 
-> **Estado:** ⬜ Pendiente.
-
+> **Estado:** ✅ Completada.
 
 **Objetivo:** que el sistema sepa, de forma barata y explicable, **qué correos merecen
 procesarse**. Es la fase que hace viable económicamente todo lo demás.
@@ -432,6 +431,68 @@ procesarse**. Es la fase que hace viable económicamente todo lo demás.
 descargar su contenido**; cada decisión es explicable desde `billingReasons`; reprocesar el
 mismo mensaje no cambia nada y no cuesta nada; el porcentaje de descartes en el nivel 2 es
 medible.
+
+**Implementado**
+
+- `BillingClassifierInterface` (`src/Processing/Domain/Billing/`) como puerto del nivel 2
+  (D-31), implementado por `BillingScoreCalculator` y aliado en `config/services.yaml`.
+  `ProcessEmailMessage` depende del puerto, no de la clase.
+- **Caché de extracción** (D-37): entidad `ExtractionCache` (tabla `extraction_cache`, única
+  por `(organization_id, content_hash)`), `ExtractionCacheRepositoryInterface` +
+  implementación Doctrine, y `ExtractedDocument::fromArray()` / `withSenderContext()` para
+  poder reutilizar el resultado. El pipeline consulta la caché antes de extraer, registra el
+  acierto (`hitCount`, `lastUsedAt`) y marca la transición con el extractor `cache`.
+- **Lista de remitentes ignorados** con las tres formas de entrada (dirección, `@dominio`,
+  dominio) y comparación por etiquetas completas (D-42).
+- **`app:mail:stats`** (`src/Processing/UI/Command/MailboxStatsCommand.php`): embudo del
+  pipeline por organización —leídos, descartados, porcentaje de descarte, candidatos,
+  descubrimientos, en revisión, fallidos y entradas en caché—, de solo lectura y con
+  `--organization`.
+- Migración `Version20261005105737.php` (`extraction_cache` + 2 índices), aplicada en `app` y
+  `app_test`.
+
+**Verificación realizada**
+
+- `tests/Unit/Processing/Application/Billing/BillingScoreCalculatorTest.php` — 22 pruebas,
+  incluidas 8 sobre las tres formas de `ignored_senders`, coincidencia de subdominio y
+  **rechazo de los dos casos de suplantación** (`falsolinkedin.com`, `linkedin.com.evil.io`).
+- `tests/Unit/Processing/Domain/Dto/ExtractedDocumentTest.php` — 6 pruebas: ida y vuelta por
+  array de los 17 campos, degradación de un array vacío y de valores basura, aceptación de
+  cadenas numéricas y refresco de contexto con `withSenderContext()`.
+- `tests/Unit/Processing/Domain/Entity/ExtractionCacheTest.php` — 7 pruebas: serialización,
+  contador de aciertos, confianza en centésimas, hash vacío rechazado y truncado a 64.
+- `tests/Unit/Processing/Application/ProcessEmailMessageTest.php` — 21 pruebas, incluidas 6
+  nuevas: la extracción se cachea, un segundo mensaje con el mismo cuerpo reutiliza la caché
+  (extractor `cache`, `hitCount` 1), el acierto refresca remitente y asunto, un cuerpo vacío
+  nunca se cachea, no se escribe dos veces la misma entrada y **reprocesar un mensaje terminal
+  no cuesta nada** (sin descubrimientos nuevos, sin eventos nuevos).
+- `tests/Functional/Processing/MailboxStatsTest.php` — 6 pruebas: embudo completo con
+  porcentaje (`42,9 %`), tasa de descarte (`50,0 %`), buzón vacío que muestra `—` y no
+  `0,0 %`, aislamiento por organización, organización desconocida (código 2) y comando de solo
+  lectura.
+- `doctrine:schema:validate` → mapeo correcto y esquema sincronizado en `app` y `app_test`.
+- `app:mail:stats` ejecutado contra la base de datos real: imprime el embudo de las dos
+  organizaciones.
+- Suite completa: **750 pruebas, 3241 aserciones**. PHPStan nivel 8: 0 errores. php-cs-fixer:
+  0 archivos.
+
+**Fallos reales encontrados y corregidos**
+
+1. **La lista de remitentes ignorados era código muerto.** `BillingScoreCalculator` comparaba
+   la dirección completa del remitente con `in_array()`, así que las entradas de dominio
+   (`linkedin.com`) nunca coincidían con `messages-noreply@linkedin.com` y la penalización de
+   −100 no se aplicaba nunca. Corregido con `ignoredSenderMatch()` y comparación por etiquetas
+   completas (D-42). Las entradas `newsletter` y `marketing` se retiraron de la configuración:
+   no eran ni direcciones ni dominios.
+2. **La guarda de la caché era código muerto.** `remember()` comprobaba `'' === $contentHash`,
+   pero `contentHash('')` es un hash SHA-256 perfectamente válido de 64 caracteres, así que la
+   condición nunca se cumplía y **todos los mensajes sin cuerpo habrían compartido una única
+   entrada de caché**, reutilizando extracciones entre mensajes sin relación. Corregido
+   pasando el cuerpo y comprobando `'' === trim($body)`.
+3. **`BillingClassifierInterface` no existía.** El roadmap y `ARCHITECTURE.md` §13 lo nombraban
+   como el puerto de D-31, pero `ProcessEmailMessage` dependía de la clase concreta. Creado y
+   aliado.
+
 
 ## Fase 10 — Extracción determinista y conocimiento de proveedores (niveles 3–4)
 
