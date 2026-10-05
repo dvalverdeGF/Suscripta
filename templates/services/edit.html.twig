@@ -1,0 +1,25 @@
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}Editar {{ service.name }} — Suscripta{% endblock %}
+
+{% block main %}
+    <div class="page-header">
+        <div class="page-header__title">
+            <h1>Editar servicio</h1>
+            <p class="page-header__subtitle">{{ service.name }}</p>
+        </div>
+    </div>
+
+    <div class="alert alert--info mb-6">
+        <p class="m-0">
+            El importe no se cambia desde aquí: un cambio de precio genera una fila nueva en el
+            historial. Usa «Cambiar precio» en la ficha del servicio.
+        </p>
+    </div>
+
+    {% include 'services/_form.html.twig' with {
+        form: form,
+        submit_label: 'Guardar cambios',
+        cancel_path: path('app_services_show', {id: service.id.toRfc4122()}),
+    } only %}
+{% endblock %}

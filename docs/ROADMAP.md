@@ -35,6 +35,9 @@ legalmente. El control de coste (fase 14) es requisito para operar con IA en pro
 
 ## Fase 0 — Base del proyecto
 
+> **Estado:** ✅ **Completada.**
+
+
 **Objetivo:** proyecto Symfony arrancando sobre la infraestructura existente.
 
 - Instalar Symfony 8 skeleton sobre la plantilla actual (`composer create-project`).
@@ -55,6 +58,9 @@ legalmente. El control de coste (fase 14) es requisito para operar con IA en pro
 
 ## Fase 1 — Identidad y multi-tenancy
 
+> **Estado:** 🟡 **Parcial.** Falta verificación de email y recuperación de contraseña.
+
+
 **Objetivo:** usuarios, organizaciones y aislamiento funcionando.
 
 - Entidades `User`, `Organization`, `Membership`.
@@ -68,6 +74,9 @@ legalmente. El control de coste (fase 14) es requisito para operar con IA en pro
 de aislamiento fallan si se desactiva el filtro.
 
 ## Fase 2 — Servicios manuales (mínimo del dominio)
+
+> **Estado:** ✅ **Completada.**
+
 
 **Objetivo:** el usuario puede inventariar sus servicios a mano, y el modelo de datos queda
 preparado para el descubrimiento automático.
@@ -83,6 +92,9 @@ preparado para el descubrimiento automático.
 una nueva fila de historial y un `ServiceEvent`; los cálculos tienen tests unitarios.
 
 ## Fase 3 — Vertical end-to-end (walking skeleton) ⭐
+
+> **Estado:** ⬜ Pendiente.
+
 
 **Objetivo:** demostrar la propuesta de valor completa de punta a punta, con la mínima
 cantidad de código posible. **Esta fase es el instrumento de validación del producto**
@@ -138,6 +150,9 @@ las fases siguientes sin resolverlo.
 
 ## Fase 4 — Dashboard completo
 
+> **Estado:** ⬜ Pendiente.
+
+
 **Objetivo:** responder a las ocho preguntas del producto (`PRODUCT.md` §3.1).
 
 - Próximos cobros (30/60 días) con totales.
@@ -151,6 +166,9 @@ dominio; consultas sin N+1.
 
 ## Fase 5 — Historial de precios y cambios
 
+> **Estado:** ⬜ Pendiente.
+
+
 **Objetivo:** hacer visible la evolución del coste.
 
 - Vista de historial de precios por servicio con variación porcentual y absoluta.
@@ -161,6 +179,9 @@ dominio; consultas sin N+1.
 **Verificación:** un cambio de precio produce la variación correcta; el historial es inmutable.
 
 ## Fase 6 — Renovaciones, alertas y notificaciones
+
+> **Estado:** ⬜ Pendiente.
+
 
 **Objetivo:** avisar antes de que algo importante ocurra.
 
@@ -177,6 +198,9 @@ preferencias impide la notificación; no se envían duplicados.
 
 ## Fase 7 — Documentos
 
+> **Estado:** ⬜ Pendiente.
+
+
 **Objetivo:** adjuntar facturas y documentos a un servicio.
 
 - Entidades `Document` e `Invoice`.
@@ -191,6 +215,9 @@ preferencias impide la notificación; no se envían duplicados.
 documento de otra organización; el fichero no es accesible por URL directa.
 
 ## Fase 8 — Conexión de correo completa (IMAP y reenvío)
+
+> **Estado:** ⬜ Pendiente.
+
 
 **Objetivo:** ingesta robusta, incremental y multi-proveedor.
 
@@ -213,6 +240,9 @@ distintos; **con dos cuentas conectadas a la vez, una factura presente en ambas 
 descubrimiento**.
 
 ## Fase 9 — Pipeline: ingesta, metadatos, filtros y billing score (niveles 0–2)
+
+> **Estado:** ⬜ Pendiente.
+
 
 **Objetivo:** que el sistema sepa, de forma barata y explicable, **qué correos merecen
 procesarse**. Es la fase que hace viable económicamente todo lo demás.
@@ -237,6 +267,9 @@ medible.
 
 ## Fase 10 — Extracción determinista y conocimiento de proveedores (niveles 3–4)
 
+> **Estado:** ⬜ Pendiente.
+
+
 **Objetivo:** extraer por código todo lo que sea fiablemente extraíble, y no volver a pagar por
 lo que ya se sabe.
 
@@ -259,6 +292,9 @@ y no por IA; las capas 1–3 no envían datos fuera del sistema; un parser que f
 y no rompe el lote.
 
 ## Fase 11 — IA económica y avanzada con validación (niveles 5–7)
+
+> **Estado:** ⬜ Pendiente.
+
 
 **Objetivo:** resolver la incertidumbre que las reglas no cubren, **sin que la IA sea el camino
 por defecto** y sin que pueda corromper el dominio.
@@ -285,6 +321,9 @@ no contiene firmas, tracking ni el correo completo.
 
 ## Fase 12 — Service matching y descubrimientos (nivel 8)
 
+> **Estado:** ⬜ Pendiente.
+
+
 **Objetivo:** decidir a qué servicio pertenece un documento, **sin crear servicios
 automáticamente**.
 
@@ -307,6 +346,9 @@ proponerlo; el flujo completo funciona sin tocar la base de datos a mano.
 
 ## Fase 13 — Aprendizaje del buzón
 
+> **Estado:** ⬜ Pendiente.
+
+
 **Objetivo:** que el coste marginal de procesar un buzón **decrezca con el tiempo**.
 
 - `MailboxKnowledgeEntry` por cuenta de correo: `sender_mapping`, `subject_pattern`,
@@ -325,6 +367,9 @@ remitente se resuelva sin IA; el usuario puede ver y borrar lo aprendido; un pat
 un buzón no afecta a otro.
 
 ## Fase 14 — Control de coste de IA y observabilidad
+
+> **Estado:** ⬜ Pendiente.
+
 
 **Objetivo:** que el coste sea **acotado, medible y predecible**. Es requisito para operar con
 IA en producción, no una optimización posterior.
@@ -349,6 +394,9 @@ buzón de este usuario?"* y *"¿cuánto cuesta de IA un usuario medio al mes?"*.
 
 ## Fase 15 — Detección de cambios
 
+> **Estado:** ⬜ Pendiente.
+
+
 **Objetivo:** detectar lo que ha cambiado y avisar.
 
 - Cambio de precio detectado desde facturas nuevas.
@@ -362,6 +410,9 @@ buzón de este usuario?"* y *"¿cuánto cuesta de IA un usuario medio al mes?"*.
 muestran como sugerencias, no como hechos.
 
 ## Fase 16 — Hardening de seguridad y RGPD
+
+> **Estado:** ⬜ Pendiente.
+
 
 **Objetivo:** cumplir `SECURITY.md` de punta a punta.
 
@@ -381,6 +432,9 @@ muestran como sugerencias, no como hechos.
 ningún secreto en logs.
 
 ## Fase 17 — Preparación SaaS
+
+> **Estado:** ⬜ Pendiente.
+
 
 **Objetivo:** dejar el producto listo para planes y crecimiento.
 

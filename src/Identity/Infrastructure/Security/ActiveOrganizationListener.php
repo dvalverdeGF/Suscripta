@@ -20,10 +20,13 @@ use Symfony\Component\Uid\Uuid;
 /**
  * Resuelve la organización activa de la petición y la publica en TenantContext.
  *
- * Prioridad 500: después de que el firewall haya autenticado al usuario
- * (prioridad 8) y antes de que se ejecute cualquier controlador.
+ * Prioridad 0: en `kernel.request` los números más altos se ejecutan antes, así
+ * que hay que quedar por debajo de `AbstractSessionListener` (128, que instala la
+ * factoría de sesión) y del firewall (8, que restaura el token). Con una
+ * prioridad mayor el usuario todavía no está autenticado y el contexto queda
+ * vacío. Sigue ejecutándose antes que cualquier controlador.
  */
-#[AsEventListener(event: KernelEvents::REQUEST, priority: 500)]
+#[AsEventListener(event: KernelEvents::REQUEST, priority: 0)]
 final readonly class ActiveOrganizationListener
 {
     public function __construct(
@@ -41,7 +44,6 @@ final readonly class ActiveOrganizationListener
         }
 
         $user = $this->security->getUser();
-
         if (!$user instanceof User) {
             return;
         }

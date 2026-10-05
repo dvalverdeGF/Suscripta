@@ -65,6 +65,10 @@ if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
 		# Crea las tablas de infraestructura del transporte Doctrine de
 		# Messenger (messenger_messages). Es idempotente. Ver ARCHITECTURE.md §6.
 		php bin/console messenger:setup-transports --no-interaction
+
+		# Siembra el catálogo global de categorías y proveedores. Es idempotente:
+		# solo crea lo que falta, así que se puede ejecutar en cada arranque.
+		php bin/console app:catalog:seed --no-interaction
 	fi
 
 	echo 'PHP app ready!'

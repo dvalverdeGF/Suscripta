@@ -659,3 +659,44 @@ dialog.dialog::backdrop {
     font-size: var(--text-base);
     overflow-wrap: anywhere;
 }
+
+/* ============================================================
+   Línea de tiempo (historial de un servicio)
+   ============================================================ */
+
+.timeline {
+    list-style: none;
+    margin: 0;
+    padding: var(--space-4) var(--space-5);
+    display: grid;
+    gap: var(--space-3);
+}
+
+.timeline__item {
+    display: grid;
+    gap: var(--space-1);
+    padding-left: var(--space-4);
+    border-left: 2px solid var(--color-border);
+}
+
+@media (min-width: 30rem) {
+    .timeline__item {
+        grid-template-columns: 6.5rem 1fr;
+        align-items: baseline;
+        column-gap: var(--space-3);
+    }
+
+    .timeline__item > .text-muted {
+        grid-column: 2;
+    }
+}
+
+.timeline__date {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.timeline__label {
+    font-weight: 600;
+}

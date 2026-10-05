@@ -1,0 +1,59 @@
+{{ form_start(form, {attr: {class: 'form'}}) }}
+    {{ form_errors(form) }}
+
+    <div class="card mb-6">
+        <div class="card__header">
+            <h2 class="card__title">Qué es</h2>
+        </div>
+        <div class="card__body">
+            <div class="grid grid--2">
+                {{ form_row(form.name) }}
+                {{ form_row(form.providerId) }}
+                {{ form_row(form.categoryId) }}
+                {{ form_row(form.planName) }}
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-6">
+        <div class="card__header">
+            <h2 class="card__title">Cuánto cuesta</h2>
+        </div>
+        <div class="card__body">
+            <div class="grid grid--2">
+                {{ form_row(form.amount) }}
+                {{ form_row(form.currency) }}
+                {{ form_row(form.billingPeriod) }}
+                {{ form_row(form.billingIntervalCount) }}
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-6">
+        <div class="card__header">
+            <h2 class="card__title">Cuándo se cobra y cuándo se renueva</h2>
+        </div>
+        <div class="card__body">
+            <div class="grid grid--2">
+                {{ form_row(form.startedAt) }}
+                {{ form_row(form.nextChargeAt) }}
+                {{ form_row(form.renewalAt) }}
+                {{ form_row(form.noticePeriodDays) }}
+                {{ form_row(form.commitmentEndAt) }}
+                {{ form_row(form.paymentMethodLabel) }}
+            </div>
+            {{ form_row(form.autoRenews) }}
+        </div>
+    </div>
+
+    <div class="card mb-6">
+        <div class="card__body">
+            {{ form_row(form.notes) }}
+        </div>
+    </div>
+
+    <div class="form-actions">
+        <button type="submit" class="btn btn--primary">{{ submit_label|default('Guardar') }}</button>
+        <a class="btn btn--ghost" href="{{ cancel_path|default(path('app_services_index')) }}">Cancelar</a>
+    </div>
+{{ form_end(form) }}

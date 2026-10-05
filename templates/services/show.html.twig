@@ -1,0 +1,205 @@
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}{{ service.name }} — Suscripta{% endblock %}
+
+{% block topbar_actions %}
+    <a class="btn btn--secondary btn--sm" href="{{ path('app_services_edit', {id: service.id.toRfc4122()}) }}">Editar</a>
+{% endblock %}
+
+{% block main %}
+    <div class="page-header">
+        <div class="page-header__title">
+            <h1>{{ service.name }}</h1>
+            <p class="page-header__subtitle">
+                {% if provider %}{{ provider.name }}{% else %}Sin proveedor{% endif %}
+                {% if service.planName %} · {{ service.planName }}{% endif %}
+                {% if category %} · {{ category.name }}{% endif %}
+            </p>
+        </div>
+        <div class="page-header__actions">
+            <span class="badge badge--{{ service.status.value == 'active' ? 'success' : (service.status.value == 'paused' ? 'warning' : 'danger') }}">
+                {{ service.status.label() }}
+            </span>
+            {% if service.source.value == 'email_discovery' %}
+                <span class="badge badge--info">Descubierto en tu correo</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="grid grid--2 mb-6">
+        <div class="stat">
+            <span class="stat__label">Importe por cobro</span>
+            <span class="stat__value">
+                {% if service.currentAmount %}{{ service.currentAmount.format() }}{% else %}—{% endif %}
+            </span>
+            <span class="stat__hint">{{ service.billingPeriod.label()|lower }}{% if service.billingIntervalCount > 1 %} (cada {{ service.billingIntervalCount }}){% endif %}</span>
+        </div>
+        <div class="stat">
+            <span class="stat__label">Equivalente mensual</span>
+            <span class="stat__value">{% if monthlyEquivalent %}{{ monthlyEquivalent.format() }}{% else %}—{% endif %}</span>
+            <span class="stat__hint">{% if annualCost %}{{ annualCost.format() }} al año{% endif %}</span>
+        </div>
+        <div class="stat">
+            <span class="stat__label">Próximo cobro</span>
+            <span class="stat__value">
+                {% if service.nextChargeAt %}{{ service.nextChargeAt|date('d/m/Y') }}{% else %}—{% endif %}
+            </span>
+            {% if service.nextChargeAt %}
+                <span class="stat__hint">{{ service.nextChargeAt|date('Y-m-d') }}</span>
+            {% endif %}
+        </div>
+        <div class="stat">
+            <span class="stat__label">Renovación</span>
+            <span class="stat__value">
+                {% if service.renewalAt %}{{ service.renewalAt|date('d/m/Y') }}{% else %}—{% endif %}
+            </span>
+            <span class="stat__hint">
+                {% if service.autoRenews %}Se renueva automáticamente{% else %}No se renueva automáticamente{% endif %}
+                {% if service.noticeDeadline %} · avisar antes del {{ service.noticeDeadline|date('d/m/Y') }}{% endif %}
+            </span>
+        </div>
+    </div>
+
+    {% if priceChangeRatio is not null %}
+        <div class="alert alert--{{ priceChangeRatio > 0 ? 'warning' : 'info' }} mb-6">
+            <p class="m-0">
+                El precio vigente es un
+                {{ (priceChangeRatio * 100)|abs|number_format(1, ',', '.') }} %
+                {{ priceChangeRatio > 0 ? 'más alto' : 'más bajo' }}
+                que el anterior.
+            </p>
+        </div>
+    {% endif %}
+
+    <div class="card mb-6">
+        <div class="card__header">
+            <h2 class="card__title">Historial de precios</h2>
+        </div>
+        <div class="card__body card__body--flush">
+            {% if service.prices is empty %}
+                <div class="empty-state">
+                    <p class="empty-state__text">Todavía no hay ningún precio registrado.</p>
+                </div>
+            {% else %}
+                <div class="table-wrapper">
+                    <table class="table table--responsive">
+                        <caption class="visually-hidden">Historial de precios del servicio</caption>
+                        <thead>
+                            <tr>
+                                <th scope="col">Desde</th>
+                                <th scope="col">Hasta</th>
+                                <th scope="col" class="num">Importe</th>
+                                <th scope="col">Origen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for price in service.prices %}
+                                <tr>
+                                    <td data-label="Desde">{{ price.validFrom|date('d/m/Y') }}</td>
+                                    <td data-label="Hasta">
+                                        {% if price.validTo %}{{ price.validTo|date('d/m/Y') }}{% else %}<span class="badge badge--success">Vigente</span>{% endif %}
+                                    </td>
+                                    <td data-label="Importe" class="num">{{ price.amount.format() }}</td>
+                                    <td data-label="Origen">
+                                        {{ price.source.label() }}
+                                        {% if price.note %}<span class="text-muted text-sm">· {{ price.note }}</span>{% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </div>
+        <div class="card__footer">
+            <form class="form" method="post" action="{{ path('app_services_price', {id: service.id.toRfc4122()}) }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('service_price_' ~ service.id.toRfc4122()) }}">
+                <div class="grid grid--2">
+                    <div class="field">
+                        <label class="field__label" for="price-amount">Importe nuevo</label>
+                        <input class="input" type="text" id="price-amount" name="amount" inputmode="decimal" placeholder="0,00" required>
+                    </div>
+                    <div class="field">
+                        <label class="field__label" for="price-date">Vigente desde</label>
+                        <input class="input" type="date" id="price-date" name="validFrom" value="{{ 'now'|date('Y-m-d') }}">
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="field__label" for="price-note">Motivo (opcional)</label>
+                    <input class="input" type="text" id="price-note" name="note" maxlength="255" placeholder="Subida anual, cambio de plan…">
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn--secondary">Cambiar precio</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card mb-6">
+        <div class="card__header">
+            <h2 class="card__title">Historial del servicio</h2>
+        </div>
+        <div class="card__body card__body--flush">
+            {% if service.events is empty %}
+                <div class="empty-state">
+                    <p class="empty-state__text">Sin cambios registrados.</p>
+                </div>
+            {% else %}
+                <ul class="timeline">
+                    {% for event in service.events %}
+                        <li class="timeline__item">
+                            <span class="timeline__date">{{ event.occurredAt|date('d/m/Y') }}</span>
+                            <span class="timeline__label">{{ event.type.label() }}</span>
+                            {% if event.data is not empty %}
+                                <span class="text-muted text-sm">
+                                    {% for key, value in event.data %}
+                                        {% if value is not null %}{{ key }}: {{ value }}{% if not loop.last %} · {% endif %}{% endif %}
+                                    {% endfor %}
+                                </span>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card__header">
+            <h2 class="card__title">Ciclo de vida</h2>
+        </div>
+        <div class="card__body">
+            <div class="cluster">
+                {% if service.status.value == 'active' %}
+                    <form method="post" action="{{ path('app_services_pause', {id: service.id.toRfc4122()}) }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('service_lifecycle_' ~ service.id.toRfc4122()) }}">
+                        <button type="submit" class="btn btn--secondary">Pausar</button>
+                    </form>
+                {% else %}
+                    <form method="post" action="{{ path('app_services_resume', {id: service.id.toRfc4122()}) }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('service_lifecycle_' ~ service.id.toRfc4122()) }}">
+                        <button type="submit" class="btn btn--secondary">Reactivar</button>
+                    </form>
+                {% endif %}
+
+                {% if service.status.value != 'cancelled' %}
+                    <form method="post" action="{{ path('app_services_cancel', {id: service.id.toRfc4122()}) }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('service_lifecycle_' ~ service.id.toRfc4122()) }}">
+                        <button type="submit" class="btn btn--secondary">Marcar como cancelado</button>
+                    </form>
+                {% endif %}
+            </div>
+            <p class="text-muted text-sm mt-4">
+                Cancelar conserva el historial de precios: podrás seguir consultando cuánto pagabas.
+            </p>
+        </div>
+        <div class="card__footer">
+            <form method="post" action="{{ path('app_services_delete', {id: service.id.toRfc4122()}) }}"
+                  data-controller="confirm"
+                  data-confirm-message-value="Se borrará el servicio y todo su historial de precios. Esta acción no se puede deshacer.">
+                <input type="hidden" name="_token" value="{{ csrf_token('service_delete_' ~ service.id.toRfc4122()) }}">
+                <button type="submit" class="btn btn--danger">Eliminar definitivamente</button>
+            </form>
+        </div>
+    </div>
+{% endblock %}

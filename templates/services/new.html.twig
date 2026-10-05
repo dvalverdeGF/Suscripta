@@ -1,0 +1,18 @@
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}Nuevo servicio — Suscripta{% endblock %}
+
+{% block main %}
+    <div class="page-header">
+        <div class="page-header__title">
+            <h1>Nuevo servicio</h1>
+            <p class="page-header__subtitle">Añade un servicio que pagas de forma recurrente.</p>
+        </div>
+    </div>
+
+    {% include 'services/_form.html.twig' with {
+        form: form,
+        submit_label: 'Añadir servicio',
+        cancel_path: path('app_services_index'),
+    } only %}
+{% endblock %}
