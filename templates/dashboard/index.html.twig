@@ -145,19 +145,22 @@
             </div>
         {% endif %}
 
+        {% set window30 = summary.window(30) %}
+        {% set window60 = summary.window(60) %}
+
         <div class="grid grid--2 mb-6">
             <div class="card">
                 <div class="card__header">
                     <h2 class="card__title">Próximos cobros</h2>
                 </div>
                 <div class="card__body card__body--flush">
-                    {% if summary.upcomingCharges is empty %}
+                    {% if window30 is null or window30.isEmpty %}
                         <div class="card__body">
                             <p class="text-muted m-0">No hay cobros previstos en los próximos 30 días.</p>
                         </div>
                     {% else %}
                         <ul class="timeline">
-                            {% for service in summary.upcomingCharges %}
+                            {% for service in window30.charges %}
                                 <li class="timeline__item">
                                     <span class="timeline__date">
                                         <time datetime="{{ service.nextChargeAt|date('Y-m-d') }}">{{ service.nextChargeAt|date('d/m/Y') }}</time>
@@ -173,6 +176,20 @@
                         </ul>
                     {% endif %}
                 </div>
+                {% if window30 is not null and window30.totalsByCurrency is not empty %}
+                    <div class="card__footer">
+                        <span class="text-muted text-sm">Total en 30 días:</span>
+                        {% for code, total in window30.totalsByCurrency %}
+                            <strong>{{ total.format() }}</strong>{% if not loop.last %} · {% endif %}
+                        {% endfor %}
+                        {% if window60 is not null and window60.totalsByCurrency is not empty %}
+                            <span class="text-muted text-sm">· en 60 días:</span>
+                            {% for code, total in window60.totalsByCurrency %}
+                                <strong>{{ total.format() }}</strong>{% if not loop.last %} · {% endif %}
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                {% endif %}
             </div>
 
             <div class="card">
@@ -204,6 +221,84 @@
                 </div>
             </div>
         </div>
+
+        <div class="grid grid--2 mb-6">
+            {% if summary.monthlyByCategory is not empty %}
+                <div class="card">
+                    <div class="card__header">
+                        <h2 class="card__title">En qué se te va el dinero</h2>
+                    </div>
+                    <div class="card__body card__body--flush">
+                        <div class="table-wrapper">
+                            <table class="table table--responsive">
+                                <caption class="visually-hidden">Coste mensual equivalente por categoría</caption>
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Categoría</th>
+                                        <th scope="col" class="num">Servicios</th>
+                                        <th scope="col" class="num">Al mes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in summary.monthlyByCategory %}
+                                        <tr>
+                                            <td data-label="Categoría">{{ row.categoryName }}</td>
+                                            <td data-label="Servicios" class="num">{{ row.serviceCount }}</td>
+                                            <td data-label="Al mes" class="num">
+                                                {% for code, total in row.monthlyByCurrency %}
+                                                    {{ total.format() }}{% if not loop.last %} · {% endif %}
+                                                {% endfor %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            {% if summary.topServices is not empty %}
+                <div class="card">
+                    <div class="card__header">
+                        <h2 class="card__title">Los que más cuestan</h2>
+                    </div>
+                    <div class="card__body card__body--flush">
+                        <ul class="timeline">
+                            {% for service in summary.topServices %}
+                                <li class="timeline__item">
+                                    <span class="timeline__date">
+                                        {% if service.currentAmount %}{{ service.currentAmount.format() }}{% else %}—{% endif %}
+                                    </span>
+                                    <span class="timeline__label">
+                                        <a href="{{ path('app_services_show', {id: service.id.toRfc4122()}) }}">{{ service.name }}</a>
+                                        <span class="text-muted text-sm">· {{ service.billingPeriod.label() }}</span>
+                                    </span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        {% if summary.servicesByStatus is not empty %}
+            <div class="card mb-6">
+                <div class="card__header">
+                    <h2 class="card__title">Servicios por estado</h2>
+                </div>
+                <div class="card__body">
+                    <div class="cluster">
+                        {% for row in summary.servicesByStatus %}
+                            <span class="badge badge--{{ row.status.value == 'active' ? 'success' : (row.status.value == 'paused' ? 'warning' : 'info') }}">
+                                {{ row.status.label() }}: {{ row.total }}
+                            </span>
+                        {% endfor %}
+                        <a class="btn btn--ghost btn--sm" href="{{ path('app_services_index') }}">Ver todos los servicios</a>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
 
         {% if summary.recentPriceChanges is not empty %}
             <div class="card">

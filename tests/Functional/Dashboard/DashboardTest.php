@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Dashboard;
 
+use App\Catalog\Domain\Entity\Category;
+use App\Catalog\Domain\Repository\CategoryRepositoryInterface;
 use App\Identity\Application\RegisterUser;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\OrganizationRepositoryInterface;
@@ -149,11 +151,89 @@ final class DashboardTest extends WebTestCase
         self::assertStringContainsString('name="viewport"', $content);
     }
 
+    public function testTheDashboardBreaksTheCostDownByCategory(): void
+    {
+        $hosting = $this->createCategory('Hosting', 'hosting');
+        $software = $this->createCategory('Software', 'software');
+
+        $this->createService('OVH VPS', 1199, BillingPeriod::MONTHLY, categoryId: $hosting->getId());
+        $this->createService('Hetzner', 500, BillingPeriod::MONTHLY, categoryId: $hosting->getId());
+        $this->createService('GitHub', 400, BillingPeriod::MONTHLY, categoryId: $software->getId());
+
+        $this->client->request('GET', '/');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('.app-main', 'En qué se te va el dinero');
+        self::assertSelectorTextContains('.app-main', 'Hosting');
+        self::assertSelectorTextContains('.app-main', '16,99');
+        self::assertSelectorTextContains('.app-main', 'Software');
+    }
+
+    public function testTheDashboardRanksTheMostExpensiveServices(): void
+    {
+        $this->createService('Dominio .com', 1200, BillingPeriod::ANNUAL);
+        $this->createService('OVH VPS', 1199, BillingPeriod::MONTHLY);
+
+        $this->client->request('GET', '/');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('.app-main', 'Los que más cuestan');
+
+        $content = (string) $this->client->getResponse()->getContent();
+        self::assertLessThan(
+            mb_strpos($content, 'Dominio .com'),
+            mb_strpos($content, 'OVH VPS'),
+            'El servicio más caro al mes tiene que aparecer antes.',
+        );
+    }
+
+    public function testTheDashboardCountsServicesByStatus(): void
+    {
+        $this->createService('OVH VPS', 1199, BillingPeriod::MONTHLY);
+        $paused = $this->createService('En pausa', 500, BillingPeriod::MONTHLY);
+        $paused->pause();
+        $this->repository()->save($paused);
+
+        $this->client->request('GET', '/');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('.app-main', 'Servicios por estado');
+        self::assertSelectorTextContains('.app-main', 'Activo: 1');
+        self::assertSelectorTextContains('.app-main', 'En pausa: 1');
+    }
+
+    public function testTheDashboardTotalsTheChargesOfTheNextThirtyAndSixtyDays(): void
+    {
+        $soon = $this->createService('Cobro próximo', 1199, BillingPeriod::MONTHLY);
+        $soon->setNextChargeAt(new DateTimeImmutable('2026-10-20'));
+        $this->repository()->save($soon);
+
+        $later = $this->createService('Cobro lejano', 2000, BillingPeriod::MONTHLY);
+        $later->setNextChargeAt(new DateTimeImmutable('2026-11-15'));
+        $this->repository()->save($later);
+
+        $this->client->request('GET', '/');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('.card__footer', 'Total en 30 días');
+        self::assertSelectorTextContains('.card__footer', '11,99');
+        self::assertSelectorTextContains('.card__footer', '31,99');
+    }
+
+    private function createCategory(string $name, string $slug): Category
+    {
+        $category = new Category($name, $slug, $this->organizationId());
+        self::getContainer()->get(CategoryRepositoryInterface::class)->save($category);
+
+        return $category;
+    }
+
     private function createService(
         string $name,
         int $amountMinor,
         BillingPeriod $period,
         Currency $currency = Currency::EUR,
+        ?Uuid $categoryId = null,
     ): Service {
         $tenant = self::getContainer()->get(TenantContext::class);
         $createService = self::getContainer()->get(CreateService::class);
@@ -165,6 +245,7 @@ final class DashboardTest extends WebTestCase
                 currency: $currency,
                 billingPeriod: $period,
                 amount: Money::of($amountMinor, $currency),
+                categoryId: $categoryId,
                 startedAt: new DateTimeImmutable('2026-01-15'),
             ),
             $this->user->getId(),

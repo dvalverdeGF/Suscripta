@@ -156,6 +156,26 @@ final class EmailMessageRepository extends DoctrineRepository implements EmailMe
             ->getSingleScalarResult();
     }
 
+    public function countByAccount(): array
+    {
+        /** @var list<array{accountId: Uuid, total: int|string}> $rows */
+        $rows = $this->entityManager
+            ->createQueryBuilder()
+            ->select('m.emailAccountId AS accountId', 'COUNT(m.id) AS total')
+            ->from(EmailMessage::class, 'm')
+            ->groupBy('m.emailAccountId')
+            ->getQuery()
+            ->getResult();
+
+        $counts = [];
+
+        foreach ($rows as $row) {
+            $counts[$row['accountId']->toRfc4122()] = (int) $row['total'];
+        }
+
+        return $counts;
+    }
+
     public function save(EmailMessage $message, bool $flush = true): void
     {
         $this->persist($message, $flush);

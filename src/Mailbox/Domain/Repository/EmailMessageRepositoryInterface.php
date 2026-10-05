@@ -49,6 +49,14 @@ interface EmailMessageRepositoryInterface
 
     public function countForAccount(Uuid $emailAccountId): int;
 
+    /**
+     * Recuento de mensajes de todos los buzones de la organización, indexado
+     * por id de cuenta. Evita una consulta por buzón al pintar listados.
+     *
+     * @return array<string, int> id de cuenta => número de mensajes
+     */
+    public function countByAccount(): array;
+
     public function save(EmailMessage $message, bool $flush = true): void;
 
     /**

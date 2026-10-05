@@ -6,6 +6,7 @@ namespace App\Dashboard\Application\Dto;
 
 use App\Discovery\Domain\Entity\Discovery;
 use App\Services\Domain\Entity\Service;
+use App\Services\Domain\Enum\ServiceStatus;
 use App\Shared\Domain\ValueObject\Money;
 
 use function count;
@@ -21,22 +22,28 @@ use function count;
 final readonly class DashboardSummary
 {
     /**
-     * @param array<string, Money> $monthlyByCurrency  clave = código ISO de la moneda
-     * @param array<string, Money> $annualByCurrency
-     * @param list<Service>        $upcomingCharges
-     * @param list<Service>        $upcomingRenewals
-     * @param list<Discovery>      $pendingDiscoveries
-     * @param list<Service>        $recentPriceChanges
+     * @param array<string, Money>                           $monthlyByCurrency  clave = código ISO de la moneda
+     * @param array<string, Money>                           $annualByCurrency
+     * @param list<UpcomingWindow>                           $upcomingWindows    ventanas de 30 y 60 días
+     * @param list<Service>                                  $upcomingRenewals
+     * @param list<Discovery>                                $pendingDiscoveries
+     * @param list<Service>                                  $recentPriceChanges
+     * @param list<CategoryCost>                             $monthlyByCategory  ordenado de mayor a menor coste
+     * @param list<Service>                                  $topServices        los más caros, por coste mensual
+     * @param list<array{status: ServiceStatus, total: int}> $servicesByStatus
      */
     public function __construct(
         public int $activeServices,
         public int $totalServices,
         public array $monthlyByCurrency,
         public array $annualByCurrency,
-        public array $upcomingCharges,
+        public array $upcomingWindows,
         public array $upcomingRenewals,
         public array $pendingDiscoveries,
         public array $recentPriceChanges,
+        public array $monthlyByCategory,
+        public array $topServices,
+        public array $servicesByStatus,
         public int $connectedMailboxes,
         public int $indexedMessages,
     ) {
@@ -66,5 +73,19 @@ final readonly class DashboardSummary
     public function singleAnnualTotal(): ?Money
     {
         return 1 === count($this->annualByCurrency) ? array_values($this->annualByCurrency)[0] : null;
+    }
+
+    /**
+     * Ventana de cobros previstos de `$days` días, o null si no existe.
+     */
+    public function window(int $days): ?UpcomingWindow
+    {
+        foreach ($this->upcomingWindows as $window) {
+            if ($window->days === $days) {
+                return $window;
+            }
+        }
+
+        return null;
     }
 }

@@ -52,14 +52,9 @@ final class EmailAccountController extends AbstractController
     {
         $accounts = $this->accounts->findForOrganization();
 
-        $messageCounts = [];
-        foreach ($accounts as $account) {
-            $messageCounts[$account->getId()->toRfc4122()] = $this->messages->countForAccount($account->getId());
-        }
-
         return $this->render('mail/accounts/index.html.twig', [
             'accounts' => $accounts,
-            'messageCounts' => $messageCounts,
+            'messageCounts' => $this->messages->countByAccount(),
         ]);
     }
 

@@ -153,7 +153,9 @@ las fases siguientes sin resolverlo.
 
 ## Fase 4 — Dashboard completo
 
-> **Estado:** ⬜ Pendiente.
+> **Estado:** ✅ **Completada.** El panel responde a las ocho preguntas del producto con un
+> número fijo de consultas, independiente del número de servicios y de buzones. Las alertas
+> abiertas en portada llegan con la Fase 6, que es donde existen.
 
 
 **Objetivo:** responder a las ocho preguntas del producto (`PRODUCT.md` §3.1).
