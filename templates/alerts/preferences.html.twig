@@ -1,0 +1,65 @@
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}Preferencias de avisos — Suscripta{% endblock %}
+
+{% block main %}
+    <div class="page-header">
+        <div class="page-header__title">
+            <p class="text-muted text-sm">
+                <a href="{{ path('app_alerts_index') }}">← Avisos</a>
+            </p>
+            <h1>Preferencias de avisos</h1>
+            <p class="page-header__subtitle">
+                Elige qué quieres ver en la aplicación y qué quieres recibir por correo.
+            </p>
+        </div>
+    </div>
+
+    <div class="alert alert--info mb-6">
+        <p>
+            Los avisos <strong>críticos</strong> —un cobro inminente o una renovación a punto de
+            cerrarse— se envían siempre por correo, aunque desactives el canal. Es justo el caso
+            en el que un aviso silenciado no sirve de nada.
+        </p>
+    </div>
+
+    {{ form_start(form) }}
+        <div class="table-wrapper">
+            <table class="table table--responsive">
+                <caption class="visually-hidden">Preferencias de avisos por tipo y canal</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Tipo de aviso</th>
+                        {% for channel in channels %}
+                            <th scope="col">{{ channel.label() }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for type in types %}
+                        <tr>
+                            <th scope="row" data-label="Tipo de aviso">
+                                {{ type.label() }}
+                                <span class="text-muted text-sm">{{ type.description() }}</span>
+                            </th>
+                            {% for channel in channels %}
+                                {% set field = attribute(form, type.value ~ '_' ~ channel.value) %}
+                                <td data-label="{{ channel.label() }}">
+                                    <label class="checkbox">
+                                        {{ form_widget(field) }}
+                                        <span>{{ channel.label() }}</span>
+                                    </label>
+                                </td>
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="form-actions mt-6">
+            <button type="submit" class="btn btn--primary">Guardar preferencias</button>
+            <a class="btn btn--ghost" href="{{ path('app_alerts_index') }}">Cancelar</a>
+        </div>
+    {{ form_end(form) }}
+{% endblock %}

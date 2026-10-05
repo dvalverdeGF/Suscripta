@@ -116,3 +116,13 @@ failed: ## Lista los mensajes fallidos
 .PHONY: failed-retry
 failed-retry: ## Reintenta los mensajes fallidos
 	$(EXEC) bin/console messenger:failed:retry
+
+# ---------------------------------------------------------------- Tareas programadas
+
+.PHONY: sync
+sync: ## Sincroniza los buzones activos
+	$(EXEC) bin/console app:mail:sync -v
+
+.PHONY: alerts
+alerts: ## Recalcula los avisos de cobros, renovaciones y plazos
+	$(EXEC) bin/console app:alerts:generate -v

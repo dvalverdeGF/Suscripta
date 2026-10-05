@@ -73,6 +73,43 @@ final class OrganizationRepository extends DoctrineRepository implements Organiz
         );
     }
 
+    public function findAll(): array
+    {
+        /** @var list<Organization> $organizations */
+        $organizations = $this->entityManager
+            ->createQueryBuilder()
+            ->select('o')
+            ->from(Organization::class, 'o')
+            ->orderBy('o.createdAt', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $organizations;
+    }
+
+    public function findMembers(Uuid $organizationId): array
+    {
+        /** @var list<Membership> $memberships */
+        $memberships = $this->entityManager
+            ->createQueryBuilder()
+            ->select('m', 'u')
+            ->from(Membership::class, 'm')
+            ->join('m.user', 'u')
+            ->where('m.organization = :organization')
+            ->setParameter('organization', $organizationId)
+            ->orderBy('m.createdAt', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return array_map(
+            static fn (Membership $membership): array => [
+                'user' => $membership->getUser(),
+                'role' => $membership->getRole(),
+            ],
+            $memberships,
+        );
+    }
+
     public function save(Organization $organization, bool $flush = true): void
     {
         $this->persist($organization, $flush);

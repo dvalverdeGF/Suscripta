@@ -7,7 +7,6 @@ namespace App\Identity\Infrastructure\Security;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\OrganizationRepositoryInterface;
 use App\Shared\Application\TenantContext;
-use App\Shared\Infrastructure\Doctrine\EventListener\TenantFilterListener;
 
 use function is_string;
 
@@ -34,7 +33,6 @@ final readonly class ActiveOrganizationListener
         private Security $security,
         private TenantContext $tenantContext,
         private OrganizationRepositoryInterface $organizations,
-        private TenantFilterListener $tenantFilterListener,
     ) {
     }
 
@@ -55,8 +53,8 @@ final readonly class ActiveOrganizationListener
             return;
         }
 
+        // setOrganizationId publica el cambio en el filtro de Doctrine.
         $this->tenantContext->setOrganizationId($organizationId);
-        $this->tenantFilterListener->synchronize();
     }
 
     private function resolveOrganizationId(User $user, Request $request): ?Uuid

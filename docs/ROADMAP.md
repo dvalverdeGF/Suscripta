@@ -186,8 +186,7 @@ dominio; consultas sin N+1.
 
 ## Fase 6 — Renovaciones, alertas y notificaciones
 
-> **Estado:** ⬜ Pendiente.
-
+> **Estado:** ✅ Completada.
 
 **Objetivo:** avisar antes de que algo importante ocurra.
 
@@ -201,6 +200,36 @@ dominio; consultas sin N+1.
 
 **Verificación:** una renovación a 45 días genera alerta y notificación; desactivar un tipo en
 preferencias impide la notificación; no se envían duplicados.
+
+**Implementado:**
+
+- 7 tipos de aviso (`AlertType`) con umbrales centralizados en `AlertRules` (constantes, no
+  reglas dispersas): próximo cobro, próxima renovación, renovación anual, plazo de preaviso,
+  fin de compromiso, subida de precio y descubrimiento pendiente.
+- `Alert` con clave de deduplicación `tipo|servicio|fecha` e índice único por organización:
+  ejecutar el generador cada hora no duplica nada. Un aviso descartado **nunca** se reabre.
+- `GenerateAlerts` crea los avisos que corresponden y **resuelve** los que ya no: un aviso de
+  cobro que se quedó abierto porque el cobro ya pasó enseña al usuario a ignorar la bandeja.
+- `DispatchNotifications` entrega por los canales activos, con reintento de los fallos y sin
+  repetir lo ya entregado.
+- Suelo no configurable: un aviso `CRITICAL` **siempre** se envía por correo, aunque el usuario
+  haya desactivado el canal. Un producto que existe para evitar cobros olvidados no puede
+  callarse tres días antes de un cargo.
+- `NotificationPreference` guarda **solo las desviaciones** respecto a los valores por defecto:
+  volver al valor por defecto borra la fila, porque un valor por defecto no es una opinión.
+- Comando `app:alerts:generate` (idempotente, recorre todas las organizaciones dentro de su
+  propio contexto de tenant) y `app:alerts:generate --no-notify` para generar sin entregar.
+- Bandeja de avisos con filtro por estado, detalle con el motivo, y matriz de preferencias.
+
+**Verificación realizada:** 487 pruebas y 2263 aserciones en verde; PHPStan nivel 8 sin errores;
+php-cs-fixer sin cambios pendientes. Cubierto con pruebas unitarias (`GenerateAlerts`,
+`DispatchNotifications`, `UpdateNotificationPreferences`, `AlertRules`) y funcionales
+(`AlertInboxTest`, `AlertAccessTest`, `AlertPreferencesTest`, `GenerateAlertsCommandTest`).
+
+**Fallo real encontrado y corregido:** `TenantContext::runAs()` cambiaba la organización activa
+pero **no la publicaba en el filtro de Doctrine**, así que los comandos de consola leían los datos
+de todas las organizaciones. `app:alerts:generate` habría generado avisos cruzados entre clientes.
+Corregido con `TenantFilterSynchronizerInterface` (ver `ARCHITECTURE.md` §8.1).
 
 ## Fase 7 — Documentos
 

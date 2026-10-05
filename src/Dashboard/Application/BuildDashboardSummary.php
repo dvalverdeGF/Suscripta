@@ -11,6 +11,7 @@ use App\Dashboard\Application\Dto\UpcomingWindow;
 use App\Discovery\Domain\Repository\DiscoveryRepositoryInterface;
 use App\Mailbox\Domain\Repository\EmailAccountRepositoryInterface;
 use App\Mailbox\Domain\Repository\EmailMessageRepositoryInterface;
+use App\Notifications\Domain\Repository\AlertRepositoryInterface;
 use App\Services\Domain\Entity\Service;
 use App\Services\Domain\Enum\ServiceStatus;
 use App\Services\Domain\Repository\ServiceRepositoryInterface;
@@ -56,6 +57,7 @@ final readonly class BuildDashboardSummary
         private DiscoveryRepositoryInterface $discoveries,
         private EmailAccountRepositoryInterface $accounts,
         private EmailMessageRepositoryInterface $messages,
+        private AlertRepositoryInterface $alerts,
         private CategoryRepositoryInterface $categories,
         private ServiceCostCalculator $costs,
         private SpendEvolution $evolution,
@@ -85,6 +87,7 @@ final readonly class BuildDashboardSummary
             upcomingWindows: $this->upcomingWindows($services, $now),
             upcomingRenewals: $this->upcomingRenewals($services, $now),
             pendingDiscoveries: $this->discoveries->findPending(self::PENDING_LIMIT),
+            openAlerts: $this->alerts->countOpen(),
             recentPriceChanges: $this->recentPriceChanges($services, $now),
             monthlyByCategory: $this->monthlyByCategory($services),
             topServices: $this->topServices($services),

@@ -52,6 +52,14 @@ enum AuditAction: string
     case DISCOVERY_DISMISSED = 'discovery.dismissed';
     case DISCOVERY_CREATED = 'discovery.created';
 
+    // Avisos y notificaciones
+    case ALERT_GENERATED = 'alert.generated';
+    case ALERT_ACKNOWLEDGED = 'alert.acknowledged';
+    case ALERT_DISMISSED = 'alert.dismissed';
+    case NOTIFICATION_SENT = 'notification.sent';
+    case NOTIFICATION_FAILED = 'notification.failed';
+    case NOTIFICATION_PREFERENCES_UPDATED = 'notification.preferences_updated';
+
     // Catálogo
     case CATALOG_SEEDED = 'catalog.seeded';
 
@@ -91,6 +99,12 @@ enum AuditAction: string
             self::DISCOVERY_CREATED => 'Descubrimiento creado',
             self::DISCOVERY_CONFIRMED => 'Descubrimiento confirmado',
             self::DISCOVERY_DISMISSED => 'Descubrimiento descartado',
+            self::ALERT_GENERATED => 'Avisos generados',
+            self::ALERT_ACKNOWLEDGED => 'Aviso marcado como visto',
+            self::ALERT_DISMISSED => 'Aviso descartado',
+            self::NOTIFICATION_SENT => 'Notificación enviada',
+            self::NOTIFICATION_FAILED => 'Fallo al enviar la notificación',
+            self::NOTIFICATION_PREFERENCES_UPDATED => 'Preferencias de avisos actualizadas',
             self::CATALOG_SEEDED => 'Catálogo global sembrado',
             self::AI_EXTRACTION_PERFORMED => 'Extracción con IA',
             self::AI_BUDGET_EXCEEDED => 'Presupuesto de IA agotado',

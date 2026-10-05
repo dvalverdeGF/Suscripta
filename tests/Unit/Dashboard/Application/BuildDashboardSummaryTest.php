@@ -12,6 +12,7 @@ use App\Discovery\Domain\Repository\DiscoveryRepositoryInterface;
 use App\Mailbox\Domain\Entity\EmailAccount;
 use App\Mailbox\Domain\Repository\EmailAccountRepositoryInterface;
 use App\Mailbox\Domain\Repository\EmailMessageRepositoryInterface;
+use App\Notifications\Domain\Repository\AlertRepositoryInterface;
 use App\Services\Domain\Entity\Service;
 use App\Services\Domain\Enum\ServiceStatus;
 use App\Services\Domain\Repository\ServiceRepositoryInterface;
@@ -51,6 +52,8 @@ final class BuildDashboardSummaryTest extends TestCase
 
     private CategoryRepositoryInterface&MockObject $categories;
 
+    private AlertRepositoryInterface&MockObject $alerts;
+
     private TenantContext $tenant;
 
     /** @var list<Category> */
@@ -73,6 +76,7 @@ final class BuildDashboardSummaryTest extends TestCase
         $this->accounts = $this->createMock(EmailAccountRepositoryInterface::class);
         $this->messages = $this->createMock(EmailMessageRepositoryInterface::class);
         $this->categories = $this->createMock(CategoryRepositoryInterface::class);
+        $this->alerts = $this->createMock(AlertRepositoryInterface::class);
 
         $this->tenant = new TenantContext();
         $this->tenant->setOrganizationId($this->organizationId);
@@ -331,6 +335,14 @@ final class BuildDashboardSummaryTest extends TestCase
         self::assertSame([], $summary->servicesByStatus);
     }
 
+    public function testItCountsTheOpenAlerts(): void
+    {
+        $this->services->method('findForOrganization')->willReturn([]);
+        $this->alerts->method('countOpen')->willReturn(3);
+
+        self::assertSame(3, $this->build()->openAlerts);
+    }
+
     private function build(): DashboardSummary
     {
         $builder = new BuildDashboardSummary(
@@ -339,6 +351,7 @@ final class BuildDashboardSummaryTest extends TestCase
             accounts: $this->accounts,
             messages: $this->messages,
             categories: $this->categories,
+            alerts: $this->alerts,
             costs: new ServiceCostCalculator(),
             evolution: new SpendEvolution(),
             tenantContext: $this->tenant,

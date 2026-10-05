@@ -1049,3 +1049,49 @@ formalidad y pasa a ser un control real.
 **Consecuencias.** Hay que recordar que la verificación es un requisito de la conexión de
 buzón, no del acceso: la comprobación vive en el caso de uso de conexión, no en el firewall.
 El aviso del armazón es informativo y no debe convertirse en un muro.
+
+---
+
+## D-41 — El contexto de tenant se publica en el filtro, no se asume
+
+**Contexto.** El aislamiento multi-tenant se apoya en un Doctrine Filter que añade
+`organization_id = :organizationId` a toda consulta de entidades tenant-scoped (D-11). El filtro
+lee su parámetro de `TenantContext`. En las peticiones HTTP funcionaba porque
+`ActiveOrganizationListener` sincronizaba explícitamente después de resolver la organización.
+En los comandos de consola y en los workers, en cambio, nadie lo hacía: `TenantContext::runAs()`
+cambiaba la organización activa pero el filtro seguía con el valor anterior. Como sin organización
+el filtro no restringe, el resultado era que **un comando que recorre organizaciones leía los
+datos de todas**.
+
+**Decisión.** `TenantContext` publica cada cambio de organización a través de
+`TenantFilterSynchronizerInterface`, implementado en infraestructura por
+`DoctrineTenantFilterSynchronizer`. La capa de aplicación declara la intención; la infraestructura
+la aplica. `setOrganizationId()` y `runAs()` sincronizan siempre, y `runAs()` lo hace al entrar y
+al salir, restaurando el contexto anterior incluso si el bloque lanza.
+
+**Por qué.** El aislamiento no puede depender de que cada punto de entrada se acuerde de
+sincronizar: es exactamente el tipo de olvido que no se detecta hasta que un cliente ve datos de
+otro. Poniendo la publicación dentro del propio cambio de contexto, cualquier camino nuevo
+—comando, worker, proceso programado— queda cubierto por construcción.
+
+**Alternativas.**
+
+- *Sincronizar en cada punto de entrada.* Descartada: es la situación que produjo el fallo, y
+  añade un punto de fallo por cada camino nuevo.
+- *Middleware de Messenger + sincronización en los comandos.* Descartada por lo mismo: sigue
+  habiendo varios sitios donde acordarse.
+- *Pasar el `organizationId` a mano en cada consulta.* Descartada: contradice D-11 y multiplica
+  las oportunidades de error.
+- *Row Level Security de PostgreSQL.* Sigue siendo la evolución deseable como capa adicional,
+  pero no sustituye a esta corrección.
+
+**Consecuencias.** `TenantContext` deja de ser un contenedor pasivo y pasa a tener un efecto:
+construirlo sin sincronizador (pruebas unitarias con repositorios en memoria) es un no-op
+deliberado. Sin organización activa el filtro no restringe, y eso es una decisión explícita para
+procesos de sistema (migraciones, purgas), no un descuido.
+
+**Aviso de implementación.** `SQLFilter::getParameter()` devuelve el valor **ya entrecomillado**
+para SQL, así que la ausencia de organización llega como `''` (dos comillas) y no como cadena
+vacía. La comprobación original contra `''` nunca se cumplía y la consulta acababa con
+`organization_id = ''`, que PostgreSQL rechaza por no ser un UUID válido. Ver
+`TenantFilter::NO_ORGANIZATION`.

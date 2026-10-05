@@ -28,6 +28,7 @@ final readonly class DashboardSummary
      * @param list<UpcomingWindow>                           $upcomingWindows    ventanas de 30 y 60 días
      * @param list<Service>                                  $upcomingRenewals
      * @param list<Discovery>                                $pendingDiscoveries
+     * @param int                                            $openAlerts         avisos abiertos que piden atención
      * @param list<Service>                                  $recentPriceChanges
      * @param list<CategoryCost>                             $monthlyByCategory  ordenado de mayor a menor coste
      * @param list<Service>                                  $topServices        los más caros, por coste mensual
@@ -42,6 +43,7 @@ final readonly class DashboardSummary
         public array $upcomingWindows,
         public array $upcomingRenewals,
         public array $pendingDiscoveries,
+        public int $openAlerts,
         public array $recentPriceChanges,
         public array $monthlyByCategory,
         public array $topServices,

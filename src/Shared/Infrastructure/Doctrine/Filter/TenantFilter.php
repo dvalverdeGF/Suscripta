@@ -22,6 +22,15 @@ final class TenantFilter extends SQLFilter
 {
     public const NAME = 'tenant';
 
+    /**
+     * `SQLFilter::getParameter()` devuelve el valor **ya entrecomillado** para
+     * SQL, así que la ausencia de organización no llega como cadena vacía sino
+     * como dos comillas. Comparar contra `''` no detectaba nada y la consulta
+     * acababa con `organization_id = ''`, que PostgreSQL rechaza por no ser un
+     * UUID válido.
+     */
+    private const NO_ORGANIZATION = "''";
+
     public function addFilterConstraint(ClassMetadata $targetEntity, string $targetTableAlias): string
     {
         if (!$targetEntity->getReflectionClass()->implementsInterface(TenantAwareInterface::class)) {
@@ -30,7 +39,7 @@ final class TenantFilter extends SQLFilter
 
         $organizationId = $this->getParameter('organizationId');
 
-        if ('' === $organizationId) {
+        if (self::NO_ORGANIZATION === $organizationId) {
             return '';
         }
 

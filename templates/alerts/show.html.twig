@@ -1,0 +1,124 @@
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}{{ alert.title }} — Suscripta{% endblock %}
+
+{% block main %}
+    <div class="page-header">
+        <div class="page-header__title">
+            <p class="text-muted text-sm">
+                <a href="{{ path('app_alerts_index') }}">← Avisos</a>
+            </p>
+            <h1>{{ alert.title }}</h1>
+            <p class="page-header__subtitle">{{ alert.type.description() }}</p>
+        </div>
+    </div>
+
+    <div class="grid grid--2">
+        <div class="card">
+            <div class="card__header">
+                <h2 class="card__title">Qué ha pasado</h2>
+            </div>
+            <div class="card__body">
+                <p>{{ alert.message }}</p>
+
+                <dl class="definition-list">
+                    <dt>Tipo</dt>
+                    <dd>{{ alert.type.label() }}</dd>
+
+                    <dt>Gravedad</dt>
+                    <dd>
+                        <span class="badge badge--{{ alert.severity.value == 'critical' ? 'danger' : (alert.severity.value == 'warning' ? 'warning' : 'info') }}">
+                            {{ alert.severity.label() }}
+                        </span>
+                    </dd>
+
+                    <dt>Estado</dt>
+                    <dd>{{ alert.status.label() }}</dd>
+
+                    {% if alert.dueAt %}
+                        <dt>Fecha</dt>
+                        <dd><time datetime="{{ alert.dueAt|date('c') }}">{{ alert.dueAt|date('d/m/Y') }}</time></dd>
+                    {% endif %}
+
+                    <dt>Detectado</dt>
+                    <dd><time datetime="{{ alert.createdAt|date('c') }}">{{ alert.createdAt|date('d/m/Y H:i') }}</time></dd>
+
+                    {% if alert.resolvedAt %}
+                        <dt>Resuelto</dt>
+                        <dd><time datetime="{{ alert.resolvedAt|date('c') }}">{{ alert.resolvedAt|date('d/m/Y H:i') }}</time></dd>
+                    {% endif %}
+                </dl>
+
+                {% if alert.status.value == 'open' %}
+                    <div class="cluster cluster--end mt-4">
+                        <form method="post" action="{{ path('app_alerts_dismiss', {id: alert.id.toRfc4122()}) }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('alert_dismiss_' ~ alert.id.toRfc4122()) }}">
+                            <button type="submit" class="btn btn--ghost">Descartar</button>
+                        </form>
+                        <form method="post" action="{{ path('app_alerts_acknowledge', {id: alert.id.toRfc4122()}) }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('alert_acknowledge_' ~ alert.id.toRfc4122()) }}">
+                            <button type="submit" class="btn btn--primary">Marcar como visto</button>
+                        </form>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="stack">
+            {% if service %}
+                <div class="card">
+                    <div class="card__header">
+                        <h2 class="card__title">Servicio</h2>
+                    </div>
+                    <div class="card__body">
+                        <p>
+                            <a href="{{ path('app_services_show', {id: service.id.toRfc4122()}) }}">{{ service.name }}</a>
+                        </p>
+                        <dl class="definition-list">
+                            <dt>Estado</dt>
+                            <dd>{{ service.status.label() }}</dd>
+                            <dt>Periodicidad</dt>
+                            <dd>{{ service.billingPeriod.label() }}</dd>
+                            {% if service.nextChargeAt %}
+                                <dt>Próximo cobro</dt>
+                                <dd><time datetime="{{ service.nextChargeAt|date('c') }}">{{ service.nextChargeAt|date('d/m/Y') }}</time></dd>
+                            {% endif %}
+                            {% if service.renewalAt %}
+                                <dt>Renovación</dt>
+                                <dd><time datetime="{{ service.renewalAt|date('c') }}">{{ service.renewalAt|date('d/m/Y') }}</time></dd>
+                            {% endif %}
+                        </dl>
+                    </div>
+                </div>
+            {% endif %}
+
+            <div class="card">
+                <div class="card__header">
+                    <h2 class="card__title">Entregas</h2>
+                </div>
+                <div class="card__body">
+                    {% if notifications is empty %}
+                        <p class="text-muted">Todavía no se ha entregado este aviso por ningún canal.</p>
+                    {% else %}
+                        <ul class="stack stack--tight">
+                            {% for notification in notifications %}
+                                <li>
+                                    <span class="badge badge--{{ notification.status.value == 'sent' ? 'success' : (notification.status.value == 'failed' ? 'danger' : 'info') }}">
+                                        {{ notification.status.label() }}
+                                    </span>
+                                    {{ notification.channel.label() }}
+                                    {% if notification.sentAt %}
+                                        <span class="text-muted text-sm">· {{ notification.sentAt|date('d/m/Y H:i') }}</span>
+                                    {% endif %}
+                                    {% if notification.error %}
+                                        <span class="text-muted text-sm">· {{ notification.error }}</span>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

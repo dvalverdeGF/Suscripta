@@ -1,0 +1,13 @@
+Suscripta — {{ title }}
+
+{{ type.label }} · {{ severity.label }}
+
+Hola {{ displayName }}, {{ message }}
+{% if dueAt %}
+Fecha: {{ dueAt|date('d/m/Y') }}
+{% endif %}
+
+Ver mis avisos: {{ url }}
+
+Recibes este correo porque tienes activados los avisos urgentes por correo.
+Puedes cambiarlo en tus preferencias de avisos.

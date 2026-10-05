@@ -23,5 +23,20 @@ interface OrganizationRepositoryInterface
      */
     public function findForUser(User $user): array;
 
+    /**
+     * Todas las organizaciones. Lo usan los comandos de mantenimiento, que
+     * recorren el sistema entero sin contexto de sesión.
+     *
+     * @return list<Organization>
+     */
+    public function findAll(): array;
+
+    /**
+     * Personas que pertenecen a una organización, con su rol.
+     *
+     * @return list<array{user: User, role: \App\Identity\Domain\Enum\OrganizationRole}>
+     */
+    public function findMembers(Uuid $organizationId): array;
+
     public function save(Organization $organization, bool $flush = true): void;
 }

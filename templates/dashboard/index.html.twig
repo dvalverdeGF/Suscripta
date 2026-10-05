@@ -60,6 +60,17 @@
                     {{ summary.indexedMessages }} {{ summary.indexedMessages == 1 ? 'mensaje indexado' : 'mensajes indexados' }}
                 </span>
             </div>
+            <div class="stat">
+                <span class="stat__label">Avisos abiertos</span>
+                <span class="stat__value">{{ summary.openAlerts }}</span>
+                <span class="stat__hint">
+                    {% if summary.openAlerts > 0 %}
+                        <a href="{{ path('app_alerts_index') }}">Revisar avisos</a>
+                    {% else %}
+                        Nada requiere tu atención ahora mismo.
+                    {% endif %}
+                </span>
+            </div>
         </div>
 
         {% if summary.hasCosts and summary.monthlyByCurrency|length > 1 %}

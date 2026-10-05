@@ -1,0 +1,109 @@
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}Avisos — Suscripta{% endblock %}
+
+{% block main %}
+    <div class="page-header">
+        <div class="page-header__title">
+            <h1>Avisos</h1>
+            <p class="page-header__subtitle">
+                Cobros, renovaciones y plazos de cancelación que conviene mirar con tiempo.
+            </p>
+        </div>
+        <div class="page-header__actions">
+            <a class="btn btn--ghost" href="{{ path('app_alerts_preferences') }}">Preferencias</a>
+        </div>
+    </div>
+
+    <nav class="cluster mb-6" aria-label="Filtrar avisos">
+        {% set tabs = {
+            'open': 'Abiertos',
+            'acknowledged': 'Vistos',
+            'dismissed': 'Descartados',
+            'resolved': 'Resueltos'
+        } %}
+        {% for value, label in tabs %}
+            <a class="btn btn--sm {{ status.value == value ? 'btn--primary' : 'btn--ghost' }}"
+               href="{{ path('app_alerts_index', {status: value}) }}"
+               {% if status.value == value %}aria-current="page"{% endif %}>
+                {{ label }}
+                {% if counts[value] is defined %}<span class="text-xs">({{ counts[value] }})</span>{% endif %}
+            </a>
+        {% endfor %}
+    </nav>
+
+    {% if alerts is empty %}
+        <div class="card">
+            <div class="card__body">
+                <div class="empty-state">
+                    <p class="empty-state__title">
+                        {% if status.value == 'open' %}
+                            No hay nada que requiera tu atención
+                        {% else %}
+                            No hay avisos en este estado
+                        {% endif %}
+                    </p>
+                    <p class="empty-state__text">
+                        {% if status.value == 'open' %}
+                            Cuando se acerque un cobro, una renovación o el plazo para cancelar algo,
+                            aparecerá aquí con tiempo suficiente para decidir.
+                        {% else %}
+                            Prueba con otro filtro.
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="stack">
+            {% for alert in alerts %}
+                {% set service = alert.serviceId ? services[alert.serviceId.toRfc4122()]|default(null) : null %}
+                <article class="card">
+                    <div class="card__body">
+                        <div class="cluster cluster--between">
+                            <div>
+                                <span class="badge badge--{{ alert.severity.value == 'critical' ? 'danger' : (alert.severity.value == 'warning' ? 'warning' : 'info') }}">
+                                    {{ alert.severity.label() }}
+                                </span>
+                                <span class="badge badge--info">{{ alert.type.label() }}</span>
+                                {% if alert.status.value != 'open' %}
+                                    <span class="badge">{{ alert.status.label() }}</span>
+                                {% endif %}
+                            </div>
+                            {% if alert.dueAt %}
+                                <time class="text-muted text-sm" datetime="{{ alert.dueAt|date('c') }}">
+                                    {{ alert.dueAt|date('d/m/Y') }}
+                                </time>
+                            {% endif %}
+                        </div>
+
+                        <h2 class="card__title mt-2">
+                            <a href="{{ path('app_alerts_show', {id: alert.id.toRfc4122()}) }}">{{ alert.title }}</a>
+                        </h2>
+                        <p>{{ alert.message }}</p>
+
+                        {% if service %}
+                            <p class="text-muted text-sm">
+                                Servicio:
+                                <a href="{{ path('app_services_show', {id: service.id.toRfc4122()}) }}">{{ service.name }}</a>
+                            </p>
+                        {% endif %}
+
+                        {% if alert.status.value == 'open' %}
+                            <div class="cluster cluster--end mt-4">
+                                <form method="post" action="{{ path('app_alerts_dismiss', {id: alert.id.toRfc4122()}) }}">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('alert_dismiss_' ~ alert.id.toRfc4122()) }}">
+                                    <button type="submit" class="btn btn--ghost btn--sm">Descartar</button>
+                                </form>
+                                <form method="post" action="{{ path('app_alerts_acknowledge', {id: alert.id.toRfc4122()}) }}">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('alert_acknowledge_' ~ alert.id.toRfc4122()) }}">
+                                    <button type="submit" class="btn btn--secondary btn--sm">Marcar como visto</button>
+                                </form>
+                            </div>
+                        {% endif %}
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endblock %}

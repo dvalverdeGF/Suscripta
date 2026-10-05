@@ -69,6 +69,12 @@ if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
 		# Siembra el catálogo global de categorías y proveedores. Es idempotente:
 		# solo crea lo que falta, así que se puede ejecutar en cada arranque.
 		php bin/console app:catalog:seed --no-interaction
+
+		# Recalcula los avisos de cobros, renovaciones y plazos. Es idempotente y
+		# nunca reabre un aviso ya cerrado. En producción esto lo hace el
+		# planificador; aquí se ejecuta al arrancar para que el entorno de
+		# desarrollo tenga datos. Ver ARCHITECTURE.md §6.4.
+		php bin/console app:alerts:generate --no-interaction
 	fi
 
 	echo 'PHP app ready!'

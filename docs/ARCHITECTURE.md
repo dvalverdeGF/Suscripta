@@ -542,6 +542,36 @@ autorizado y queda presupuesto. El diseño completo está en **§13**.
   parte del cursor y se limita la ventana inicial (por defecto, últimos 24 meses) y el número
   de mensajes por ejecución. El backfill histórico es progresivo y opcional.
 
+### 6.4 Tareas programadas
+
+No todo es reactivo. Hay trabajo que no lo dispara un usuario ni un mensaje, sino el paso del
+tiempo, y ese trabajo se ejecuta como **comando de consola idempotente** para que pueda
+programarse con cualquier planificador (cron, systemd timer, un `CronJob` de Kubernetes o el
+`Scheduler` de Symfony) sin acoplar el dominio a ninguno de ellos.
+
+| Comando | Frecuencia sugerida | Qué hace | Idempotente |
+|---|---|---|---|
+| `app:mail:sync` | Cada 15–60 min | Sincroniza los buzones activos y encola el procesado. | Sí (dedup por `folder:uid`) |
+| `app:alerts:generate` | Diaria, de madrugada | Recalcula los avisos de cobros, renovaciones, plazos de preaviso y subidas de precio; resuelve los que ya no aplican. | Sí (clave de deduplicación por tipo + servicio + fecha) |
+| `app:discoveries:expire` | Diaria | Caduca las propuestas que nadie ha revisado. | Sí |
+| `app:data:purge` | Diaria | Aplica la retención de §SECURITY.md §6. | Sí |
+
+**Por qué comandos y no un worker permanente.** Un planificador externo es más fácil de
+observar (código de salida, logs, alertas de «no se ha ejecutado»), no consume memoria entre
+ejecuciones y no obliga a mantener un proceso vivo más. El coste es que la frecuencia es
+gruesa, y eso es aceptable: ningún aviso de este producto pierde valor por llegar unas horas
+más tarde.
+
+**Idempotencia como requisito, no como virtud.** Un planificador puede ejecutar el mismo
+comando dos veces (reintento tras un fallo, solapamiento de ventanas, arranque duplicado). Por
+eso `app:alerts:generate` no crea un aviso si ya existe uno con la misma clave
+`tipo|servicio|fecha`, y **nunca reabre** un aviso que el usuario ya descartó o marcó como
+visto: repetir la ejecución no puede resucitar algo que el usuario ya cerró.
+
+**En desarrollo**, `app:alerts:generate` se ejecuta al arrancar el contenedor
+(`frankenphp/docker-entrypoint.sh`) para que el entorno tenga datos con los que trabajar sin
+esperar a un planificador. En producción esa línea se sustituye por la programación real.
+
 ## 7. Persistencia
 
 - **PostgreSQL**, esquema único compartido. **Nunca schema por tenant.**
@@ -577,10 +607,39 @@ autorizado y queda presupuesto. El diseño completo está en **§13**.
      usuario autenticado.
   5. Tests de aislamiento que verifican que un usuario no puede leer ni escribir datos de otra
      organización (fallan si el filtro se desactiva).
-- **Messenger:** el `organizationId` viaja en un *stamp* del envelope y se restaura en el
-  `TenantContext` al consumir. Un handler sin tenant válido falla explícitamente.
+- **Messenger:** el mensaje transporta el identificador de la entidad, no la organización. El
+  caso de uso que lo consume (`ProcessEmailMessage`) resuelve la organización desde la entidad y
+  envuelve el trabajo en `TenantContext::runAs()`. Un handler sin tenant válido falla
+  explícitamente.
 - **Evolución posible:** Row Level Security de PostgreSQL como capa adicional, sin cambiar el
   modelo de datos.
+
+### 8.1 Publicación del contexto en el filtro
+
+Cambiar la organización activa **no basta**: el filtro de Doctrine no se entera solo. Por eso
+`TenantContext` publica cada cambio a través de `TenantFilterSynchronizerInterface`
+(implementado por `DoctrineTenantFilterSynchronizer`), y lo hace en **todos** los caminos:
+
+| Camino | Quién cambia el contexto | Cómo se publica |
+|---|---|---|
+| Petición HTTP | `ActiveOrganizationListener` | `setOrganizationId()` |
+| Comando de consola | `TenantContext::runAs()` | `setOrganizationId()` al entrar y al salir |
+| Worker de Messenger | el caso de uso (`ProcessEmailMessage`) | `runAs()` |
+
+`runAs()` sincroniza **al entrar y al salir**, y restaura el contexto anterior incluso si el
+bloque lanza. Sin esto, un comando que recorre organizaciones (`app:alerts:generate`,
+`app:mail:sync`) leería los datos de todas y generaría avisos cruzados: el peor fallo posible en
+un producto multi-tenant.
+
+**Sin organización activa el filtro no restringe** (procesos de sistema: migraciones, purgas,
+tareas de administración). Es una decisión deliberada, no un descuido: esos procesos deben ser
+explícitos al operar sobre todas las organizaciones.
+
+> **Aviso de implementación.** `SQLFilter::getParameter()` devuelve el valor **ya
+> entrecomillado** para SQL, así que la ausencia de organización llega como `''` (dos comillas) y
+> no como cadena vacía. Comparar contra `''` no detecta nada y la consulta acaba con
+> `organization_id = ''`, que PostgreSQL rechaza por no ser un UUID válido. Ver
+> `TenantFilter::NO_ORGANIZATION`.
 
 ## 9. Integraciones
 

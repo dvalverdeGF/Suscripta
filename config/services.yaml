@@ -14,6 +14,12 @@ services:
         autowire: true      # Automatically injects dependencies in your services.
         autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
 
+    # Los canales de notificación se recogen por etiqueta: añadir uno nuevo
+    # (un webhook, por ejemplo) es escribir la clase y nada más.
+    _instanceof:
+        App\Notifications\Application\Channel\NotificationChannelInterface:
+            tags: ['app.notification_channel']
+
     # makes classes in src/ available to be used as services
     # this creates a service per class whose id is the fully-qualified class name
     App\:
@@ -34,6 +40,10 @@ services:
     # funcionales no podrían sustituirlo por un doble y acabarían abriendo
     # conexiones de verdad contra `imap.miempresa.com`.
     App\Mailbox\Application\Imap\ImapClientInterface: '@App\Mailbox\Infrastructure\Imap\WebklexImapClient'
+
+    App\Notifications\Application\Channel\NotificationChannelRegistry:
+        arguments:
+            $channels: !tagged_iterator app.notification_channel
 
     # Los pesos del filtro determinista son configuración de producto
     # (config/packages/processing.yaml), no constantes del código.
