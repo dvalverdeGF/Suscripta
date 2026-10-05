@@ -1,0 +1,103 @@
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}Ajustes — Suscripta{% endblock %}
+
+{% block main %}
+    <div class="page-header">
+        <div class="page-header__title">
+            <h1>Ajustes de la cuenta</h1>
+            <p class="page-header__subtitle">Tus datos, tu contraseña y las organizaciones a las que perteneces.</p>
+        </div>
+    </div>
+
+    <div class="stack">
+        {% if not app.user.verified %}
+            <div class="alert alert--warning" role="status">
+                <p class="mb-2"><strong>Tu correo todavía no está confirmado.</strong></p>
+                <p class="mb-4">
+                    Necesitamos confirmar <strong>{{ app.user.email }}</strong> antes de conectar un
+                    buzón de facturación. Revisa tu bandeja de entrada (y la carpeta de spam).
+                </p>
+                <form method="post" action="{{ path('app_verify_email_resend') }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('resend_verification') }}">
+                    <button type="submit" class="btn btn--secondary btn--sm">Reenviar el correo de confirmación</button>
+                </form>
+            </div>
+        {% endif %}
+
+        <section class="card">
+            <div class="card__header">
+                <h2 class="card__title">Datos personales</h2>
+            </div>
+            <div class="card__body">
+                {{ form_start(form, { attr: { class: 'form', novalidate: 'novalidate' } }) }}
+                    {{ form_errors(form) }}
+                    {{ form_row(form.displayName) }}
+                    {{ form_row(form.email) }}
+                    {{ form_row(form.locale) }}
+                    {{ form_row(form.timezone) }}
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn--primary">Guardar cambios</button>
+                    </div>
+                {{ form_end(form) }}
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="card__header">
+                <h2 class="card__title">Contraseña</h2>
+            </div>
+            <div class="card__body">
+                {{ form_start(password_form, {
+                    action: path('app_settings_profile_password'),
+                    attr: { class: 'form', novalidate: 'novalidate' },
+                }) }}
+                    {{ form_errors(password_form) }}
+                    {{ form_row(password_form.currentPassword) }}
+                    {{ form_row(password_form.plainPassword.first) }}
+                    {{ form_row(password_form.plainPassword.second) }}
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn--secondary">Cambiar contraseña</button>
+                    </div>
+                {{ form_end(password_form) }}
+            </div>
+        </section>
+
+        {% set organizations = user_organizations() %}
+        {% if organizations|length > 1 %}
+            <section class="card">
+                <div class="card__header">
+                    <h2 class="card__title">Organizaciones</h2>
+                </div>
+                <div class="card__body">
+                    <p class="text-muted">
+                        Los servicios, documentos y descubrimientos están aislados por organización.
+                        Cambia la activa para trabajar con otra.
+                    </p>
+                    <ul class="stack stack--tight">
+                        {% for entry in organizations %}
+                            <li class="cluster cluster--between">
+                                <span>
+                                    {{ entry.organization.name }}
+                                    <span class="badge badge--info">{{ entry.role.label }}</span>
+                                    {% if is_active_organization(entry.organization) %}
+                                        <span class="badge badge--success">Activa</span>
+                                    {% endif %}
+                                </span>
+                                {% if not is_active_organization(entry.organization) %}
+                                    <form method="post" action="{{ path('app_organization_switch') }}">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('switch_organization') }}">
+                                        <input type="hidden" name="organization" value="{{ entry.organization.id }}">
+                                        <button type="submit" class="btn btn--ghost btn--sm">Activar</button>
+                                    </form>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </section>
+        {% endif %}
+    </div>
+{% endblock %}

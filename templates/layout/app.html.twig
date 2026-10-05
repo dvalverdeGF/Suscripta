@@ -25,6 +25,29 @@
             {% block topbar_actions %}{% endblock %}
 
             {% if app.user %}
+                {% set organizations = user_organizations() %}
+                {% if organizations|length > 1 %}
+                    <form method="post" action="{{ path('app_organization_switch') }}" class="topbar__org">
+                        <input type="hidden" name="_token" value="{{ csrf_token('switch_organization') }}">
+                        <label class="visually-hidden" for="active-organization">Organización activa</label>
+                        <select class="select select--sm" id="active-organization" name="organization"
+                                data-controller="auto-submit" data-action="change->auto-submit#submit">
+                            {% for entry in organizations %}
+                                <option value="{{ entry.organization.id }}"
+                                        {% if is_active_organization(entry.organization) %}selected{% endif %}>
+                                    {{ entry.organization.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <noscript>
+                            <button type="submit" class="btn btn--ghost btn--sm">Cambiar</button>
+                        </noscript>
+                    </form>
+                {% endif %}
+
+                <a class="btn btn--ghost btn--sm topbar__user" href="{{ path('app_settings_profile') }}"
+                   title="{{ app.user.displayName }}">{{ app.user.displayName }}</a>
+
                 <form method="post" action="{{ path('app_logout') }}">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token('logout') }}">
                     <button type="submit" class="btn btn--ghost btn--sm">Salir</button>
@@ -40,6 +63,20 @@
             <main id="main" class="app-main">
                 <div class="container">
                     {% include 'layout/_flashes.html.twig' %}
+
+                    {% if app.user and not app.user.verified and app.request.attributes.get('_route') != 'app_settings_profile' %}
+                        <div class="alert alert--warning" role="status">
+                            <p class="mb-2">
+                                <strong>Confirma tu correo para conectar tu buzón.</strong>
+                                Hemos enviado un enlace a {{ app.user.email }}.
+                            </p>
+                            <form method="post" action="{{ path('app_verify_email_resend') }}">
+                                <input type="hidden" name="_token" value="{{ csrf_token('resend_verification') }}">
+                                <button type="submit" class="btn btn--secondary btn--sm">Reenviar el correo</button>
+                            </form>
+                        </div>
+                    {% endif %}
+
                     {% block main %}{% endblock %}
                 </div>
             </main>

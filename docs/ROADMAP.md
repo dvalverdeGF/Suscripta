@@ -58,7 +58,7 @@ legalmente. El control de coste (fase 14) es requisito para operar con IA en pro
 
 ## Fase 1 — Identidad y multi-tenancy
 
-> **Estado:** 🟡 **Parcial.** Falta verificación de email y recuperación de contraseña.
+> **Estado:** ✅ **Completada.**
 
 
 **Objetivo:** usuarios, organizaciones y aislamiento funcionando.

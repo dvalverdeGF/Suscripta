@@ -1006,3 +1006,46 @@ estadística sin tocar el dominio.
 
 **Consecuencias.** Menos sofisticación aparente y más previsibilidad. El "aprendizaje" es
 auditable: el usuario puede ver y editar lo que el sistema ha aprendido.
+
+---
+
+## D-40 — Verificación de correo blanda, no bloqueante
+
+**Estado:** aceptada.
+
+**Contexto.** Al registrarse hay que decidir qué se hace con un correo sin verificar. Las dos
+opciones habituales son bloquear el acceso hasta que se confirme el enlace, o no verificar
+nada. La primera es la más segura, pero castiga al usuario en el peor momento: justo cuando
+acaba de llegar y todavía no ha visto ningún valor. La segunda deja la puerta abierta a
+registros con correos ajenos.
+
+**Decisión.** La verificación es **blanda**:
+
+- El usuario entra y usa la aplicación sin verificar el correo.
+- Mientras no esté verificado, ve un aviso persistente en el armazón con un botón para
+  reenviar el enlace.
+- **Conectar un buzón de correo exige tener el correo verificado.** Es el único punto donde la
+  verificación es un requisito duro, porque a partir de ahí el sistema accede a datos de
+  terceros en nombre del usuario.
+- Cambiar la dirección de correo **invalida** la verificación anterior (`User::unverify()`), y
+  se envía un enlace nuevo a la dirección nueva.
+- El enlace va firmado con `UriSigner` y caduca a las 24 horas. No se guarda ningún token en
+  base de datos: la firma es la prueba.
+
+**Por qué.** El coste de un correo sin verificar en esta fase es bajo (no hay envíos salientes
+ni acceso a datos ajenos), y el coste de bloquear a un usuario recién registrado es alto. En
+cambio, conectar un buzón sí es una operación sensible: ahí la verificación deja de ser una
+formalidad y pasa a ser un control real.
+
+**Alternativas.**
+
+- *Bloqueo total hasta verificar.* Descartada por fricción en el momento de menor valor
+  percibido.
+- *Sin verificación.* Descartada: permitiría registrar el correo de otra persona y, más
+  adelante, conectar buzones en su nombre.
+- *Token en base de datos.* Descartada: `UriSigner` ya resuelve caducidad e integridad sin
+  estado adicional que purgar.
+
+**Consecuencias.** Hay que recordar que la verificación es un requisito de la conexión de
+buzón, no del acceso: la comprobación vive en el caso de uso de conexión, no en el firewall.
+El aviso del armazón es informativo y no debe convertirse en un muro.

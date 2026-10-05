@@ -166,6 +166,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->touch();
     }
 
+    /**
+     * Vuelve al estado "sin verificar".
+     *
+     * Se usa al cambiar la dirección de correo: la nueva no está demostrada
+     * todavía, así que no puede heredar la confianza de la anterior.
+     */
+    public function unverify(): void
+    {
+        $this->verified = false;
+        $this->touch();
+    }
+
     public function getCreatedAt(): DateTimeImmutable
     {
         return $this->createdAt;

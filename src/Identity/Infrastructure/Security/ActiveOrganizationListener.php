@@ -13,6 +13,7 @@ use function is_string;
 
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\Uid\Uuid;
@@ -48,7 +49,7 @@ final readonly class ActiveOrganizationListener
             return;
         }
 
-        $organizationId = $this->resolveOrganizationId($user);
+        $organizationId = $this->resolveOrganizationId($user, $event->getRequest());
 
         if (null === $organizationId) {
             return;
@@ -58,7 +59,7 @@ final readonly class ActiveOrganizationListener
         $this->tenantFilterListener->synchronize();
     }
 
-    private function resolveOrganizationId(User $user): ?Uuid
+    private function resolveOrganizationId(User $user, Request $request): ?Uuid
     {
         $memberships = $this->organizations->findForUser($user);
 
@@ -66,7 +67,7 @@ final readonly class ActiveOrganizationListener
             return null;
         }
 
-        $requested = $this->requestedOrganizationId();
+        $requested = $this->requestedOrganizationId($request);
 
         if (null !== $requested) {
             foreach ($memberships as $membership) {
@@ -79,9 +80,19 @@ final readonly class ActiveOrganizationListener
         return $memberships[0]['organization']->getId();
     }
 
-    private function requestedOrganizationId(): ?Uuid
+    /**
+     * La preferencia vive en la sesión, no en el usuario: es navegación, no un
+     * dato de la cuenta. Se lee a través del servicio de sesión y nunca de
+     * `$_SESSION`, porque Symfony guarda los atributos dentro de su propio
+     * *bag* (`_sf2_attributes`) y no en la raíz de la superglobal.
+     */
+    private function requestedOrganizationId(Request $request): ?Uuid
     {
-        $value = $_SESSION['active_organization_id'] ?? null;
+        if (!$request->hasSession()) {
+            return null;
+        }
+
+        $value = $request->getSession()->get('active_organization_id');
 
         if (!is_string($value) || '' === $value) {
             return null;

@@ -1,0 +1,23 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Revisa tu correo — Suscripta{% endblock %}
+
+{% block body %}
+    <main class="auth-layout">
+        <div class="auth-card card">
+            <div class="card__body">
+                <h1 class="auth-card__title">Revisa tu correo</h1>
+                <p class="text-muted mb-6">
+                    Si existe una cuenta con esa dirección, te hemos enviado un enlace para
+                    restablecer la contraseña. Caduca en una hora y solo puede usarse una vez.
+                </p>
+                <p class="text-muted mb-6">
+                    ¿No lo encuentras? Mira en la carpeta de spam o
+                    <a href="{{ path('app_forgot_password') }}">pide otro enlace</a>.
+                </p>
+
+                <a class="btn btn--secondary btn--block" href="{{ path('app_login') }}">Volver a entrar</a>
+            </div>
+        </div>
+    </main>
+{% endblock %}

@@ -23,6 +23,7 @@ enum AuditAction: string
     case USER_PASSWORD_CHANGED = 'user.password_changed';
     case USER_PASSWORD_RESET_REQUESTED = 'user.password_reset_requested';
     case USER_EMAIL_VERIFIED = 'user.email_verified';
+    case USER_EMAIL_VERIFICATION_SENT = 'user.email_verification_sent';
     case ORGANIZATION_SWITCHED = 'organization.switched';
     case ORGANIZATION_CREATED = 'organization.created';
     case ORGANIZATION_UPDATED = 'organization.updated';
@@ -67,6 +68,7 @@ enum AuditAction: string
             self::USER_PASSWORD_CHANGED => 'Cambio de contraseña',
             self::USER_PASSWORD_RESET_REQUESTED => 'Solicitud de restablecimiento de contraseña',
             self::USER_EMAIL_VERIFIED => 'Correo verificado',
+            self::USER_EMAIL_VERIFICATION_SENT => 'Correo de verificación enviado',
             self::ORGANIZATION_SWITCHED => 'Cambio de organización activa',
             self::ORGANIZATION_CREATED => 'Organización creada',
             self::ORGANIZATION_UPDATED => 'Organización actualizada',

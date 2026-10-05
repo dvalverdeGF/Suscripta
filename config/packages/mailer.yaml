@@ -1,3 +1,12 @@
 framework:
     mailer:
         dsn: '%env(MAILER_DSN)%'
+        # Remitente por defecto de todos los correos transaccionales. Se declara
+        # aquí y no en cada envío para que no se pueda olvidar.
+        envelope:
+            sender: 'Suscripta <no-responder@suscripta.app>'
+
+when@test:
+    framework:
+        mailer:
+            dsn: 'null://null'
