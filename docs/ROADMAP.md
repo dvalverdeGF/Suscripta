@@ -93,7 +93,10 @@ una nueva fila de historial y un `ServiceEvent`; los cálculos tienen tests unit
 
 ## Fase 3 — Vertical end-to-end (walking skeleton) ⭐
 
-> **Estado:** ⬜ Pendiente.
+> **Estado:** ✅ **Completada.** Vertical IMAP → factura → propuesta → confirmación →
+> dashboard operativa. 326 pruebas, PHPStan nivel 8 y php-cs-fixer en verde. La verificación
+> con un buzón real queda pendiente de credenciales de un proveedor real (ver *Preguntas
+> abiertas* al final de este documento).
 
 
 **Objetivo:** demostrar la propuesta de valor completa de punta a punta, con la mínima
@@ -460,3 +463,29 @@ entorno limpio.
 - Schema por tenant.
 - Conexión bancaria (PSD2) en v1.
 - OAuth de Gmail/Microsoft en v1 (la abstracción queda preparada; IMAP cubre ambos).
+
+## Preguntas abiertas
+
+Decisiones que están tomadas y funcionando, pero que conviene revisar con el usuario antes de
+consolidarlas. Ninguna bloquea el avance del roadmap.
+
+1. **`Subscription` como entidad separada (D-22).** El dominio usa `Service` como término
+   único. Si en algún momento se quiere distinguir «suscripción de consumo» de «servicio
+   contratado», habría que reintroducir la entidad. Hoy no aporta valor.
+2. **Recarga en caliente de FrankenPHP en desarrollo.** La imagen de desarrollo inyecta un
+   script desde un CDN, lo que choca con los principios de privacidad (`SECURITY.md` §1). Solo
+   afecta a `APP_ENV=dev`; en producción no se carga. Alternativa: desactivarla y recargar a
+   mano.
+3. **CSRF sin estado (valor por defecto de Symfony 8) frente a CSRF con sesión.** Los
+   formularios que dependen de la sesión (confirmar/descartar descubrimiento, probar buzón)
+   usan el gestor con sesión; el resto, tokens sin estado. Unificar simplificaría las pruebas.
+4. **`AGENTS.md` y `CLAUDE.md`.** Aparecieron en la raíz al instalar recetas de Symfony. Hay
+   que decidir si se conservan, se adaptan al proyecto o se eliminan.
+5. **Orden de clasificación de documentos.** `DeterministicExtractor::classify()` evalúa
+   `RENEWAL_NOTICE` antes que `INVOICE`, de modo que una factura que menciona «se renovará»
+   se tipa como `OTHER`. Es deliberado y está cubierto por una prueba, pero puede perjudicar
+   el tipado de documentos.
+6. **Verificación con un buzón real.** La vertical está probada de punta a punta con un doble
+   de IMAP (`RecordingImapClient`). Falta ejecutarla contra un proveedor real (Gmail,
+   Microsoft 365, hosting propio) para validar `WebklexImapClient` y la hipótesis de producto
+   de `PRODUCT.md` §3.2.

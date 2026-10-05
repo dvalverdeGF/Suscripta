@@ -1,0 +1,167 @@
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}Propuesta: {{ discovery.proposedData.providerName|default('servicio sin identificar') }} — Suscripta{% endblock %}
+
+{% block main %}
+    <div class="page-header">
+        <div class="page-header__title">
+            <h1>{{ discovery.proposedData.providerName|default(discovery.proposedData.serviceName|default('Servicio sin identificar')) }}</h1>
+            <p class="page-header__subtitle">
+                {{ discovery.type.label() }} detectado el {{ discovery.detectedAt|date('d/m/Y') }}
+            </p>
+        </div>
+        <div class="page-header__actions">
+            <span class="badge badge--{{ discovery.confidence.value == 'high' ? 'success' : (discovery.confidence.value == 'medium' ? 'warning' : 'danger') }}">
+                Confianza {{ discovery.confidence.label()|lower }} · {{ discovery.confidenceScore }} %
+            </span>
+            {% if discovery.aiUsed %}
+                <span class="badge badge--info">Analizado con IA</span>
+            {% else %}
+                <span class="badge badge--success">Sin IA</span>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if discovery.status.value != 'pending' %}
+        <div class="alert alert--info mb-6">
+            <p class="m-0">
+                Esta propuesta ya está <strong>{{ discovery.status.label()|lower }}</strong>
+                {% if discovery.reviewedAt %} desde el {{ discovery.reviewedAt|date('d/m/Y') }}{% endif %}.
+                {% if discovery.resultingServiceId %}
+                    <a href="{{ path('app_services_show', {id: discovery.resultingServiceId.toRfc4122()}) }}">Ver el servicio</a>.
+                {% endif %}
+            </p>
+        </div>
+    {% endif %}
+
+    <div class="grid grid--2 mb-6">
+        <div class="card">
+            <div class="card__header">
+                <h2 class="card__title">Por qué te lo proponemos</h2>
+            </div>
+            <div class="card__body">
+                <p class="text-sm text-muted">
+                    Puntuación de emparejamiento: <strong>{{ discovery.matchScore }}</strong> / 100
+                </p>
+                {% if discovery.matchReasons is empty %}
+                    <p class="text-subtle">No hay coincidencias con los servicios que ya tienes registrados.</p>
+                {% else %}
+                    <ul class="stack stack--tight">
+                        {% for reason in discovery.matchReasons %}
+                            <li>
+                                <span class="badge badge--{{ reason.weight > 0 ? 'success' : 'danger' }}">{{ reason.weight > 0 ? '+' : '' }}{{ reason.weight }}</span>
+                                {{ reason.signal }}
+                                {% if reason.detail is defined and reason.detail %}
+                                    <span class="text-muted text-sm">· {{ reason.detail }}</span>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card__header">
+                <h2 class="card__title">De dónde sale</h2>
+            </div>
+            <div class="card__body">
+                {% if source %}
+                    <dl class="definition-list">
+                        <dt>Remitente</dt>
+                        <dd>{{ source.fromName|default(source.fromAddress) }}</dd>
+                        <dt>Asunto</dt>
+                        <dd>{{ source.subject|default('—') }}</dd>
+                        <dt>Recibido</dt>
+                        <dd>{% if source.receivedAt %}{{ source.receivedAt|date('d/m/Y H:i') }}{% else %}—{% endif %}</dd>
+                        <dt>Adjuntos</dt>
+                        <dd>
+                            {% if source.attachmentNames is empty %}
+                                <span class="text-subtle">Ninguno</span>
+                            {% else %}
+                                {{ source.attachmentNames|join(', ') }}
+                            {% endif %}
+                        </dd>
+                    </dl>
+                    {% if source.bodyExcerpt %}
+                        <p class="text-sm text-muted mt-4">Extracto del mensaje:</p>
+                        <blockquote class="text-sm">{{ source.bodyExcerpt }}</blockquote>
+                    {% endif %}
+                {% else %}
+                    <p class="text-subtle">El correo original ya no está disponible.</p>
+                {% endif %}
+
+                {% if evidence|length > 1 %}
+                    <p class="text-sm text-muted mt-4">
+                        {{ evidence|length }} correos distintos sostienen esta propuesta.
+                    </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if matchedService %}
+        <div class="alert alert--warning mb-6">
+            <p class="m-0">
+                Coincide con <strong>{{ matchedService.name }}</strong>, que ya tienes registrado.
+                Si confirmas, se actualizará su precio sin perder el historial anterior.
+            </p>
+        </div>
+    {% endif %}
+
+    {% if discovery.status.value == 'pending' %}
+        {{ form_start(form, {action: path('app_discoveries_confirm', {id: discovery.id.toRfc4122()}), attr: {class: 'form'}}) }}
+            {{ form_errors(form) }}
+
+            <div class="card mb-6">
+                <div class="card__header">
+                    <h2 class="card__title">Revisa y confirma</h2>
+                </div>
+                <div class="card__body">
+                    <p class="text-sm text-muted">
+                        Esto es lo que Suscripta ha deducido del correo. Corrige lo que haga falta:
+                        lo que se guarde será lo que tú decidas, no lo que el sistema haya adivinado.
+                    </p>
+                    <div class="grid grid--2">
+                        {{ form_row(form.name) }}
+                        {{ form_row(form.providerId) }}
+                        {{ form_row(form.categoryId) }}
+                        {{ form_row(form.planName) }}
+                        {{ form_row(form.amount) }}
+                        {{ form_row(form.currency) }}
+                        {{ form_row(form.billingPeriod) }}
+                        {{ form_row(form.billingIntervalCount) }}
+                        {{ form_row(form.startedAt) }}
+                        {{ form_row(form.nextChargeAt) }}
+                        {{ form_row(form.renewalAt) }}
+                        {{ form_row(form.noticePeriodDays) }}
+                    </div>
+                    {{ form_row(form.autoRenews) }}
+                    {{ form_row(form.notes) }}
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn--primary">Confirmar y añadir a mis servicios</button>
+                <a class="btn btn--ghost" href="{{ path('app_discoveries_index') }}">Volver</a>
+            </div>
+        {{ form_end(form) }}
+
+        <div class="card mt-6">
+            <div class="card__body">
+                <form method="post" action="{{ path('app_discoveries_dismiss', {id: discovery.id.toRfc4122()}) }}"
+                      data-controller="confirm"
+                      data-confirm-message-value="¿Descartar esta propuesta? El sistema dejará de proponerla.">
+                    <input type="hidden" name="_token" value="{{ csrf_token('discovery_dismiss_' ~ discovery.id.toRfc4122()) }}">
+                    <div class="field">
+                        <label class="field__label" for="dismiss-reason">Motivo (opcional)</label>
+                        <input class="input" type="text" id="dismiss-reason" name="reason" maxlength="255"
+                               placeholder="No es mío, ya no lo uso, es un error…">
+                        <p class="field__hint">Nos ayuda a no volver a proponerte lo mismo.</p>
+                    </div>
+                    <button type="submit" class="btn btn--danger">Descartar propuesta</button>
+                </form>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}

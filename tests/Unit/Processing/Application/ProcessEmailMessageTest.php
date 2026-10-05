@@ -1,0 +1,464 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Unit\Processing\Application;
+
+use App\Catalog\Domain\Entity\Provider;
+use App\Catalog\Domain\Entity\ProviderIdentity;
+use App\Catalog\Domain\Enum\ProviderIdentityType;
+use App\Catalog\Domain\Repository\ProviderIdentityRepositoryInterface;
+use App\Discovery\Domain\Entity\Discovery;
+use App\Discovery\Domain\Entity\DiscoveryEvidence;
+use App\Discovery\Domain\Enum\DiscoveryType;
+use App\Discovery\Domain\Repository\DiscoveryRepositoryInterface;
+use App\Mailbox\Application\CredentialCipherInterface;
+use App\Mailbox\Application\Imap\ImapClientInterface;
+use App\Mailbox\Application\Imap\ImapConnectionConfig;
+use App\Mailbox\Application\Imap\ImapMessageBody;
+use App\Mailbox\Domain\Entity\EmailAccount;
+use App\Mailbox\Domain\Entity\EmailMessage;
+use App\Mailbox\Domain\Entity\MessageProcessingEvent;
+use App\Mailbox\Domain\Enum\ImapEncryption;
+use App\Mailbox\Domain\Enum\MessageProcessingState;
+use App\Mailbox\Domain\Repository\EmailAccountRepositoryInterface;
+use App\Mailbox\Domain\Repository\EmailMessageRepositoryInterface;
+use App\Mailbox\Domain\Repository\MessageProcessingEventRepositoryInterface;
+use App\Processing\Application\Billing\BillingScoreCalculator;
+use App\Processing\Application\Billing\BillingScoreWeights;
+use App\Processing\Application\Extraction\AmountParser;
+use App\Processing\Application\Extraction\DateParser;
+use App\Processing\Application\Extraction\DeterministicExtractor;
+use App\Processing\Application\Matching\ServiceMatcher;
+use App\Processing\Application\MessageStateMachine;
+use App\Processing\Application\ProcessEmailMessage;
+use App\Services\Domain\Entity\Service;
+use App\Services\Domain\Repository\ServiceRepositoryInterface;
+use App\Shared\Application\Audit\AuditLoggerInterface;
+use App\Shared\Application\Clock;
+use App\Shared\Application\TenantContext;
+use App\Shared\Domain\Enum\AuditAction;
+use App\Shared\Domain\ValueObject\BillingPeriod;
+use App\Shared\Domain\ValueObject\Currency;
+use App\Shared\Domain\ValueObject\Money;
+use DateTimeImmutable;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\TestCase;
+use Symfony\Component\Clock\MockClock;
+use Symfony\Component\Uid\Uuid;
+
+/**
+ * El orquestador es el único punto donde se encadenan filtro, extracción,
+ * emparejamiento y propuesta, y por eso es también el único sitio donde se
+ * decide cuándo no se llama a IA.
+ *
+ * Dos invariantes que no se negocian: nunca se crea un `Service`
+ * automáticamente (D-35) y el cuerpo del correo no se persiste (D-10).
+ */
+#[CoversClass(ProcessEmailMessage::class)]
+final class ProcessEmailMessageTest extends TestCase
+{
+    private Uuid $organizationId;
+    private Uuid $accountId;
+
+    private EmailMessageRepositoryInterface&MockObject $messages;
+
+    private EmailAccountRepositoryInterface&MockObject $accounts;
+
+    private DiscoveryRepositoryInterface&MockObject $discoveries;
+
+    private MessageProcessingEventRepositoryInterface&MockObject $events;
+
+    private ImapClientInterface&MockObject $imap;
+
+    private CredentialCipherInterface&MockObject $cipher;
+
+    private AuditLoggerInterface&MockObject $audit;
+
+    private ProviderIdentityRepositoryInterface&MockObject $identities;
+
+    private ServiceRepositoryInterface&MockObject $services;
+
+    /** @var list<Discovery> */
+    private array $savedDiscoveries = [];
+
+    /** @var list<DiscoveryEvidence> */
+    private array $savedEvidence = [];
+
+    /** @var list<MessageProcessingEvent> */
+    private array $savedEvents = [];
+
+    /** @var list<AuditAction> */
+    private array $audited = [];
+
+    protected function setUp(): void
+    {
+        $this->organizationId = Uuid::v7();
+        $this->accountId = Uuid::v7();
+
+        $this->messages = $this->createMock(EmailMessageRepositoryInterface::class);
+        $this->accounts = $this->createMock(EmailAccountRepositoryInterface::class);
+        $this->discoveries = $this->createMock(DiscoveryRepositoryInterface::class);
+        $this->events = $this->createMock(MessageProcessingEventRepositoryInterface::class);
+        $this->imap = $this->createMock(ImapClientInterface::class);
+        $this->cipher = $this->createMock(CredentialCipherInterface::class);
+        $this->audit = $this->createMock(AuditLoggerInterface::class);
+        $this->identities = $this->createMock(ProviderIdentityRepositoryInterface::class);
+        $this->services = $this->createMock(ServiceRepositoryInterface::class);
+
+        $this->savedDiscoveries = [];
+        $this->savedEvidence = [];
+        $this->savedEvents = [];
+        $this->audited = [];
+
+        $this->discoveries
+            ->method('save')
+            ->willReturnCallback(function (Discovery $discovery): void {
+                $this->savedDiscoveries[] = $discovery;
+            });
+
+        $this->discoveries
+            ->method('saveEvidence')
+            ->willReturnCallback(function (DiscoveryEvidence $evidence): void {
+                $this->savedEvidence[] = $evidence;
+            });
+
+        $this->events
+            ->method('save')
+            ->willReturnCallback(function (MessageProcessingEvent $event): void {
+                $this->savedEvents[] = $event;
+            });
+
+        $this->audit
+            ->method('log')
+            ->willReturnCallback(function (AuditAction $action): void {
+                $this->audited[] = $action;
+            });
+    }
+
+    /**
+     * @param list<Service> $services
+     */
+    private function orchestrator(array $services = []): ProcessEmailMessage
+    {
+        $this->services->method('findForOrganization')->willReturn($services);
+
+        $clock = new Clock(new MockClock(new DateTimeImmutable('2026-10-05 10:00:00')));
+
+        return new ProcessEmailMessage(
+            messages: $this->messages,
+            accounts: $this->accounts,
+            billingScore: new BillingScoreCalculator(BillingScoreWeights::fromArray([]), $this->identities),
+            extractor: new DeterministicExtractor(new AmountParser(), new DateParser(), $this->identities, $clock),
+            matcher: new ServiceMatcher($this->services),
+            discoveries: $this->discoveries,
+            stateMachine: new MessageStateMachine($this->events, $clock),
+            imapClient: $this->imap,
+            cipher: $this->cipher,
+            tenantContext: new TenantContext(),
+            auditLogger: $this->audit,
+            clock: $clock,
+        );
+    }
+
+    private function message(string $subject = 'Factura OVH 2026-10', ?string $from = 'facturacion@ovh.com'): EmailMessage
+    {
+        $message = new EmailMessage($this->organizationId, $this->accountId, 'INBOX', 42);
+
+        $message->applyMetadata(
+            messageId: '<abc@ovh.com>',
+            fromAddress: $from,
+            fromName: 'OVH',
+            replyTo: null,
+            senderDomain: null === $from ? null : mb_substr((string) strrchr($from, '@'), 1),
+            toAddresses: ['yo@example.com'],
+            subject: $subject,
+            receivedAt: new DateTimeImmutable('2026-10-03 08:00:00'),
+            sizeBytes: 2048,
+            contentType: 'multipart/mixed',
+            attachmentNames: ['factura-2026-10.pdf'],
+            attachmentTypes: ['application/pdf'],
+        );
+
+        return $message;
+    }
+
+    private function account(): EmailAccount
+    {
+        $account = new EmailAccount($this->organizationId, 'yo@ovh.com');
+        $account->configureImap(
+            host: 'imap.ovh.com',
+            encryption: ImapEncryption::SSL,
+            port: 993,
+            username: 'yo@ovh.com',
+        );
+        $account->setCredentialsEncrypted('cifrado');
+
+        return $account;
+    }
+
+    private function knownProvider(string $name, string $domain): void
+    {
+        $identity = new ProviderIdentity(new Provider($name, mb_strtolower($name)), ProviderIdentityType::DOMAIN, $domain);
+
+        $this->identities
+            ->method('findByTypeAndValue')
+            ->willReturnCallback(
+                static fn (ProviderIdentityType $type, string $value): ?ProviderIdentity => ProviderIdentityType::DOMAIN === $type && $value === $domain ? $identity : null,
+            );
+    }
+
+    private function withBody(string $body): void
+    {
+        $this->accounts->method('find')->willReturn($this->account());
+        $this->cipher->method('decrypt')->willReturn('secreto');
+        $this->imap
+            ->method('fetchBody')
+            ->willReturnCallback(static fn (ImapConnectionConfig $config, string $folder, int $uid): ImapMessageBody => new ImapMessageBody($uid, $body, ''));
+    }
+
+    /** @return list<string> */
+    private function states(): array
+    {
+        return array_map(static fn (MessageProcessingEvent $event): string => $event->getToState()->value, $this->savedEvents);
+    }
+
+    public function testAnIrrelevantMessageIsIgnoredWithoutDownloadingItsBody(): void
+    {
+        $message = $this->message('Novedades de octubre', 'newsletter@tienda.com');
+
+        $this->imap->expects(self::never())->method('fetchBody');
+
+        $result = $this->orchestrator()($message);
+
+        self::assertNull($result);
+        self::assertSame(MessageProcessingState::IGNORED, $message->getProcessingState());
+        self::assertSame(['ignored'], $this->states());
+        self::assertNotNull($message->getProcessedAt());
+    }
+
+    public function testATerminalMessageIsNotProcessedAgain(): void
+    {
+        $message = $this->message();
+        $message->setProcessingState(MessageProcessingState::IGNORED);
+
+        $this->imap->expects(self::never())->method('fetchBody');
+
+        self::assertNull($this->orchestrator()($message));
+        self::assertSame([], $this->savedEvents);
+    }
+
+    public function testTheHappyPathWalksTheWholeStateMachine(): void
+    {
+        $this->knownProvider('OVH', 'ovh.com');
+        $this->withBody('Factura nº: FRA-2026-10-0042. Fecha: 2026-10-03. Total 29,90 €. Facturación mensual.');
+
+        $message = $this->message();
+        $discovery = $this->orchestrator()($message);
+
+        self::assertSame(['candidate', 'extracted', 'classified', 'discovery'], $this->states());
+        self::assertSame(MessageProcessingState::DISCOVERY, $message->getProcessingState());
+        self::assertNotNull($discovery);
+        self::assertSame(DiscoveryType::NEW_SERVICE, $discovery->getType());
+    }
+
+    public function testTheBodyIsNeverPersistedOnlyAnExcerpt(): void
+    {
+        $this->knownProvider('OVH', 'ovh.com');
+        $this->withBody('Factura nº: FRA-1. Total 29,90 €. Facturación mensual. '.str_repeat('relleno ', 200));
+
+        $message = $this->message();
+        $this->orchestrator()($message);
+
+        $excerpt = $message->getBodyExcerpt();
+
+        self::assertNotNull($excerpt);
+        self::assertLessThanOrEqual(500, mb_strlen($excerpt));
+    }
+
+    public function testTheContentHashIsStableForTheSameBody(): void
+    {
+        self::assertSame(
+            ProcessEmailMessage::contentHash("Hola   mundo\n"),
+            ProcessEmailMessage::contentHash('hola mundo'),
+        );
+
+        self::assertNotSame(
+            ProcessEmailMessage::contentHash('hola mundo'),
+            ProcessEmailMessage::contentHash('hola mundo!'),
+        );
+    }
+
+    public function testAMessageWithoutEnoughDataGoesToReview(): void
+    {
+        $this->knownProvider('OVH', 'ovh.com');
+        $this->withBody('Total 29,90 €');
+
+        $message = $this->message();
+        $result = $this->orchestrator()($message);
+
+        self::assertNull($result);
+        self::assertSame(MessageProcessingState::REQUIRES_REVIEW, $message->getProcessingState());
+        self::assertSame([], $this->savedDiscoveries);
+    }
+
+    public function testAHighConfidenceMatchIsAssociatedWithoutCreatingAService(): void
+    {
+        $this->knownProvider('OVH', 'ovh.com');
+        $this->withBody('Factura nº: FRA-1. Total 29,90 €. Facturación mensual.');
+
+        $service = new Service($this->organizationId, 'OVH', Currency::EUR, BillingPeriod::MONTHLY);
+        $service->setProviderId(Uuid::v7());
+        $service->changePrice(Money::of(2990, Currency::EUR), new DateTimeImmutable('2026-01-01'));
+
+        $message = $this->message();
+        $result = $this->orchestrator([$service])($message);
+
+        self::assertSame(MessageProcessingState::MATCHED, $message->getProcessingState());
+        self::assertNull($result, 'El importe coincide con el vigente: no hay nada que decidir.');
+        self::assertSame([], $this->savedDiscoveries);
+    }
+
+    public function testAHighConfidenceMatchWithADifferentAmountProposesAPriceChange(): void
+    {
+        $this->knownProvider('OVH', 'ovh.com');
+        $this->withBody('Factura nº: FRA-1. Total 34,90 €. Facturación mensual.');
+
+        $service = new Service($this->organizationId, 'OVH', Currency::EUR, BillingPeriod::MONTHLY);
+        $service->setProviderId(Uuid::v7());
+        $service->changePrice(Money::of(2990, Currency::EUR), new DateTimeImmutable('2026-01-01'));
+
+        $message = $this->message();
+        $result = $this->orchestrator([$service])($message);
+
+        self::assertNotNull($result);
+        self::assertSame(DiscoveryType::PRICE_CHANGE, $result->getType());
+        self::assertSame($service->getId(), $result->getMatchedServiceId());
+    }
+
+    public function testAnUnknownProviderProposesANewService(): void
+    {
+        $this->withBody('Factura nº: FRA-1. Total 29,90 €. Facturación mensual.');
+
+        $message = $this->message('Factura', 'facturacion@desconocido.com');
+        $result = $this->orchestrator()($message);
+
+        self::assertNotNull($result);
+        self::assertSame(DiscoveryType::NEW_SERVICE, $result->getType());
+        self::assertSame(MessageProcessingState::DISCOVERY, $message->getProcessingState());
+    }
+
+    public function testTheDiscoveryIsAuditedAndLinkedToItsSourceMessage(): void
+    {
+        $this->withBody('Factura nº: FRA-1. Total 29,90 €. Facturación mensual.');
+
+        $message = $this->message('Factura', 'facturacion@desconocido.com');
+        $result = $this->orchestrator()($message);
+
+        self::assertNotNull($result);
+        self::assertContains(AuditAction::DISCOVERY_CREATED, $this->audited);
+        self::assertSame($message->getId(), $result->getSourceEmailMessageId());
+        self::assertCount(1, $this->savedEvidence);
+        self::assertSame($result->getId(), $this->savedEvidence[0]->getDiscoveryId());
+    }
+
+    /**
+     * La misma factura puede llegar por dos buzones de la organización y no
+     * debe proponerse dos veces (D-27).
+     */
+    public function testAnOpenProposalWithTheSameDedupKeyIsReused(): void
+    {
+        $this->withBody('Factura nº: FRA-1. Total 29,90 €. Facturación mensual.');
+
+        $existing = new Discovery(
+            organizationId: $this->organizationId,
+            type: DiscoveryType::NEW_SERVICE,
+            detectedAt: new DateTimeImmutable('2026-10-04 10:00:00'),
+            proposedData: [
+                'providerName' => null,
+                'amountMinor' => 2990,
+                'currency' => 'EUR',
+                'billingPeriod' => 'monthly',
+            ],
+        );
+
+        $this->discoveries->method('findOpenByDedupKey')->willReturn($existing);
+
+        $message = $this->message('Factura', 'facturacion@desconocido.com');
+        $result = $this->orchestrator()($message);
+
+        self::assertSame($existing, $result);
+        self::assertSame([], $this->savedDiscoveries, 'No se crea una segunda propuesta.');
+        self::assertCount(1, $this->savedEvidence, 'Solo se añade la evidencia.');
+    }
+
+    public function testAFailedBodyDownloadDoesNotInvalidateTheMessage(): void
+    {
+        $this->knownProvider('OVH', 'ovh.com');
+        $this->accounts->method('find')->willReturn($this->account());
+        $this->cipher->method('decrypt')->willReturn('secreto');
+        $this->imap
+            ->method('fetchBody')
+            ->willThrowException(new \App\Mailbox\Domain\Exception\ImapFetchException('El servidor no responde.'));
+
+        $message = $this->message();
+        $result = $this->orchestrator()($message);
+
+        self::assertNull($result);
+        self::assertSame(MessageProcessingState::REQUIRES_REVIEW, $message->getProcessingState());
+        self::assertSame('El servidor no responde.', $message->getLastError());
+    }
+
+    public function testAnUnconfiguredAccountSkipsTheDownload(): void
+    {
+        $this->knownProvider('OVH', 'ovh.com');
+        $this->accounts->method('find')->willReturn(new EmailAccount($this->organizationId, 'yo@ovh.com'));
+
+        $this->imap->expects(self::never())->method('fetchBody');
+
+        $message = $this->message();
+        $this->orchestrator()($message);
+
+        self::assertSame(MessageProcessingState::REQUIRES_REVIEW, $message->getProcessingState());
+    }
+
+    public function testTheTenantContextIsRestoredAfterProcessing(): void
+    {
+        $this->withBody('Factura nº: FRA-1. Total 29,90 €. Facturación mensual.');
+
+        $tenantContext = new TenantContext();
+        $clock = new Clock(new MockClock(new DateTimeImmutable('2026-10-05 10:00:00')));
+
+        $orchestrator = new ProcessEmailMessage(
+            messages: $this->messages,
+            accounts: $this->accounts,
+            billingScore: new BillingScoreCalculator(BillingScoreWeights::fromArray([]), $this->identities),
+            extractor: new DeterministicExtractor(new AmountParser(), new DateParser(), $this->identities, $clock),
+            matcher: new ServiceMatcher($this->services),
+            discoveries: $this->discoveries,
+            stateMachine: new MessageStateMachine($this->events, $clock),
+            imapClient: $this->imap,
+            cipher: $this->cipher,
+            tenantContext: $tenantContext,
+            auditLogger: $this->audit,
+            clock: $clock,
+        );
+
+        $orchestrator($this->message('Factura', 'facturacion@desconocido.com'));
+
+        self::assertNull($tenantContext->getOrganizationId());
+    }
+
+    public function testTheBillingScoreIsPersistedWithItsReasons(): void
+    {
+        $this->knownProvider('OVH', 'ovh.com');
+        $this->withBody('Factura nº: FRA-1. Total 29,90 €. Facturación mensual.');
+
+        $message = $this->message();
+        $this->orchestrator()($message);
+
+        self::assertGreaterThanOrEqual(40, $message->getBillingScore());
+        self::assertNotSame([], $message->getBillingReasons());
+    }
+}

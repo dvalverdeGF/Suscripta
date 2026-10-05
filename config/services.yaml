@@ -21,3 +21,23 @@ services:
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
+
+    # El cifrado de credenciales de buzón necesita el secreto de la aplicación.
+    # Se inyecta explícitamente para que la clase no dependa de un parámetro
+    # global y sea trivial de sustituir en un test.
+    App\Mailbox\Infrastructure\Crypto\SodiumCredentialCipher:
+        arguments:
+            $appSecret: '%env(APP_SECRET)%'
+
+    # El cliente IMAP se declara como alias explícito y no se deja al
+    # autowiring: un alias implícito no es un servicio real, así que los tests
+    # funcionales no podrían sustituirlo por un doble y acabarían abriendo
+    # conexiones de verdad contra `imap.miempresa.com`.
+    App\Mailbox\Application\Imap\ImapClientInterface: '@App\Mailbox\Infrastructure\Imap\WebklexImapClient'
+
+    # Los pesos del filtro determinista son configuración de producto
+    # (config/packages/processing.yaml), no constantes del código.
+    App\Processing\Application\Billing\BillingScoreWeights:
+        factory: ['App\Processing\Application\Billing\BillingScoreWeights', 'fromArray']
+        arguments:
+            $config: '%app.processing.billing_score%'

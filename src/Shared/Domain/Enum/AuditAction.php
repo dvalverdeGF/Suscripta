@@ -50,6 +50,7 @@ enum AuditAction: string
     case SERVICE_PRICE_CHANGED = 'service.price_changed';
     case DISCOVERY_CONFIRMED = 'discovery.confirmed';
     case DISCOVERY_DISMISSED = 'discovery.dismissed';
+    case DISCOVERY_CREATED = 'discovery.created';
 
     // Catálogo
     case CATALOG_SEEDED = 'catalog.seeded';
@@ -87,6 +88,7 @@ enum AuditAction: string
             self::SERVICE_UPDATED => 'Servicio actualizado',
             self::SERVICE_DELETED => 'Servicio eliminado',
             self::SERVICE_PRICE_CHANGED => 'Precio del servicio modificado',
+            self::DISCOVERY_CREATED => 'Descubrimiento creado',
             self::DISCOVERY_CONFIRMED => 'Descubrimiento confirmado',
             self::DISCOVERY_DISMISSED => 'Descubrimiento descartado',
             self::CATALOG_SEEDED => 'Catálogo global sembrado',

@@ -1,0 +1,107 @@
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}{{ account.displayName|default(account.emailAddress) }} — Suscripta{% endblock %}
+
+{% block main %}
+    <div class="page-header">
+        <div class="page-header__title">
+            <h1>{{ account.displayName|default(account.emailAddress) }}</h1>
+            <p class="page-header__subtitle">{{ account.emailAddress }}</p>
+        </div>
+        <div class="page-header__actions">
+            <a class="btn btn--secondary btn--sm" href="{{ path('app_mail_accounts_edit', {id: account.id.toRfc4122()}) }}">Editar</a>
+        </div>
+    </div>
+
+    {% if account.status.value == 'error' and account.lastSyncError %}
+        <div class="alert alert--danger mb-6" role="alert">
+            <strong>No hemos podido leer este buzón.</strong>
+            <p>{{ account.lastSyncError }}</p>
+        </div>
+    {% endif %}
+
+    <div class="grid grid--2 mb-6">
+        <div class="stat">
+            <span class="stat__label">Estado</span>
+            <span class="stat__value">
+                <span class="badge badge--{{ account.status.value == 'active' ? 'success' : (account.status.value == 'error' ? 'danger' : 'warning') }}">
+                    {{ account.status.label() }}
+                </span>
+            </span>
+        </div>
+        <div class="stat">
+            <span class="stat__label">Mensajes indexados</span>
+            <span class="stat__value">{{ messageCount }}</span>
+            <span class="stat__hint">Solo se guardan metadatos, nunca el cuerpo del correo.</span>
+        </div>
+    </div>
+
+    <div class="card mb-6">
+        <div class="card__header">
+            <h2 class="card__title">Configuración</h2>
+        </div>
+        <div class="card__body">
+            <dl class="definition-list">
+                <dt>Servidor</dt>
+                <dd>{{ account.imapHost }}:{{ account.imapPort }}</dd>
+                <dt>Cifrado</dt>
+                <dd>{{ account.imapEncryption ? account.imapEncryption.label() : '—' }}</dd>
+                <dt>Usuario</dt>
+                <dd>{{ account.imapUsername }}</dd>
+                <dt>Carpeta</dt>
+                <dd>{{ account.imapFolder }}</dd>
+                <dt>Contraseña</dt>
+                <dd>{{ account.credentialsEncrypted ? 'Guardada y cifrada' : 'No guardada' }}</dd>
+                <dt>Última lectura</dt>
+                <dd>
+                    {% if account.lastSyncAt %}
+                        <time datetime="{{ account.lastSyncAt|date('c') }}">{{ account.lastSyncAt|date('d/m/Y H:i') }}</time>
+                    {% else %}
+                        Todavía no se ha leído
+                    {% endif %}
+                </dd>
+            </dl>
+        </div>
+    </div>
+
+    <div class="card mb-6">
+        <div class="card__header">
+            <h2 class="card__title">Acciones</h2>
+        </div>
+        <div class="card__body">
+            <div class="cluster">
+                <form method="post" action="{{ path('app_mail_accounts_test', {id: account.id.toRfc4122()}) }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('mail_account_test_' ~ account.id.toRfc4122()) }}">
+                    <button type="submit" class="btn btn--secondary">Probar conexión</button>
+                </form>
+
+                {% if account.status.value != 'disabled' %}
+                    <form method="post" action="{{ path('app_mail_accounts_disconnect', {id: account.id.toRfc4122()}) }}"
+                          data-controller="confirm"
+                          data-confirm-message-value="Dejaremos de leer este buzón. Tus servicios y su historial no se tocan.">
+                        <input type="hidden" name="_token" value="{{ csrf_token('mail_account_disconnect_' ~ account.id.toRfc4122()) }}">
+                        <button type="submit" class="btn btn--ghost">Desconectar</button>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card__header">
+            <h2 class="card__title">Eliminar el buzón</h2>
+        </div>
+        <div class="card__body">
+            <p class="text-muted">
+                Se borran las credenciales y todos los mensajes indexados de este buzón.
+                Los servicios que ya hayas confirmado se conservan, porque son datos tuyos.
+            </p>
+            <form method="post" action="{{ path('app_mail_accounts_delete', {id: account.id.toRfc4122()}) }}"
+                  data-controller="confirm"
+                  data-confirm-message-value="Se eliminará el buzón y todo lo leído de él. Esta acción no se puede deshacer.">
+                <input type="hidden" name="_token" value="{{ csrf_token('mail_account_delete_' ~ account.id.toRfc4122()) }}">
+                <button type="submit" class="btn btn--danger">Eliminar buzón y sus datos</button>
+            </form>
+        </div>
+    </div>
+{% endblock %}

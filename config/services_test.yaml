@@ -1,0 +1,12 @@
+# Servicios exclusivos del entorno de test.
+#
+# El cliente IMAP real abre conexiones de red: en los tests funcionales se
+# sustituye por un doble controlable (`tests/Support/Imap/RecordingImapClient`).
+# Se declara `public: true` a propósito, porque un servicio privado que solo
+# consume un único servicio acabaría *inlineado* y el test obtendría una
+# instancia distinta de la que recibe la aplicación.
+services:
+    App\Tests\Support\Imap\RecordingImapClient:
+        public: true
+
+    App\Mailbox\Application\Imap\ImapClientInterface: '@App\Tests\Support\Imap\RecordingImapClient'

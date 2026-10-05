@@ -1,0 +1,21 @@
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}Conectar buzón — Suscripta{% endblock %}
+
+{% block main %}
+    <div class="page-header">
+        <div class="page-header__title">
+            <h1>Conectar un buzón</h1>
+            <p class="page-header__subtitle">
+                Funciona con cualquier servidor IMAP: Gmail, Microsoft 365, el correo de tu hosting
+                o el de tu empresa. Comprobamos la conexión antes de guardar nada.
+            </p>
+        </div>
+    </div>
+
+    {% include 'mail/accounts/_form.html.twig' with {
+        form: form,
+        submit_label: 'Conectar buzón',
+        cancel_path: path('app_mail_accounts_index'),
+    } only %}
+{% endblock %}

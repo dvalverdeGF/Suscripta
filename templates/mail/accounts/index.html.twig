@@ -1,0 +1,76 @@
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}Buzones de correo — Suscripta{% endblock %}
+
+{% block topbar_actions %}
+    <a class="btn btn--primary btn--sm" href="{{ path('app_mail_accounts_new') }}">Conectar buzón</a>
+{% endblock %}
+
+{% block main %}
+    <div class="page-header">
+        <div class="page-header__title">
+            <h1>Buzones de correo</h1>
+            <p class="page-header__subtitle">
+                Suscripta lee estos buzones en modo solo lectura para descubrir los servicios que pagas.
+            </p>
+        </div>
+    </div>
+
+    {% if accounts is empty %}
+        <div class="card">
+            <div class="card__body">
+                <div class="empty-state">
+                    <p class="empty-state__title">Todavía no hay ningún buzón conectado</p>
+                    <p class="empty-state__text">
+                        Conecta el correo donde recibes tus facturas y Suscripta encontrará por ti
+                        los servicios recurrentes, cuánto cuestan y cuándo se renuevan.
+                    </p>
+                    <div class="cluster cluster--end">
+                        <a class="btn btn--primary" href="{{ path('app_mail_accounts_new') }}">Conectar buzón</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="table-wrapper">
+            <table class="table table--responsive">
+                <caption class="visually-hidden">Buzones de correo conectados</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Buzón</th>
+                        <th scope="col">Estado</th>
+                        <th scope="col">Última lectura</th>
+                        <th scope="col" class="num">Mensajes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for account in accounts %}
+                        <tr>
+                            <td data-label="Buzón">
+                                <a href="{{ path('app_mail_accounts_show', {id: account.id.toRfc4122()}) }}">
+                                    {{ account.displayName|default(account.emailAddress) }}
+                                </a>
+                                {% if account.displayName %}
+                                    <span class="text-muted text-sm">· {{ account.emailAddress }}</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="Estado">
+                                <span class="badge badge--{{ account.status.value == 'active' ? 'success' : (account.status.value == 'error' ? 'danger' : 'warning') }}">
+                                    {{ account.status.label() }}
+                                </span>
+                            </td>
+                            <td data-label="Última lectura">
+                                {% if account.lastSyncAt %}
+                                    <time datetime="{{ account.lastSyncAt|date('c') }}">{{ account.lastSyncAt|date('d/m/Y H:i') }}</time>
+                                {% else %}
+                                    <span class="text-subtle">Nunca</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="Mensajes" class="num">{{ messageCounts[account.id.toRfc4122()]|default(0) }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+{% endblock %}

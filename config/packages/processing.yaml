@@ -1,0 +1,124 @@
+# Pesos del filtro determinista del pipeline de correo (ARCHITECTURE.md §13.4).
+#
+# Estos valores son una decisión de producto, no de programa: ajustarlos cambia
+# cuántos correos llegan a analizarse y, por tanto, cuánto cuesta el sistema.
+# Por eso viven aquí y no enterrados en el código.
+#
+# Cualquier cambio debe actualizar la tabla de §13.4 de ARCHITECTURE.md.
+parameters:
+    app.processing.billing_score:
+        # Umbral a partir del cual un mensaje se considera candidato y se
+        # descarga su cuerpo. Bajarlo aumenta la cobertura y el coste.
+        threshold: 40
+
+        subject_keyword: 25
+        known_provider: 20
+        pdf_attachment: 15
+        detectable_amount: 15
+        renewal_language: 10
+        billing_local_part: 10
+        invoice_attachment_name: 10
+
+        # Señales negativas. `ignored_sender` es deliberadamente mayor en valor
+        # absoluto que la suma de todas las positivas: un remitente en la lista
+        # de ignorados nunca debe colarse.
+        ignored_sender: -100
+        newsletter: -30
+        own_thread: -10
+
+        # Palabras clave del asunto. Se comparan en minúsculas y sin acentos
+        # normalizados por el propio calculador.
+        subject_keywords:
+            - invoice
+            - factura
+            - receipt
+            - recibo
+            - payment
+            - pago
+            - subscription
+            - suscripción
+            - suscripcion
+            - renewal
+            - renovación
+            - renovacion
+            - billing
+            - statement
+            - charge
+            - cobro
+            - cuota
+            - abono
+            - pedido
+            - order confirmation
+
+        renewal_keywords:
+            - renew
+            - renewal
+            - renovación
+            - renovacion
+            - expira
+            - expires
+            - vencimiento
+            - next charge
+            - próximo cobro
+            - proximo cobro
+            - will be charged
+            - se renovará
+            - se renovara
+            - auto-renew
+            - next payment
+            - fecha de vencimiento
+
+        # Partes locales del remitente que indican facturación.
+        billing_local_parts:
+            - invoice
+            - invoices
+            - factura
+            - facturas
+            - facturacion
+            - facturación
+            - billing
+            - billing-notice
+            - payments
+            - pagos
+            - receipts
+            - recibos
+            - no-reply-invoice
+            - noreply-invoice
+
+        # Nombres de adjunto que indican factura.
+        invoice_attachment_patterns:
+            - factura
+            - invoice
+            - recibo
+            - receipt
+            - fra-
+            - inv-
+            - billing
+            - statement
+
+        # Remitentes que nunca son facturas. Se comparan por dominio.
+        ignored_senders:
+            - linkedin.com
+            - facebookmail.com
+            - twitter.com
+            - x.com
+            - instagram.com
+            - tiktok.com
+            - youtube.com
+            - googlealerts-noreply@google.com
+            - newsletter
+            - marketing
+
+        # Partes locales típicas de boletines.
+        newsletter_local_parts:
+            - newsletter
+            - news
+            - marketing
+            - info
+            - hola
+            - hello
+            - community
+            - updates
+            - novedades
+            - boletin
+            - boletín

@@ -1,0 +1,21 @@
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}Editar buzón — Suscripta{% endblock %}
+
+{% block main %}
+    <div class="page-header">
+        <div class="page-header__title">
+            <h1>Editar buzón</h1>
+            <p class="page-header__subtitle">
+                Cambia el servidor, la carpeta o la contraseña. Deja la contraseña en blanco
+                para conservar la actual.
+            </p>
+        </div>
+    </div>
+
+    {% include 'mail/accounts/_form.html.twig' with {
+        form: form,
+        submit_label: 'Guardar cambios',
+        cancel_path: path('app_mail_accounts_show', {id: account.id.toRfc4122()}),
+    } only %}
+{% endblock %}

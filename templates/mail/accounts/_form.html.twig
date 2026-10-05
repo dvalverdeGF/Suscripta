@@ -1,0 +1,40 @@
+{{ form_start(form, {attr: {class: 'form'}}) }}
+    {{ form_errors(form) }}
+
+    <div class="card mb-6">
+        <div class="card__header">
+            <h2 class="card__title">Qué buzón</h2>
+        </div>
+        <div class="card__body">
+            <div class="grid grid--2">
+                {{ form_row(form.emailAddress) }}
+                {{ form_row(form.displayName) }}
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-6">
+        <div class="card__header">
+            <h2 class="card__title">Cómo se conecta</h2>
+        </div>
+        <div class="card__body">
+            <div class="grid grid--2">
+                {{ form_row(form.imapHost) }}
+                {{ form_row(form.imapPort) }}
+                {{ form_row(form.imapEncryption) }}
+                {{ form_row(form.imapUsername) }}
+                {{ form_row(form.password) }}
+                {{ form_row(form.imapFolder) }}
+            </div>
+            <p class="field__hint">
+                La contraseña se guarda cifrada y solo se usa para leer. Nunca escribimos,
+                movemos ni borramos nada de tu buzón.
+            </p>
+        </div>
+    </div>
+
+    <div class="form-actions">
+        <button type="submit" class="btn btn--primary">{{ submit_label|default('Guardar') }}</button>
+        <a class="btn btn--ghost" href="{{ cancel_path|default(path('app_mail_accounts_index')) }}">Cancelar</a>
+    </div>
+{{ form_end(form) }}

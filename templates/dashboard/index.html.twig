@@ -2,28 +2,246 @@
 
 {% block title %}Panel — Suscripta{% endblock %}
 
+{% block topbar_actions %}
+    {% if route_exists('app_mail_accounts_index') %}
+        <a class="btn btn--primary btn--sm" href="{{ path('app_mail_accounts_index') }}">Buzones</a>
+    {% endif %}
+{% endblock %}
+
 {% block main %}
     <div class="page-header">
         <div class="page-header__title">
             <h1>Panel</h1>
-            <p class="page-header__subtitle">Resumen de tus servicios y gastos recurrentes.</p>
+            <p class="page-header__subtitle">Lo que pagas, lo que te van a cobrar y lo que ha cambiado.</p>
         </div>
     </div>
 
-    <div class="card">
-        <div class="card__body">
-            <div class="empty-state">
-                <p class="empty-state__title">Todavía no hay datos que mostrar</p>
-                <p class="empty-state__text">
-                    Conecta tu cuenta de correo de facturación para que Suscripta empiece a
-                    descubrir los servicios que pagas.
-                </p>
-                {% if route_exists('app_mail_accounts_index') %}
-                    <a class="btn btn--primary" href="{{ path('app_mail_accounts_index') }}">
-                        Conectar una cuenta de correo
-                    </a>
-                {% endif %}
+    {% if not summary.hasAnyData %}
+        <div class="card">
+            <div class="card__body">
+                <div class="empty-state">
+                    <p class="empty-state__title">Todavía no hay datos que mostrar</p>
+                    <p class="empty-state__text">
+                        Conecta tu correo de facturación y Suscripta descubrirá automáticamente
+                        los servicios que pagas. También puedes añadirlos a mano.
+                    </p>
+                    <div class="cluster cluster--end">
+                        {% if route_exists('app_mail_accounts_index') %}
+                            <a class="btn btn--primary" href="{{ path('app_mail_accounts_index') }}">Conectar una cuenta de correo</a>
+                        {% endif %}
+                        <a class="btn btn--secondary" href="{{ path('app_services_new') }}">Añadir un servicio</a>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
+    {% else %}
+        <div class="grid grid--2 mb-6">
+            <div class="stat">
+                <span class="stat__label">Coste mensual equivalente</span>
+                {% if summary.singleMonthlyTotal %}
+                    <span class="stat__value">{{ summary.singleMonthlyTotal.format() }}</span>
+                    {% if summary.singleAnnualTotal %}
+                        <span class="stat__hint">{{ summary.singleAnnualTotal.format() }} al año</span>
+                    {% endif %}
+                {% elseif summary.hasCosts %}
+                    <span class="stat__value">{{ summary.monthlyByCurrency|length }} monedas</span>
+                    <span class="stat__hint">No se suman divisas distintas.</span>
+                {% else %}
+                    <span class="stat__value">—</span>
+                    <span class="stat__hint">Ningún servicio tiene precio todavía.</span>
+                {% endif %}
+            </div>
+            <div class="stat">
+                <span class="stat__label">Servicios activos</span>
+                <span class="stat__value">{{ summary.activeServices }}</span>
+                <span class="stat__hint">
+                    {{ summary.totalServices }} en total ·
+                    {{ summary.connectedMailboxes }} {{ summary.connectedMailboxes == 1 ? 'buzón' : 'buzones' }} ·
+                    {{ summary.indexedMessages }} {{ summary.indexedMessages == 1 ? 'mensaje indexado' : 'mensajes indexados' }}
+                </span>
+            </div>
+        </div>
+
+        {% if summary.hasCosts and summary.monthlyByCurrency|length > 1 %}
+            <div class="card mb-6">
+                <div class="card__header">
+                    <h2 class="card__title">Coste por moneda</h2>
+                </div>
+                <div class="card__body card__body--flush">
+                    <div class="table-wrapper">
+                        <table class="table table--responsive">
+                            <caption class="visually-hidden">Coste mensual equivalente por moneda</caption>
+                            <thead>
+                                <tr>
+                                    <th scope="col">Moneda</th>
+                                    <th scope="col" class="num">Al mes</th>
+                                    <th scope="col" class="num">Al año</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for code, total in summary.monthlyByCurrency %}
+                                    <tr>
+                                        <td data-label="Moneda">{{ code }}</td>
+                                        <td data-label="Al mes" class="num">{{ total.format() }}</td>
+                                        <td data-label="Al año" class="num">
+                                            {% if summary.annualByCurrency[code] is defined %}
+                                                {{ summary.annualByCurrency[code].format() }}
+                                            {% else %}
+                                                <span class="text-subtle">—</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        {% if summary.pendingDiscoveries is not empty %}
+            <div class="card mb-6">
+                <div class="card__header">
+                    <h2 class="card__title">Descubrimientos pendientes de revisar</h2>
+                </div>
+                <div class="card__body card__body--flush">
+                    <div class="table-wrapper">
+                        <table class="table table--responsive">
+                            <caption class="visually-hidden">Servicios descubiertos que esperan tu confirmación</caption>
+                            <thead>
+                                <tr>
+                                    <th scope="col">Servicio propuesto</th>
+                                    <th scope="col">Tipo</th>
+                                    <th scope="col" class="num">Importe</th>
+                                    <th scope="col">Confianza</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for discovery in summary.pendingDiscoveries %}
+                                    <tr>
+                                        <td data-label="Servicio propuesto">
+                                            <a href="{{ path('app_discoveries_show', {id: discovery.id.toRfc4122()}) }}">
+                                                {{ discovery.proposedData.providerName|default(discovery.proposedData.serviceName|default('Proveedor sin identificar')) }}
+                                            </a>
+                                        </td>
+                                        <td data-label="Tipo">{{ discovery.type.label() }}</td>
+                                        <td data-label="Importe" class="num">
+                                            {{ discovery.proposedData.amountMinor|default(null)|money(discovery.proposedData.currency|default(null)) }}
+                                        </td>
+                                        <td data-label="Confianza">
+                                            <span class="badge badge--{{ discovery.confidence.value == 'high' ? 'success' : (discovery.confidence.value == 'medium' ? 'warning' : 'danger') }}">
+                                                {{ discovery.confidence.label() }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card__footer">
+                    <a class="btn btn--secondary btn--sm" href="{{ path('app_discoveries_index') }}">Revisar todos</a>
+                </div>
+            </div>
+        {% endif %}
+
+        <div class="grid grid--2 mb-6">
+            <div class="card">
+                <div class="card__header">
+                    <h2 class="card__title">Próximos cobros</h2>
+                </div>
+                <div class="card__body card__body--flush">
+                    {% if summary.upcomingCharges is empty %}
+                        <div class="card__body">
+                            <p class="text-muted m-0">No hay cobros previstos en los próximos 30 días.</p>
+                        </div>
+                    {% else %}
+                        <ul class="timeline">
+                            {% for service in summary.upcomingCharges %}
+                                <li class="timeline__item">
+                                    <span class="timeline__date">
+                                        <time datetime="{{ service.nextChargeAt|date('Y-m-d') }}">{{ service.nextChargeAt|date('d/m/Y') }}</time>
+                                    </span>
+                                    <span class="timeline__label">
+                                        <a href="{{ path('app_services_show', {id: service.id.toRfc4122()}) }}">{{ service.name }}</a>
+                                        {% if service.currentAmount %}
+                                            <span class="text-muted text-sm">· {{ service.currentAmount.format() }}</span>
+                                        {% endif %}
+                                    </span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card__header">
+                    <h2 class="card__title">Renovaciones</h2>
+                </div>
+                <div class="card__body card__body--flush">
+                    {% if summary.upcomingRenewals is empty %}
+                        <div class="card__body">
+                            <p class="text-muted m-0">No hay renovaciones previstas en los próximos 30 días.</p>
+                        </div>
+                    {% else %}
+                        <ul class="timeline">
+                            {% for service in summary.upcomingRenewals %}
+                                <li class="timeline__item">
+                                    <span class="timeline__date">
+                                        <time datetime="{{ service.renewalAt|date('Y-m-d') }}">{{ service.renewalAt|date('d/m/Y') }}</time>
+                                    </span>
+                                    <span class="timeline__label">
+                                        <a href="{{ path('app_services_show', {id: service.id.toRfc4122()}) }}">{{ service.name }}</a>
+                                        {% if service.noticePeriodDays %}
+                                            <span class="text-muted text-sm">· avisar con {{ service.noticePeriodDays }} días</span>
+                                        {% endif %}
+                                    </span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {% if summary.recentPriceChanges is not empty %}
+            <div class="card">
+                <div class="card__header">
+                    <h2 class="card__title">Qué ha cambiado</h2>
+                </div>
+                <div class="card__body card__body--flush">
+                    <div class="table-wrapper">
+                        <table class="table table--responsive">
+                            <caption class="visually-hidden">Servicios cuyo precio ha cambiado recientemente</caption>
+                            <thead>
+                                <tr>
+                                    <th scope="col">Servicio</th>
+                                    <th scope="col" class="num">Precio actual</th>
+                                    <th scope="col">Desde</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for service in summary.recentPriceChanges %}
+                                    <tr>
+                                        <td data-label="Servicio">
+                                            <a href="{{ path('app_services_show', {id: service.id.toRfc4122()}) }}">{{ service.name }}</a>
+                                        </td>
+                                        <td data-label="Precio actual" class="num">
+                                            {% if service.currentAmount %}{{ service.currentAmount.format() }}{% else %}<span class="text-subtle">—</span>{% endif %}
+                                        </td>
+                                        <td data-label="Desde">
+                                            {% if service.currentPrice %}
+                                                <time datetime="{{ service.currentPrice.validFrom|date('Y-m-d') }}">{{ service.currentPrice.validFrom|date('d/m/Y') }}</time>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    {% endif %}
 {% endblock %}
