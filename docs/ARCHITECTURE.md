@@ -170,6 +170,12 @@ generado. Ver `DECISIONS.md` (D-03).
 **`Document.type`**: `invoice`, `receipt`, `contract`, `other`.
 **`Document.source`**: `email_attachment`, `email_body`, `manual_upload`.
 **`Invoice.status`**: `pending`, `paid`, `failed`, `refunded`, `unknown`.
+**`Invoice.source`**: `manual`, `email_discovery`.
+
+`Invoice.source` no es redundante con `Document.source`: una factura puede existir **sin
+documento** (D-19 — hay cobros que solo conocemos por el cuerpo del correo), y en ese caso no
+hay ningún `Document` que arrastre la procedencia. Es también la métrica que mide la propuesta
+de valor (`PRODUCT.md` §12): qué parte del historial la descubrió el producto y no el usuario.
 
 **`Payment` no es una entidad en v1.** Un cobro observado se representa como `Invoice` con
 `paidAt` y `status = paid`. Se introducirá `Payment` solo si aparece una necesidad real

@@ -1,0 +1,104 @@
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}{{ document.displayName() }} — Suscripta{% endblock %}
+
+{% block main %}
+    <div class="page-header">
+        <div class="page-header__title">
+            <p class="text-muted text-sm">
+                <a href="{{ path('app_documents_index') }}">← Documentos</a>
+            </p>
+            <h1>{{ document.displayName() }}</h1>
+            <p class="page-header__subtitle">
+                <span class="badge badge--info">{{ document.type.label() }}</span>
+                <span class="badge">{{ document.source.label() }}</span>
+            </p>
+        </div>
+        <div class="page-header__actions">
+            <a class="btn btn--primary" href="{{ path('app_documents_download', {id: document.id.toRfc4122()}) }}">Descargar</a>
+        </div>
+    </div>
+
+    <div class="grid grid--2">
+        <div class="card">
+            <div class="card__header">
+                <h2 class="card__title">Ficha</h2>
+            </div>
+            <div class="card__body">
+                <dl class="definition-list">
+                    <dt>Nombre original</dt>
+                    <dd>{{ document.originalFilename }}</dd>
+
+                    <dt>Tipo de fichero</dt>
+                    <dd>{{ document.mimeType }}</dd>
+
+                    <dt>Tamaño</dt>
+                    <dd class="num">{{ document.humanSize() }}</dd>
+
+                    <dt>Huella</dt>
+                    <dd class="text-xs">{{ document.checksumSha256 }}</dd>
+
+                    <dt>Añadido</dt>
+                    <dd><time datetime="{{ document.createdAt|date('c') }}">{{ document.createdAt|date('d/m/Y H:i') }}</time></dd>
+
+                    {% if document.deletedAt %}
+                        <dt>Eliminado</dt>
+                        <dd><time datetime="{{ document.deletedAt|date('c') }}">{{ document.deletedAt|date('d/m/Y H:i') }}</time></dd>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+
+        <div class="stack">
+            <div class="card">
+                <div class="card__header">
+                    <h2 class="card__title">Servicio</h2>
+                </div>
+                <div class="card__body">
+                    {% if service %}
+                        <p>
+                            <a href="{{ path('app_services_show', {id: service.id.toRfc4122()}) }}">{{ service.name }}</a>
+                        </p>
+                    {% else %}
+                        <p class="text-muted">Este documento todavía no está asignado a ningún servicio.</p>
+                    {% endif %}
+
+                    <form method="post" action="{{ path('app_documents_attach', {id: document.id.toRfc4122()}) }}" class="form">
+                        <input type="hidden" name="_token" value="{{ csrf_token('document_attach_' ~ document.id.toRfc4122()) }}">
+                        <div class="field">
+                            <label class="field__label" for="document-service">Asignar a</label>
+                            <select class="select" id="document-service" name="serviceId">
+                                <option value="">Sin asignar</option>
+                                {% for label, id in serviceChoices %}
+                                    <option value="{{ id.toRfc4122() }}"
+                                            {% if document.serviceId and document.serviceId.toRfc4122() == id.toRfc4122() %}selected{% endif %}>
+                                        {{ label }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn--secondary btn--sm">Guardar asignación</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card__header">
+                    <h2 class="card__title">Eliminar</h2>
+                </div>
+                <div class="card__body">
+                    <p class="text-muted text-sm">
+                        El documento dejará de aparecer. El fichero se borra definitivamente
+                        cuando caduque el periodo de retención.
+                    </p>
+                    <form method="post" action="{{ path('app_documents_delete', {id: document.id.toRfc4122()}) }}"
+                          data-controller="confirm"
+                          data-confirm-message-value="¿Seguro que quieres eliminar «{{ document.displayName() }}»?">
+                        <input type="hidden" name="_token" value="{{ csrf_token('document_delete_' ~ document.id.toRfc4122()) }}">
+                        <button type="submit" class="btn btn--danger btn--sm">Eliminar documento</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

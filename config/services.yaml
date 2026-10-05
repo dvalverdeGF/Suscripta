@@ -45,6 +45,14 @@ services:
         arguments:
             $channels: !tagged_iterator app.notification_channel
 
+    # Los binarios viven fuera del directorio público: se sirven solo a través
+    # de un controlador que comprueba permisos (SECURITY.md §1).
+    App\Documents\Domain\Service\DocumentStorageInterface: '@App\Documents\Infrastructure\Storage\LocalDocumentStorage'
+
+    App\Documents\Infrastructure\Storage\LocalDocumentStorage:
+        arguments:
+            $directory: '%kernel.project_dir%/var/storage'
+
     # Los pesos del filtro determinista son configuración de producto
     # (config/packages/processing.yaml), no constantes del código.
     App\Processing\Application\Billing\BillingScoreWeights:

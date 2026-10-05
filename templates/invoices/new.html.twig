@@ -1,0 +1,67 @@
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}Registrar factura — Suscripta{% endblock %}
+
+{% block main %}
+    <div class="page-header">
+        <div class="page-header__title">
+            <p class="text-muted text-sm">
+                <a href="{{ path('app_invoices_index') }}">← Facturas</a>
+            </p>
+            <h1>Registrar factura</h1>
+            <p class="page-header__subtitle">
+                Un cobro que ya se ha producido. Si además tienes el fichero, súbelo como documento.
+            </p>
+        </div>
+    </div>
+
+    {{ form_start(form, {attr: {class: 'form'}}) }}
+        {{ form_errors(form) }}
+
+        <div class="card mb-6">
+            <div class="card__header">
+                <h2 class="card__title">Qué se ha cobrado</h2>
+            </div>
+            <div class="card__body">
+                <div class="grid grid--2">
+                    {{ form_row(form.issuedAt) }}
+                    {{ form_row(form.number) }}
+                    {{ form_row(form.total) }}
+                    {{ form_row(form.currency) }}
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-6">
+            <div class="card__header">
+                <h2 class="card__title">A qué corresponde</h2>
+            </div>
+            <div class="card__body">
+                <div class="grid grid--2">
+                    {{ form_row(form.serviceId) }}
+                    {{ form_row(form.providerId) }}
+                    {{ form_row(form.periodStart) }}
+                    {{ form_row(form.periodEnd) }}
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-6">
+            <div class="card__header">
+                <h2 class="card__title">Estado</h2>
+            </div>
+            <div class="card__body">
+                <div class="grid grid--2">
+                    {{ form_row(form.status) }}
+                    {{ form_row(form.paidAt) }}
+                    {{ form_row(form.source) }}
+                </div>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn--primary">Registrar factura</button>
+            <a class="btn btn--ghost" href="{{ path('app_invoices_index') }}">Cancelar</a>
+        </div>
+    {{ form_end(form) }}
+{% endblock %}

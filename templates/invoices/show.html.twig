@@ -1,0 +1,100 @@
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}Factura del {{ invoice.issuedAt|date('d/m/Y') }} — Suscripta{% endblock %}
+
+{% block main %}
+    <div class="page-header">
+        <div class="page-header__title">
+            <p class="text-muted text-sm">
+                <a href="{{ path('app_invoices_index') }}">← Facturas</a>
+            </p>
+            <h1>{{ invoice.total.format() }}</h1>
+            <p class="page-header__subtitle">
+                <time datetime="{{ invoice.issuedAt|date('c') }}">{{ invoice.issuedAt|date('d/m/Y') }}</time>
+                <span class="badge badge--{{ invoice.status.value == 'paid' ? 'success' : (invoice.status.value == 'failed' ? 'danger' : 'info') }}">
+                    {{ invoice.status.label() }}
+                </span>
+            </p>
+        </div>
+    </div>
+
+    <div class="grid grid--2">
+        <div class="card">
+            <div class="card__header">
+                <h2 class="card__title">Detalle</h2>
+            </div>
+            <div class="card__body">
+                <dl class="definition-list">
+                    <dt>Importe</dt>
+                    <dd class="num">{{ invoice.total.format() }}</dd>
+
+                    <dt>Moneda</dt>
+                    <dd>{{ invoice.currency.value }}</dd>
+
+                    <dt>Número</dt>
+                    <dd>{{ invoice.number|default('—') }}</dd>
+
+                    <dt>Emitida</dt>
+                    <dd><time datetime="{{ invoice.issuedAt|date('c') }}">{{ invoice.issuedAt|date('d/m/Y') }}</time></dd>
+
+                    {% if invoice.periodStart and invoice.periodEnd %}
+                        <dt>Periodo facturado</dt>
+                        <dd>
+                            <time datetime="{{ invoice.periodStart|date('c') }}">{{ invoice.periodStart|date('d/m/Y') }}</time>
+                            –
+                            <time datetime="{{ invoice.periodEnd|date('c') }}">{{ invoice.periodEnd|date('d/m/Y') }}</time>
+                        </dd>
+                    {% endif %}
+
+                    {% if invoice.paidAt %}
+                        <dt>Cobrada</dt>
+                        <dd><time datetime="{{ invoice.paidAt|date('c') }}">{{ invoice.paidAt|date('d/m/Y') }}</time></dd>
+                    {% endif %}
+
+                    <dt>Origen</dt>
+                    <dd>{{ invoice.source.label() }}</dd>
+
+                    <dt>Registrada</dt>
+                    <dd><time datetime="{{ invoice.createdAt|date('c') }}">{{ invoice.createdAt|date('d/m/Y H:i') }}</time></dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="stack">
+            {% if service %}
+                <div class="card">
+                    <div class="card__header">
+                        <h2 class="card__title">Servicio</h2>
+                    </div>
+                    <div class="card__body">
+                        <p>
+                            <a href="{{ path('app_services_show', {id: service.id.toRfc4122()}) }}">{{ service.name }}</a>
+                        </p>
+                        <dl class="definition-list">
+                            <dt>Estado</dt>
+                            <dd>{{ service.status.label() }}</dd>
+                            <dt>Periodicidad</dt>
+                            <dd>{{ service.billingPeriod.label() }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            {% endif %}
+
+            <div class="card">
+                <div class="card__header">
+                    <h2 class="card__title">Documento</h2>
+                </div>
+                <div class="card__body">
+                    {% if document %}
+                        <p>
+                            <a href="{{ path('app_documents_show', {id: document.id.toRfc4122()}) }}">{{ document.displayName() }}</a>
+                        </p>
+                        <a class="btn btn--secondary btn--sm" href="{{ path('app_documents_download', {id: document.id.toRfc4122()}) }}">Descargar</a>
+                    {% else %}
+                        <p class="text-muted">Esta factura no tiene un fichero asociado.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

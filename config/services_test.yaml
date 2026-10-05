@@ -10,3 +10,11 @@ services:
         public: true
 
     App\Mailbox\Application\Imap\ImapClientInterface: '@App\Tests\Support\Imap\RecordingImapClient'
+
+    # Los documentos se escriben en la caché del kernel y no en `var/storage`:
+    # así una tanda de tests no deja binarios de prueba en el almacenamiento
+    # real, que es justo lo que la retención (SECURITY.md §6) tendría que
+    # limpiar después.
+    App\Documents\Infrastructure\Storage\LocalDocumentStorage:
+        arguments:
+            $directory: '%kernel.cache_dir%/storage'

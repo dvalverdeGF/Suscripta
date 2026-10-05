@@ -37,6 +37,7 @@ enum AuditAction: string
     case EMAIL_SYNC_FINISHED = 'email_sync.finished';
 
     // Documentos y datos derivados
+    case DOCUMENT_UPLOADED = 'document.uploaded';
     case DOCUMENT_VIEWED = 'document.viewed';
     case DOCUMENT_DOWNLOADED = 'document.downloaded';
     case DOCUMENT_DELETED = 'document.deleted';
@@ -87,6 +88,7 @@ enum AuditAction: string
             self::EMAIL_ACCOUNT_DELETED => 'Cuenta de correo eliminada',
             self::EMAIL_SYNC_STARTED => 'Sincronización iniciada',
             self::EMAIL_SYNC_FINISHED => 'Sincronización finalizada',
+            self::DOCUMENT_UPLOADED => 'Documento subido',
             self::DOCUMENT_VIEWED => 'Documento consultado',
             self::DOCUMENT_DOWNLOADED => 'Documento descargado',
             self::DOCUMENT_DELETED => 'Documento eliminado',

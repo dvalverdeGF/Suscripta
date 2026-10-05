@@ -233,8 +233,7 @@ Corregido con `TenantFilterSynchronizerInterface` (ver `ARCHITECTURE.md` §8.1).
 
 ## Fase 7 — Documentos
 
-> **Estado:** ⬜ Pendiente.
-
+> **Estado:** ✅ Completada.
 
 **Objetivo:** adjuntar facturas y documentos a un servicio.
 
@@ -248,6 +247,65 @@ Corregido con `TenantFilterSynchronizerInterface` (ver `ARCHITECTURE.md` §8.1).
 
 **Verificación:** subir, descargar y borrar documentos; un usuario no puede descargar el
 documento de otra organización; el fichero no es accesible por URL directa.
+
+**Implementado**
+
+- `Document` (tabla `document`): `originalFilename`, `storageDriver`, `storageKey`, `mimeType`,
+  `sizeBytes`, `checksumSha256`, `type`, `source`, `emailMessageId`, `serviceId`, `invoiceId`,
+  `createdAt`, `deletedAt`. Índice único `(organization_id, checksum_sha256)`: el mismo fichero
+  no se guarda dos veces en una organización. Borrado lógico con `delete()` / `restore()`.
+- `Invoice` (tabla `invoice`): `number`, `issuedAt`, `totalAmountMinor`, `currency`,
+  `periodStart`, `periodEnd`, `paidAt`, `status`, `source`, `serviceId`, `providerId`,
+  `documentId`. `buildDedupKey()` = `providerId|number|amountMinor|currency|fecha`, que es lo
+  que impide registrar dos veces el mismo cobro.
+- `InvoiceSource` (`manual` | `email_discovery`). Se añadió porque una factura puede existir
+  **sin documento** (D-19: hay cobros que solo conocemos por el cuerpo del correo) y entonces
+  no hay ningún `Document.source` que diga de dónde salió. Es además la métrica que mide la
+  propuesta de valor (PRODUCT.md §12): qué parte del historial la descubrió el producto.
+- `DocumentStorageInterface` + `LocalDocumentStorage`: clave con particionado
+  `{orgId}/{h[0:2]}/{h[2:4]}/{hash}{ext}` y guarda contra *path traversal* (rechaza `''`, `..`
+  y `\0`).
+- `UploadDocument`: lista blanca de MIME (pdf, jpeg, png, webp, tiff, plain, csv, xml, zip),
+  tope de 20 MB, deduplicación por SHA-256 (devuelve el documento existente con
+  `created: false`), evento `DOCUMENT_ADDED` y auditoría `DOCUMENT_UPLOADED`.
+- `CreateInvoice`: rechaza importes negativos, deduplica por `buildDedupKey()`, rellena el
+  `serviceId` de una factura ya conocida sin sobrescribir el asignado, y registra
+  `ServiceEventType::RENEWED` fechado el día de la factura.
+- `DownloadDocument` / `DocumentContents` / `DeleteDocument` / `AttachDocumentToService`.
+- 9 rutas: `app_documents_{index,new,show,download,attach,delete}` y
+  `app_invoices_{index,new,show}`. La descarga pasa siempre por el controlador (nunca por URL
+  directa) y añade `X-Content-Type-Options: nosniff`.
+- Migración `Version20261005093357` (document + invoice) y `Version20261005095401`
+  (`invoice.source`), aplicadas en `app` y `app_test`.
+
+**Verificación realizada**
+
+- 610 pruebas, 2610 aserciones, todas en verde; PHPStan nivel 8 sin errores; php-cs-fixer sin
+  cambios.
+- `tests/Functional/Documents/DocumentTest.php` (12): subida, deduplicación, filtro por tipo,
+  descarga con cabeceras, borrado lógico, asociación a servicio.
+- `tests/Functional/Documents/DocumentAccessTest.php` (3): anónimo redirigido en las 4 rutas
+  sensibles; aislamiento entre organizaciones (404 en ver, descargar, borrar y asociar).
+- `tests/Functional/Documents/InvoiceTest.php` (11): alta, deduplicación, asociación a servicio
+  con evento `RENEWED`, importe negativo → 422, importe ausente → 422, periodo invertido → 422,
+  filtro por estado, factura desconocida → 404, y el origen (`manual` / `email_discovery`).
+- `tests/Unit/Documents/…`: `DocumentTest` (14), `InvoiceTest` (32), `LocalDocumentStorageTest`
+  (16, con 5 rechazos de *path traversal*), `UploadDocumentTest` (19), `CreateInvoiceTest` (21),
+  `DocumentLifecycleTest` (14).
+
+**Fallos reales encontrados y corregidos**
+
+1. **`CreateInvoice` dejaba una referencia colgando.** Llamaba a
+   `$invoice->attachToDocument($input->documentId)` **antes** de comprobar que el documento
+   existía, así que una factura podía quedar apuntando a un documento inexistente. Se corrigió
+   resolviendo el documento primero.
+2. **`submitForm()` recibe una *ruta*, no un `UploadedFile`.** `DomCrawler\Form::getPhpFiles()`
+   pasa el valor por `http_build_query`, y `FileFormField::setValue(?string)` espera una ruta. En
+   modo coercitivo PHP convertía el objeto a *string* vía `File::__toString()`, es decir, a la
+   ruta temporal, y `getClientOriginalName()` devolvía el nombre del fichero temporal. La prueba
+   funcional escribía el fichero en un directorio temporal **con el nombre final** y pasaba esa
+   ruta. Además `UploadedFile::getMimeType()` **inspecciona el contenido**, así que el fichero de
+   prueba tiene que ser un fichero real del tipo esperado.
 
 ## Fase 8 — Conexión de correo completa (IMAP y reenvío)
 

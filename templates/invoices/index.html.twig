@@ -1,0 +1,94 @@
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}Facturas — Suscripta{% endblock %}
+
+{% block main %}
+    <div class="page-header">
+        <div class="page-header__title">
+            <h1>Facturas</h1>
+            <p class="page-header__subtitle">
+                Lo que realmente se ha cobrado, con su importe y su fecha.
+            </p>
+        </div>
+        <div class="page-header__actions">
+            <a class="btn btn--ghost" href="{{ path('app_documents_index') }}">Documentos</a>
+            <a class="btn btn--primary" href="{{ path('app_invoices_new') }}">Registrar factura</a>
+        </div>
+    </div>
+
+    <nav class="cluster mb-6" aria-label="Filtrar facturas">
+        <a class="btn btn--sm {{ status is null ? 'btn--primary' : 'btn--ghost' }}"
+           href="{{ path('app_invoices_index') }}"
+           {% if status is null %}aria-current="page"{% endif %}>
+            Todas <span class="text-xs">({{ total }})</span>
+        </a>
+        {% for candidate in statuses %}
+            <a class="btn btn--sm {{ status == candidate ? 'btn--primary' : 'btn--ghost' }}"
+               href="{{ path('app_invoices_index', {status: candidate.value}) }}"
+               {% if status == candidate %}aria-current="page"{% endif %}>
+                {{ candidate.label() }}
+            </a>
+        {% endfor %}
+    </nav>
+
+    {% if invoices is empty %}
+        <div class="card">
+            <div class="card__body">
+                <div class="empty-state">
+                    <p class="empty-state__title">Todavía no hay facturas registradas</p>
+                    <p class="empty-state__text">
+                        Cada cobro que detectemos en tu correo se registrará aquí con su importe y su fecha.
+                    </p>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="table-wrapper">
+            <table class="table table--responsive">
+                <thead>
+                    <tr>
+                        <th scope="col">Fecha</th>
+                        <th scope="col">Servicio</th>
+                        <th scope="col">Número</th>
+                        <th scope="col">Periodo</th>
+                        <th scope="col">Estado</th>
+                        <th scope="col" class="text-right">Importe</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for invoice in invoices %}
+                        {% set service = invoice.serviceId ? services[invoice.serviceId.toRfc4122()]|default(null) : null %}
+                        <tr>
+                            <td data-label="Fecha">
+                                <a href="{{ path('app_invoices_show', {id: invoice.id.toRfc4122()}) }}">
+                                    <time datetime="{{ invoice.issuedAt|date('c') }}">{{ invoice.issuedAt|date('d/m/Y') }}</time>
+                                </a>
+                            </td>
+                            <td data-label="Servicio">
+                                {% if service %}
+                                    <a href="{{ path('app_services_show', {id: service.id.toRfc4122()}) }}">{{ service.name }}</a>
+                                {% else %}
+                                    <span class="text-muted">Sin asignar</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="Número">{{ invoice.number|default('—') }}</td>
+                            <td data-label="Periodo">
+                                {% if invoice.periodStart and invoice.periodEnd %}
+                                    {{ invoice.periodStart|date('d/m/Y') }} – {{ invoice.periodEnd|date('d/m/Y') }}
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="Estado">
+                                <span class="badge badge--{{ invoice.status.value == 'paid' ? 'success' : (invoice.status.value == 'failed' ? 'danger' : 'info') }}">
+                                    {{ invoice.status.label() }}
+                                </span>
+                            </td>
+                            <td data-label="Importe" class="num text-right">{{ invoice.total.format() }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+{% endblock %}

@@ -1,0 +1,91 @@
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}Documentos — Suscripta{% endblock %}
+
+{% block main %}
+    <div class="page-header">
+        <div class="page-header__title">
+            <h1>Documentos</h1>
+            <p class="page-header__subtitle">
+                Las facturas, recibos y contratos que explican lo que pagas.
+            </p>
+        </div>
+        <div class="page-header__actions">
+            <a class="btn btn--ghost" href="{{ path('app_invoices_index') }}">Facturas</a>
+            <a class="btn btn--primary" href="{{ path('app_documents_new') }}">Subir documento</a>
+        </div>
+    </div>
+
+    <nav class="cluster mb-6" aria-label="Filtrar documentos">
+        <a class="btn btn--sm {{ type is null ? 'btn--primary' : 'btn--ghost' }}"
+           href="{{ path('app_documents_index') }}"
+           {% if type is null %}aria-current="page"{% endif %}>
+            Todos <span class="text-xs">({{ total }})</span>
+        </a>
+        {% for candidate in types %}
+            <a class="btn btn--sm {{ type == candidate ? 'btn--primary' : 'btn--ghost' }}"
+               href="{{ path('app_documents_index', {type: candidate.value}) }}"
+               {% if type == candidate %}aria-current="page"{% endif %}>
+                {{ candidate.label() }}
+                {% if counts[candidate.value] is defined %}<span class="text-xs">({{ counts[candidate.value] }})</span>{% endif %}
+            </a>
+        {% endfor %}
+    </nav>
+
+    {% if documents is empty %}
+        <div class="card">
+            <div class="card__body">
+                <div class="empty-state">
+                    <p class="empty-state__title">Todavía no hay documentos</p>
+                    <p class="empty-state__text">
+                        Cuando conectes tu buzón, las facturas que lleguen por correo aparecerán aquí.
+                        También puedes subir una a mano.
+                    </p>
+                    <a class="btn btn--primary" href="{{ path('app_documents_new') }}">Subir documento</a>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="table-wrapper">
+            <table class="table table--responsive">
+                <thead>
+                    <tr>
+                        <th scope="col">Documento</th>
+                        <th scope="col">Tipo</th>
+                        <th scope="col">Servicio</th>
+                        <th scope="col">Origen</th>
+                        <th scope="col">Tamaño</th>
+                        <th scope="col">Añadido</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for document in documents %}
+                        {% set service = document.serviceId ? services[document.serviceId.toRfc4122()]|default(null) : null %}
+                        <tr>
+                            <td data-label="Documento">
+                                <a href="{{ path('app_documents_show', {id: document.id.toRfc4122()}) }}">
+                                    {{ document.displayName() }}
+                                </a>
+                            </td>
+                            <td data-label="Tipo">
+                                <span class="badge badge--info">{{ document.type.label() }}</span>
+                            </td>
+                            <td data-label="Servicio">
+                                {% if service %}
+                                    <a href="{{ path('app_services_show', {id: service.id.toRfc4122()}) }}">{{ service.name }}</a>
+                                {% else %}
+                                    <span class="text-muted">Sin asignar</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="Origen">{{ document.source.label() }}</td>
+                            <td data-label="Tamaño" class="num">{{ document.humanSize() }}</td>
+                            <td data-label="Añadido">
+                                <time datetime="{{ document.createdAt|date('c') }}">{{ document.createdAt|date('d/m/Y') }}</time>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+{% endblock %}

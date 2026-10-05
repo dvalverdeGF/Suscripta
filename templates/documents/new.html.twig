@@ -1,0 +1,36 @@
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}Subir documento — Suscripta{% endblock %}
+
+{% block main %}
+    <div class="page-header">
+        <div class="page-header__title">
+            <p class="text-muted text-sm">
+                <a href="{{ path('app_documents_index') }}">← Documentos</a>
+            </p>
+            <h1>Subir documento</h1>
+            <p class="page-header__subtitle">
+                Facturas en papel, contratos firmados o justificantes que no llegaron por correo.
+            </p>
+        </div>
+    </div>
+
+    {{ form_start(form, {attr: {class: 'form'}}) }}
+        {{ form_errors(form) }}
+
+        <div class="card mb-6">
+            <div class="card__body">
+                {{ form_row(form.file) }}
+                <div class="grid grid--2">
+                    {{ form_row(form.type) }}
+                    {{ form_row(form.serviceId) }}
+                </div>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn--primary">Guardar documento</button>
+            <a class="btn btn--ghost" href="{{ path('app_documents_index') }}">Cancelar</a>
+        </div>
+    {{ form_end(form) }}
+{% endblock %}
