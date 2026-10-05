@@ -220,6 +220,16 @@ final class DeterministicExtractorTest extends TestCase
         self::assertNull($document->invoiceNumber);
     }
 
+    public function testTheInvoiceNumberDoesNotKeepTheSentencePunctuation(): void
+    {
+        $document = $this->extractor()->extract(
+            $this->header('Factura'),
+            'Factura nº: FRA-2026-10-0042. Total 29,90 €.',
+        );
+
+        self::assertSame('FRA-2026-10-0042', $document->invoiceNumber);
+    }
+
     public function testRawSignalsRecordWhatWasFound(): void
     {
         $this->knownProvider('OVH', 'ovh.com');

@@ -28,6 +28,7 @@ use Throwable;
 use function trim;
 
 use Webklex\PHPIMAP\Address;
+use Webklex\PHPIMAP\Attachment;
 use Webklex\PHPIMAP\Attribute;
 use Webklex\PHPIMAP\Client;
 use Webklex\PHPIMAP\Config;
@@ -265,11 +266,16 @@ final class WebklexImapClient implements ImapClientInterface
 
             $names = [];
             $types = [];
+            $contents = [];
 
             foreach ($message->getAttachments() as $attachment) {
                 $name = $attachment->getName();
                 $names[] = is_string($name) && '' !== $name ? $name : 'adjunto';
                 $types[] = $attachment->getMimeType() ?? 'application/octet-stream';
+                // El contenido ya viene decodificado con el mensaje. Se lee por
+                // `getAttributes()` porque `getContent()` solo existe a través
+                // del `__call` mágico de la librería.
+                $contents[] = $this->attachmentContents($attachment);
             }
 
             return new ImapMessageBody(
@@ -278,6 +284,7 @@ final class WebklexImapClient implements ImapClientInterface
                 htmlBody: $this->safeBody(static fn (): string => $message->getHTMLBody()),
                 attachmentNames: $names,
                 attachmentTypes: $types,
+                attachmentContents: $contents,
             );
         } catch (ImapConnectionException|ImapFetchException $e) {
             throw $e;
@@ -286,6 +293,20 @@ final class WebklexImapClient implements ImapClientInterface
         } finally {
             $this->disconnect($client);
         }
+    }
+
+    /**
+     * Contenido binario de un adjunto, ya decodificado por la librería.
+     *
+     * Devuelve cadena vacía si el adjunto no trae contenido: un adjunto
+     * ilegible no debe impedir analizar el resto del mensaje.
+     */
+    private function attachmentContents(Attachment $attachment): string
+    {
+        $attributes = $attachment->getAttributes();
+        $content = $attributes['content'] ?? null;
+
+        return is_string($content) ? $content : '';
     }
 
     private function connect(ImapConnectionConfig $config): Client

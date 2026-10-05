@@ -65,7 +65,7 @@ class ProviderIdentity
         $this->id = Uuid::v7();
         $this->provider = $provider;
         $this->type = $type;
-        $this->value = mb_strtolower(trim($value));
+        $this->value = $type->isPattern() ? trim($value) : mb_strtolower(trim($value));
         $this->source = $source;
         $this->confidence = max(0, min(100, $confidence));
         $this->createdAt = new DateTimeImmutable();

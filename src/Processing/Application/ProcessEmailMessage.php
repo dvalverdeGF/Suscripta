@@ -23,8 +23,11 @@ use App\Mailbox\Domain\Repository\EmailAccountRepositoryInterface;
 use App\Mailbox\Domain\Repository\EmailMessageRepositoryInterface;
 use App\Processing\Application\Extraction\DeterministicExtractor;
 use App\Processing\Application\Matching\ServiceMatcher;
+use App\Processing\Application\Provider\ExtractWithProviderParser;
+use App\Processing\Application\Text\ExtractDocumentText;
 use App\Processing\Domain\Billing\BillingClassifierInterface;
 use App\Processing\Domain\Dto\ExtractedDocument;
+use App\Processing\Domain\Provider\ProviderResolverInterface;
 use App\Processing\Domain\Dto\ServiceMatchResult;
 use App\Processing\Domain\Entity\ExtractionCache;
 use App\Processing\Domain\Repository\ExtractionCacheRepositoryInterface;
@@ -34,6 +37,7 @@ use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Enum\AuditAction;
 
 use function hash;
+use function implode;
 use function mb_strtolower;
 use function mb_substr;
 use function preg_replace;
@@ -81,6 +85,9 @@ final readonly class ProcessEmailMessage
         private EmailAccountRepositoryInterface $accounts,
         private BillingClassifierInterface $billingScore,
         private DeterministicExtractor $extractor,
+        private ExtractDocumentText $documentText,
+        private ProviderResolverInterface $providerResolver,
+        private ExtractWithProviderParser $providerParser,
         private ServiceMatcher $matcher,
         private DiscoveryRepositoryInterface $discoveries,
         private MessageStateMachine $stateMachine,
@@ -146,22 +153,53 @@ final readonly class ProcessEmailMessage
         );
 
         // ── Nivel 3: descarga perezosa del cuerpo y extracción determinista ─
-        $body ??= $this->fetchBody($message);
-        $contentHash = self::contentHash($body);
+        $content = $this->fetchContent($message, $body);
+        $body = $content['body'];
+
+        // El texto de los adjuntos entra en el mismo saco que el cuerpo: una
+        // factura en PDF trae el importe y el número, y el correo que la
+        // acompaña casi nunca. Se analiza todo junto para que el extractor y el
+        // parser vean el documento completo y no solo el saludo.
+        $haystack = $this->haystack($body, $content['attachments']);
+        $contentHash = self::contentHash($haystack);
         $message->setContentHash($contentHash);
 
-        $rescored = $this->billingScore->score($header, $body);
+        $rescored = $this->billingScore->score($header, $haystack);
         $message->applyBillingScore($rescored->score, $rescored->reasonsAsArray());
+
+        // ── Nivel 4: identificación del proveedor (solo metadatos) ──────────
+        // Se resuelve antes de extraer porque el nombre del proveedor forma
+        // parte del resultado y porque un proveedor conocido habilita su parser.
+        $providerMatch = $this->providerResolver->resolve($header);
 
         // La caché se consulta antes de extraer: un reenvío, un recordatorio o
         // un reintento del mismo correo no deben pagar dos veces por el mismo
         // análisis (D-37).
-        $cached = $this->cachedExtraction($header, $body, $contentHash);
-        $document = $cached ?? $this->extractor->extract($header, $body);
-        $extractorName = null !== $cached ? self::CACHE_EXTRACTOR : $this->extractor->name();
+        $cached = $this->cachedExtraction($header, $haystack, $contentHash);
 
-        if (null === $cached) {
-            $this->remember($message, $body, $contentHash, $document);
+        if (null !== $cached) {
+            $document = $cached;
+            $extractorName = self::CACHE_EXTRACTOR;
+        } else {
+            // ── Nivel 3: extracción determinista ────────────────────────────
+            $document = $this->extractor->extract($header, $haystack, $providerMatch);
+            $extractorName = $this->extractor->name();
+
+            // ── Nivel 4: parser del proveedor conocido ──────────────────────
+            // Se superpone al resultado genérico en lugar de sustituirlo: el
+            // parser conoce la plantilla y el extractor genérico mira el
+            // documento entero, así que cada uno tapa lo que el otro no ve.
+            $parsed = ($this->providerParser)($header, $providerMatch, $haystack);
+
+            if (null !== $parsed) {
+                $document = $document->withProviderParse(
+                    $parsed,
+                    $providerMatch->displayName() ?? $parsed->serviceName ?? '',
+                );
+                $extractorName = $parsed->parserKey;
+            }
+
+            $this->remember($message, $haystack, $contentHash, $document);
         }
 
         $message->applyClassification(
@@ -403,18 +441,29 @@ final readonly class ProcessEmailMessage
         ));
     }
 
-    private function fetchBody(EmailMessage $message): string
+    /**
+     * Descarga perezosa del cuerpo y de los adjuntos (D-38).
+     *
+     * Devuelve el cuerpo del correo y, ya convertidos a texto, sus adjuntos.
+     * Un mensaje reenviado no está en ningún buzón: su cuerpo llegó con la
+     * petición y ya se ha consumido, así que no hay nada que descargar.
+     *
+     * @return array{body: string, attachments: list<array{name: string, type: string, contents: string}>}
+     */
+    private function fetchContent(EmailMessage $message, ?string $body): array
     {
-        // Un mensaje reenviado no está en ningún buzón: su cuerpo llegó con la
-        // petición y ya se ha consumido. Sin UID no hay nada que descargar.
+        if (null !== $body) {
+            return ['body' => $body, 'attachments' => []];
+        }
+
         if (null === $message->getUid() || !$message->getSource()->requiresMailboxAccess()) {
-            return '';
+            return ['body' => '', 'attachments' => []];
         }
 
         $account = $this->accounts->find($message->getEmailAccountId());
 
         if (null === $account || !$account->isConfigured()) {
-            return '';
+            return ['body' => '', 'attachments' => []];
         }
 
         try {
@@ -434,10 +483,42 @@ final readonly class ProcessEmailMessage
             // metadatos, que ya han demostrado ser suficientes para puntuar.
             $message->recordFailure($e->getMessage());
 
-            return '';
+            return ['body' => '', 'attachments' => []];
         }
 
-        return trim($body->textBody) !== '' ? $body->textBody : $body->htmlBody;
+        return [
+            'body' => trim($body->textBody) !== '' ? $body->textBody : $body->htmlBody,
+            'attachments' => $body->attachments(),
+        ];
+    }
+
+    /**
+     * Texto que se analiza: el cuerpo del correo más el texto de sus adjuntos.
+     *
+     * Los adjuntos pasan por la cadena de extracción de texto (nivel 3), que
+     * intenta primero la capa de texto del documento y solo recurre a OCR
+     * cuando no hay ninguna. Todo ocurre dentro de nuestra infraestructura: en
+     * este punto no sale nada hacia fuera (D-24).
+     *
+     * @param list<array{name: string, type: string, contents: string}> $attachments
+     */
+    private function haystack(string $body, array $attachments): string
+    {
+        $parts = [trim($body)];
+
+        foreach ($attachments as $attachment) {
+            $text = ($this->documentText)(
+                $attachment['contents'],
+                $attachment['type'],
+                $attachment['name'],
+            );
+
+            if (!$text->isEmpty()) {
+                $parts[] = $text->text;
+            }
+        }
+
+        return trim(implode("\n", $parts));
     }
 
     /**

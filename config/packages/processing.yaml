@@ -126,3 +126,41 @@ parameters:
             - novedades
             - boletin
             - boletín
+
+    # ── Nivel 3: lectura de documentos (ARCHITECTURE.md §13.6) ──────────────
+    #
+    # El OCR es el último recurso y el más caro: solo se paga cuando el
+    # documento no trae capa de texto. Estos valores son decisiones de producto
+    # (cuánto estamos dispuestos a gastar por factura), no constantes técnicas.
+    #
+    # Se declaran como parámetros planos con nombre punteado, y no como un
+    # array anidado, porque Symfony NO resuelve el acceso a claves de un array
+    # (`%app.processing.ocr.min_characters%` falla con «You cannot access nested
+    # array items»). El nombre punteado es solo una convención de lectura: para
+    # el contenedor es una clave plana más. Ver D-43.
+    # Por debajo de este número de caracteres se considera que el documento no
+    # tiene texto de verdad. Un PDF escaneado devuelve metadatos y ruido, y sin
+    # umbral ese ruido impediría el OCR.
+    app.processing.ocr.min_characters: 40
+
+    # Tope de texto que se guarda y se analiza. Una factura no tiene más.
+    app.processing.ocr.max_characters: 200000
+
+    # Binarios. Se declaran aquí para poder apuntar a otra instalación sin
+    # tocar el código.
+    app.processing.ocr.binary: tesseract
+    app.processing.ocr.rasterizer: pdftoppm
+
+    # Español primero: la mayoría de facturas del mercado objetivo lo están.
+    app.processing.ocr.languages: 'spa+eng'
+
+    # Una factura escaneada rara vez pasa de cinco páginas, y cada página
+    # cuesta segundos de CPU.
+    app.processing.ocr.max_pages: 5
+
+    # 300 ppp es el mínimo que lee bien un importe con separador de miles.
+    app.processing.ocr.dpi: 300
+
+    # Tiempo máximo que se retiene el cerrojo de OCR. El OCR se serializa para
+    # no saturar la máquina (concurrencia muy baja).
+    app.processing.ocr.timeout_seconds: 60

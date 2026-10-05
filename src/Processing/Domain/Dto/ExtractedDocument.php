@@ -6,6 +6,7 @@ namespace App\Processing\Domain\Dto;
 
 use App\Documents\Domain\Enum\DocumentType;
 use App\Mailbox\Domain\Enum\ExtractionTier;
+use App\Processing\Domain\Provider\ProviderParseResult;
 use App\Shared\Domain\ValueObject\BillingPeriod;
 use DateTimeImmutable;
 use Exception;
@@ -14,6 +15,7 @@ use function is_array;
 use function is_int;
 use function is_numeric;
 use function is_string;
+use function max;
 
 /**
  * Resultado normalizado de la extracción (ARCHITECTURE.md §13.6).
@@ -131,6 +133,42 @@ final readonly class ExtractedDocument
             plan: $this->plan,
             renewalDate: $this->renewalDate,
             rawSignals: $this->rawSignals,
+        );
+    }
+
+    /**
+     * Superpone lo que ha leído el parser del proveedor sobre lo que ya sabíamos
+     * (ARCHITECTURE.md §13.7).
+     *
+     * El parser gana en los campos que ha leído, porque conoce la plantilla; el
+     * extractor genérico rellena los huecos, porque es el que mira el documento
+     * entero. Un parser que solo sabe leer el importe sigue siendo útil si el
+     * extractor genérico aporta la periodicidad.
+     *
+     * El nivel pasa a `KNOWN_PARSER` en cuanto interviene un parser: es lo que
+     * permite medir cuánto trabajo resuelve el conocimiento de proveedores y
+     * cuánto sigue costando la IA (D-36).
+     */
+    public function withProviderParse(ProviderParseResult $result, string $providerName): self
+    {
+        return new self(
+            tier: ExtractionTier::KNOWN_PARSER,
+            confidence: max($this->confidence, $result->confidence),
+            amountMinor: $result->amountMinor ?? $this->amountMinor,
+            currency: $result->currency ?? $this->currency,
+            invoiceNumber: $result->invoiceNumber ?? $this->invoiceNumber,
+            invoiceDate: $result->invoiceDate ?? $this->invoiceDate,
+            dueDate: $result->dueDate ?? $this->dueDate,
+            billingPeriod: $result->billingPeriod ?? $this->billingPeriod,
+            sender: $this->sender,
+            senderDomain: $this->senderDomain,
+            subject: $this->subject,
+            documentType: $this->documentType,
+            providerName: $providerName,
+            serviceName: $result->serviceName ?? $this->serviceName,
+            plan: $result->plan ?? $this->plan,
+            renewalDate: $result->renewalDate ?? $this->renewalDate,
+            rawSignals: ['parser' => $result->parserKey] + $result->signals + $this->rawSignals,
         );
     }
 

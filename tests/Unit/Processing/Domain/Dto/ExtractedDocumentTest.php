@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Processing\Domain\Dto;
 use App\Documents\Domain\Enum\DocumentType;
 use App\Mailbox\Domain\Enum\ExtractionTier;
 use App\Processing\Domain\Dto\ExtractedDocument;
+use App\Processing\Domain\Provider\ProviderParseResult;
 use App\Shared\Domain\ValueObject\BillingPeriod;
 use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -163,5 +164,122 @@ final class ExtractedDocumentTest extends TestCase
         self::assertNull($refreshed->senderDomain);
         self::assertNull($refreshed->subject);
         self::assertTrue($refreshed->isActionable());
+    }
+
+    public function testAProviderParseOverlaysItsFieldsOnTheDocument(): void
+    {
+        $document = new ExtractedDocument(
+            tier: ExtractionTier::DETERMINISTIC,
+            confidence: 0.5,
+            amountMinor: 1990,
+            currency: 'EUR',
+            invoiceNumber: null,
+            invoiceDate: null,
+            dueDate: null,
+            billingPeriod: null,
+            sender: 'facturas@ovh.com',
+            senderDomain: 'ovh.com',
+            subject: 'Tu factura',
+            documentType: DocumentType::INVOICE,
+            providerName: 'OVHcloud',
+            serviceName: null,
+            plan: null,
+            renewalDate: null,
+            rawSignals: ['amount' => '19,90 €'],
+        );
+
+        $parsed = $document->withProviderParse($this->parseResult(), 'OVHcloud');
+
+        self::assertSame(2990, $parsed->amountMinor, 'El parser corrige el importe que el extractor genérico leyó mal.');
+        self::assertSame('FRA-2026-1042', $parsed->invoiceNumber);
+        self::assertSame('2026-10-03', $parsed->invoiceDate?->format('Y-m-d'));
+        self::assertSame('2026-10-17', $parsed->dueDate?->format('Y-m-d'));
+        self::assertSame(BillingPeriod::MONTHLY, $parsed->billingPeriod);
+        self::assertSame('VPS Comfort', $parsed->plan);
+        self::assertSame('VPS', $parsed->serviceName);
+        self::assertSame('OVHcloud', $parsed->providerName);
+    }
+
+    public function testAProviderParseMarksTheDocumentAsReadByAKnownParser(): void
+    {
+        $parsed = $this->full()->withProviderParse($this->parseResult(), 'OVHcloud');
+
+        self::assertSame(ExtractionTier::KNOWN_PARSER, $parsed->tier);
+    }
+
+    public function testAProviderParseNeverLowersTheConfidence(): void
+    {
+        $confident = $this->full()->withProviderParse($this->parseResult(confidence: 0.2), 'OVHcloud');
+        $unsure = $this->full()->withProviderParse($this->parseResult(confidence: 0.99), 'OVHcloud');
+
+        self::assertSame(0.93, $confident->confidence, 'Un parser flojo no debe empeorar lo que ya se sabía.');
+        self::assertSame(0.99, $unsure->confidence);
+    }
+
+    public function testAProviderParseKeepsTheFieldsItDidNotRead(): void
+    {
+        $parsed = $this->full()->withProviderParse($this->parseResult(), 'OVHcloud');
+
+        self::assertSame('facturas@ovh.com', $parsed->sender);
+        self::assertSame('ovh.com', $parsed->senderDomain);
+        self::assertSame('Tu factura de octubre', $parsed->subject);
+        self::assertSame(DocumentType::INVOICE, $parsed->documentType);
+    }
+
+    public function testAProviderParseRecordsWhichParserWasUsed(): void
+    {
+        $parsed = $this->full()->withProviderParse($this->parseResult(), 'OVHcloud');
+
+        self::assertSame('ovh', $parsed->rawSignals['parser']);
+        self::assertSame('FRA-2026-1042', $parsed->rawSignals['invoiceNumber']);
+        self::assertSame('29,90 €', $parsed->rawSignals['amount'], 'Las señales del extractor genérico no se pierden.');
+    }
+
+    public function testAProviderParseWithNoDataLeavesTheDocumentUntouched(): void
+    {
+        $original = $this->full();
+
+        $parsed = $original->withProviderParse(
+            new ProviderParseResult(
+                parserKey: 'ovh',
+                confidence: 0.0,
+                amountMinor: null,
+                currency: null,
+                invoiceNumber: null,
+                invoiceDate: null,
+                dueDate: null,
+                billingPeriod: null,
+                plan: null,
+                serviceName: null,
+                renewalDate: null,
+                signals: [],
+            ),
+            'OVHcloud',
+        );
+
+        self::assertSame($original->amountMinor, $parsed->amountMinor);
+        self::assertSame($original->invoiceNumber, $parsed->invoiceNumber);
+        self::assertSame($original->billingPeriod, $parsed->billingPeriod);
+        self::assertSame($original->plan, $parsed->plan);
+        self::assertSame($original->serviceName, $parsed->serviceName);
+        self::assertSame(ExtractionTier::KNOWN_PARSER, $parsed->tier);
+    }
+
+    private function parseResult(float $confidence = 0.95): ProviderParseResult
+    {
+        return new ProviderParseResult(
+            parserKey: 'ovh',
+            confidence: $confidence,
+            amountMinor: 2990,
+            currency: 'EUR',
+            invoiceNumber: 'FRA-2026-1042',
+            invoiceDate: new DateTimeImmutable('2026-10-03'),
+            dueDate: new DateTimeImmutable('2026-10-17'),
+            billingPeriod: BillingPeriod::MONTHLY,
+            plan: 'VPS Comfort',
+            serviceName: 'VPS',
+            renewalDate: new DateTimeImmutable('2026-11-03'),
+            signals: ['invoiceNumber' => 'FRA-2026-1042'],
+        );
     }
 }

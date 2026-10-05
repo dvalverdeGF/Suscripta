@@ -819,3 +819,4 @@ La primera versión debe poder funcionar con:
 **reglas + parsers + IA estructurada + scoring + conocimiento persistente.**
 
 El objetivo es que la IA sea una herramienta de resolución de incertidumbre y descubrimiento, no una dependencia permanente para procesar cada correo.
+ 

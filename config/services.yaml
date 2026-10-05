@@ -21,6 +21,13 @@ services:
     _instanceof:
         App\Notifications\Application\Channel\NotificationChannelInterface:
             tags: ['app.notification_channel']
+        # Los extractores de texto y los parsers de proveedor se recogen por
+        # etiqueta: añadir un formato o un proveedor nuevo es escribir la clase
+        # y nada más (ARCHITECTURE.md §13.6, §13.7).
+        App\Processing\Domain\Text\DocumentTextExtractorInterface:
+            tags: ['app.document_text_extractor']
+        App\Processing\Domain\Provider\ProviderParserInterface:
+            tags: ['app.provider_parser']
 
     # makes classes in src/ available to be used as services
     # this creates a service per class whose id is the fully-qualified class name
@@ -77,3 +84,36 @@ services:
     # analizarse es una política de producto y debe poder sustituirse sin tocar
     # el orquestador (D-31).
     App\Processing\Domain\Billing\BillingClassifierInterface: '@App\Processing\Application\Billing\BillingScoreCalculator'
+
+    # ── Nivel 3: lectura de documentos (ARCHITECTURE.md §13.6) ──────────────
+    # El orden importa: se prueba el primero que reconozca el formato. El PDF va
+    # antes que el texto plano porque un PDF también responde a `application/*`
+    # y no queremos que un extractor genérico se lo quede.
+    App\Processing\Application\Text\DocumentTextExtractorRegistry:
+        arguments:
+            $extractors: !tagged_iterator app.document_text_extractor
+
+    App\Processing\Application\Text\ExtractDocumentText:
+        arguments:
+            $minCharacters: '%app.processing.ocr.min_characters%'
+            $maxCharacters: '%app.processing.ocr.max_characters%'
+
+    # El OCR es opcional por diseño: si Tesseract no está instalado, el motor
+    # nulo hace que el pipeline degrade a IA o a revisión en lugar de fallar.
+    App\Processing\Domain\Ocr\OcrEngineInterface: '@App\Processing\Infrastructure\Ocr\TesseractOcrEngine'
+
+    App\Processing\Infrastructure\Ocr\TesseractOcrEngine:
+        arguments:
+            $binary: '%app.processing.ocr.binary%'
+            $rasterizer: '%app.processing.ocr.rasterizer%'
+            $languages: '%app.processing.ocr.languages%'
+            $maxPages: '%app.processing.ocr.max_pages%'
+            $dpi: '%app.processing.ocr.dpi%'
+            $timeoutSeconds: '%app.processing.ocr.timeout_seconds%'
+
+    # ── Nivel 4: conocimiento de proveedores (ARCHITECTURE.md §13.7) ────────
+    App\Processing\Application\Provider\ProviderParserRegistry:
+        arguments:
+            $parsers: !tagged_iterator app.provider_parser
+
+    App\Processing\Domain\Provider\ProviderResolverInterface: '@App\Processing\Application\Provider\ProviderResolver'

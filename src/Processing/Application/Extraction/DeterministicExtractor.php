@@ -11,6 +11,7 @@ use App\Mailbox\Application\Imap\ImapMessageHeader;
 use App\Mailbox\Domain\Enum\ExtractionTier;
 use App\Mailbox\Domain\Enum\MessageClassification;
 use App\Processing\Domain\Dto\ExtractedDocument;
+use App\Processing\Domain\Provider\ProviderMatch;
 use App\Shared\Application\Clock;
 use App\Shared\Domain\ValueObject\BillingPeriod;
 use App\Shared\Domain\ValueObject\Currency;
@@ -27,6 +28,7 @@ use function mb_strtolower;
 use function mb_substr;
 use function preg_match;
 use function round;
+use function rtrim;
 use function str_contains;
 use function trim;
 
@@ -79,7 +81,10 @@ final readonly class DeterministicExtractor
     ) {
     }
 
-    public function extract(ImapMessageHeader $header, string $bodyText = ''): ExtractedDocument
+    /**
+     * @param ProviderMatch|null $provider resolución ya hecha por el nivel 4, si la hay
+     */
+    public function extract(ImapMessageHeader $header, string $bodyText = '', ?ProviderMatch $provider = null): ExtractedDocument
     {
         $haystack = trim($header->subject."\n".$bodyText);
         $signals = [];
@@ -113,8 +118,10 @@ final readonly class DeterministicExtractor
         }
 
         $classification = $this->classify($haystack);
-        $knownProvider = $this->resolveKnownProviderName($header);
-        $providerName = $knownProvider ?? $this->provisionalProviderName($header);
+        $knownProvider = null === $provider
+            ? $this->resolveKnownProviderName($header)
+            : ($provider->isKnown() ? $provider->displayName() : null);
+        $providerName = $knownProvider ?? $provider?->displayName() ?? $this->provisionalProviderName($header);
         $renewalDate = $this->detectRenewalDate($haystack, $dates);
 
         if (null !== $renewalDate) {
@@ -190,7 +197,10 @@ final readonly class DeterministicExtractor
         // contenga un dígito: el asunto ("Factura OVH 2026-10") suele coincidir
         // antes que el número real, y "OVH" no es un número de factura.
         foreach ($matches[1] as $candidate) {
-            $candidate = trim($candidate);
+            // El patrón admite puntos y guiones dentro del número, así que
+            // también captura la puntuación de la frase («FRA-1.»). Un número
+            // de factura no termina en separador.
+            $candidate = rtrim(trim($candidate), '.-_/');
 
             if (1 === preg_match('/\d/', $candidate)) {
                 return $candidate;

@@ -21,7 +21,11 @@ RUN <<-EOF
 	apt-get update
 	apt-get install -y --no-install-recommends \
 		file \
-		git
+		git \
+		poppler-utils \
+		tesseract-ocr \
+		tesseract-ocr-eng \
+		tesseract-ocr-spa
 	install-php-extensions \
 		@composer \
 		apcu \

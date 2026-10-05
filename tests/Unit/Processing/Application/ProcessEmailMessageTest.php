@@ -8,6 +8,7 @@ use App\Catalog\Domain\Entity\Provider;
 use App\Catalog\Domain\Entity\ProviderIdentity;
 use App\Catalog\Domain\Enum\ProviderIdentityType;
 use App\Catalog\Domain\Repository\ProviderIdentityRepositoryInterface;
+use App\Catalog\Domain\Repository\ProviderParserRepositoryInterface;
 use App\Discovery\Domain\Entity\Discovery;
 use App\Discovery\Domain\Entity\DiscoveryEvidence;
 use App\Discovery\Domain\Enum\DiscoveryType;
@@ -32,6 +33,14 @@ use App\Processing\Application\Extraction\DeterministicExtractor;
 use App\Processing\Application\Matching\ServiceMatcher;
 use App\Processing\Application\MessageStateMachine;
 use App\Processing\Application\ProcessEmailMessage;
+use App\Processing\Application\Provider\ExtractWithProviderParser;
+use App\Processing\Application\Provider\ProviderParserRegistry;
+use App\Processing\Application\Provider\ProviderResolver;
+use App\Processing\Application\Text\DocumentTextExtractorRegistry;
+use App\Processing\Application\Text\ExtractDocumentText;
+use App\Processing\Infrastructure\Ocr\NullOcrEngine;
+use App\Processing\Infrastructure\Text\PdfTextExtractor;
+use App\Processing\Infrastructure\Text\PlainTextExtractor;
 use App\Services\Domain\Entity\Service;
 use App\Services\Domain\Repository\ServiceRepositoryInterface;
 use App\Shared\Application\Audit\AuditLoggerInterface;
@@ -42,6 +51,7 @@ use App\Shared\Domain\ValueObject\BillingPeriod;
 use App\Shared\Domain\ValueObject\Currency;
 use App\Shared\Domain\ValueObject\Money;
 use App\Tests\Support\Processing\InMemoryExtractionCacheRepository;
+use App\Tests\Support\Processing\PdfFixture;
 
 use function count;
 
@@ -82,6 +92,8 @@ final class ProcessEmailMessageTest extends TestCase
 
     private ProviderIdentityRepositoryInterface&MockObject $identities;
 
+    private ProviderParserRepositoryInterface&MockObject $parsers;
+
     private ServiceRepositoryInterface&MockObject $services;
 
     private InMemoryExtractionCacheRepository $cache;
@@ -111,6 +123,7 @@ final class ProcessEmailMessageTest extends TestCase
         $this->cipher = $this->createMock(CredentialCipherInterface::class);
         $this->audit = $this->createMock(AuditLoggerInterface::class);
         $this->identities = $this->createMock(ProviderIdentityRepositoryInterface::class);
+        $this->parsers = $this->createMock(ProviderParserRepositoryInterface::class);
         $this->services = $this->createMock(ServiceRepositoryInterface::class);
         $this->cache = new InMemoryExtractionCacheRepository();
 
@@ -158,6 +171,9 @@ final class ProcessEmailMessageTest extends TestCase
             accounts: $this->accounts,
             billingScore: new BillingScoreCalculator(BillingScoreWeights::fromArray([]), $this->identities),
             extractor: new DeterministicExtractor(new AmountParser(), new DateParser(), $this->identities, $clock),
+            documentText: $this->documentText(),
+            providerResolver: new ProviderResolver($this->identities, $clock),
+            providerParser: new ExtractWithProviderParser($this->parsers, new ProviderParserRegistry([]), $clock),
             matcher: new ServiceMatcher($this->services),
             discoveries: $this->discoveries,
             stateMachine: new MessageStateMachine($this->events, $clock),
@@ -167,6 +183,18 @@ final class ProcessEmailMessageTest extends TestCase
             tenantContext: new TenantContext(),
             auditLogger: $this->audit,
             clock: $clock,
+        );
+    }
+
+    /**
+     * Cadena de extracción de texto real, sin OCR: en estos tests los adjuntos
+     * son texto plano o PDF con capa de texto.
+     */
+    private function documentText(): ExtractDocumentText
+    {
+        return new ExtractDocumentText(
+            new DocumentTextExtractorRegistry([new PdfTextExtractor(), new PlainTextExtractor()]),
+            new NullOcrEngine(),
         );
     }
 
@@ -226,6 +254,25 @@ final class ProcessEmailMessageTest extends TestCase
             ->willReturnCallback(static fn (ImapConnectionConfig $config, string $folder, int $uid): ImapMessageBody => new ImapMessageBody($uid, $body, ''));
     }
 
+    /**
+     * @param list<array{name: string, type: string, contents: string}> $attachments
+     */
+    private function withBodyAndAttachments(string $body, array $attachments): void
+    {
+        $this->accounts->method('find')->willReturn($this->account());
+        $this->cipher->method('decrypt')->willReturn('secreto');
+        $this->imap
+            ->method('fetchBody')
+            ->willReturnCallback(static fn (ImapConnectionConfig $config, string $folder, int $uid): ImapMessageBody => new ImapMessageBody(
+                uid: $uid,
+                textBody: $body,
+                htmlBody: '',
+                attachmentNames: array_map(static fn (array $a): string => $a['name'], $attachments),
+                attachmentTypes: array_map(static fn (array $a): string => $a['type'], $attachments),
+                attachmentContents: array_map(static fn (array $a): string => $a['contents'], $attachments),
+            ));
+    }
+
     /** @return list<string> */
     private function states(): array
     {
@@ -269,6 +316,47 @@ final class ProcessEmailMessageTest extends TestCase
         self::assertSame(MessageProcessingState::DISCOVERY, $message->getProcessingState());
         self::assertNotNull($discovery);
         self::assertSame(DiscoveryType::NEW_SERVICE, $discovery->getType());
+    }
+
+    public function testTheTextOfAnAttachmentIsAnalysedWithTheBody(): void
+    {
+        $this->knownProvider('OVH', 'ovh.com');
+
+        // El correo no dice nada útil: todo está en el PDF adjunto.
+        $this->withBodyAndAttachments(
+            'Hola, te adjuntamos la factura del mes.',
+            [[
+                'name' => 'factura-2026-10.pdf',
+                'type' => 'application/pdf',
+                'contents' => PdfFixture::withText('Factura nº: FRA-2026-10-0042. Fecha: 2026-10-03. Total 29,90 EUR. Facturacion mensual.'),
+            ]],
+        );
+
+        $discovery = $this->orchestrator()($this->message());
+
+        self::assertNotNull($discovery);
+        self::assertSame(2990, $discovery->getProposedData()['amountMinor']);
+        self::assertSame('FRA-2026-10-0042', $discovery->getProposedData()['invoiceNumber']);
+    }
+
+    public function testTheAttachmentTextIsPartOfTheContentHash(): void
+    {
+        $this->knownProvider('OVH', 'ovh.com');
+
+        $this->withBodyAndAttachments(
+            'Te adjuntamos la factura.',
+            [[
+                'name' => 'factura.pdf',
+                'type' => 'application/pdf',
+                'contents' => PdfFixture::withText('Factura nº: FRA-1. Total 29,90 EUR. Facturacion mensual.'),
+            ]],
+        );
+
+        $this->orchestrator()($this->message());
+
+        // Mismo cuerpo, adjunto distinto: no puede reutilizarse la extracción.
+        self::assertCount(1, $this->cache->all());
+        self::assertSame(0, $this->cache->all()[0]->getHitCount());
     }
 
     public function testTheBodyIsNeverPersistedOnlyAnExcerpt(): void
@@ -443,6 +531,9 @@ final class ProcessEmailMessageTest extends TestCase
             accounts: $this->accounts,
             billingScore: new BillingScoreCalculator(BillingScoreWeights::fromArray([]), $this->identities),
             extractor: new DeterministicExtractor(new AmountParser(), new DateParser(), $this->identities, $clock),
+            documentText: $this->documentText(),
+            providerResolver: new ProviderResolver($this->identities, $clock),
+            providerParser: new ExtractWithProviderParser($this->parsers, new ProviderParserRegistry([]), $clock),
             matcher: new ServiceMatcher($this->services),
             discoveries: $this->discoveries,
             stateMachine: new MessageStateMachine($this->events, $clock),

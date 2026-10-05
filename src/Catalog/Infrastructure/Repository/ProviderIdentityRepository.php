@@ -50,6 +50,22 @@ final class ProviderIdentityRepository extends DoctrineRepository implements Pro
         return $identities;
     }
 
+    public function findByType(ProviderIdentityType $type): array
+    {
+        /** @var list<ProviderIdentity> $identities */
+        $identities = $this->entityManager
+            ->createQueryBuilder()
+            ->select('i')
+            ->from(ProviderIdentity::class, 'i')
+            ->where('i.type = :type')
+            ->setParameter('type', $type)
+            ->orderBy('i.confidence', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        return $identities;
+    }
+
     public function save(ProviderIdentity $identity, bool $flush = true): void
     {
         $this->persist($identity, $flush);
