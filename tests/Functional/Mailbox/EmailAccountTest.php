@@ -95,7 +95,7 @@ final class EmailAccountTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('h1', 'Buzones de correo');
-        self::assertSelectorTextContains('.empty-state__title', 'Todavía no hay ningún buzón conectado');
+        self::assertSelectorTextContains('.bo-empty__title', 'Todavía no hay ningún buzón conectado');
     }
 
     public function testConnectingAMailboxChecksTheConnectionBeforeSaving(): void
@@ -145,7 +145,7 @@ final class EmailAccountTest extends WebTestCase
         ]);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSelectorTextContains('.alert--danger', 'No se pudo conectar');
+        self::assertSelectorTextContains('.alert-danger', 'No se pudo conectar');
         self::assertNull($this->accounts()->findByAddress('facturas@miempresa.com'));
     }
 
@@ -167,7 +167,7 @@ final class EmailAccountTest extends WebTestCase
         ]);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSelectorTextContains('.alert--danger', 'ya está conectado');
+        self::assertSelectorTextContains('.alert-danger', 'ya está conectado');
         self::assertCount(0, $this->imap->testConnectionCalls, 'Un buzón duplicado se rechaza antes de tocar la red.');
     }
 
@@ -179,8 +179,8 @@ final class EmailAccountTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('h1', 'Correo de facturación');
-        self::assertSelectorTextContains('.app-main', 'imap.miempresa.com');
-        self::assertSelectorTextContains('.app-main', 'Solo se guardan metadatos');
+        self::assertSelectorTextContains('.bo-main', 'imap.miempresa.com');
+        self::assertSelectorTextContains('.bo-main', 'Solo se guardan metadatos');
     }
 
     public function testTestingTheConnectionFromTheDetailPageReportsSuccess(): void
@@ -196,7 +196,7 @@ final class EmailAccountTest extends WebTestCase
         self::assertCount(1, $this->imap->listFoldersCalls, 'Probar la conexión lista las carpetas, no descarga correo.');
 
         $this->client->followRedirect();
-        self::assertSelectorTextContains('.alert--success', 'Conexión correcta');
+        self::assertSelectorTextContains('.alert-success', 'Conexión correcta');
     }
 
     public function testEditingKeepsThePasswordWhenTheFieldIsLeftEmpty(): void
@@ -306,7 +306,7 @@ final class EmailAccountTest extends WebTestCase
 
         $this->client->request('GET', '/mail/accounts');
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.empty-state__title', 'Todavía no hay ningún buzón conectado');
+        self::assertSelectorTextContains('.bo-empty__title', 'Todavía no hay ningún buzón conectado');
 
         $this->client->request('GET', '/mail/accounts/'.$account->getId()->toRfc4122());
         self::assertResponseStatusCodeSame(404);
@@ -320,7 +320,7 @@ final class EmailAccountTest extends WebTestCase
         self::assertSelectorExists('input[name="email_account_form[imapHost]"]');
         self::assertSelectorExists('input[name="email_account_form[imapPort]"]');
         self::assertSelectorExists('select[name="email_account_form[imapEncryption]"]');
-        self::assertSelectorTextContains('.app-main', 'cualquier servidor IMAP');
+        self::assertSelectorTextContains('.bo-main', 'cualquier servidor IMAP');
     }
 
     public function testTheSyncCommandIsAvailableForConnectedMailboxes(): void
@@ -467,7 +467,7 @@ final class EmailAccountTest extends WebTestCase
 
         $this->show($account);
 
-        self::assertSelectorTextContains('.page-header__actions', 'Sincronizar ahora');
+        self::assertSelectorTextContains('.bo-page-header__actions', 'Sincronizar ahora');
     }
 
     public function testSyncingNowReadsTheMailboxAndReportsTheResult(): void
@@ -498,8 +498,8 @@ final class EmailAccountTest extends WebTestCase
         ]);
         $this->client->followRedirect();
 
-        self::assertSelectorTextContains('.app-main', 'Últimas lecturas');
-        self::assertSelectorTextContains('.app-main', 'Completada');
+        self::assertSelectorTextContains('.bo-main', 'Últimas lecturas');
+        self::assertSelectorTextContains('.bo-main', 'Completada');
     }
 
     public function testSyncingWithoutAValidTokenIsRejected(): void
@@ -517,8 +517,8 @@ final class EmailAccountTest extends WebTestCase
 
         $this->show($account);
 
-        self::assertSelectorTextContains('.app-main', 'Reenviar facturas sin dar acceso al buzón');
-        self::assertSelectorTextContains('.app-main', 'Activar reenvío');
+        self::assertSelectorTextContains('.bo-main', 'Reenviar facturas sin dar acceso al buzón');
+        self::assertSelectorTextContains('.bo-main', 'Activar reenvío');
         self::assertFalse($account->isForwardingEnabled());
         self::assertNull($account->getForwardingAddress());
     }
@@ -550,7 +550,7 @@ final class EmailAccountTest extends WebTestCase
         self::assertMatchesRegularExpression('/^inbox-[0-9a-f]{32}@inbound\.suscripta\.local$/', $address);
 
         // La dirección se muestra para que el usuario pueda copiarla.
-        self::assertSelectorTextContains('.app-main', (string) $address);
+        self::assertSelectorTextContains('.bo-main', (string) $address);
     }
 
     public function testTheForwardingAddressIsNotDerivedFromTheMailbox(): void

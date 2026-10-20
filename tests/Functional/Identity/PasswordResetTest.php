@@ -96,7 +96,7 @@ final class PasswordResetTest extends WebTestCase
         ]);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSelectorTextContains('.alert--danger', 'ya se ha usado');
+        self::assertSelectorTextContains('.alert-danger', 'ya se ha usado');
     }
 
     public function testRequestingASecondResetInvalidatesTheFirstLink(): void
@@ -118,7 +118,7 @@ final class PasswordResetTest extends WebTestCase
         ]);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSelectorTextContains('.alert--danger', 'ya se ha usado');
+        self::assertSelectorTextContains('.alert-danger', 'ya se ha usado');
     }
 
     public function testAMalformedTokenDoesNotMatchTheRoute(): void

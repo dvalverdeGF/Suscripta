@@ -8,8 +8,8 @@ use App\Catalog\Domain\Entity\ProviderParser;
 use App\Catalog\Domain\Repository\ProviderParserRepositoryInterface;
 use App\Mailbox\Application\Imap\ImapMessageHeader;
 use App\Processing\Domain\Provider\ProviderMatch;
-use App\Processing\Domain\Provider\ProviderParseResult;
 use App\Processing\Domain\Provider\ProviderParserContext;
+use App\Processing\Domain\Provider\ProviderParseResult;
 use App\Shared\Application\Clock;
 
 /**

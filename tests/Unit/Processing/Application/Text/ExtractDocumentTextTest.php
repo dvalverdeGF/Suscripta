@@ -9,10 +9,12 @@ use App\Processing\Application\Text\ExtractDocumentText;
 use App\Processing\Domain\Ocr\OcrEngineInterface;
 use App\Processing\Domain\Text\DocumentTextExtractorInterface;
 use App\Processing\Domain\Text\TextExtractionMethod;
+
+use function mb_strlen;
+
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
-use function mb_strlen;
 use function str_repeat;
 
 #[CoversClass(ExtractDocumentText::class)]
@@ -165,7 +167,7 @@ final class ExtractDocumentTextTest extends TestCase
                 return true;
             }
 
-            public function extract(string $contents, string $mimeType, string $filename): ?string
+            public function extract(string $contents, string $mimeType, string $filename): string
             {
                 return $this->text;
             }
@@ -202,7 +204,7 @@ final class ExtractDocumentTextTest extends TestCase
                 return $this->claims;
             }
 
-            public function extract(string $contents, string $mimeType, string $filename): ?string
+            public function extract(string $contents, string $mimeType, string $filename): string
             {
                 ++$this->calls;
 

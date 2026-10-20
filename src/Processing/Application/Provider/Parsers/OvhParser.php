@@ -6,8 +6,9 @@ namespace App\Processing\Application\Provider\Parsers;
 
 use App\Processing\Application\Extraction\AmountParser;
 use App\Processing\Application\Extraction\DateParser;
-use App\Processing\Domain\Provider\ProviderParseResult;
+use App\Processing\Application\Extraction\InvoiceNumberReader;
 use App\Processing\Domain\Provider\ProviderParserContext;
+use App\Processing\Domain\Provider\ProviderParseResult;
 use App\Processing\Domain\Provider\ProviderParserInterface;
 use App\Shared\Domain\ValueObject\BillingPeriod;
 use App\Shared\Domain\ValueObject\Currency;
@@ -39,7 +40,14 @@ final readonly class OvhParser implements ProviderParserInterface
 
     private const string AMOUNT_PATTERN = '/(?:total\s*(?:ttc|t\.t\.c\.?)?|importe\s*total|montant\s*total|total\s*de\s*la\s*factura)\s*:?\s*([0-9][0-9\s.,]*\s*(?:€|EUR|euros?))/iu';
 
-    private const string INVOICE_NUMBER_PATTERN = '/(?:n[°ºo]\s*de\s*facture|num[eé]ro\s*de\s*facture|facture\s*n[°ºo]|factura\s*n[°ºo]|invoice\s*(?:number|no\.?))\s*:?\s*([A-Z0-9][A-Z0-9\-\/]{3,29})/iu';
+    /**
+     * Etiquetas del número de factura de OVH.
+     *
+     * No se incluye la etiqueta desnuda «facture» a propósito: el lector
+     * compartido ya la cubre, y aquí solo se listan las formas propias de la
+     * plantilla de OVH, que son más específicas y por tanto más fiables.
+     */
+    private const string INVOICE_NUMBER_LABEL = '(?:n[°ºo]\s*de\s*facture|num[eé]ro\s*de\s*facture|facture\s*n[°ºo]|factura\s*n[°ºo]|invoice\s*(?:number|no\.?))';
 
     private const string INVOICE_DATE_PATTERN = '/(?:date\s*(?:de\s*)?(?:facture|facturaci[oó]n|invoice)|fecha\s*(?:de\s*)?(?:factura|facturaci[oó]n))\s*:?\s*([0-9]{1,2}[\/.\-][0-9]{1,2}[\/.\-][0-9]{2,4})/iu';
 
@@ -53,6 +61,7 @@ final readonly class OvhParser implements ProviderParserInterface
     public function __construct(
         private AmountParser $amountParser,
         private DateParser $dateParser,
+        private InvoiceNumberReader $invoiceNumbers,
     ) {
     }
 
@@ -78,7 +87,7 @@ final readonly class OvhParser implements ProviderParserInterface
             $signals['amount'] = $amountText;
         }
 
-        $invoiceNumber = $this->capture(self::INVOICE_NUMBER_PATTERN, $haystack);
+        $invoiceNumber = $this->invoiceNumbers->findWithLabel(self::INVOICE_NUMBER_LABEL, $haystack);
 
         if (null !== $invoiceNumber) {
             $signals['invoiceNumber'] = $invoiceNumber;
@@ -122,9 +131,6 @@ final readonly class OvhParser implements ProviderParserInterface
         return $result->hasData() ? $result : null;
     }
 
-    /**
-     * @param list<string> $markers
-     */
     private function looksLikeOvh(string $lower): bool
     {
         foreach (self::FORMAT_MARKERS as $marker) {

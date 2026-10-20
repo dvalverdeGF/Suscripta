@@ -77,9 +77,6 @@ final class DocumentTextExtractorRegistryTest extends TestCase
         self::assertFalse($registry->supports('application/pdf', 'factura.pdf'));
     }
 
-    /**
-     * @return DocumentTextExtractorInterface&object{name: string}
-     */
     private function extractor(string $name, int $priority, ?string $text, bool $claims = true): DocumentTextExtractorInterface
     {
         return new class($name, $priority, $text, $claims) implements DocumentTextExtractorInterface {

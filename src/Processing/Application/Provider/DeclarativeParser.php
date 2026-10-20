@@ -6,8 +6,8 @@ namespace App\Processing\Application\Provider;
 
 use App\Processing\Application\Extraction\AmountParser;
 use App\Processing\Application\Extraction\DateParser;
-use App\Processing\Domain\Provider\ProviderParseResult;
 use App\Processing\Domain\Provider\ProviderParserContext;
+use App\Processing\Domain\Provider\ProviderParseResult;
 use App\Processing\Domain\Provider\ProviderParserInterface;
 use App\Shared\Domain\ValueObject\BillingPeriod;
 use App\Shared\Domain\ValueObject\Currency;

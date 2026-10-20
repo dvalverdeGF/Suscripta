@@ -30,6 +30,7 @@ use App\Processing\Application\Billing\BillingScoreWeights;
 use App\Processing\Application\Extraction\AmountParser;
 use App\Processing\Application\Extraction\DateParser;
 use App\Processing\Application\Extraction\DeterministicExtractor;
+use App\Processing\Application\Extraction\InvoiceNumberReader;
 use App\Processing\Application\Matching\ServiceMatcher;
 use App\Processing\Application\MessageStateMachine;
 use App\Processing\Application\ProcessEmailMessage;
@@ -170,7 +171,7 @@ final class ProcessEmailMessageTest extends TestCase
             messages: $this->messages,
             accounts: $this->accounts,
             billingScore: new BillingScoreCalculator(BillingScoreWeights::fromArray([]), $this->identities),
-            extractor: new DeterministicExtractor(new AmountParser(), new DateParser(), $this->identities, $clock),
+            extractor: new DeterministicExtractor(new AmountParser(), new DateParser(), new InvoiceNumberReader(), $this->identities, $clock),
             documentText: $this->documentText(),
             providerResolver: new ProviderResolver($this->identities, $clock),
             providerParser: new ExtractWithProviderParser($this->parsers, new ProviderParserRegistry([]), $clock),
@@ -530,7 +531,7 @@ final class ProcessEmailMessageTest extends TestCase
             messages: $this->messages,
             accounts: $this->accounts,
             billingScore: new BillingScoreCalculator(BillingScoreWeights::fromArray([]), $this->identities),
-            extractor: new DeterministicExtractor(new AmountParser(), new DateParser(), $this->identities, $clock),
+            extractor: new DeterministicExtractor(new AmountParser(), new DateParser(), new InvoiceNumberReader(), $this->identities, $clock),
             documentText: $this->documentText(),
             providerResolver: new ProviderResolver($this->identities, $clock),
             providerParser: new ExtractWithProviderParser($this->parsers, new ProviderParserRegistry([]), $clock),

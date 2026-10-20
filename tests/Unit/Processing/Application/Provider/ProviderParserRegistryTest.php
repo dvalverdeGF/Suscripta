@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Processing\Application\Provider;
 
 use App\Processing\Application\Provider\ProviderParserRegistry;
-use App\Processing\Domain\Provider\ProviderParseResult;
 use App\Processing\Domain\Provider\ProviderParserContext;
+use App\Processing\Domain\Provider\ProviderParseResult;
 use App\Processing\Domain\Provider\ProviderParserInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;

@@ -62,7 +62,7 @@ final class AlertPreferencesTest extends WebTestCase
     {
         $this->client->request('GET', '/alerts/preferences');
 
-        self::assertSelectorTextContains('.app-main', 'se envían siempre por correo');
+        self::assertSelectorTextContains('.bo-main', 'se envían siempre por correo');
     }
 
     public function testOptingIntoEmailStoresTheDeviation(): void

@@ -6,20 +6,22 @@ namespace App\Processing\Infrastructure\Text;
 
 use App\Processing\Domain\Text\DocumentTextExtractorInterface;
 
+use const ENT_HTML5;
+use const ENT_QUOTES;
+
 use function html_entity_decode;
 use function in_array;
 use function mb_check_encoding;
 use function mb_convert_encoding;
 use function mb_strtolower;
 use function pathinfo;
+
+use const PATHINFO_EXTENSION;
+
 use function preg_replace;
 use function str_contains;
 use function str_starts_with;
 use function trim;
-
-use const ENT_HTML5;
-use const ENT_QUOTES;
-use const PATHINFO_EXTENSION;
 
 /**
  * Documentos que ya son texto (ARCHITECTURE.md §13.6).

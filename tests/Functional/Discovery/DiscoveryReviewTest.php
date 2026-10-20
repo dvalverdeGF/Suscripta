@@ -146,7 +146,7 @@ final class DiscoveryReviewTest extends WebTestCase
         $this->client->request('GET', '/discoveries');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.empty-state__title', 'No hay nada pendiente de revisar');
+        self::assertSelectorTextContains('.bo-empty__title', 'No hay nada pendiente de revisar');
     }
 
     public function testTheIndexCanBeFilteredByStatus(): void
@@ -163,7 +163,7 @@ final class DiscoveryReviewTest extends WebTestCase
         $this->client->request('GET', '/discoveries?status=pending');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.empty-state__title', 'No hay nada pendiente de revisar');
+        self::assertSelectorTextContains('.bo-empty__title', 'No hay nada pendiente de revisar');
     }
 
     public function testTheDetailExplainsWhyTheProposalWasMade(): void
@@ -175,11 +175,11 @@ final class DiscoveryReviewTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('h1', 'OVH');
-        self::assertSelectorTextContains('.app-main', 'Dominio del remitente');
-        self::assertSelectorTextContains('.app-main', 'Puntuación de emparejamiento');
-        self::assertSelectorTextContains('.app-main', 'Tu factura de octubre');
-        self::assertSelectorTextContains('.app-main', 'Factura nº FRA-1');
-        self::assertSelectorTextContains('.app-main', 'Sin IA');
+        self::assertSelectorTextContains('.bo-main', 'Dominio del remitente');
+        self::assertSelectorTextContains('.bo-main', 'Puntuación de emparejamiento');
+        self::assertSelectorTextContains('.bo-main', 'Tu factura de octubre');
+        self::assertSelectorTextContains('.bo-main', 'Factura nº FRA-1');
+        self::assertSelectorTextContains('.bo-main', 'Sin IA');
     }
 
     public function testConfirmingCreatesAServiceMarkedAsDiscovered(): void
@@ -248,7 +248,7 @@ final class DiscoveryReviewTest extends WebTestCase
         );
 
         $this->client->request('GET', '/discoveries/'.$discovery->getId()->toRfc4122());
-        self::assertSelectorTextContains('.app-main', 'ya tienes registrado');
+        self::assertSelectorTextContains('.bo-main', 'ya tienes registrado');
 
         $this->client->submitForm('Confirmar y añadir a mis servicios', [
             'discovery_form[name]' => 'OVH',
@@ -277,7 +277,7 @@ final class DiscoveryReviewTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorNotExists('button:contains("Confirmar y añadir a mis servicios")');
-        self::assertSelectorTextContains('.alert--info', 'ya está');
+        self::assertSelectorTextContains('.alert-info', 'ya está');
     }
 
     public function testDismissingKeepsTheProposalWithItsReason(): void

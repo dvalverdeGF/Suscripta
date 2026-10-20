@@ -6,9 +6,11 @@ namespace App\Tests\Support\Catalog;
 
 use App\Catalog\Domain\Entity\ProviderParser;
 use App\Catalog\Domain\Repository\ProviderParserRepositoryInterface;
-use Symfony\Component\Uid\Uuid;
 
 use function array_values;
+
+use Symfony\Component\Uid\Uuid;
+
 use function usort;
 
 /**

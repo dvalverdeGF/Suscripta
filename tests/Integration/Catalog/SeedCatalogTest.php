@@ -23,9 +23,22 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
  */
 final class SeedCatalogTest extends KernelTestCase
 {
-    public function testSeedingTwiceCreatesNothingTheSecondTime(): void
+    /**
+     * Siembra el catálogo global antes de cada prueba.
+     *
+     * La siembra la hace el entrypoint de Docker al arrancar, pero la base de
+     * datos de test no pasa por ahí. Sin esta llamada la prueba dependería del
+     * estado previo de la base, que es justo lo que no debe comprobar.
+     */
+    protected function setUp(): void
     {
         self::bootKernel();
+
+        (self::getContainer()->get(SeedCatalog::class))();
+    }
+
+    public function testSeedingTwiceCreatesNothingTheSecondTime(): void
+    {
         $seed = self::getContainer()->get(SeedCatalog::class);
 
         $first = $seed();
@@ -33,7 +46,7 @@ final class SeedCatalogTest extends KernelTestCase
         self::assertSame(
             ['categories' => 0, 'providers' => 0, 'identities' => 0],
             $first,
-            'El catálogo ya venía sembrado; este test asume una base de test recién migrada.',
+            'La siembra anterior en setUp() ya dejó el catálogo completo.',
         );
 
         $second = $seed();
@@ -43,7 +56,6 @@ final class SeedCatalogTest extends KernelTestCase
 
     public function testEverySeededCategoryAndProviderExists(): void
     {
-        self::bootKernel();
         $container = self::getContainer();
 
         $categories = $container->get(CategoryRepositoryInterface::class);

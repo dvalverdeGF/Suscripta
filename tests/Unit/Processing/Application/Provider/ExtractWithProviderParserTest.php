@@ -10,8 +10,8 @@ use App\Mailbox\Application\Imap\ImapMessageHeader;
 use App\Processing\Application\Provider\ExtractWithProviderParser;
 use App\Processing\Application\Provider\ProviderParserRegistry;
 use App\Processing\Domain\Provider\ProviderMatch;
-use App\Processing\Domain\Provider\ProviderParseResult;
 use App\Processing\Domain\Provider\ProviderParserContext;
+use App\Processing\Domain\Provider\ProviderParseResult;
 use App\Processing\Domain\Provider\ProviderParserInterface;
 use App\Shared\Application\Clock;
 use App\Tests\Support\Catalog\InMemoryProviderParserRepository;
@@ -159,20 +159,17 @@ final class ExtractWithProviderParserTest extends TestCase
     {
         $this->parsers->add(new ProviderParser($this->provider, 'ovh'));
 
-        $seen = null;
-        $parser = new class($seen) implements ProviderParserInterface {
-            public function __construct(private ?ProviderParserContext &$seen)
-            {
-            }
+        $seen = new class implements ProviderParserInterface {
+            public ?ProviderParserContext $context = null;
 
             public function key(): string
             {
                 return 'ovh';
             }
 
-            public function parse(ProviderParserContext $context): ?ProviderParseResult
+            public function parse(ProviderParserContext $context): ProviderParseResult
             {
-                $this->seen = $context;
+                $this->context = $context;
 
                 return new ProviderParseResult(
                     parserKey: 'ovh',
@@ -191,23 +188,20 @@ final class ExtractWithProviderParserTest extends TestCase
             }
         };
 
-        $extractor = $this->extractor(['ovh' => $parser]);
+        $extractor = $this->extractor(['ovh' => $seen]);
         $extractor($this->header(), $this->known(), 'Importe total: 1,00 €');
 
-        self::assertInstanceOf(ProviderParserContext::class, $seen);
-        self::assertSame('Importe total: 1,00 €', $seen->bodyText);
-        self::assertSame('OVHcloud', $seen->providerName);
+        self::assertInstanceOf(ProviderParserContext::class, $seen->context);
+        self::assertSame('Importe total: 1,00 €', $seen->context->bodyText);
+        self::assertSame('OVHcloud', $seen->context->providerName);
     }
 
     public function testItPassesTheStoredConfigurationToTheParser(): void
     {
         $this->parsers->add(new ProviderParser($this->provider, 'ovh', config: ['currency' => 'USD']));
 
-        $seen = null;
-        $parser = new class($seen) implements ProviderParserInterface {
-            public function __construct(private ?ProviderParserContext &$seen)
-            {
-            }
+        $seen = new class implements ProviderParserInterface {
+            public ?ProviderParserContext $context = null;
 
             public function key(): string
             {
@@ -216,17 +210,17 @@ final class ExtractWithProviderParserTest extends TestCase
 
             public function parse(ProviderParserContext $context): ?ProviderParseResult
             {
-                $this->seen = $context;
+                $this->context = $context;
 
                 return null;
             }
         };
 
-        $extractor = $this->extractor(['ovh' => $parser]);
+        $extractor = $this->extractor(['ovh' => $seen]);
         $extractor($this->header(), $this->known());
 
-        self::assertInstanceOf(ProviderParserContext::class, $seen);
-        self::assertSame('USD', $seen->configString('currency'));
+        self::assertInstanceOf(ProviderParserContext::class, $seen->context);
+        self::assertSame('USD', $seen->context->configString('currency'));
     }
 
     /**
@@ -276,7 +270,7 @@ final class ExtractWithProviderParserTest extends TestCase
                 return $this->key;
             }
 
-            public function parse(ProviderParserContext $context): ?ProviderParseResult
+            public function parse(ProviderParserContext $context): ProviderParseResult
             {
                 return new ProviderParseResult(
                     parserKey: $this->key,

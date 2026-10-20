@@ -17,6 +17,7 @@ use App\Shared\Application\TenantContext;
 use App\Shared\Domain\ValueObject\BillingPeriod;
 use App\Shared\Domain\ValueObject\Currency;
 use App\Shared\Domain\ValueObject\Money;
+use App\Tests\Support\FreezesClock;
 use DateTimeImmutable;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -32,12 +33,20 @@ use Symfony\Component\Uid\Uuid;
  */
 final class GenerateAlertsCommandTest extends KernelTestCase
 {
+    use FreezesClock;
+
     private User $user;
     private Uuid $organizationId;
 
     protected function setUp(): void
     {
         self::bootKernel();
+
+        // El generador decide qué avisos abrir a partir de "ahora" y de la
+        // fecha del proximo cobro. Sin congelar el reloj, un cobro que el test
+        // da por futuro deja de serlo y el aviso no se genera: el fallo
+        // dependeria del dia en que se ejecuta la suite.
+        $this->freezeClock('2026-10-05 09:00:00');
 
         $this->user = self::getContainer()->get(RegisterUser::class)('ada@example.com', 'Sup3rSecret!2026', 'Ada Lovelace');
         $this->organizationId = $this->organizationOf($this->user);

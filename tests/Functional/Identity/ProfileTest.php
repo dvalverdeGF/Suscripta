@@ -41,7 +41,7 @@ final class ProfileTest extends WebTestCase
 
         $this->client->request('GET', '/settings/profile');
 
-        self::assertSelectorTextContains('.alert--warning', 'todavía no está confirmado');
+        self::assertSelectorTextContains('.alert-warning', 'todavía no está confirmado');
     }
 
     public function testUpdatingTheProfilePersistsTheChanges(): void
@@ -104,7 +104,7 @@ final class ProfileTest extends WebTestCase
         ]);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSelectorTextContains('.field__error', 'Ya existe una cuenta con este correo');
+        self::assertSelectorTextContains('.invalid-feedback', 'Ya existe una cuenta con este correo');
         self::assertSame('ada@example.com', $this->reload($user)->getEmail());
     }
 
@@ -121,7 +121,7 @@ final class ProfileTest extends WebTestCase
         ]);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSelectorTextContains('.field__error', 'zona horaria no es válida');
+        self::assertSelectorTextContains('.invalid-feedback', 'zona horaria no es válida');
     }
 
     public function testChangingThePasswordRequiresTheCurrentOne(): void
@@ -137,7 +137,7 @@ final class ProfileTest extends WebTestCase
 
         self::assertResponseRedirects('/settings/profile');
         $this->client->followRedirect();
-        self::assertSelectorTextContains('.alert--danger', 'La contraseña actual no es correcta');
+        self::assertSelectorTextContains('.alert-danger', 'La contraseña actual no es correcta');
 
         $hasher = self::getContainer()->get(UserPasswordHasherInterface::class);
         self::assertTrue($hasher->isPasswordValid($this->reload($user), 'Sup3rSecret!2026'));
@@ -156,7 +156,7 @@ final class ProfileTest extends WebTestCase
 
         self::assertResponseRedirects('/settings/profile');
         $this->client->followRedirect();
-        self::assertSelectorTextContains('.alert--success', 'Contraseña actualizada');
+        self::assertSelectorTextContains('.alert-success', 'Contraseña actualizada');
 
         $hasher = self::getContainer()->get(UserPasswordHasherInterface::class);
         self::assertTrue($hasher->isPasswordValid($this->reload($user), 'NuevaClave!2026'));
@@ -175,7 +175,7 @@ final class ProfileTest extends WebTestCase
 
         self::assertResponseRedirects('/settings/profile');
         $this->client->followRedirect();
-        self::assertSelectorTextContains('.alert--danger', 'Las contraseñas no coinciden');
+        self::assertSelectorTextContains('.alert-danger', 'Las contraseñas no coinciden');
 
         $hasher = self::getContainer()->get(UserPasswordHasherInterface::class);
         self::assertTrue($hasher->isPasswordValid($this->reload($user), 'Sup3rSecret!2026'));

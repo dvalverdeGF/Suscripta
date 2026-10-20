@@ -50,7 +50,7 @@ final class AlertInboxTest extends WebTestCase
         $this->client->request('GET', '/alerts');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.app-main', 'No hay nada que requiera tu atención');
+        self::assertSelectorTextContains('.bo-main', 'No hay nada que requiera tu atención');
     }
 
     public function testItListsAnOpenAlertWithItsReason(): void
@@ -60,8 +60,8 @@ final class AlertInboxTest extends WebTestCase
         $this->client->request('GET', '/alerts');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.app-main', 'Cobro próximo: OVH');
-        self::assertSelectorTextContains('.app-main', '29,90');
+        self::assertSelectorTextContains('.bo-main', 'Cobro próximo: OVH');
+        self::assertSelectorTextContains('.bo-main', '29,90');
     }
 
     public function testItShowsTheRelatedService(): void
@@ -71,7 +71,7 @@ final class AlertInboxTest extends WebTestCase
 
         $this->client->request('GET', '/alerts');
 
-        self::assertSelectorTextContains('.app-main', 'OVH VPS');
+        self::assertSelectorTextContains('.bo-main', 'OVH VPS');
     }
 
     public function testTheDetailPageExplainsTheAlert(): void
@@ -81,8 +81,8 @@ final class AlertInboxTest extends WebTestCase
         $this->client->request('GET', '/alerts/'.$alert->getId()->toRfc4122());
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.app-main', 'Cobro próximo: OVH');
-        self::assertSelectorTextContains('.app-main', 'Qué ha pasado');
+        self::assertSelectorTextContains('.bo-main', 'Cobro próximo: OVH');
+        self::assertSelectorTextContains('.bo-main', 'Qué ha pasado');
     }
 
     public function testAcknowledgingAnAlertClosesIt(): void
@@ -123,7 +123,7 @@ final class AlertInboxTest extends WebTestCase
 
         $this->client->request('GET', '/alerts');
 
-        self::assertSelectorTextContains('.app-main', 'No hay nada que requiera tu atención');
+        self::assertSelectorTextContains('.bo-main', 'No hay nada que requiera tu atención');
     }
 
     public function testItFiltersByStatus(): void
@@ -135,7 +135,7 @@ final class AlertInboxTest extends WebTestCase
         $this->client->request('GET', '/alerts?status=dismissed');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.app-main', 'Cobro próximo: OVH');
+        self::assertSelectorTextContains('.bo-main', 'Cobro próximo: OVH');
     }
 
     public function testAnUnknownStatusFallsBackToOpen(): void
@@ -145,7 +145,7 @@ final class AlertInboxTest extends WebTestCase
         $this->client->request('GET', '/alerts?status=inventado');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.app-main', 'Cobro próximo: OVH');
+        self::assertSelectorTextContains('.bo-main', 'Cobro próximo: OVH');
     }
 
     private function alerts(): AlertRepositoryInterface

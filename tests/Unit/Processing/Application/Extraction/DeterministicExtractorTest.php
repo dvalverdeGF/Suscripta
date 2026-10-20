@@ -14,6 +14,7 @@ use App\Mailbox\Domain\Enum\ExtractionTier;
 use App\Processing\Application\Extraction\AmountParser;
 use App\Processing\Application\Extraction\DateParser;
 use App\Processing\Application\Extraction\DeterministicExtractor;
+use App\Processing\Application\Extraction\InvoiceNumberReader;
 use App\Shared\Application\Clock;
 use App\Shared\Domain\ValueObject\BillingPeriod;
 use DateTimeImmutable;
@@ -42,6 +43,7 @@ final class DeterministicExtractorTest extends TestCase
         return new DeterministicExtractor(
             new AmountParser(),
             new DateParser(),
+            new InvoiceNumberReader(),
             $this->identities,
             new Clock(new MockClock(new DateTimeImmutable('2026-10-05 10:00:00'))),
         );
@@ -228,6 +230,45 @@ final class DeterministicExtractorTest extends TestCase
         );
 
         self::assertSame('FRA-2026-10-0042', $document->invoiceNumber);
+    }
+
+    /**
+     * La etiqueta «Factura» cumple el formato de un número de factura (son
+     * alfanuméricos y miden más de tres caracteres), así que el extractor se
+     * quedaba con la palabra en lugar del número que la sigue.
+     */
+    public function testTheLabelItselfIsNeverTakenAsTheInvoiceNumber(): void
+    {
+        $document = $this->extractor()->extract(
+            $this->header('Factura'),
+            'Factura ACME-2026-11-0002',
+        );
+
+        self::assertSame('ACME-2026-11-0002', $document->invoiceNumber);
+    }
+
+    public function testTheInvoiceNumberIsReadWithoutTheNumberSign(): void
+    {
+        $document = $this->extractor()->extract(
+            $this->header('Factura'),
+            "Factura FRA-2026-10-0042\nFactura 2026-11",
+        );
+
+        self::assertSame('FRA-2026-10-0042', $document->invoiceNumber);
+    }
+
+    /**
+     * Un periodo también tiene dígitos, así que el descarte por formato sigue
+     * haciendo falta: «Factura 2026-10» no es un número de factura.
+     */
+    public function testAPeriodIsStillNotTakenAsTheInvoiceNumber(): void
+    {
+        $document = $this->extractor()->extract(
+            $this->header('Factura 2026-10 de OVHcloud'),
+            'Factura 2026-10. Total 29,90 €.',
+        );
+
+        self::assertNull($document->invoiceNumber);
     }
 
     public function testRawSignalsRecordWhatWasFound(): void

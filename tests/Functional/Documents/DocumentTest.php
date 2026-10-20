@@ -66,7 +66,7 @@ final class DocumentTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('h1', 'Documentos');
-        self::assertSelectorTextContains('.empty-state__title', 'Todavía no hay documentos');
+        self::assertSelectorTextContains('.bo-empty__title', 'Todavía no hay documentos');
     }
 
     public function testUploadAFileFromTheForm(): void
@@ -84,7 +84,7 @@ final class DocumentTest extends WebTestCase
         $this->client->followRedirect();
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('h1', 'factura-ovh.pdf');
-        self::assertSelectorTextContains('.alert--success', 'se ha guardado');
+        self::assertSelectorTextContains('.alert-success', 'se ha guardado');
 
         $document = $this->onlyDocument();
 
@@ -103,7 +103,7 @@ final class DocumentTest extends WebTestCase
         self::assertSame(1, $this->repository()->countForOrganization());
 
         $this->client->followRedirect();
-        self::assertSelectorTextContains('.alert--success', 'ya estaba en tus documentos');
+        self::assertSelectorTextContains('.alert-success', 'ya estaba en tus documentos');
     }
 
     public function testUploadRejectsAFileWithoutSelection(): void
@@ -114,7 +114,7 @@ final class DocumentTest extends WebTestCase
         ]);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSelectorTextContains('.field__error', 'Selecciona un fichero');
+        self::assertSelectorTextContains('.invalid-feedback', 'Selecciona un fichero');
     }
 
     public function testUploadRejectsADisallowedMimeType(): void
@@ -126,7 +126,7 @@ final class DocumentTest extends WebTestCase
         ]);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSelectorTextContains('.alert--danger', 'No aceptamos ficheros de tipo');
+        self::assertSelectorTextContains('.alert-danger', 'No aceptamos ficheros de tipo');
         self::assertSame(0, $this->repository()->countForOrganization());
     }
 
@@ -207,8 +207,8 @@ final class DocumentTest extends WebTestCase
         self::assertResponseRedirects('/documents');
 
         $this->client->followRedirect();
-        self::assertSelectorTextContains('.alert--success', 'se ha eliminado');
-        self::assertSelectorTextContains('.empty-state__title', 'Todavía no hay documentos');
+        self::assertSelectorTextContains('.alert-success', 'se ha eliminado');
+        self::assertSelectorTextContains('.bo-empty__title', 'Todavía no hay documentos');
 
         self::assertTrue($this->reload($document)->isDeleted());
     }

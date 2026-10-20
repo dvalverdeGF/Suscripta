@@ -80,8 +80,8 @@ final class DocumentAccessTest extends WebTestCase
 
         $client->request('GET', '/documents');
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.empty-state__title', 'Todavía no hay documentos');
-        self::assertSelectorTextNotContains('.app-main', 'factura-de-ada.pdf');
+        self::assertSelectorTextContains('.bo-empty__title', 'Todavía no hay documentos');
+        self::assertSelectorTextNotContains('.bo-main', 'factura-de-ada.pdf');
 
         $client->request('GET', '/documents/'.$id);
         self::assertResponseStatusCodeSame(404);

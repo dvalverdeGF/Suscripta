@@ -56,7 +56,7 @@ final class RegistrationTest extends WebTestCase
         $this->register('ada@example.com');
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSelectorTextContains('.field__error', 'Ya existe una cuenta');
+        self::assertSelectorTextContains('.invalid-feedback', 'Ya existe una cuenta');
     }
 
     public function testRegistrationRejectsMismatchedPasswords(): void

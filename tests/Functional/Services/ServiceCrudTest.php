@@ -45,7 +45,7 @@ final class ServiceCrudTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('h1', 'Servicios');
-        self::assertSelectorTextContains('.empty-state__title', 'Todavía no hay servicios');
+        self::assertSelectorTextContains('.bo-empty__title', 'Todavía no hay servicios');
     }
 
     public function testCreateServiceFromTheForm(): void
@@ -68,7 +68,7 @@ final class ServiceCrudTest extends WebTestCase
         $this->client->followRedirect();
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('h1', 'OVH VPS');
-        self::assertSelectorTextContains('.stat__value', '11,99');
+        self::assertSelectorTextContains('.bo-metric__value', '11,99');
 
         $service = $this->findServiceByName('OVH VPS');
 
@@ -90,7 +90,7 @@ final class ServiceCrudTest extends WebTestCase
         ]);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSelectorTextContains('.field__error', 'Indica el nombre del servicio.');
+        self::assertSelectorTextContains('.invalid-feedback', 'Indica el nombre del servicio.');
     }
 
     public function testCreateServiceRejectsMalformedAmount(): void
@@ -105,7 +105,7 @@ final class ServiceCrudTest extends WebTestCase
         ]);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSelectorTextContains('.field__error', 'formato válido');
+        self::assertSelectorTextContains('.invalid-feedback', 'formato válido');
     }
 
     public function testEditService(): void
@@ -169,7 +169,7 @@ final class ServiceCrudTest extends WebTestCase
         self::assertResponseRedirects();
 
         $this->client->followRedirect();
-        self::assertSelectorTextContains('.alert--danger', 'ajusta primero la fecha de alta del servicio');
+        self::assertSelectorTextContains('.alert-danger', 'ajusta primero la fecha de alta del servicio');
 
         self::assertCount(1, $this->reload($service)->getPrices());
     }
@@ -186,7 +186,7 @@ final class ServiceCrudTest extends WebTestCase
         ]);
 
         $this->client->followRedirect();
-        self::assertSelectorTextContains('.alert--info', 'El importe es el mismo');
+        self::assertSelectorTextContains('.alert-info', 'El importe es el mismo');
 
         self::assertCount(1, $this->reload($service)->getPrices());
     }

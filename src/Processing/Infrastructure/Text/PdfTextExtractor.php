@@ -5,16 +5,17 @@ declare(strict_types=1);
 namespace App\Processing\Infrastructure\Text;
 
 use App\Processing\Domain\Text\DocumentTextExtractorInterface;
-use Smalot\PdfParser\Parser;
-use Throwable;
 
 use function in_array;
 use function mb_strtolower;
 use function pathinfo;
-use function str_ends_with;
-use function trim;
 
 use const PATHINFO_EXTENSION;
+
+use Smalot\PdfParser\Parser;
+use Throwable;
+
+use function trim;
 
 /**
  * Capa de texto de un PDF (ARCHITECTURE.md §13.6).
@@ -60,7 +61,7 @@ final readonly class PdfTextExtractor implements DocumentTextExtractorInterface
         }
 
         try {
-            $text = (new Parser())->parseContent($contents)->getText();
+            $text = new Parser()->parseContent($contents)->getText();
         } catch (Throwable) {
             // Un PDF corrupto o cifrado no debe tumbar el lote: se comporta
             // como un PDF sin texto y el pipeline decide qué hacer.

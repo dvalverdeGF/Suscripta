@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Processing\Application\Provider\Parsers;
 use App\Mailbox\Application\Imap\ImapMessageHeader;
 use App\Processing\Application\Extraction\AmountParser;
 use App\Processing\Application\Extraction\DateParser;
+use App\Processing\Application\Extraction\InvoiceNumberReader;
 use App\Processing\Application\Provider\Parsers\OvhParser;
 use App\Processing\Domain\Provider\ProviderParserContext;
 use App\Shared\Domain\ValueObject\BillingPeriod;
@@ -21,7 +22,7 @@ final class OvhParserTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->parser = new OvhParser(new AmountParser(), new DateParser());
+        $this->parser = new OvhParser(new AmountParser(), new DateParser(), new InvoiceNumberReader());
     }
 
     public function testItReadsASpanishInvoice(): void

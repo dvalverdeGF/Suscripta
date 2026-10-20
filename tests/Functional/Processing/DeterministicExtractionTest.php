@@ -30,24 +30,19 @@ use App\Mailbox\Domain\Repository\MessageProcessingEventRepositoryInterface;
 use App\Processing\Application\Message\ProcessEmailMessageHandler;
 use App\Processing\Application\Message\ProcessEmailMessageMessage;
 use App\Processing\Application\Provider\DeclarativeParser;
+use App\Processing\Application\Provider\Parsers\AcmeParser;
 use App\Shared\Application\TenantContext;
 use App\Tests\Support\Imap\RecordingImapClient;
 use App\Tests\Support\Processing\PdfFixture;
 
 use function array_map;
-use function file_get_contents;
-use function file_put_contents;
-use function is_dir;
-use function mkdir;
-use function sprintf;
-use function sys_get_temp_dir;
-use function unlink;
 
 use DateTimeImmutable;
 
+use function sprintf;
+
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\Process\Process;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -135,6 +130,8 @@ final class DeterministicExtractionTest extends WebTestCase
     {
         $client = self::getContainer()->get(RecordingImapClient::class);
 
+        self::assertInstanceOf(RecordingImapClient::class, $client);
+
         $client->willReturnBody(new ImapMessageBody(
             uid: 1,
             textBody: $body,
@@ -182,38 +179,6 @@ final class DeterministicExtractionTest extends WebTestCase
         self::assertNotNull($found);
 
         return $found;
-    }
-
-    /**
-     * Convierte un PDF en una imagen, que es lo que produce un escáner: texto
-     * visible pero sin capa de texto.
-     */
-    private function scan(string $pdf): string
-    {
-        $directory = sys_get_temp_dir().'/suscripta-scan';
-
-        if (!is_dir($directory)) {
-            mkdir($directory, 0o770, true);
-        }
-
-        $source = $directory.'/origen.pdf';
-        file_put_contents($source, $pdf);
-
-        $process = new Process(['pdftoppm', '-r', '200', '-png', '-l', '1', $source, $directory.'/pagina']);
-        $process->run();
-
-        self::assertTrue($process->isSuccessful(), 'No hemos podido rasterizar el PDF de prueba.');
-
-        $image = $directory.'/pagina-1.png';
-
-        self::assertFileExists($image);
-
-        $contents = (string) file_get_contents($image);
-
-        unlink($source);
-        unlink($image);
-
-        return $contents;
     }
 
     public function testARealInvoiceIsUnderstoodWithoutAi(): void
@@ -281,9 +246,9 @@ final class DeterministicExtractionTest extends WebTestCase
 
         self::assertSame(ExtractionTier::DETERMINISTIC, $this->reload($first)->getExtractionTier());
 
-        // El proveedor ya se conoce y tiene un parser declarativo: la segunda
+        // El proveedor ya se conoce y tiene su parser de código: la segunda
         // factura no debe volver a depender de la extracción genérica.
-        $this->registerParser('acme.example', 'acme');
+        $this->registerParser('acme.example', 'acme', AcmeParser::KEY);
 
         $second = $this->message($account, 2, 'Factura 2026-11 de Acme Cloud', 'facturacion@acme.example', ['factura-2026-11.pdf'], ['application/pdf']);
 
@@ -326,12 +291,12 @@ final class DeterministicExtractionTest extends WebTestCase
         $account = $this->account();
         $message = $this->message($account, 1, 'Factura 2026-10 de OVHcloud', 'facturacion@ovh.com', ['escaneo.pdf'], ['application/pdf']);
 
-        $scanned = $this->scan(PdfFixture::withLines([
+        $scanned = PdfFixture::scanned([
             'Factura FRA-2026-10-0042',
             'Fecha 2026-10-03',
             'Total 29,90 EUR',
             'Facturacion mensual',
-        ]));
+        ]);
 
         $this->imapReturns('Hola, te reenviamos el escaneo de la factura.', [[
             'name' => 'escaneo.pdf',
@@ -403,7 +368,7 @@ final class DeterministicExtractionTest extends WebTestCase
 
         // Un parser que no reconoce el documento: el pipeline debe seguir
         // adelante con la extracción determinista en lugar de fallar.
-        $this->registerParser('acme.example', 'acme', [
+        $this->registerParser('acme.example', 'acme', DeclarativeParser::KEY, [
             'required_any' => ['formato que no existe en este documento'],
             'amount_pattern' => '/total\s+([0-9.,]+)\s*€/i',
         ]);
@@ -447,7 +412,7 @@ final class DeterministicExtractionTest extends WebTestCase
     /**
      * @param array<string, mixed> $config
      */
-    private function registerParser(string $domain, string $slug, array $config = []): void
+    private function registerParser(string $domain, string $slug, string $parserKey, array $config = []): void
     {
         $providers = self::getContainer()->get(ProviderRepositoryInterface::class);
 
@@ -465,9 +430,10 @@ final class DeterministicExtractionTest extends WebTestCase
         }
 
         // La clave tiene que ser la de un parser registrado en el contenedor:
-        // una clave huérfana se ignora a propósito (ARCHITECTURE.md §13.7).
+        // una clave huérfana se ignora a propósito (ARCHITECTURE.md §13.7) y el
+        // mensaje se quedaría en extracción determinista sin avisar.
         $parsers = self::getContainer()->get(ProviderParserRepositoryInterface::class);
 
-        $parsers->save(new ProviderParser($provider, DeclarativeParser::KEY, 1, $config));
+        $parsers->save(new ProviderParser($provider, $parserKey, 1, $config));
     }
 }

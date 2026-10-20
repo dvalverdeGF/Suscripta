@@ -7,7 +7,6 @@ namespace App\Processing\Application\Provider;
 use App\Processing\Domain\Provider\ProviderParserInterface;
 
 use function array_keys;
-use function array_values;
 use function implode;
 use function iterator_to_array;
 use function sprintf;
@@ -54,7 +53,7 @@ final readonly class ProviderParserRegistry
      */
     public function keys(): array
     {
-        return array_values(array_keys($this->parsers));
+        return array_keys($this->parsers);
     }
 
     public function describe(): string

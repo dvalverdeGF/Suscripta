@@ -42,7 +42,7 @@ final class EmailVerificationTest extends WebTestCase
 
         self::assertResponseRedirects('/');
         $this->client->followRedirect();
-        self::assertSelectorTextContains('.alert--success', 'Correo confirmado');
+        self::assertSelectorTextContains('.alert-success', 'Correo confirmado');
 
         self::assertTrue($this->reload($user)->isVerified());
     }
@@ -59,7 +59,7 @@ final class EmailVerificationTest extends WebTestCase
 
         self::assertResponseRedirects('/');
         $this->client->followRedirect();
-        self::assertSelectorTextContains('.alert--danger', 'no es válido o ha caducado');
+        self::assertSelectorTextContains('.alert-danger', 'no es válido o ha caducado');
 
         self::assertFalse($this->reload($user)->isVerified());
     }
@@ -90,7 +90,7 @@ final class EmailVerificationTest extends WebTestCase
         $this->client->request('GET', $url);
         self::assertResponseRedirects('/');
         $this->client->followRedirect();
-        self::assertSelectorTextContains('.alert--info', 'ya estaba confirmado');
+        self::assertSelectorTextContains('.alert-info', 'ya estaba confirmado');
     }
 
     public function testResendSendsANewEmail(): void
@@ -103,7 +103,7 @@ final class EmailVerificationTest extends WebTestCase
 
         self::assertResponseRedirects('/');
         $this->client->followRedirect();
-        self::assertSelectorTextContains('.alert--success', 'Te hemos enviado un correo nuevo');
+        self::assertSelectorTextContains('.alert-success', 'Te hemos enviado un correo nuevo');
     }
 
     public function testResendIsRejectedWithoutAValidCsrfToken(): void

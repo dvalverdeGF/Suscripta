@@ -496,7 +496,7 @@ medible.
 
 ## Fase 10 — Extracción determinista y conocimiento de proveedores (niveles 3–4)
 
-> **Estado:** ⬜ Pendiente.
+> **Estado:** ✅ Completada (2026-10-21).
 
 
 **Objetivo:** extraer por código todo lo que sea fiablemente extraíble, y no volver a pagar por
@@ -519,6 +519,62 @@ lo que ya se sabe.
 proveedor conocido se resuelve por parser en la segunda factura; un PDF escaneado pasa por OCR
 y no por IA; las capas 1–3 no envían datos fuera del sistema; un parser que falla degrada a IA
 y no rompe el lote.
+
+### Qué se entregó
+
+- **`src/Processing/Application/Extraction/`** — `DeterministicExtractor` (orquestador de nivel 3),
+  `AmountParser`, `DateParser`, `InvoiceNumberReader`, `BillingPeriodDetector`.
+- **`src/Processing/Application/Provider/`** — `ProviderResolver` (escalera de identidad),
+  `ProviderParserRegistry` (índice por clave), `ExtractWithProviderParser` (nivel 4),
+  `DeclarativeParser` (parser configurable por datos) y `Parsers/OvhParser` + `Parsers/AcmeParser`
+  (parsers de código, uno por familia de plantilla).
+- **`src/Processing/Infrastructure/Text/`** — `PdfTextExtractor` (prioridad 100),
+  `PlainTextExtractor`, `DocumentTextExtractorRegistry`.
+- **`src/Processing/Infrastructure/Ocr/TesseractOcrEngine`** — Tesseract (`eng`+`spa`) con
+  `symfony/lock`, 5 páginas máximo, 300 dpi. **Solo** entra si el texto extraído tiene menos de
+  40 caracteres, para no pagar un OCR sobre un PDF que ya traía su texto.
+- **`src/Processing/Application/Extraction/InvoiceNumberReader`** — lector compartido del número
+  de factura. Nació de un bug real: el patrón anterior capturaba literalmente la palabra
+  «Factura» (7 caracteres alfanuméricos) en lugar del número, y el filtro posterior la
+  descartaba sin probar el siguiente candidato. Ahora la etiqueta se reconoce, pero **el número
+  exige un dígito**, no puede ser un periodo (`2026-10`) y tiene entre 4 y 30 caracteres.
+
+**Verificación ejecutada al cerrar la fase:**
+
+| Comprobación | Resultado |
+|---|---|
+| `php bin/phpunit` | ✅ 884 tests, 3582 assertions |
+| `vendor/bin/phpstan analyse --no-progress` | ✅ 0 errores |
+| `vendor/bin/php-cs-fixer fix --dry-run --diff` | ✅ 0 ficheros pendientes |
+| `bin/console lint:container` | ✅ |
+| `bin/console lint:yaml config/ --parse-tags` | ✅ 32 ficheros |
+| `bin/console lint:twig templates/` | ✅ 39 plantillas |
+
+**Correcciones relevantes de la fase:**
+
+1. **El número de factura nunca era el número.** `DeterministicExtractor::INVOICE_NUMBER_PATTERN`
+   era una alternancia sin grupo de captura de la etiqueta, de modo que `preg_match_all` devolvía
+   la *etiqueta* («Factura», «Invoice», «nº») como si fuera el candidato. El `foreach` que
+   filtraba los candidatos descartaba ese valor y, como era el único, `invoiceNumber` quedaba
+   `null`. Se añadió una *lookahead* que exige un dígito y se extrajo la lógica a
+   `InvoiceNumberReader`, que ahora comparten el extractor determinista y los parsers de
+   proveedor.
+2. **El PDF escaneado nunca llegaba al OCR.** La fixture de prueba generaba un PDF con capa de
+   texto, así que `PdfTextExtractor` lo leía y el OCR no se ejecutaba nunca: el test pasaba sin
+   probar nada. `PdfFixture::scanned()` rasteriza de verdad con `pdftoppm` y embebe el JPEG
+   como `XObject`/`DCTDecode` en un PDF **sin** capa de texto.
+3. **El parser de código no estaba registrado.** `ProviderParser.key` referencia la clave de un
+   `ProviderParserInterface` (`ProviderParserInterface::key()`), no un nombre libre. El test
+   usaba `AcmeParser::KEY` pero el pipeline buscaba `'acme'`, que no existía en el contenedor.
+   Ahora `AcmeParser` está autoconfigurado por `_instanceof` y se registra sin tocar YAML.
+4. **Un test de integración dependía del estado heredado de la base de datos.** `SeedCatalogTest`
+   asumía que el catálogo ya estaba sembrado, pero la base de datos de **test** no pasa por el
+   `entrypoint` del contenedor, que es quien siembra. El test siembra ahora el catálogo en su
+   `setUp()`.
+5. **Reloj congelado en los tests dependientes de la fecha.** `GenerateAlertsCommandTest` fallaba
+   conforme pasaban los días, porque «un cobro pasado respecto a *ahora*» dejaba de ser cierto.
+   `tests/Support/FreezesClock.php` sustituye `test.clock` por un `MockClock` y fija el instante
+   en el test, de modo que el fallo que aparezca sea siempre un fallo real.
 
 ## Fase 11 — IA económica y avanzada con validación (niveles 5–7)
 

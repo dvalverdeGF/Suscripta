@@ -5,9 +5,6 @@ declare(strict_types=1);
 namespace App\Processing\Infrastructure\Ocr;
 
 use App\Processing\Domain\Ocr\OcrEngineInterface;
-use Symfony\Component\Lock\LockFactory;
-use Symfony\Component\Process\ExecutableFinder;
-use Throwable;
 
 use function bin2hex;
 use function fclose;
@@ -21,6 +18,9 @@ use function is_string;
 use function mb_strtolower;
 use function mkdir;
 use function pathinfo;
+
+use const PATHINFO_EXTENSION;
+
 use function proc_close;
 use function proc_open;
 use function random_bytes;
@@ -28,11 +28,16 @@ use function rmdir;
 use function sort;
 use function sprintf;
 use function stream_get_contents;
+
+use Symfony\Component\Lock\LockFactory;
+use Symfony\Component\Process\ExecutableFinder;
+
 use function sys_get_temp_dir;
+
+use Throwable;
+
 use function trim;
 use function unlink;
-
-use const PATHINFO_EXTENSION;
 
 /**
  * OCR con Tesseract, en nuestra propia infraestructura (ARCHITECTURE.md §13.6).

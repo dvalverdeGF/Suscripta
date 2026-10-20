@@ -14,9 +14,10 @@ use App\Tests\Support\Catalog\InMemoryProviderIdentityRepository;
 use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
-use Symfony\Component\Clock\MockClock;
 
 use function str_repeat;
+
+use Symfony\Component\Clock\MockClock;
 
 #[CoversClass(ProviderResolver::class)]
 final class ProviderResolverTest extends TestCase

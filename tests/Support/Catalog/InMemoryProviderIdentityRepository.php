@@ -7,9 +7,10 @@ namespace App\Tests\Support\Catalog;
 use App\Catalog\Domain\Entity\ProviderIdentity;
 use App\Catalog\Domain\Enum\ProviderIdentityType;
 use App\Catalog\Domain\Repository\ProviderIdentityRepositoryInterface;
-use Symfony\Component\Uid\Uuid;
 
 use function array_values;
+
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Doble en memoria de `ProviderIdentityRepositoryInterface`.

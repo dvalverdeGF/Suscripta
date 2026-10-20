@@ -18,6 +18,7 @@ use App\Shared\Application\TenantContext;
 use App\Shared\Domain\ValueObject\BillingPeriod;
 use App\Shared\Domain\ValueObject\Currency;
 use App\Shared\Domain\ValueObject\Money;
+use App\Tests\Support\FreezesClock;
 use DateTimeImmutable;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -31,6 +32,8 @@ use Symfony\Component\Uid\Uuid;
  */
 final class DashboardTest extends WebTestCase
 {
+    use FreezesClock;
+
     private KernelBrowser $client;
     private User $user;
 
@@ -38,6 +41,10 @@ final class DashboardTest extends WebTestCase
     {
         $this->client = self::createClient();
         $this->client->setServerParameter('HTTP_ORIGIN', 'https://localhost');
+
+        // El panel calcula ventanas de 30 y 60 dias a partir de "ahora". Sin
+        // congelar el reloj, el test depende del dia en que se ejecuta.
+        $this->freezeClock();
 
         $this->user = self::getContainer()->get(RegisterUser::class)('ada@example.com', 'Sup3rSecret!2026', 'Ada Lovelace');
         $this->client->loginUser($this->user);
@@ -49,8 +56,8 @@ final class DashboardTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('h1', 'Panel');
-        self::assertSelectorTextContains('.empty-state__title', 'Todavía no hay datos que mostrar');
-        self::assertSelectorTextContains('.empty-state__text', 'Conecta tu correo de facturación');
+        self::assertSelectorTextContains('.bo-empty__title', 'Todavía no hay datos que mostrar');
+        self::assertSelectorTextContains('.bo-empty__text', 'Conecta tu correo de facturación');
     }
 
     public function testTheDashboardShowsTheMonthlyAndAnnualCost(): void
@@ -61,10 +68,10 @@ final class DashboardTest extends WebTestCase
         $this->client->request('GET', '/');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.stat__label', 'Coste mensual equivalente');
+        self::assertSelectorTextContains('.bo-metric__label', 'Coste mensual equivalente');
         // 11,99 €/mes + 12,00 €/año (= 1,00 €/mes) = 12,99 €/mes
-        self::assertSelectorTextContains('.stat__value', '12,99');
-        self::assertSelectorTextContains('.stat__hint', '155,88');
+        self::assertSelectorTextContains('.bo-metric__value', '12,99');
+        self::assertSelectorTextContains('.bo-metric__hint', '155,88');
     }
 
     public function testTheDashboardCountsOnlyActiveServices(): void
@@ -77,8 +84,8 @@ final class DashboardTest extends WebTestCase
         $this->client->request('GET', '/');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.stat__value', '11,99');
-        self::assertSelectorTextContains('.app-main', '2 en total');
+        self::assertSelectorTextContains('.bo-metric__value', '11,99');
+        self::assertSelectorTextContains('.bo-main', '2 en total');
     }
 
     public function testTheDashboardListsUpcomingCharges(): void
@@ -90,8 +97,8 @@ final class DashboardTest extends WebTestCase
         $this->client->request('GET', '/');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.timeline__label', 'OVH VPS');
-        self::assertSelectorTextContains('.timeline__date', '12/10/2026');
+        self::assertSelectorTextContains('.bo-timeline__label', 'OVH VPS');
+        self::assertSelectorTextContains('.bo-timeline__date', '12/10/2026');
     }
 
     public function testTheDashboardListsUpcomingRenewals(): void
@@ -103,8 +110,8 @@ final class DashboardTest extends WebTestCase
         $this->client->request('GET', '/');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.timeline__label', 'Dominio .com');
-        self::assertSelectorTextContains('.timeline__date', '20/10/2026');
+        self::assertSelectorTextContains('.bo-timeline__label', 'Dominio .com');
+        self::assertSelectorTextContains('.bo-timeline__date', '20/10/2026');
     }
 
     public function testTheDashboardShowsWhatHasChanged(): void
@@ -116,8 +123,8 @@ final class DashboardTest extends WebTestCase
         $this->client->request('GET', '/');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.app-main', 'Qué ha cambiado');
-        self::assertSelectorTextContains('.app-main', '14,99');
+        self::assertSelectorTextContains('.bo-main', 'Qué ha cambiado');
+        self::assertSelectorTextContains('.bo-main', '14,99');
     }
 
     public function testTheDashboardDoesNotSumDifferentCurrencies(): void
@@ -128,9 +135,9 @@ final class DashboardTest extends WebTestCase
         $this->client->request('GET', '/');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.stat__value', '2 monedas');
-        self::assertSelectorTextContains('.app-main', 'Coste por moneda');
-        self::assertSelectorTextContains('.app-main', 'USD');
+        self::assertSelectorTextContains('.bo-metric__value', '2 monedas');
+        self::assertSelectorTextContains('.bo-main', 'Coste por moneda');
+        self::assertSelectorTextContains('.bo-main', 'USD');
     }
 
     public function testTheDashboardIsReadableOnAMobileViewport(): void
@@ -146,7 +153,7 @@ final class DashboardTest extends WebTestCase
         // desbordar en horizontal, así que todas van envueltas y etiquetadas.
         $content = (string) $this->client->getResponse()->getContent();
 
-        self::assertStringContainsString('table--responsive', $content);
+        self::assertStringContainsString('bo-table--stack', $content);
         self::assertStringContainsString('data-label=', $content);
         self::assertStringContainsString('name="viewport"', $content);
     }
@@ -163,10 +170,10 @@ final class DashboardTest extends WebTestCase
         $this->client->request('GET', '/');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.app-main', 'En qué se te va el dinero');
-        self::assertSelectorTextContains('.app-main', 'Hosting');
-        self::assertSelectorTextContains('.app-main', '16,99');
-        self::assertSelectorTextContains('.app-main', 'Software');
+        self::assertSelectorTextContains('.bo-main', 'En qué se te va el dinero');
+        self::assertSelectorTextContains('.bo-main', 'Hosting');
+        self::assertSelectorTextContains('.bo-main', '16,99');
+        self::assertSelectorTextContains('.bo-main', 'Software');
     }
 
     public function testTheDashboardRanksTheMostExpensiveServices(): void
@@ -177,7 +184,7 @@ final class DashboardTest extends WebTestCase
         $this->client->request('GET', '/');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.app-main', 'Los que más cuestan');
+        self::assertSelectorTextContains('.bo-main', 'Los que más cuestan');
 
         $content = (string) $this->client->getResponse()->getContent();
         self::assertLessThan(
@@ -197,27 +204,30 @@ final class DashboardTest extends WebTestCase
         $this->client->request('GET', '/');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.app-main', 'Servicios por estado');
-        self::assertSelectorTextContains('.app-main', 'Activo: 1');
-        self::assertSelectorTextContains('.app-main', 'En pausa: 1');
+        self::assertSelectorTextContains('.bo-main', 'Servicios por estado');
+        self::assertSelectorTextContains('.bo-main', 'Activo: 1');
+        self::assertSelectorTextContains('.bo-main', 'En pausa: 1');
     }
 
     public function testTheDashboardTotalsTheChargesOfTheNextThirtyAndSixtyDays(): void
     {
+        // Las fechas van referidas al reloj congelado (2026-10-20), no a fechas
+        // sueltas: un cargo "próximo" tiene que estar dentro de la ventana de
+        // 30 dias **respecto de ahora**, no de una fecha escrita a mano.
         $soon = $this->createService('Cobro próximo', 1199, BillingPeriod::MONTHLY);
-        $soon->setNextChargeAt(new DateTimeImmutable('2026-10-20'));
+        $soon->setNextChargeAt(new DateTimeImmutable('2026-10-25'));
         $this->repository()->save($soon);
 
         $later = $this->createService('Cobro lejano', 2000, BillingPeriod::MONTHLY);
-        $later->setNextChargeAt(new DateTimeImmutable('2026-11-15'));
+        $later->setNextChargeAt(new DateTimeImmutable('2026-12-15'));
         $this->repository()->save($later);
 
         $this->client->request('GET', '/');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.card__footer', 'Total en 30 días');
-        self::assertSelectorTextContains('.card__footer', '11,99');
-        self::assertSelectorTextContains('.card__footer', '31,99');
+        self::assertSelectorTextContains('.card-footer', 'Total en 30 días');
+        self::assertSelectorTextContains('.card-footer', '11,99');
+        self::assertSelectorTextContains('.card-footer', '31,99');
     }
 
     private function createCategory(string $name, string $slug): Category

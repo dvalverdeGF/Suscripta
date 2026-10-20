@@ -70,7 +70,7 @@ final class OrganizationSwitchTest extends WebTestCase
         $this->createServiceIn($second, 'Servicio de la segunda organización');
 
         $this->client->request('GET', '/services');
-        self::assertSelectorTextContains('.empty-state__title', 'Todavía no hay servicios');
+        self::assertSelectorTextContains('.bo-empty__title', 'Todavía no hay servicios');
 
         $this->client->request('POST', '/organizations/switch', [
             '_token' => $this->switchToken(),
@@ -104,7 +104,7 @@ final class OrganizationSwitchTest extends WebTestCase
 
         self::assertResponseRedirects('/');
         $this->client->followRedirect();
-        self::assertSelectorTextContains('.alert--danger', 'No perteneces a esa organización');
+        self::assertSelectorTextContains('.alert-danger', 'No perteneces a esa organización');
 
         $tenantContext = self::getContainer()->get(TenantContext::class);
         self::assertNotSame(
@@ -125,7 +125,7 @@ final class OrganizationSwitchTest extends WebTestCase
 
         self::assertResponseRedirects('/');
         $this->client->followRedirect();
-        self::assertSelectorTextContains('.alert--danger', 'no es válida');
+        self::assertSelectorTextContains('.alert-danger', 'no es válida');
     }
 
     public function testSwitchingWithoutAValidCsrfTokenIsForbidden(): void

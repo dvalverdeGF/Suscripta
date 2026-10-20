@@ -119,6 +119,6 @@ final class TesseractOcrEngineTest extends TestCase
 
     public function testItIdentifiesItself(): void
     {
-        self::assertSame('tesseract', (new TesseractOcrEngine($this->locks))->name());
+        self::assertSame('tesseract', new TesseractOcrEngine($this->locks)->name());
     }
 }

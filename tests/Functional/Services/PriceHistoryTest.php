@@ -45,15 +45,15 @@ final class PriceHistoryTest extends WebTestCase
         $this->client->request('GET', '/services/'.$service->getId()->toRfc4122());
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.app-main', 'Historial de precios');
-        self::assertSelectorTextContains('.app-main', 'Subida anual');
-        self::assertSelectorTextContains('.app-main', 'Cambio de plan');
+        self::assertSelectorTextContains('.bo-main', 'Historial de precios');
+        self::assertSelectorTextContains('.bo-main', 'Subida anual');
+        self::assertSelectorTextContains('.bo-main', 'Cambio de plan');
 
         // +2,00 € (+20 %) y luego +3,00 € (+25 %), no +5,00 € sobre la primera.
-        self::assertSelectorTextContains('.app-main', '+2,00');
-        self::assertSelectorTextContains('.app-main', '+20,0');
-        self::assertSelectorTextContains('.app-main', '+3,00');
-        self::assertSelectorTextContains('.app-main', '+25,0');
+        self::assertSelectorTextContains('.bo-main', '+2,00');
+        self::assertSelectorTextContains('.bo-main', '+20,0');
+        self::assertSelectorTextContains('.bo-main', '+3,00');
+        self::assertSelectorTextContains('.bo-main', '+25,0');
     }
 
     public function testTheServicePageSummarisesTheTotalVariation(): void
@@ -64,9 +64,9 @@ final class PriceHistoryTest extends WebTestCase
         $this->client->request('GET', '/services/'.$service->getId()->toRfc4122());
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.app-main', 'Cuánto ha cambiado desde el principio');
-        self::assertSelectorTextContains('.app-main', '+5,00');
-        self::assertSelectorTextContains('.app-main', '+50,0');
+        self::assertSelectorTextContains('.bo-main', 'Cuánto ha cambiado desde el principio');
+        self::assertSelectorTextContains('.bo-main', '+5,00');
+        self::assertSelectorTextContains('.bo-main', '+50,0');
     }
 
     public function testAServiceWithASinglePriceDoesNotClaimAnyVariation(): void
@@ -76,8 +76,8 @@ final class PriceHistoryTest extends WebTestCase
         $this->client->request('GET', '/services/'.$service->getId()->toRfc4122());
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextNotContains('.app-main', 'Cuánto ha cambiado desde el principio');
-        self::assertSelectorTextContains('.app-main', 'Vigente');
+        self::assertSelectorTextNotContains('.bo-main', 'Cuánto ha cambiado desde el principio');
+        self::assertSelectorTextContains('.bo-main', 'Vigente');
     }
 
     public function testTheDashboardShowsTheSpendEvolutionOfTheLastMonths(): void
@@ -88,10 +88,10 @@ final class PriceHistoryTest extends WebTestCase
         $this->client->request('GET', '/');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.app-main', 'Evolución del gasto');
+        self::assertSelectorTextContains('.bo-main', 'Evolución del gasto');
         // El mes en curso usa el precio vigente, no el de hace seis meses.
-        self::assertSelectorTextContains('.app-main', '15,00');
-        self::assertSelectorTextContains('.app-main', '10,00');
+        self::assertSelectorTextContains('.bo-main', '15,00');
+        self::assertSelectorTextContains('.bo-main', '10,00');
     }
 
     public function testAPriceCannotEnterIntoForceBeforeTheCurrentOne(): void
@@ -109,8 +109,8 @@ final class PriceHistoryTest extends WebTestCase
         $this->client->followRedirect();
 
         // El mensaje tiene que decir qué hacer, no describir la invariante.
-        self::assertSelectorTextContains('.alert--danger', 'ajusta primero la fecha de alta del servicio');
-        self::assertSelectorTextContains('.app-main', '10,00');
+        self::assertSelectorTextContains('.alert-danger', 'ajusta primero la fecha de alta del servicio');
+        self::assertSelectorTextContains('.bo-main', '10,00');
     }
 
     private function createService(string $name, string $amount): Service

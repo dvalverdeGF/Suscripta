@@ -18,3 +18,16 @@ services:
     App\Documents\Infrastructure\Storage\LocalDocumentStorage:
         arguments:
             $directory: '%kernel.cache_dir%/storage'
+
+    # El reloj del sistema es un servicio **privado** del framework, así que un
+    # test funcional no podría sustituirlo por un `MockClock` y acabaría
+    # midiendo contra el reloj real: en cuanto pasan unos días, los tests que
+    # dependien de "ahora" (alertas de cobro, ventanas de 30 y 60 días) empiezan
+    # a fallar sin que haya cambiado nada del código.
+    #
+    # Este alias público es el punto de sustitución. Los tests lo reasignan con
+    # `self::getContainer()->set('test.clock', new MockClock(...))` y el
+    # código de negocio no se entera: sigue leyendo "ahora" del `Clock`.
+    test.clock:
+        alias: clock
+        public: true

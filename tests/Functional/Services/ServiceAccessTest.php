@@ -81,8 +81,8 @@ final class ServiceAccessTest extends WebTestCase
 
         $client->request('GET', '/services');
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.empty-state__title', 'Todavía no hay servicios');
-        self::assertSelectorTextNotContains('.app-main', 'OVH VPS de Ada');
+        self::assertSelectorTextContains('.bo-empty__title', 'Todavía no hay servicios');
+        self::assertSelectorTextNotContains('.bo-main', 'OVH VPS de Ada');
 
         $client->request('GET', '/services/'.$adaServiceId);
         self::assertResponseStatusCodeSame(404);

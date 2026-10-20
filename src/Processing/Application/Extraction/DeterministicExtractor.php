@@ -28,7 +28,6 @@ use function mb_strtolower;
 use function mb_substr;
 use function preg_match;
 use function round;
-use function rtrim;
 use function str_contains;
 use function trim;
 
@@ -46,8 +45,6 @@ use function trim;
 final readonly class DeterministicExtractor
 {
     public const string NAME = 'deterministic';
-
-    private const string INVOICE_NUMBER_PATTERN = '/(?:factura|invoice|n[ºo°]|number|número|numero|ref(?:erencia)?|receipt|recibo)\s*[:#.\-]?\s*([A-Z0-9][A-Z0-9\-\/_.]{2,29})/iu';
 
     private const string PERIOD_PATTERN = '/(?:every|cada|per|por)\s+(\d{1,2})\s*(month|mes|year|año|ano|week|semana|quarter|trimestre)s?|(\d{1,2})\s*(month|mes|year|año|ano|week|semana|quarter|trimestre)s?\b/iu';
 
@@ -76,6 +73,7 @@ final readonly class DeterministicExtractor
     public function __construct(
         private AmountParser $amountParser,
         private DateParser $dateParser,
+        private InvoiceNumberReader $invoiceNumbers,
         private ProviderIdentityRepositoryInterface $providerIdentities,
         private Clock $clock,
     ) {
@@ -95,7 +93,7 @@ final readonly class DeterministicExtractor
             $signals['amount'] = $amount->format();
         }
 
-        $invoiceNumber = $this->extractInvoiceNumber($haystack);
+        $invoiceNumber = $this->extractInvoiceNumber($bodyText, $header->subject);
 
         if (null !== $invoiceNumber) {
             $signals['invoiceNumber'] = $invoiceNumber;
@@ -187,27 +185,31 @@ final readonly class DeterministicExtractor
         return round($score, 2);
     }
 
-    private function extractInvoiceNumber(string $haystack): ?string
+    /**
+     * Número de factura.
+     *
+     * Se busca **primero en el cuerpo** y solo después en el asunto. El cuerpo
+     * es donde está el dato; el asunto es una etiqueta que el remitente escribe
+     * para el humano («Factura 2026-10 de OVHcloud») y no para la máquina.
+     * Darle prioridad al cuerpo evita que un periodo del asunto se cuele como
+     * número de factura.
+     */
+    private function extractInvoiceNumber(string $bodyText, string $subject): ?string
     {
-        if (false === preg_match_all(self::INVOICE_NUMBER_PATTERN, $haystack, $matches)) {
-            return null;
-        }
+        foreach ([$bodyText, $subject] as $source) {
+            $candidate = $this->firstInvoiceNumberIn($source);
 
-        // Se recorren todos los candidatos y se devuelve el primero que
-        // contenga un dígito: el asunto ("Factura OVH 2026-10") suele coincidir
-        // antes que el número real, y "OVH" no es un número de factura.
-        foreach ($matches[1] as $candidate) {
-            // El patrón admite puntos y guiones dentro del número, así que
-            // también captura la puntuación de la frase («FRA-1.»). Un número
-            // de factura no termina en separador.
-            $candidate = rtrim(trim($candidate), '.-_/');
-
-            if (1 === preg_match('/\d/', $candidate)) {
+            if (null !== $candidate) {
                 return $candidate;
             }
         }
 
         return null;
+    }
+
+    private function firstInvoiceNumberIn(string $haystack): ?string
+    {
+        return $this->invoiceNumbers->find($haystack);
     }
 
     private function detectBillingPeriod(string $haystack): ?BillingPeriod

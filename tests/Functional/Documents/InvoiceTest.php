@@ -54,7 +54,7 @@ final class InvoiceTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('h1', 'Facturas');
-        self::assertSelectorTextContains('.empty-state__title', 'Todavía no hay facturas registradas');
+        self::assertSelectorTextContains('.bo-empty__title', 'Todavía no hay facturas registradas');
     }
 
     public function testRegisterAnInvoice(): void
@@ -74,9 +74,9 @@ final class InvoiceTest extends WebTestCase
         self::assertNotNull($invoice->getPaidAt());
 
         $this->client->followRedirect();
-        self::assertSelectorTextContains('.alert--success', 'Factura de 29,90 € registrada.');
+        self::assertSelectorTextContains('.alert-success', 'Factura de 29,90 € registrada.');
         self::assertSelectorTextContains('h1', '29,90 €');
-        self::assertSelectorTextContains('.definition-list', 'OVH-2026-10-0001');
+        self::assertSelectorTextContains('.bo-definition-list', 'OVH-2026-10-0001');
     }
 
     public function testRegisteringTheSameInvoiceTwiceDoesNotDuplicateIt(): void
@@ -104,7 +104,7 @@ final class InvoiceTest extends WebTestCase
         self::assertSame(1, $this->repository()->countForOrganization());
 
         $this->client->followRedirect();
-        self::assertSelectorTextContains('.alert--success', 'ya estaba registrada');
+        self::assertSelectorTextContains('.alert-success', 'ya estaba registrada');
     }
 
     public function testRegisteringAnInvoiceAttachesItToAServiceAndRecordsTheRenewal(): void
@@ -140,7 +140,7 @@ final class InvoiceTest extends WebTestCase
         ]);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSelectorTextContains('.alert--danger', 'no puede ser negativo');
+        self::assertSelectorTextContains('.alert-danger', 'no puede ser negativo');
         self::assertSame(0, $this->repository()->countForOrganization());
     }
 
@@ -154,7 +154,7 @@ final class InvoiceTest extends WebTestCase
         ]);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSelectorTextContains('.field__error', 'Indica el importe');
+        self::assertSelectorTextContains('.invalid-feedback', 'Indica el importe');
     }
 
     public function testRegisteringAnInvoiceWithAnInvertedPeriodIsRejected(): void
@@ -170,7 +170,7 @@ final class InvoiceTest extends WebTestCase
         ]);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSelectorTextContains('.alert--danger', 'no puede ser anterior');
+        self::assertSelectorTextContains('.alert-danger', 'no puede ser anterior');
         self::assertSame(0, $this->repository()->countForOrganization());
     }
 
@@ -226,7 +226,7 @@ final class InvoiceTest extends WebTestCase
         $this->client->request('GET', '/invoices/'.$invoice->getId()->toRfc4122());
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.app-main', 'Registrada a mano');
+        self::assertSelectorTextContains('.bo-main', 'Registrada a mano');
     }
 
     public function testAnInvoiceCanBeMarkedAsDetectedInTheMailbox(): void
@@ -244,7 +244,7 @@ final class InvoiceTest extends WebTestCase
         $this->client->request('GET', '/invoices/'.$invoice->getId()->toRfc4122());
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.app-main', 'Detectada en tu correo');
+        self::assertSelectorTextContains('.bo-main', 'Detectada en tu correo');
     }
 
     /**
