@@ -1,12 +1,12 @@
-{% extends 'layout/app.html.twig' %}
+{% extends 'backoffice/base.html.twig' %}
 
 {% block title %}Conectar buzón — Suscripta{% endblock %}
 
-{% block main %}
-    <div class="page-header">
-        <div class="page-header__title">
-            <h1>Conectar un buzón</h1>
-            <p class="page-header__subtitle">
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">Conectar un buzón</h1>
+            <p class="bo-page-header__subtitle">
                 Funciona con cualquier servidor IMAP: Gmail, Microsoft 365, el correo de tu hosting
                 o el de tu empresa. Comprobamos la conexión antes de guardar nada.
             </p>
@@ -15,7 +15,15 @@
 
     {% include 'mail/accounts/_form.html.twig' with {
         form: form,
-        submit_label: 'Conectar buzón',
-        cancel_path: path('app_mail_accounts_index'),
+        form_id: 'mail-account-form',
     } only %}
+{% endblock %}
+
+{% block page_actions %}
+    {{ include('backoffice/_form_actions.html.twig', {
+        form_id: 'mail-account-form',
+        submit_label: 'Conectar buzón',
+        submit_icon: 'fa-plug',
+        back_path: path('app_mail_accounts_index'),
+    }) }}
 {% endblock %}

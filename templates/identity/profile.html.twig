@@ -1,66 +1,58 @@
-{% extends 'layout/app.html.twig' %}
+{% extends 'backoffice/base.html.twig' %}
 
 {% block title %}Ajustes — Suscripta{% endblock %}
 
-{% block main %}
-    <div class="page-header">
-        <div class="page-header__title">
-            <h1>Ajustes de la cuenta</h1>
-            <p class="page-header__subtitle">Tus datos, tu contraseña y las organizaciones a las que perteneces.</p>
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">Ajustes de la cuenta</h1>
+            <p class="bo-page-header__subtitle">Tus datos, tu contraseña y las organizaciones a las que perteneces.</p>
         </div>
     </div>
 
-    <div class="stack">
+    <div class="d-flex flex-column gap-3">
         {% if not app.user.verified %}
-            <div class="alert alert--warning" role="status">
+            <div class="alert alert-warning" role="status">
                 <p class="mb-2"><strong>Tu correo todavía no está confirmado.</strong></p>
-                <p class="mb-4">
+                <p class="mb-3">
                     Necesitamos confirmar <strong>{{ app.user.email }}</strong> antes de conectar un
                     buzón de facturación. Revisa tu bandeja de entrada (y la carpeta de spam).
                 </p>
                 <form method="post" action="{{ path('app_verify_email_resend') }}">
                     <input type="hidden" name="_token" value="{{ csrf_token('resend_verification') }}">
-                    <button type="submit" class="btn btn--secondary btn--sm">Reenviar el correo de confirmación</button>
+                    <button type="submit" class="btn btn-outline-secondary btn-sm">Reenviar el correo de confirmación</button>
                 </form>
             </div>
         {% endif %}
 
         <section class="card">
-            <div class="card__header">
-                <h2 class="card__title">Datos personales</h2>
+            <div class="card-header">
+                <h2 class="card-title">Datos personales</h2>
             </div>
-            <div class="card__body">
-                {{ form_start(form, { attr: { class: 'form', novalidate: 'novalidate' } }) }}
+            <div class="card-body">
+                {{ form_start(form, { attr: { id: 'profile-form', class: 'form', novalidate: 'novalidate' } }) }}
                     {{ form_errors(form) }}
                     {{ form_row(form.displayName) }}
                     {{ form_row(form.email) }}
                     {{ form_row(form.locale) }}
                     {{ form_row(form.timezone) }}
-
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn--primary">Guardar cambios</button>
-                    </div>
                 {{ form_end(form) }}
             </div>
         </section>
 
         <section class="card">
-            <div class="card__header">
-                <h2 class="card__title">Contraseña</h2>
+            <div class="card-header">
+                <h2 class="card-title">Contraseña</h2>
             </div>
-            <div class="card__body">
+            <div class="card-body">
                 {{ form_start(password_form, {
                     action: path('app_settings_profile_password'),
-                    attr: { class: 'form', novalidate: 'novalidate' },
+                    attr: { id: 'password-form', class: 'form', novalidate: 'novalidate' },
                 }) }}
                     {{ form_errors(password_form) }}
                     {{ form_row(password_form.currentPassword) }}
                     {{ form_row(password_form.plainPassword.first) }}
                     {{ form_row(password_form.plainPassword.second) }}
-
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn--secondary">Cambiar contraseña</button>
-                    </div>
                 {{ form_end(password_form) }}
             </div>
         </section>
@@ -68,29 +60,29 @@
         {% set organizations = user_organizations() %}
         {% if organizations|length > 1 %}
             <section class="card">
-                <div class="card__header">
-                    <h2 class="card__title">Organizaciones</h2>
+                <div class="card-header">
+                    <h2 class="card-title">Organizaciones</h2>
                 </div>
-                <div class="card__body">
+                <div class="card-body">
                     <p class="text-muted">
                         Los servicios, documentos y descubrimientos están aislados por organización.
                         Cambia la activa para trabajar con otra.
                     </p>
-                    <ul class="stack stack--tight">
+                    <ul class="d-flex flex-column gap-2">
                         {% for entry in organizations %}
-                            <li class="cluster cluster--between">
+                            <li class="d-flex flex-wrap align-items-center justify-content-between gap-2">
                                 <span>
                                     {{ entry.organization.name }}
-                                    <span class="badge badge--info">{{ entry.role.label }}</span>
+                                    <span class="badge text-bg-info">{{ entry.role.label }}</span>
                                     {% if is_active_organization(entry.organization) %}
-                                        <span class="badge badge--success">Activa</span>
+                                        <span class="badge text-bg-success">Activa</span>
                                     {% endif %}
                                 </span>
                                 {% if not is_active_organization(entry.organization) %}
                                     <form method="post" action="{{ path('app_organization_switch') }}">
                                         <input type="hidden" name="_token" value="{{ csrf_token('switch_organization') }}">
                                         <input type="hidden" name="organization" value="{{ entry.organization.id }}">
-                                        <button type="submit" class="btn btn--ghost btn--sm">Activar</button>
+                                        <button type="submit" class="btn btn-outline-secondary btn-sm">Activar</button>
                                     </form>
                                 {% endif %}
                             </li>
@@ -99,5 +91,22 @@
                 </div>
             </section>
         {% endif %}
+    </div>
+{% endblock %}
+
+{#
+    Los dos formularios de esta pantalla (datos y contrasena) tienen su boton en
+    la barra de acciones del pie. Se asocia cada boton con su formulario por el
+    atributo HTML `form`, que es lo que permite que el boton viva fuera del
+    `<form>` sin envolturas gigantes.
+#}
+{% block page_actions %}
+    <div class="bo-actions">
+        <button class="btn btn-outline-secondary" type="submit" form="password-form">
+            <i class="fa-solid fa-key me-1" aria-hidden="true"></i> Cambiar contraseña
+        </button>
+        <button class="btn btn-primary" type="submit" form="profile-form">
+            <i class="fa-solid fa-floppy-disk me-1" aria-hidden="true"></i> Guardar cambios
+        </button>
     </div>
 {% endblock %}

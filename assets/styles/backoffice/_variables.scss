@@ -1,0 +1,78 @@
+// ============================================================================
+// VARIABLES DEL BACKOFFICE DE SUSCRIPTA
+// ============================================================================
+//
+// El sistema visual viene del backoffice de Orian (referencia de estilo del
+// cliente): un lienzo calido, un sidebar muy oscuro y un acento teal. Se copia
+// el **esqueleto** (jerarquia de superficies, radio casi recto, tipografia
+// tecnica) y se cambia la **paleta**, que es la de Suscripta.
+//
+// La diferencia de fondo que mas se nota: las superficies estan separadas por
+// una escala deliberada, no por un unico gris.
+//
+//   --sunken  <  --canvas  <  --surface  (= blanco, el contenido)
+//
+// El contenido es lo mas claro y lo mas elevado; los campos van un escalon por
+// debajo del papel para leerse como huecos donde escribir. Un borde (`--line`)
+// siempre es mas oscuro que las dos superficies que separa.
+
+$bo-sidebar-width: 260px;
+
+// El sidebar toma el tono mas oscuro de la marca: es lo que separa la
+// navegacion del contenido sin necesidad de una linea.
+$bo-sidebar-bg: #0b1620;
+$bo-sidebar-color: #93a7b8;
+$bo-sidebar-active: #4cc9d4;
+$bo-sidebar-hover-bg: rgba(255, 255, 255, 0.06);
+
+$bo-topbar-height: 56px;
+
+// ---------------------------------------------------------------------------
+// Escala de superficies
+// ---------------------------------------------------------------------------
+$bo-canvas: #f5f6f7;      // fondo de la pagina
+$bo-sunken: #eceef1;      // huecos: campos, zonas hundidas dentro de una tarjeta
+$bo-surface: #ffffff;    // contenido: tarjetas, paneles, cabeceras de tabla
+$bo-line: #dfe3e8;       // bordes: separan superficies
+$bo-line-strong: #b9c2cc; // bordes de controles interactivos
+
+$bo-body-bg: $bo-canvas;
+$bo-body-color: #16202b;
+$bo-body-color-muted: #5a6773;
+$bo-heading-color: #0a1a26;
+$bo-card-shadow: 0 1px 2px rgba(10, 26, 38, 0.04), 0 1px 3px rgba(10, 26, 38, 0.06);
+$bo-card-shadow-hover: 0 4px 12px rgba(10, 26, 38, 0.08);
+$bo-transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+// Radio casi recto: es la decision de marca (aire tecnico, no "app amable") y es
+// la que mas se nota si se ignora.
+$bo-radius: 2px;
+
+// ---------------------------------------------------------------------------
+// Sobreescrituras de Bootstrap (antes del import)
+// ---------------------------------------------------------------------------
+$body-bg: $bo-body-bg;
+$body-color: $bo-body-color;
+$primary: #0e7490;
+$secondary: $bo-body-color-muted;
+$success: #1a7f4b;
+$warning: #a16207;
+$danger: #b3261e;
+$info: #4cc9d4;
+
+$font-family-base: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+$border-radius: $bo-radius;
+$border-radius-sm: 2px;
+$border-radius-lg: 3px;
+$card-border-width: 0;
+$card-box-shadow: $bo-card-shadow;
+
+$input-bg: $bo-surface;
+$input-border-color: $bo-line-strong;
+$input-color: $bo-body-color;
+$input-placeholder-color: #94a3b8;
+$input-focus-border-color: $primary;
+$input-focus-box-shadow: 0 0 0 3px rgba(14, 116, 144, 0.12);
+$input-disabled-bg: $bo-sunken;
+
+$line-height-base: 1.5;

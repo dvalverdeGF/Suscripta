@@ -1,21 +1,21 @@
-{% extends 'layout/app.html.twig' %}
+{% extends 'backoffice/base.html.twig' %}
 
 {% block title %}Preferencias de avisos — Suscripta{% endblock %}
 
-{% block main %}
-    <div class="page-header">
-        <div class="page-header__title">
-            <p class="text-muted text-sm">
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <p class="bo-page-header__back">
                 <a href="{{ path('app_alerts_index') }}">← Avisos</a>
             </p>
-            <h1>Preferencias de avisos</h1>
-            <p class="page-header__subtitle">
+            <h1 class="bo-page-header__title">Preferencias de avisos</h1>
+            <p class="bo-page-header__subtitle">
                 Elige qué quieres ver en la aplicación y qué quieres recibir por correo.
             </p>
         </div>
     </div>
 
-    <div class="alert alert--info mb-6">
+    <div class="alert alert-info mb-4">
         <p>
             Los avisos <strong>críticos</strong> —un cobro inminente o una renovación a punto de
             cerrarse— se envían siempre por correo, aunque desactives el canal. Es justo el caso
@@ -23,9 +23,13 @@
         </p>
     </div>
 
-    {{ form_start(form) }}
-        <div class="table-wrapper">
-            <table class="table table--responsive">
+    {#
+    El formulario lleva `id` porque el boton de guardar vive en la barra de
+    acciones del pie y se le asocia con el atributo HTML `form`.
+#}
+{{ form_start(form, {attr: {id: 'alert-preferences-form'}}) }}
+        <div class="table-responsive">
+            <table class="table bo-table bo-table--stack align-middle">
                 <caption class="visually-hidden">Preferencias de avisos por tipo y canal</caption>
                 <thead>
                     <tr>
@@ -40,12 +44,12 @@
                         <tr>
                             <th scope="row" data-label="Tipo de aviso">
                                 {{ type.label() }}
-                                <span class="text-muted text-sm">{{ type.description() }}</span>
+                                <span class="text-muted small">{{ type.description() }}</span>
                             </th>
                             {% for channel in channels %}
                                 {% set field = attribute(form, type.value ~ '_' ~ channel.value) %}
                                 <td data-label="{{ channel.label() }}">
-                                    <label class="checkbox">
+                                    <label class="form-check">
                                         {{ form_widget(field) }}
                                         <span>{{ channel.label() }}</span>
                                     </label>
@@ -57,9 +61,13 @@
             </table>
         </div>
 
-        <div class="form-actions mt-6">
-            <button type="submit" class="btn btn--primary">Guardar preferencias</button>
-            <a class="btn btn--ghost" href="{{ path('app_alerts_index') }}">Cancelar</a>
-        </div>
     {{ form_end(form) }}
+{% endblock %}
+
+{% block page_actions %}
+    {{ include('backoffice/_form_actions.html.twig', {
+        form_id: 'alert-preferences-form',
+        submit_label: 'Guardar preferencias',
+        back_path: path('app_alerts_index'),
+    }) }}
 {% endblock %}

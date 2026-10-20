@@ -1,46 +1,47 @@
-{% extends 'layout/app.html.twig' %}
+{% extends 'backoffice/base.html.twig' %}
 
 {% block title %}Buzones de correo — Suscripta{% endblock %}
 
-{% block topbar_actions %}
-    <a class="btn btn--primary btn--sm" href="{{ path('app_mail_accounts_new') }}">Conectar buzón</a>
-{% endblock %}
-
-{% block main %}
-    <div class="page-header">
-        <div class="page-header__title">
-            <h1>Buzones de correo</h1>
-            <p class="page-header__subtitle">
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">Buzones de correo</h1>
+            <p class="bo-page-header__subtitle">
                 Suscripta lee estos buzones en modo solo lectura para descubrir los servicios que pagas.
             </p>
+        </div>
+        <div class="bo-page-header__actions">
+            <a class="btn btn-primary" href="{{ path('app_mail_accounts_new') }}">
+                <i class="fa-solid fa-plus me-1"></i> Conectar buzón
+            </a>
         </div>
     </div>
 
     {% if accounts is empty %}
         <div class="card">
-            <div class="card__body">
-                <div class="empty-state">
-                    <p class="empty-state__title">Todavía no hay ningún buzón conectado</p>
-                    <p class="empty-state__text">
+            <div class="card-body">
+                <div class="bo-empty">
+                    <p class="bo-empty__title">Todavía no hay ningún buzón conectado</p>
+                    <p class="bo-empty__text">
                         Conecta el correo donde recibes tus facturas y Suscripta encontrará por ti
                         los servicios recurrentes, cuánto cuestan y cuándo se renuevan.
                     </p>
-                    <div class="cluster cluster--end">
-                        <a class="btn btn--primary" href="{{ path('app_mail_accounts_new') }}">Conectar buzón</a>
+                    <div class="d-flex flex-wrap align-items-center justify-content-end gap-2">
+                        <a class="btn btn-primary" href="{{ path('app_mail_accounts_new') }}">Conectar buzón</a>
                     </div>
                 </div>
             </div>
         </div>
     {% else %}
-        <div class="table-wrapper">
-            <table class="table table--responsive">
+        <div class="table-responsive">
+            <table class="table bo-table bo-table--stack align-middle">
                 <caption class="visually-hidden">Buzones de correo conectados</caption>
                 <thead>
                     <tr>
                         <th scope="col">Buzón</th>
                         <th scope="col">Estado</th>
                         <th scope="col">Última lectura</th>
-                        <th scope="col" class="num">Mensajes</th>
+                        <th scope="col" class="text-end">Mensajes</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -51,11 +52,11 @@
                                     {{ account.displayName|default(account.emailAddress) }}
                                 </a>
                                 {% if account.displayName %}
-                                    <span class="text-muted text-sm">· {{ account.emailAddress }}</span>
+                                    <span class="text-muted small">· {{ account.emailAddress }}</span>
                                 {% endif %}
                             </td>
                             <td data-label="Estado">
-                                <span class="badge badge--{{ account.status.value == 'active' ? 'success' : (account.status.value == 'error' ? 'danger' : 'warning') }}">
+                                <span class="badge text-bg-{{ account.status.value == 'active' ? 'success' : (account.status.value == 'error' ? 'danger' : 'warning') }}">
                                     {{ account.status.label() }}
                                 </span>
                             </td>
@@ -63,10 +64,10 @@
                                 {% if account.lastSyncAt %}
                                     <time datetime="{{ account.lastSyncAt|date('c') }}">{{ account.lastSyncAt|date('d/m/Y H:i') }}</time>
                                 {% else %}
-                                    <span class="text-subtle">Nunca</span>
+                                    <span class="text-secondary">Nunca</span>
                                 {% endif %}
                             </td>
-                            <td data-label="Mensajes" class="num">{{ messageCounts[account.id.toRfc4122()]|default(0) }}</td>
+                            <td data-label="Mensajes" class="text-end">{{ messageCounts[account.id.toRfc4122()]|default(0) }}</td>
                         </tr>
                     {% endfor %}
                 </tbody>

@@ -1,18 +1,26 @@
-{% extends 'layout/app.html.twig' %}
+{% extends 'backoffice/base.html.twig' %}
 
 {% block title %}Nuevo servicio — Suscripta{% endblock %}
 
-{% block main %}
-    <div class="page-header">
-        <div class="page-header__title">
-            <h1>Nuevo servicio</h1>
-            <p class="page-header__subtitle">Añade un servicio que pagas de forma recurrente.</p>
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">Nuevo servicio</h1>
+            <p class="bo-page-header__subtitle">Añade un servicio que pagas de forma recurrente.</p>
         </div>
     </div>
 
     {% include 'services/_form.html.twig' with {
         form: form,
-        submit_label: 'Añadir servicio',
-        cancel_path: path('app_services_index'),
+        form_id: 'service-form',
     } only %}
+{% endblock %}
+
+{% block page_actions %}
+    {{ include('backoffice/_form_actions.html.twig', {
+        form_id: 'service-form',
+        submit_label: 'Añadir servicio',
+        submit_icon: 'fa-plus',
+        back_path: path('app_services_index'),
+    }) }}
 {% endblock %}

@@ -1,33 +1,33 @@
-{% extends 'layout/app.html.twig' %}
+{% extends 'backoffice/base.html.twig' %}
 
 {% block title %}{{ alert.title }} — Suscripta{% endblock %}
 
-{% block main %}
-    <div class="page-header">
-        <div class="page-header__title">
-            <p class="text-muted text-sm">
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <p class="bo-page-header__back">
                 <a href="{{ path('app_alerts_index') }}">← Avisos</a>
             </p>
-            <h1>{{ alert.title }}</h1>
-            <p class="page-header__subtitle">{{ alert.type.description() }}</p>
+            <h1 class="bo-page-header__title">{{ alert.title }}</h1>
+            <p class="bo-page-header__subtitle">{{ alert.type.description() }}</p>
         </div>
     </div>
 
-    <div class="grid grid--2">
+    <div class="row g-3">
         <div class="card">
-            <div class="card__header">
-                <h2 class="card__title">Qué ha pasado</h2>
+            <div class="card-header">
+                <h2 class="card-title">Qué ha pasado</h2>
             </div>
-            <div class="card__body">
+            <div class="card-body">
                 <p>{{ alert.message }}</p>
 
-                <dl class="definition-list">
+                <dl class="bo-definition-list">
                     <dt>Tipo</dt>
                     <dd>{{ alert.type.label() }}</dd>
 
                     <dt>Gravedad</dt>
                     <dd>
-                        <span class="badge badge--{{ alert.severity.value == 'critical' ? 'danger' : (alert.severity.value == 'warning' ? 'warning' : 'info') }}">
+                        <span class="badge text-bg-{{ alert.severity.value == 'critical' ? 'danger' : (alert.severity.value == 'warning' ? 'warning' : 'info') }}">
                             {{ alert.severity.label() }}
                         </span>
                     </dd>
@@ -50,31 +50,31 @@
                 </dl>
 
                 {% if alert.status.value == 'open' %}
-                    <div class="cluster cluster--end mt-4">
+                    <div class="d-flex flex-wrap align-items-center justify-content-end gap-2 mt-3">
                         <form method="post" action="{{ path('app_alerts_dismiss', {id: alert.id.toRfc4122()}) }}">
                             <input type="hidden" name="_token" value="{{ csrf_token('alert_dismiss_' ~ alert.id.toRfc4122()) }}">
-                            <button type="submit" class="btn btn--ghost">Descartar</button>
+                            <button type="submit" class="btn btn-outline-secondary">Descartar</button>
                         </form>
                         <form method="post" action="{{ path('app_alerts_acknowledge', {id: alert.id.toRfc4122()}) }}">
                             <input type="hidden" name="_token" value="{{ csrf_token('alert_acknowledge_' ~ alert.id.toRfc4122()) }}">
-                            <button type="submit" class="btn btn--primary">Marcar como visto</button>
+                            <button type="submit" class="btn btn-primary">Marcar como visto</button>
                         </form>
                     </div>
                 {% endif %}
             </div>
         </div>
 
-        <div class="stack">
+        <div class="d-flex flex-column gap-3">
             {% if service %}
                 <div class="card">
-                    <div class="card__header">
-                        <h2 class="card__title">Servicio</h2>
+                    <div class="card-header">
+                        <h2 class="card-title">Servicio</h2>
                     </div>
-                    <div class="card__body">
+                    <div class="card-body">
                         <p>
                             <a href="{{ path('app_services_show', {id: service.id.toRfc4122()}) }}">{{ service.name }}</a>
                         </p>
-                        <dl class="definition-list">
+                        <dl class="bo-definition-list">
                             <dt>Estado</dt>
                             <dd>{{ service.status.label() }}</dd>
                             <dt>Periodicidad</dt>
@@ -93,25 +93,25 @@
             {% endif %}
 
             <div class="card">
-                <div class="card__header">
-                    <h2 class="card__title">Entregas</h2>
+                <div class="card-header">
+                    <h2 class="card-title">Entregas</h2>
                 </div>
-                <div class="card__body">
+                <div class="card-body">
                     {% if notifications is empty %}
                         <p class="text-muted">Todavía no se ha entregado este aviso por ningún canal.</p>
                     {% else %}
-                        <ul class="stack stack--tight">
+                        <ul class="d-flex flex-column gap-2">
                             {% for notification in notifications %}
                                 <li>
-                                    <span class="badge badge--{{ notification.status.value == 'sent' ? 'success' : (notification.status.value == 'failed' ? 'danger' : 'info') }}">
+                                    <span class="badge text-bg-{{ notification.status.value == 'sent' ? 'success' : (notification.status.value == 'failed' ? 'danger' : 'info') }}">
                                         {{ notification.status.label() }}
                                     </span>
                                     {{ notification.channel.label() }}
                                     {% if notification.sentAt %}
-                                        <span class="text-muted text-sm">· {{ notification.sentAt|date('d/m/Y H:i') }}</span>
+                                        <span class="text-muted small">· {{ notification.sentAt|date('d/m/Y H:i') }}</span>
                                     {% endif %}
                                     {% if notification.error %}
-                                        <span class="text-muted text-sm">· {{ notification.error }}</span>
+                                        <span class="text-muted small">· {{ notification.error }}</span>
                                     {% endif %}
                                 </li>
                             {% endfor %}

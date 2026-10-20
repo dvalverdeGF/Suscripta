@@ -1,24 +1,28 @@
-{{ form_start(form, {attr: {class: 'form'}}) }}
+{#
+    El formulario lleva `id` porque el boton de guardar vive en la barra de
+    acciones del pie y se le asocia con el atributo HTML `form`.
+#}
+{{ form_start(form, {attr: {id: form_id|default('mail-account-form'), class: 'form'}}) }}
     {{ form_errors(form) }}
 
-    <div class="card mb-6">
-        <div class="card__header">
-            <h2 class="card__title">Qué buzón</h2>
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="card-title">Qué buzón</h2>
         </div>
-        <div class="card__body">
-            <div class="grid grid--2">
+        <div class="card-body">
+            <div class="row g-3">
                 {{ form_row(form.emailAddress) }}
                 {{ form_row(form.displayName) }}
             </div>
         </div>
     </div>
 
-    <div class="card mb-6">
-        <div class="card__header">
-            <h2 class="card__title">Cómo se conecta</h2>
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="card-title">Cómo se conecta</h2>
         </div>
-        <div class="card__body">
-            <div class="grid grid--2">
+        <div class="card-body">
+            <div class="row g-3">
                 {{ form_row(form.imapHost) }}
                 {{ form_row(form.imapPort) }}
                 {{ form_row(form.imapEncryption) }}
@@ -26,15 +30,11 @@
                 {{ form_row(form.password) }}
                 {{ form_row(form.imapFolder) }}
             </div>
-            <p class="field__hint">
+            <p class="form-text">
                 La contraseña se guarda cifrada y solo se usa para leer. Nunca escribimos,
                 movemos ni borramos nada de tu buzón.
             </p>
         </div>
     </div>
 
-    <div class="form-actions">
-        <button type="submit" class="btn btn--primary">{{ submit_label|default('Guardar') }}</button>
-        <a class="btn btn--ghost" href="{{ cancel_path|default(path('app_mail_accounts_index')) }}">Cancelar</a>
-    </div>
 {{ form_end(form) }}

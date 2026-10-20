@@ -1,18 +1,18 @@
-{% extends 'layout/app.html.twig' %}
+{% extends 'backoffice/base.html.twig' %}
 
 {% block title %}Propuestas — Suscripta{% endblock %}
 
-{% block main %}
-    <div class="page-header">
-        <div class="page-header__title">
-            <h1>Propuestas</h1>
-            <p class="page-header__subtitle">
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">Propuestas</h1>
+            <p class="bo-page-header__subtitle">
                 Servicios que Suscripta ha encontrado en tu correo y que esperan tu confirmación.
             </p>
         </div>
     </div>
 
-    <nav class="cluster mb-6" aria-label="Filtrar propuestas">
+    <nav class="d-flex flex-wrap align-items-center gap-2 mb-4" aria-label="Filtrar propuestas">
         {% set tabs = {
             'pending': 'Pendientes',
             'confirmed': 'Confirmadas',
@@ -20,27 +20,27 @@
             'expired': 'Caducadas'
         } %}
         {% for value, label in tabs %}
-            <a class="btn btn--sm {{ status.value == value ? 'btn--primary' : 'btn--ghost' }}"
+            <a class="btn btn-sm {{ status.value == value ? 'btn-primary' : 'btn-outline-secondary' }}"
                href="{{ path('app_discoveries_index', {status: value}) }}"
                {% if status.value == value %}aria-current="page"{% endif %}>
                 {{ label }}
-                {% if counts[value] is defined %}<span class="text-xs">({{ counts[value] }})</span>{% endif %}
+                {% if counts[value] is defined %}<span class="small text-secondary">({{ counts[value] }})</span>{% endif %}
             </a>
         {% endfor %}
     </nav>
 
     {% if discoveries is empty %}
         <div class="card">
-            <div class="card__body">
-                <div class="empty-state">
-                    <p class="empty-state__title">
+            <div class="card-body">
+                <div class="bo-empty">
+                    <p class="bo-empty__title">
                         {% if status.value == 'pending' %}
                             No hay nada pendiente de revisar
                         {% else %}
                             No hay propuestas en este estado
                         {% endif %}
                     </p>
-                    <p class="empty-state__text">
+                    <p class="bo-empty__text">
                         {% if status.value == 'pending' %}
                             Cuando Suscripta encuentre una factura o un aviso de renovación en tu correo,
                             aparecerá aquí para que decidas si quieres seguirla.
@@ -49,16 +49,16 @@
                         {% endif %}
                     </p>
                     {% if status.value == 'pending' %}
-                        <div class="cluster cluster--end">
-                            <a class="btn btn--primary" href="{{ path('app_mail_accounts_index') }}">Revisar buzones</a>
+                        <div class="d-flex flex-wrap align-items-center justify-content-end gap-2">
+                            <a class="btn btn-primary" href="{{ path('app_mail_accounts_index') }}">Revisar buzones</a>
                         </div>
                     {% endif %}
                 </div>
             </div>
         </div>
     {% else %}
-        <div class="table-wrapper">
-            <table class="table table--responsive">
+        <div class="table-responsive">
+            <table class="table bo-table bo-table--stack align-middle">
                 <caption class="visually-hidden">Propuestas de servicios detectados en el correo</caption>
                 <thead>
                     <tr>
@@ -79,29 +79,29 @@
                                     {{ proposed.providerName|default(proposed.serviceName|default('Proveedor sin identificar')) }}
                                 </a>
                                 {% if source and source.subject %}
-                                    <span class="text-muted text-sm">· {{ source.subject|slice(0, 60) }}</span>
+                                    <span class="text-muted small">· {{ source.subject|slice(0, 60) }}</span>
                                 {% endif %}
                             </td>
                             <td data-label="Tipo">
-                                <span class="badge badge--{{ discovery.type.value == 'new_service' ? 'info' : 'warning' }}">
+                                <span class="badge text-bg-{{ discovery.type.value == 'new_service' ? 'info' : 'warning' }}">
                                     {{ discovery.type.label() }}
                                 </span>
                             </td>
-                            <td data-label="Importe" class="num">
+                            <td data-label="Importe" class="text-end">
                                 {% if proposed.amountMinor is defined and proposed.amountMinor is not null %}
                                     {{ (proposed.amountMinor / 100)|number_format(2, ',', '.') }} {{ proposed.currency|default('EUR') }}
                                     {% if proposed.billingPeriod is defined and proposed.billingPeriod %}
-                                        <span class="text-muted text-sm">/ {{ proposed.billingPeriod }}</span>
+                                        <span class="text-muted small">/ {{ proposed.billingPeriod }}</span>
                                     {% endif %}
                                 {% else %}
-                                    <span class="text-subtle">—</span>
+                                    <span class="text-secondary">—</span>
                                 {% endif %}
                             </td>
                             <td data-label="Confianza">
-                                <span class="badge badge--{{ discovery.confidence.value == 'high' ? 'success' : (discovery.confidence.value == 'medium' ? 'warning' : 'danger') }}">
+                                <span class="badge text-bg-{{ discovery.confidence.value == 'high' ? 'success' : (discovery.confidence.value == 'medium' ? 'warning' : 'danger') }}">
                                     {{ discovery.confidence.label() }}
                                 </span>
-                                <span class="text-muted text-sm">{{ discovery.confidenceScore }} %</span>
+                                <span class="text-muted small">{{ discovery.confidenceScore }} %</span>
                             </td>
                             <td data-label="Detectado">
                                 <time datetime="{{ discovery.detectedAt|date('c') }}">{{ discovery.detectedAt|date('d/m/Y') }}</time>

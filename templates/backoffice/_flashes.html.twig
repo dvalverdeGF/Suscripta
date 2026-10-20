@@ -1,0 +1,42 @@
+{#
+    Mensajes flash del backoffice.
+
+    Cada tipo de aviso lleva su icono y se cierra solo: un flash que hay que
+    cerrar a mano se convierte en ruido que tapa el contenido de la pagina
+    siguiente.
+
+    Los iconos se eligen por tipo porque el color solo no se distingue para
+    quien no distingue colores.
+#}
+{% set flash_levels = {
+    'success': 'alert-success',
+    'warning': 'alert-warning',
+    'error': 'alert-danger',
+    'danger': 'alert-danger',
+    'info': 'alert-info',
+} %}
+
+{% set flash_icons = {
+    'success': 'fa-circle-check',
+    'warning': 'fa-triangle-exclamation',
+    'error': 'fa-circle-exclamation',
+    'danger': 'fa-circle-exclamation',
+    'info': 'fa-circle-info',
+} %}
+
+{# `app.flashes` consume el flash bag: se lee una sola vez y se agrupa aquí. #}
+{% set all_flashes = app.flashes %}
+
+{% if all_flashes is not empty %}
+    <div class="flash-region" role="status" aria-live="polite">
+        {% for type, messages in all_flashes %}
+            {% for message in messages %}
+                <div class="alert {{ flash_levels[type] ?? 'alert-info' }} alert-dismissible fade show" role="alert">
+                    <i class="fa-solid {{ flash_icons[type] ?? 'fa-circle-info' }} me-2"></i>
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+                </div>
+            {% endfor %}
+        {% endfor %}
+    </div>
+{% endif %}

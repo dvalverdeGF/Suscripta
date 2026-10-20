@@ -27,4 +27,9 @@ return [
     '@hotwired/stimulus' => ['version' => '3.2.2'],
     '@symfony/stimulus-bundle' => ['path' => './vendor/symfony/stimulus-bundle/assets/dist/loader.js'],
     '@hotwired/turbo' => ['version' => '8.0.23'],
+
+    // Bootstrap 5.3 vendorizado (bundle UMD): AssetMapper solo sirve el fichero
+    // como asset, no lo empaqueta, asi que se carga con un `<script>` clasico en
+    // el layout y no como modulo ES. Ver `templates/backoffice/base.html.twig`.
+    'bootstrap' => ['path' => './assets/vendor/bootstrap/js/bootstrap.bundle.min.js', 'entrypoint' => true],
 ];

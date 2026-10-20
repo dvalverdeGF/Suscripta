@@ -1,12 +1,16 @@
-{{ form_start(form, {attr: {class: 'form'}}) }}
+{#
+    El formulario lleva `id` porque el boton de guardar vive en la barra de
+    acciones del pie y se le asocia con el atributo HTML `form`.
+#}
+{{ form_start(form, {attr: {id: form_id|default('service-form'), class: 'form'}}) }}
     {{ form_errors(form) }}
 
-    <div class="card mb-6">
-        <div class="card__header">
-            <h2 class="card__title">Qué es</h2>
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="card-title">Qué es</h2>
         </div>
-        <div class="card__body">
-            <div class="grid grid--2">
+        <div class="card-body">
+            <div class="row g-3">
                 {{ form_row(form.name) }}
                 {{ form_row(form.providerId) }}
                 {{ form_row(form.categoryId) }}
@@ -15,12 +19,12 @@
         </div>
     </div>
 
-    <div class="card mb-6">
-        <div class="card__header">
-            <h2 class="card__title">Cuánto cuesta</h2>
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="card-title">Cuánto cuesta</h2>
         </div>
-        <div class="card__body">
-            <div class="grid grid--2">
+        <div class="card-body">
+            <div class="row g-3">
                 {{ form_row(form.amount) }}
                 {{ form_row(form.currency) }}
                 {{ form_row(form.billingPeriod) }}
@@ -29,12 +33,12 @@
         </div>
     </div>
 
-    <div class="card mb-6">
-        <div class="card__header">
-            <h2 class="card__title">Cuándo se cobra y cuándo se renueva</h2>
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="card-title">Cuándo se cobra y cuándo se renueva</h2>
         </div>
-        <div class="card__body">
-            <div class="grid grid--2">
+        <div class="card-body">
+            <div class="row g-3">
                 {{ form_row(form.startedAt) }}
                 {{ form_row(form.nextChargeAt) }}
                 {{ form_row(form.renewalAt) }}
@@ -46,14 +50,10 @@
         </div>
     </div>
 
-    <div class="card mb-6">
-        <div class="card__body">
+    <div class="card mb-4">
+        <div class="card-body">
             {{ form_row(form.notes) }}
         </div>
     </div>
 
-    <div class="form-actions">
-        <button type="submit" class="btn btn--primary">{{ submit_label|default('Guardar') }}</button>
-        <a class="btn btn--ghost" href="{{ cancel_path|default(path('app_services_index')) }}">Cancelar</a>
-    </div>
 {{ form_end(form) }}

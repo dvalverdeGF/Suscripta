@@ -1,61 +1,62 @@
-{% extends 'layout/app.html.twig' %}
+{% extends 'backoffice/base.html.twig' %}
 
 {% block title %}Servicios — Suscripta{% endblock %}
 
-{% block topbar_actions %}
-    <a class="btn btn--primary btn--sm" href="{{ path('app_services_new') }}">Añadir servicio</a>
-{% endblock %}
-
-{% block main %}
-    <div class="page-header">
-        <div class="page-header__title">
-            <h1>Servicios</h1>
-            <p class="page-header__subtitle">Todo lo que pagas de forma recurrente, con su coste real.</p>
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">Servicios</h1>
+            <p class="bo-page-header__subtitle">Todo lo que pagas de forma recurrente, con su coste real.</p>
+        </div>
+        <div class="bo-page-header__actions">
+            <a class="btn btn-primary" href="{{ path('app_services_new') }}">
+                <i class="fa-solid fa-plus me-1"></i> Añadir servicio
+            </a>
         </div>
     </div>
 
     {% if monthlyTotals is not empty %}
-        <div class="grid grid--2 mb-6">
+        <div class="bo-metrics mb-4">
             {% for code, total in monthlyTotals %}
-                <div class="stat">
-                    <span class="stat__label">Coste mensual equivalente{% if monthlyTotals|length > 1 %} ({{ code }}){% endif %}</span>
-                    <span class="stat__value">{{ total.format() }}</span>
+                <div class="bo-metric">
+                    <span class="bo-metric__label">Coste mensual equivalente{% if monthlyTotals|length > 1 %} ({{ code }}){% endif %}</span>
+                    <span class="bo-metric__value">{{ total.format() }}</span>
                     {% if annualTotals[code] is defined %}
-                        <span class="stat__hint">{{ annualTotals[code].format() }} al año</span>
+                        <span class="bo-metric__hint">{{ annualTotals[code].format() }} al año</span>
                     {% endif %}
                 </div>
             {% endfor %}
         </div>
     {% endif %}
 
-    <form class="card mb-6" method="get" action="{{ path('app_services_index') }}">
-        <div class="card__body">
-            <div class="grid grid--2">
-                <div class="field">
-                    <label class="field__label" for="filter-q">Buscar</label>
-                    <input class="input" type="search" id="filter-q" name="q" value="{{ filters.search }}" placeholder="Nombre o plan">
+    <form class="card mb-4" method="get" action="{{ path('app_services_index') }}">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="mb-3">
+                    <label class="form-label" for="filter-q">Buscar</label>
+                    <input class="form-control" type="search" id="filter-q" name="q" value="{{ filters.search }}" placeholder="Nombre o plan">
                 </div>
-                <div class="field">
-                    <label class="field__label" for="filter-status">Estado</label>
-                    <select class="select" id="filter-status" name="status">
+                <div class="mb-3">
+                    <label class="form-label" for="filter-status">Estado</label>
+                    <select class="form-select" id="filter-status" name="status">
                         <option value="">Todos</option>
                         {% for status in statuses %}
                             <option value="{{ status.value }}" {% if filters.status == status %}selected{% endif %}>{{ status.label() }}</option>
                         {% endfor %}
                     </select>
                 </div>
-                <div class="field">
-                    <label class="field__label" for="filter-category">Categoría</label>
-                    <select class="select" id="filter-category" name="category">
+                <div class="mb-3">
+                    <label class="form-label" for="filter-category">Categoría</label>
+                    <select class="form-select" id="filter-category" name="category">
                         <option value="">Todas</option>
                         {% for id, category in categories %}
                             <option value="{{ id }}" {% if filters.categoryId and filters.categoryId.toRfc4122() == id %}selected{% endif %}>{{ category.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
-                <div class="field">
-                    <label class="field__label" for="filter-sort">Ordenar por</label>
-                    <select class="select" id="filter-sort" name="sort">
+                <div class="mb-3">
+                    <label class="form-label" for="filter-sort">Ordenar por</label>
+                    <select class="form-select" id="filter-sort" name="sort">
                         <option value="name" {% if filters.sort == 'name' %}selected{% endif %}>Nombre</option>
                         <option value="next_charge" {% if filters.sort == 'next_charge' %}selected{% endif %}>Próximo cobro</option>
                         <option value="created" {% if filters.sort == 'created' %}selected{% endif %}>Más recientes</option>
@@ -63,41 +64,41 @@
                     </select>
                 </div>
             </div>
-            <div class="form-actions">
-                <button type="submit" class="btn btn--secondary">Filtrar</button>
-                <a class="btn btn--ghost" href="{{ path('app_services_index') }}">Limpiar</a>
+            <div class="d-flex flex-wrap gap-2 mt-3">
+                <button type="submit" class="btn btn-outline-secondary">Filtrar</button>
+                <a class="btn btn-outline-secondary" href="{{ path('app_services_index') }}">Limpiar</a>
             </div>
         </div>
     </form>
 
     {% if services is empty %}
         <div class="card">
-            <div class="card__body">
-                <div class="empty-state">
-                    <p class="empty-state__title">Todavía no hay servicios</p>
-                    <p class="empty-state__text">
+            <div class="card-body">
+                <div class="bo-empty">
+                    <p class="bo-empty__title">Todavía no hay servicios</p>
+                    <p class="bo-empty__text">
                         Añádelos a mano o conecta tu correo de facturación para que Suscripta
                         los descubra por ti.
                     </p>
-                    <div class="cluster cluster--end">
-                        <a class="btn btn--primary" href="{{ path('app_services_new') }}">Añadir servicio</a>
+                    <div class="d-flex flex-wrap align-items-center justify-content-end gap-2">
+                        <a class="btn btn-primary" href="{{ path('app_services_new') }}">Añadir servicio</a>
                         {% if route_exists('app_mail_accounts_index') %}
-                            <a class="btn btn--secondary" href="{{ path('app_mail_accounts_index') }}">Conectar correo</a>
+                            <a class="btn btn-outline-secondary" href="{{ path('app_mail_accounts_index') }}">Conectar correo</a>
                         {% endif %}
                     </div>
                 </div>
             </div>
         </div>
     {% else %}
-        <div class="table-wrapper">
-            <table class="table table--responsive">
+        <div class="table-responsive">
+            <table class="table bo-table bo-table--stack align-middle">
                 <caption class="visually-hidden">Listado de servicios recurrentes</caption>
                 <thead>
                     <tr>
                         <th scope="col">Servicio</th>
                         <th scope="col">Estado</th>
-                        <th scope="col" class="num">Importe</th>
-                        <th scope="col" class="num">Al mes</th>
+                        <th scope="col" class="text-end">Importe</th>
+                        <th scope="col" class="text-end">Al mes</th>
                         <th scope="col">Próximo cobro</th>
                     </tr>
                 </thead>
@@ -108,34 +109,34 @@
                             <td data-label="Servicio">
                                 <a href="{{ path('app_services_show', {id: service.id.toRfc4122()}) }}">{{ service.name }}</a>
                                 {% if service.planName %}
-                                    <span class="text-muted text-sm">· {{ service.planName }}</span>
+                                    <span class="text-muted small">· {{ service.planName }}</span>
                                 {% endif %}
                                 {% if service.source.value == 'email_discovery' %}
-                                    <span class="badge badge--info">Descubierto</span>
+                                    <span class="badge text-bg-info">Descubierto</span>
                                 {% endif %}
                             </td>
                             <td data-label="Estado">
-                                <span class="badge badge--{{ service.status.value == 'active' ? 'success' : (service.status.value == 'paused' ? 'warning' : 'danger') }}">
+                                <span class="badge text-bg-{{ service.status.value == 'active' ? 'success' : (service.status.value == 'paused' ? 'warning' : 'danger') }}">
                                     {{ service.status.label() }}
                                 </span>
                             </td>
-                            <td data-label="Importe" class="num">
+                            <td data-label="Importe" class="text-end">
                                 {% if price %}
                                     {{ price.amount.format() }}
-                                    <span class="text-muted text-xs">{{ service.billingPeriod.label()|lower }}</span>
+                                    <span class="text-muted small text-secondary">{{ service.billingPeriod.label()|lower }}</span>
                                 {% else %}
-                                    <span class="text-subtle">—</span>
+                                    <span class="text-secondary">—</span>
                                 {% endif %}
                             </td>
-                            <td data-label="Al mes" class="num">
+                            <td data-label="Al mes" class="text-end">
                                 {% set monthly = monthlyByService[service.id.toRfc4122()]|default(null) %}
-                                {% if monthly %}{{ monthly.format() }}{% else %}<span class="text-subtle">—</span>{% endif %}
+                                {% if monthly %}{{ monthly.format() }}{% else %}<span class="text-secondary">—</span>{% endif %}
                             </td>
                             <td data-label="Próximo cobro">
                                 {% if service.nextChargeAt %}
                                     <time datetime="{{ service.nextChargeAt|date('Y-m-d') }}">{{ service.nextChargeAt|date('d/m/Y') }}</time>
                                 {% else %}
-                                    <span class="text-subtle">—</span>
+                                    <span class="text-secondary">—</span>
                                 {% endif %}
                             </td>
                         </tr>

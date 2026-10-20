@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+{#
+    Layout del backoffice de Suscripta.
+
+    Estructura heredada del backoffice de Orian (la referencia de estilo del
+    cliente): un **sidebar fijo** con el menu, una **topbar** con el breadcrumb
+    y las acciones de la sesion, y el contenido en `.bo-content`.
+
+    El menu se agrupa por a que plano pertenece cada cosa, que es la distincion
+    que un operador necesita tener clara: la operacion del cliente (depende de la
+    organizacion activa) frente a la configuracion de la plataforma (es global).
+#}
+<html lang="{{ app.request.locale|default('es') }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
+    <meta name="referrer" content="same-origin">
+    <title>{% block title %}Suscripta{% endblock %}</title>
+
+    {#
+        Favicon incrustado como SVG: el logo de Suscripta es una "S" sobre un
+        cuadrado de marca. Se mantiene en linea para no depender de un binario
+        en `public/`.
+    #}
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><rect width=%2232%22 height=%2232%22 rx=%228%22 fill=%22%230e7490%22/><path d=%22M9 21.5c1.6 1.2 3.6 1.8 5.6 1.8 3.4 0 5.6-1.6 5.6-4.1 0-2.2-1.4-3.4-4.6-4.1l-1.6-.3c-1.6-.3-2.3-.8-2.3-1.7 0-1.1 1.1-1.8 2.9-1.8 1.5 0 3 .4 4.3 1.2l1.3-2.6C19.4 9 17.4 8.5 15.3 8.5c-3.3 0-5.5 1.7-5.5 4.2 0 2.2 1.4 3.4 4.5 4l1.6.3c1.7.3 2.4.8 2.4 1.8 0 1.1-1.2 1.8-3.1 1.8-1.7 0-3.4-.5-4.8-1.5z%22 fill=%22white%22/></svg>">
+
+    {#
+        Dos hojas, en este orden y por un motivo:
+
+        1. `backoffice.css` lleva Bootstrap compilado **dentro** (el SCSS importa
+           `bootstrap/bootstrap.scss`), asi que aqui no hay un `bootstrap.min.css`
+           aparte que mantener sincronizado con el SCSS.
+        2. FontAwesome va **separado** porque sus `url()` apuntan a `../webfonts/`
+           en relacion a la hoja que los declara: si se metiera dentro del SCSS
+           habria que reescribir esas rutas a mano, y las tipografias no se
+           cargarian.
+
+        El orden importa: el CSS del backoffice va despues para poder pisar los
+        valores por defecto de Bootstrap (los `--bs-*` se redeclaran en el SCSS).
+    #}
+    {% block stylesheets %}
+        <link rel="stylesheet" href="{{ asset('vendor/fontawesome/css/all.min.css') }}">
+        <link rel="stylesheet" href="{{ asset('styles/backoffice.css') }}">
+    {% endblock %}
+
+    {% block javascripts %}
+        {#
+            Bootstrap se carga con un `<script>` clasico y **antes** del importmap:
+            su bundle es UMD y AssetMapper no lo empaqueta como modulo ES. Si
+            Turbo Drive sustituye el `<body>`, el bundle sigue vivo (esta en
+            `window`), de modo que los componentes interactivos (dropdowns,
+            collapse, tooltips) siguen funcionando tras navegar.
+        #}
+        <script src="{{ asset('vendor/bootstrap/js/bootstrap.bundle.min.js') }}" defer></script>
+        {{ importmap('app') }}
+    {% endblock %}
+</head>
+<body class="bo-body">
+
+{# ── Sidebar ────────────────────────────────────────────── #}
+<aside class="bo-sidebar" id="boSidebar">
+    <div class="bo-sidebar__brand">
+        {#
+            El wordmark va aqui, no repetido al lado: el logo ya dice "Suscripta"
+            y ponerlo dos veces es ruido que roba espacio al menu.
+        #}
+        <span class="bo-sidebar__brand-text">Suscripta</span>
+        <button class="bo-sidebar__close d-lg-none" id="boSidebarClose" aria-label="Cerrar el menú">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    </div>
+
+    <nav class="bo-sidebar__nav">
+        <ul class="bo-menu">
+            {#
+                Inicio va **primero y sin cabecera de grupo**: es la pagina donde se
+                aterriza, y por eso no pertenece a ningun plano del menu. Ponerlo dentro
+                de "Servicios" sugeriria que solo habla de ellos, cuando resume toda la
+                plataforma.
+            #}
+            <li class="bo-menu__item {{ app.request.attributes.get('_route') starts with 'app_dashboard' ? 'bo-menu__item--active' : '' }}">
+                <a href="{{ path('app_dashboard') }}" class="bo-menu__link">
+                    <i class="fa-solid fa-gauge-high bo-menu__icon"></i>
+                    <span>Panel</span>
+                </a>
+            </li>
+
+            {#
+                El menu se agrupa por **a que plano pertenece cada cosa**: la
+                operacion del cliente (depende de la organizacion activa) frente a
+                la configuracion (es global).
+            #}
+            <li class="bo-menu__heading">Operación</li>
+
+            <li class="bo-menu__item {{ app.request.attributes.get('_route') starts with 'app_services' ? 'bo-menu__item--active' : '' }}">
+                <a href="{{ path('app_services_index') }}" class="bo-menu__link">
+                    <i class="fa-solid fa-layer-group bo-menu__icon"></i>
+                    <span>Servicios</span>
+                </a>
+            </li>
+
+            <li class="bo-menu__item {{ app.request.attributes.get('_route') starts with 'app_discoveries' ? 'bo-menu__item--active' : '' }}">
+                <a href="{{ path('app_discoveries_index') }}" class="bo-menu__link">
+                    <i class="fa-solid fa-compass bo-menu__icon"></i>
+                    <span>Descubrimientos</span>
+                </a>
+            </li>
+
+            <li class="bo-menu__item {{ app.request.attributes.get('_route') starts with 'app_documents' ? 'bo-menu__item--active' : '' }}">
+                <a href="{{ path('app_documents_index') }}" class="bo-menu__link">
+                    <i class="fa-solid fa-file-lines bo-menu__icon"></i>
+                    <span>Documentos</span>
+                </a>
+            </li>
+
+            <li class="bo-menu__item {{ app.request.attributes.get('_route') starts with 'app_invoices' ? 'bo-menu__item--active' : '' }}">
+                <a href="{{ path('app_invoices_index') }}" class="bo-menu__link">
+                    <i class="fa-solid fa-receipt bo-menu__icon"></i>
+                    <span>Facturas</span>
+                </a>
+            </li>
+
+            <li class="bo-menu__item {{ app.request.attributes.get('_route') starts with 'app_alerts' ? 'bo-menu__item--active' : '' }}">
+                <a href="{{ path('app_alerts_index') }}" class="bo-menu__link">
+                    <i class="fa-solid fa-bell bo-menu__icon"></i>
+                    <span>Alertas</span>
+                </a>
+            </li>
+
+            <li class="bo-menu__heading">Configuración</li>
+
+            <li class="bo-menu__item {{ app.request.attributes.get('_route') starts with 'app_mail_accounts' ? 'bo-menu__item--active' : '' }}">
+                <a href="{{ path('app_mail_accounts_index') }}" class="bo-menu__link">
+                    <i class="fa-solid fa-envelope-open-text bo-menu__icon"></i>
+                    <span>Cuentas de correo</span>
+                </a>
+            </li>
+
+            <li class="bo-menu__item {{ app.request.attributes.get('_route') starts with 'app_settings' ? 'bo-menu__item--active' : '' }}">
+                <a href="{{ path('app_settings_profile') }}" class="bo-menu__link">
+                    <i class="fa-solid fa-user-gear bo-menu__icon"></i>
+                    <span>Ajustes</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    <div class="bo-sidebar__footer">
+        <small class="text-muted">Suscripta</small>
+    </div>
+</aside>
+
+{# ── Contenido principal ────────────────────────────────── #}
+<div class="bo-main" id="boMain">
+
+    {# Topbar #}
+    <header class="bo-topbar">
+        <button class="bo-topbar__toggle" id="boSidebarToggle" aria-label="Mostrar u ocultar el menú">
+            <i class="fa-solid fa-bars"></i>
+        </button>
+
+        <nav class="bo-breadcrumb" aria-label="Ruta de navegación">
+            {% block breadcrumb %}
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ path('app_dashboard') }}">Panel</a></li>
+                </ol>
+            {% endblock %}
+        </nav>
+
+        <div class="bo-topbar__actions ms-auto">
+            {#
+                El selector de organizacion solo tiene sentido cuando hay mas de una:
+                elegir entre una sola opcion es ruido. Se muestra en toda la
+                aplicacion porque todo el contenido es por organizacion.
+            #}
+            {% if app.user %}
+                {% set organizations = user_organizations() %}
+                {% if organizations|length > 1 %}
+                    <form method="post" action="{{ path('app_organization_switch') }}" class="bo-company-switcher">
+                        <input type="hidden" name="_token" value="{{ csrf_token('switch_organization') }}">
+                        <label class="visually-hidden" for="active-organization">Organización activa</label>
+                        <select class="form-select form-select-sm" id="active-organization" name="organization"
+                                data-controller="auto-submit" data-action="change->auto-submit#submit">
+                            {% for entry in organizations %}
+                                <option value="{{ entry.organization.id }}"
+                                        {% if is_active_organization(entry.organization) %}selected{% endif %}>
+                                    {{ entry.organization.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <noscript>
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">Cambiar</button>
+                        </noscript>
+                    </form>
+                {% endif %}
+
+                <span class="bo-topbar__email text-muted small me-2">{{ app.user.email }}</span>
+                <a href="{{ path('app_settings_profile') }}" class="bo-topbar__user" title="{{ app.user.email }}">
+                    <i class="fa-solid fa-user"></i>
+                </a>
+                <form method="post" action="{{ path('app_logout') }}">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('logout') }}">
+                    <button type="submit" class="btn btn-sm btn-outline-secondary" title="Salir" aria-label="Salir">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </button>
+                </form>
+            {% endif %}
+        </div>
+    </header>
+
+    {# Flash messages #}
+    <div class="bo-content">
+        {% include 'backoffice/_flashes.html.twig' %}
+
+        {% if app.user and not app.user.verified and app.request.attributes.get('_route') != 'app_settings_profile' %}
+            {#
+                El aviso de verificacion va **antes** de cualquier otra cosa: mientras
+                el correo no este confirmado no se pueden conectar buzones, y decirlo
+                al final de la pagina es decirlo tarde.
+            #}
+            <div class="alert alert-warning d-flex align-items-start" role="status">
+                <i class="fa-solid fa-triangle-exclamation mt-1 me-2"></i>
+                <div class="flex-grow-1">
+                    <strong>Confirma tu correo para conectar tu buzón.</strong>
+                    Hemos enviado un enlace a {{ app.user.email }}.
+                </div>
+                <form method="post" action="{{ path('app_verify_email_resend') }}" class="flex-shrink-0">
+                    <input type="hidden" name="_token" value="{{ csrf_token('resend_verification') }}">
+                    <button type="submit" class="btn btn-sm btn-outline-warning">Reenviar el correo</button>
+                </form>
+            </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+    {#
+        Barra de acciones del pie.
+
+        Es hermana de `.bo-content` y no hija: tiene que quedar pegada al borde
+        inferior de la ventana, y dentro del contenido desplazable no podria
+        hacerlo. La pantalla que la usa la rellena con el bloque `page_actions`.
+    #}
+    {% block page_actions %}{% endblock %}
+
+</div>
+
+{# Overlay para mobile #}
+<div class="bo-overlay" id="boOverlay"></div>
+
+</body>
+</html>

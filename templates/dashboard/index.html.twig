@@ -1,69 +1,70 @@
-{% extends 'layout/app.html.twig' %}
+{% extends 'backoffice/base.html.twig' %}
 
 {% block title %}Panel — Suscripta{% endblock %}
 
-{% block topbar_actions %}
-    {% if route_exists('app_mail_accounts_index') %}
-        <a class="btn btn--primary btn--sm" href="{{ path('app_mail_accounts_index') }}">Buzones</a>
-    {% endif %}
-{% endblock %}
-
-{% block main %}
-    <div class="page-header">
-        <div class="page-header__title">
-            <h1>Panel</h1>
-            <p class="page-header__subtitle">Lo que pagas, lo que te van a cobrar y lo que ha cambiado.</p>
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">Panel</h1>
+            <p class="bo-page-header__subtitle">Lo que pagas, lo que te van a cobrar y lo que ha cambiado.</p>
+        </div>
+        <div class="bo-page-header__actions">
+            {% if route_exists('app_mail_accounts_index') %}
+                <a class="btn btn-primary" href="{{ path('app_mail_accounts_index') }}">
+                    <i class="fa-solid fa-envelope-open-text me-1"></i> Buzones
+                </a>
+            {% endif %}
         </div>
     </div>
 
     {% if not summary.hasAnyData %}
         <div class="card">
-            <div class="card__body">
-                <div class="empty-state">
-                    <p class="empty-state__title">Todavía no hay datos que mostrar</p>
-                    <p class="empty-state__text">
+            <div class="card-body">
+                <div class="bo-empty">
+                    <p class="bo-empty__title">Todavía no hay datos que mostrar</p>
+                    <p class="bo-empty__text">
                         Conecta tu correo de facturación y Suscripta descubrirá automáticamente
                         los servicios que pagas. También puedes añadirlos a mano.
                     </p>
-                    <div class="cluster cluster--end">
+                    <div class="d-flex flex-wrap align-items-center justify-content-end gap-2">
                         {% if route_exists('app_mail_accounts_index') %}
-                            <a class="btn btn--primary" href="{{ path('app_mail_accounts_index') }}">Conectar una cuenta de correo</a>
+                            <a class="btn btn-primary" href="{{ path('app_mail_accounts_index') }}">Conectar una cuenta de correo</a>
                         {% endif %}
-                        <a class="btn btn--secondary" href="{{ path('app_services_new') }}">Añadir un servicio</a>
+                        <a class="btn btn-outline-secondary" href="{{ path('app_services_new') }}">Añadir un servicio</a>
                     </div>
                 </div>
             </div>
         </div>
     {% else %}
-        <div class="grid grid--2 mb-6">
-            <div class="stat">
-                <span class="stat__label">Coste mensual equivalente</span>
+        <div class="bo-metrics mb-4">
+            <div class="bo-metric">
+                <span class="bo-metric__label">Coste mensual equivalente</span>
                 {% if summary.singleMonthlyTotal %}
-                    <span class="stat__value">{{ summary.singleMonthlyTotal.format() }}</span>
+                    <span class="bo-metric__value">{{ summary.singleMonthlyTotal.format() }}</span>
                     {% if summary.singleAnnualTotal %}
-                        <span class="stat__hint">{{ summary.singleAnnualTotal.format() }} al año</span>
+                        <span class="bo-metric__hint">{{ summary.singleAnnualTotal.format() }} al año</span>
                     {% endif %}
                 {% elseif summary.hasCosts %}
-                    <span class="stat__value">{{ summary.monthlyByCurrency|length }} monedas</span>
-                    <span class="stat__hint">No se suman divisas distintas.</span>
+                    <span class="bo-metric__value">{{ summary.monthlyByCurrency|length }} monedas</span>
+                    <span class="bo-metric__hint">No se suman divisas distintas.</span>
                 {% else %}
-                    <span class="stat__value">—</span>
-                    <span class="stat__hint">Ningún servicio tiene precio todavía.</span>
+                    <span class="bo-metric__value">—</span>
+                    <span class="bo-metric__hint">Ningún servicio tiene precio todavía.</span>
                 {% endif %}
             </div>
-            <div class="stat">
-                <span class="stat__label">Servicios activos</span>
-                <span class="stat__value">{{ summary.activeServices }}</span>
-                <span class="stat__hint">
+            <div class="bo-metric">
+                <span class="bo-metric__label">Servicios activos</span>
+                <span class="bo-metric__value">{{ summary.activeServices }}</span>
+                <span class="bo-metric__hint">
                     {{ summary.totalServices }} en total ·
                     {{ summary.connectedMailboxes }} {{ summary.connectedMailboxes == 1 ? 'buzón' : 'buzones' }} ·
                     {{ summary.indexedMessages }} {{ summary.indexedMessages == 1 ? 'mensaje indexado' : 'mensajes indexados' }}
                 </span>
             </div>
-            <div class="stat">
-                <span class="stat__label">Avisos abiertos</span>
-                <span class="stat__value">{{ summary.openAlerts }}</span>
-                <span class="stat__hint">
+            <div class="bo-metric">
+                <span class="bo-metric__label">Avisos abiertos</span>
+                <span class="bo-metric__value">{{ summary.openAlerts }}</span>
+                <span class="bo-metric__hint">
                     {% if summary.openAlerts > 0 %}
                         <a href="{{ path('app_alerts_index') }}">Revisar avisos</a>
                     {% else %}
@@ -74,31 +75,31 @@
         </div>
 
         {% if summary.hasCosts and summary.monthlyByCurrency|length > 1 %}
-            <div class="card mb-6">
-                <div class="card__header">
-                    <h2 class="card__title">Coste por moneda</h2>
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h2 class="card-title">Coste por moneda</h2>
                 </div>
-                <div class="card__body card__body--flush">
-                    <div class="table-wrapper">
-                        <table class="table table--responsive">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table bo-table bo-table--stack align-middle">
                             <caption class="visually-hidden">Coste mensual equivalente por moneda</caption>
                             <thead>
                                 <tr>
                                     <th scope="col">Moneda</th>
-                                    <th scope="col" class="num">Al mes</th>
-                                    <th scope="col" class="num">Al año</th>
+                                    <th scope="col" class="text-end">Al mes</th>
+                                    <th scope="col" class="text-end">Al año</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for code, total in summary.monthlyByCurrency %}
                                     <tr>
                                         <td data-label="Moneda">{{ code }}</td>
-                                        <td data-label="Al mes" class="num">{{ total.format() }}</td>
-                                        <td data-label="Al año" class="num">
+                                        <td data-label="Al mes" class="text-end">{{ total.format() }}</td>
+                                        <td data-label="Al año" class="text-end">
                                             {% if summary.annualByCurrency[code] is defined %}
                                                 {{ summary.annualByCurrency[code].format() }}
                                             {% else %}
-                                                <span class="text-subtle">—</span>
+                                                <span class="text-secondary">—</span>
                                             {% endif %}
                                         </td>
                                     </tr>
@@ -111,19 +112,19 @@
         {% endif %}
 
         {% if summary.pendingDiscoveries is not empty %}
-            <div class="card mb-6">
-                <div class="card__header">
-                    <h2 class="card__title">Descubrimientos pendientes de revisar</h2>
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h2 class="card-title">Descubrimientos pendientes de revisar</h2>
                 </div>
-                <div class="card__body card__body--flush">
-                    <div class="table-wrapper">
-                        <table class="table table--responsive">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table bo-table bo-table--stack align-middle">
                             <caption class="visually-hidden">Servicios descubiertos que esperan tu confirmación</caption>
                             <thead>
                                 <tr>
                                     <th scope="col">Servicio propuesto</th>
                                     <th scope="col">Tipo</th>
-                                    <th scope="col" class="num">Importe</th>
+                                    <th scope="col" class="text-end">Importe</th>
                                     <th scope="col">Confianza</th>
                                 </tr>
                             </thead>
@@ -136,11 +137,11 @@
                                             </a>
                                         </td>
                                         <td data-label="Tipo">{{ discovery.type.label() }}</td>
-                                        <td data-label="Importe" class="num">
+                                        <td data-label="Importe" class="text-end">
                                             {{ discovery.proposedData.amountMinor|default(null)|money(discovery.proposedData.currency|default(null)) }}
                                         </td>
                                         <td data-label="Confianza">
-                                            <span class="badge badge--{{ discovery.confidence.value == 'high' ? 'success' : (discovery.confidence.value == 'medium' ? 'warning' : 'danger') }}">
+                                            <span class="badge text-bg-{{ discovery.confidence.value == 'high' ? 'success' : (discovery.confidence.value == 'medium' ? 'warning' : 'danger') }}">
                                                 {{ discovery.confidence.label() }}
                                             </span>
                                         </td>
@@ -150,8 +151,8 @@
                         </table>
                     </div>
                 </div>
-                <div class="card__footer">
-                    <a class="btn btn--secondary btn--sm" href="{{ path('app_discoveries_index') }}">Revisar todos</a>
+                <div class="card-footer">
+                    <a class="btn btn-outline-secondary btn-sm" href="{{ path('app_discoveries_index') }}">Revisar todos</a>
                 </div>
             </div>
         {% endif %}
@@ -159,27 +160,27 @@
         {% set window30 = summary.window(30) %}
         {% set window60 = summary.window(60) %}
 
-        <div class="grid grid--2 mb-6">
+        <div class="row g-3 mb-4">
             <div class="card">
-                <div class="card__header">
-                    <h2 class="card__title">Próximos cobros</h2>
+                <div class="card-header">
+                    <h2 class="card-title">Próximos cobros</h2>
                 </div>
-                <div class="card__body card__body--flush">
+                <div class="card-body p-0">
                     {% if window30 is null or window30.isEmpty %}
-                        <div class="card__body">
+                        <div class="card-body">
                             <p class="text-muted m-0">No hay cobros previstos en los próximos 30 días.</p>
                         </div>
                     {% else %}
-                        <ul class="timeline">
+                        <ul class="bo-timeline">
                             {% for service in window30.charges %}
-                                <li class="timeline__item">
-                                    <span class="timeline__date">
+                                <li class="bo-timeline__item">
+                                    <span class="bo-timeline__date">
                                         <time datetime="{{ service.nextChargeAt|date('Y-m-d') }}">{{ service.nextChargeAt|date('d/m/Y') }}</time>
                                     </span>
-                                    <span class="timeline__label">
+                                    <span class="bo-timeline__label">
                                         <a href="{{ path('app_services_show', {id: service.id.toRfc4122()}) }}">{{ service.name }}</a>
                                         {% if service.currentAmount %}
-                                            <span class="text-muted text-sm">· {{ service.currentAmount.format() }}</span>
+                                            <span class="text-muted small">· {{ service.currentAmount.format() }}</span>
                                         {% endif %}
                                     </span>
                                 </li>
@@ -188,13 +189,13 @@
                     {% endif %}
                 </div>
                 {% if window30 is not null and window30.totalsByCurrency is not empty %}
-                    <div class="card__footer">
-                        <span class="text-muted text-sm">Total en 30 días:</span>
+                    <div class="card-footer">
+                        <span class="text-muted small">Total en 30 días:</span>
                         {% for code, total in window30.totalsByCurrency %}
                             <strong>{{ total.format() }}</strong>{% if not loop.last %} · {% endif %}
                         {% endfor %}
                         {% if window60 is not null and window60.totalsByCurrency is not empty %}
-                            <span class="text-muted text-sm">· en 60 días:</span>
+                            <span class="text-muted small">· en 60 días:</span>
                             {% for code, total in window60.totalsByCurrency %}
                                 <strong>{{ total.format() }}</strong>{% if not loop.last %} · {% endif %}
                             {% endfor %}
@@ -204,25 +205,25 @@
             </div>
 
             <div class="card">
-                <div class="card__header">
-                    <h2 class="card__title">Renovaciones</h2>
+                <div class="card-header">
+                    <h2 class="card-title">Renovaciones</h2>
                 </div>
-                <div class="card__body card__body--flush">
+                <div class="card-body p-0">
                     {% if summary.upcomingRenewals is empty %}
-                        <div class="card__body">
+                        <div class="card-body">
                             <p class="text-muted m-0">No hay renovaciones previstas en los próximos 30 días.</p>
                         </div>
                     {% else %}
-                        <ul class="timeline">
+                        <ul class="bo-timeline">
                             {% for service in summary.upcomingRenewals %}
-                                <li class="timeline__item">
-                                    <span class="timeline__date">
+                                <li class="bo-timeline__item">
+                                    <span class="bo-timeline__date">
                                         <time datetime="{{ service.renewalAt|date('Y-m-d') }}">{{ service.renewalAt|date('d/m/Y') }}</time>
                                     </span>
-                                    <span class="timeline__label">
+                                    <span class="bo-timeline__label">
                                         <a href="{{ path('app_services_show', {id: service.id.toRfc4122()}) }}">{{ service.name }}</a>
                                         {% if service.noticePeriodDays %}
-                                            <span class="text-muted text-sm">· avisar con {{ service.noticePeriodDays }} días</span>
+                                            <span class="text-muted small">· avisar con {{ service.noticePeriodDays }} días</span>
                                         {% endif %}
                                     </span>
                                 </li>
@@ -233,29 +234,29 @@
             </div>
         </div>
 
-        <div class="grid grid--2 mb-6">
+        <div class="row g-3 mb-4">
             {% if summary.monthlyByCategory is not empty %}
                 <div class="card">
-                    <div class="card__header">
-                        <h2 class="card__title">En qué se te va el dinero</h2>
+                    <div class="card-header">
+                        <h2 class="card-title">En qué se te va el dinero</h2>
                     </div>
-                    <div class="card__body card__body--flush">
-                        <div class="table-wrapper">
-                            <table class="table table--responsive">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table bo-table bo-table--stack align-middle">
                                 <caption class="visually-hidden">Coste mensual equivalente por categoría</caption>
                                 <thead>
                                     <tr>
                                         <th scope="col">Categoría</th>
-                                        <th scope="col" class="num">Servicios</th>
-                                        <th scope="col" class="num">Al mes</th>
+                                        <th scope="col" class="text-end">Servicios</th>
+                                        <th scope="col" class="text-end">Al mes</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for row in summary.monthlyByCategory %}
                                         <tr>
                                             <td data-label="Categoría">{{ row.categoryName }}</td>
-                                            <td data-label="Servicios" class="num">{{ row.serviceCount }}</td>
-                                            <td data-label="Al mes" class="num">
+                                            <td data-label="Servicios" class="text-end">{{ row.serviceCount }}</td>
+                                            <td data-label="Al mes" class="text-end">
                                                 {% for code, total in row.monthlyByCurrency %}
                                                     {{ total.format() }}{% if not loop.last %} · {% endif %}
                                                 {% endfor %}
@@ -271,19 +272,19 @@
 
             {% if summary.topServices is not empty %}
                 <div class="card">
-                    <div class="card__header">
-                        <h2 class="card__title">Los que más cuestan</h2>
+                    <div class="card-header">
+                        <h2 class="card-title">Los que más cuestan</h2>
                     </div>
-                    <div class="card__body card__body--flush">
-                        <ul class="timeline">
+                    <div class="card-body p-0">
+                        <ul class="bo-timeline">
                             {% for service in summary.topServices %}
-                                <li class="timeline__item">
-                                    <span class="timeline__date">
+                                <li class="bo-timeline__item">
+                                    <span class="bo-timeline__date">
                                         {% if service.currentAmount %}{{ service.currentAmount.format() }}{% else %}—{% endif %}
                                     </span>
-                                    <span class="timeline__label">
+                                    <span class="bo-timeline__label">
                                         <a href="{{ path('app_services_show', {id: service.id.toRfc4122()}) }}">{{ service.name }}</a>
-                                        <span class="text-muted text-sm">· {{ service.billingPeriod.label() }}</span>
+                                        <span class="text-muted small">· {{ service.billingPeriod.label() }}</span>
                                     </span>
                                 </li>
                             {% endfor %}
@@ -294,31 +295,31 @@
         </div>
 
         {% if summary.spendEvolution|length > 1 %}
-            <div class="card mb-6">
-                <div class="card__header">
-                    <h2 class="card__title">Evolución del gasto</h2>
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h2 class="card-title">Evolución del gasto</h2>
                 </div>
-                <div class="card__body card__body--flush">
-                    <div class="table-wrapper">
-                        <table class="table table--responsive">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table bo-table bo-table--stack align-middle">
                             <caption class="visually-hidden">Coste mensual equivalente de los últimos meses</caption>
                             <thead>
                                 <tr>
                                     <th scope="col">Mes</th>
-                                    <th scope="col" class="num">Servicios</th>
-                                    <th scope="col" class="num">Al mes</th>
+                                    <th scope="col" class="text-end">Servicios</th>
+                                    <th scope="col" class="text-end">Al mes</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for point in summary.spendEvolution %}
                                     <tr>
                                         <td data-label="Mes">{{ point.month|date('m/Y') }}</td>
-                                        <td data-label="Servicios" class="num">{{ point.serviceCount }}</td>
-                                        <td data-label="Al mes" class="num">
+                                        <td data-label="Servicios" class="text-end">{{ point.serviceCount }}</td>
+                                        <td data-label="Al mes" class="text-end">
                                             {% for code, total in point.byCurrency %}
                                                 {{ total.format() }}{% if not loop.last %} · {% endif %}
                                             {% else %}
-                                                <span class="text-subtle">—</span>
+                                                <span class="text-secondary">—</span>
                                             {% endfor %}
                                         </td>
                                     </tr>
@@ -327,8 +328,8 @@
                         </table>
                     </div>
                 </div>
-                <div class="card__footer">
-                    <p class="text-muted text-sm m-0">
+                <div class="card-footer">
+                    <p class="text-muted small m-0">
                         Cada mes usa el precio que estaba vigente entonces, no el de hoy.
                         La periodicidad de un servicio que haya cambiado de mensual a anual se
                         aplica igual a todos los meses.
@@ -338,18 +339,18 @@
         {% endif %}
 
         {% if summary.servicesByStatus is not empty %}
-            <div class="card mb-6">
-                <div class="card__header">
-                    <h2 class="card__title">Servicios por estado</h2>
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h2 class="card-title">Servicios por estado</h2>
                 </div>
-                <div class="card__body">
-                    <div class="cluster">
+                <div class="card-body">
+                    <div class="d-flex flex-wrap align-items-center gap-2">
                         {% for row in summary.servicesByStatus %}
-                            <span class="badge badge--{{ row.status.value == 'active' ? 'success' : (row.status.value == 'paused' ? 'warning' : 'info') }}">
+                            <span class="badge text-bg-{{ row.status.value == 'active' ? 'success' : (row.status.value == 'paused' ? 'warning' : 'info') }}">
                                 {{ row.status.label() }}: {{ row.total }}
                             </span>
                         {% endfor %}
-                        <a class="btn btn--ghost btn--sm" href="{{ path('app_services_index') }}">Ver todos los servicios</a>
+                        <a class="btn btn-outline-secondary btn-sm" href="{{ path('app_services_index') }}">Ver todos los servicios</a>
                     </div>
                 </div>
             </div>
@@ -357,17 +358,17 @@
 
         {% if summary.recentPriceChanges is not empty %}
             <div class="card">
-                <div class="card__header">
-                    <h2 class="card__title">Qué ha cambiado</h2>
+                <div class="card-header">
+                    <h2 class="card-title">Qué ha cambiado</h2>
                 </div>
-                <div class="card__body card__body--flush">
-                    <div class="table-wrapper">
-                        <table class="table table--responsive">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table bo-table bo-table--stack align-middle">
                             <caption class="visually-hidden">Servicios cuyo precio ha cambiado recientemente</caption>
                             <thead>
                                 <tr>
                                     <th scope="col">Servicio</th>
-                                    <th scope="col" class="num">Precio actual</th>
+                                    <th scope="col" class="text-end">Precio actual</th>
                                     <th scope="col">Desde</th>
                                 </tr>
                             </thead>
@@ -377,8 +378,8 @@
                                         <td data-label="Servicio">
                                             <a href="{{ path('app_services_show', {id: service.id.toRfc4122()}) }}">{{ service.name }}</a>
                                         </td>
-                                        <td data-label="Precio actual" class="num">
-                                            {% if service.currentAmount %}{{ service.currentAmount.format() }}{% else %}<span class="text-subtle">—</span>{% endif %}
+                                        <td data-label="Precio actual" class="text-end">
+                                            {% if service.currentAmount %}{{ service.currentAmount.format() }}{% else %}<span class="text-secondary">—</span>{% endif %}
                                         </td>
                                         <td data-label="Desde">
                                             {% if service.currentPrice %}

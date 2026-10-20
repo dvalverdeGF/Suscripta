@@ -1,53 +1,53 @@
-{% extends 'layout/app.html.twig' %}
+{% extends 'backoffice/base.html.twig' %}
 
 {% block title %}{{ account.displayName|default(account.emailAddress) }} — Suscripta{% endblock %}
 
-{% block main %}
-    <div class="page-header">
-        <div class="page-header__title">
-            <h1>{{ account.displayName|default(account.emailAddress) }}</h1>
-            <p class="page-header__subtitle">{{ account.emailAddress }}</p>
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">{{ account.displayName|default(account.emailAddress) }}</h1>
+            <p class="bo-page-header__subtitle">{{ account.emailAddress }}</p>
         </div>
-        <div class="page-header__actions">
+        <div class="bo-page-header__actions">
             {% if account.isConfigured %}
                 <form method="post" action="{{ path('app_mail_accounts_sync', {id: account.id.toRfc4122()}) }}">
                     <input type="hidden" name="_token" value="{{ csrf_token('mail_account_sync_' ~ account.id.toRfc4122()) }}">
-                    <button type="submit" class="btn btn--primary btn--sm">Sincronizar ahora</button>
+                    <button type="submit" class="btn btn-primary btn-sm">Sincronizar ahora</button>
                 </form>
             {% endif %}
-            <a class="btn btn--secondary btn--sm" href="{{ path('app_mail_accounts_edit', {id: account.id.toRfc4122()}) }}">Editar</a>
+            <a class="btn btn-outline-secondary btn-sm" href="{{ path('app_mail_accounts_edit', {id: account.id.toRfc4122()}) }}">Editar</a>
         </div>
     </div>
 
     {% if account.status.value == 'error' and account.lastSyncError %}
-        <div class="alert alert--danger mb-6" role="alert">
+        <div class="alert alert-danger mb-4" role="alert">
             <strong>No hemos podido leer este buzón.</strong>
             <p>{{ account.lastSyncError }}</p>
         </div>
     {% endif %}
 
-    <div class="grid grid--2 mb-6">
-        <div class="stat">
-            <span class="stat__label">Estado</span>
-            <span class="stat__value">
-                <span class="badge badge--{{ account.status.value == 'active' ? 'success' : (account.status.value == 'error' ? 'danger' : 'warning') }}">
+    <div class="bo-metrics mb-4">
+        <div class="bo-metric">
+            <span class="bo-metric__label">Estado</span>
+            <span class="bo-metric__value">
+                <span class="badge text-bg-{{ account.status.value == 'active' ? 'success' : (account.status.value == 'error' ? 'danger' : 'warning') }}">
                     {{ account.status.label() }}
                 </span>
             </span>
         </div>
-        <div class="stat">
-            <span class="stat__label">Mensajes indexados</span>
-            <span class="stat__value">{{ messageCount }}</span>
-            <span class="stat__hint">Solo se guardan metadatos, nunca el cuerpo del correo.</span>
+        <div class="bo-metric">
+            <span class="bo-metric__label">Mensajes indexados</span>
+            <span class="bo-metric__value">{{ messageCount }}</span>
+            <span class="bo-metric__hint">Solo se guardan metadatos, nunca el cuerpo del correo.</span>
         </div>
     </div>
 
-    <div class="card mb-6">
-        <div class="card__header">
-            <h2 class="card__title">Configuración</h2>
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="card-title">Configuración</h2>
         </div>
-        <div class="card__body">
-            <dl class="definition-list">
+        <div class="card-body">
+            <dl class="bo-definition-list">
                 <dt>Servidor</dt>
                 <dd>{{ account.imapHost }}:{{ account.imapPort }}</dd>
                 <dt>Cifrado</dt>
@@ -70,15 +70,15 @@
         </div>
     </div>
 
-    <div class="card mb-6">
-        <div class="card__header">
-            <h2 class="card__title">Acciones</h2>
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="card-title">Acciones</h2>
         </div>
-        <div class="card__body">
-            <div class="cluster">
+        <div class="card-body">
+            <div class="d-flex flex-wrap align-items-center gap-2">
                 <form method="post" action="{{ path('app_mail_accounts_test', {id: account.id.toRfc4122()}) }}">
                     <input type="hidden" name="_token" value="{{ csrf_token('mail_account_test_' ~ account.id.toRfc4122()) }}">
-                    <button type="submit" class="btn btn--secondary">Probar conexión</button>
+                    <button type="submit" class="btn btn-outline-secondary">Probar conexión</button>
                 </form>
 
                 {% if account.status.value != 'disabled' %}
@@ -86,27 +86,27 @@
                           data-controller="confirm"
                           data-confirm-message-value="Dejaremos de leer este buzón. Tus servicios y su historial no se tocan.">
                         <input type="hidden" name="_token" value="{{ csrf_token('mail_account_disconnect_' ~ account.id.toRfc4122()) }}">
-                        <button type="submit" class="btn btn--ghost">Desconectar</button>
+                        <button type="submit" class="btn btn-outline-secondary">Desconectar</button>
                     </form>
                 {% endif %}
             </div>
         </div>
     </div>
 
-    <div class="card mb-6">
-        <div class="card__header">
-            <h2 class="card__title">Reenviar facturas sin dar acceso al buzón</h2>
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="card-title">Reenviar facturas sin dar acceso al buzón</h2>
         </div>
-        <div class="card__body">
+        <div class="card-body">
             {% if account.isForwardingEnabled %}
                 <p class="text-muted">
                     Reenvía tus facturas a esta dirección y las leeremos igual que si
                     tuviéramos acceso al buzón. No necesitamos tu contraseña.
                 </p>
-                <div class="field">
-                    <span class="field__label">Tu dirección de ingesta</span>
-                    <p class="num"><code>{{ account.forwardingAddress }}</code></p>
-                    <p class="field__hint">
+                <div class="mb-3">
+                    <span class="form-label">Tu dirección de ingesta</span>
+                    <p class="text-end"><code>{{ account.forwardingAddress }}</code></p>
+                    <p class="form-text">
                         Trátala como una contraseña: quien la conozca podría intentar
                         enviarte facturas falsas. Si se filtra, cámbiala.
                     </p>
@@ -121,49 +121,49 @@
 
             {{ form_start(forwardingForm, {action: path('app_mail_accounts_forwarding', {id: account.id.toRfc4122()})}) }}
                 {{ form_row(forwardingForm.senders) }}
-                <div class="form-actions">
-                    <button type="submit" class="btn btn--primary">
+                <div class="d-flex flex-wrap gap-2 mt-3">
+                    <button type="submit" class="btn btn-primary">
                         {{ account.isForwardingEnabled ? 'Guardar remitentes' : 'Activar reenvío' }}
                     </button>
                 </div>
             {{ form_end(forwardingForm) }}
 
             {% if account.isForwardingEnabled %}
-                <div class="cluster mt-4">
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
                     <form method="post" action="{{ path('app_mail_accounts_forwarding_rotate', {id: account.id.toRfc4122()}) }}"
                           data-controller="confirm"
                           data-confirm-message-value="La dirección actual dejará de aceptar correo. Tendrás que actualizarla en tu proveedor.">
                         <input type="hidden" name="_token" value="{{ csrf_token('mail_account_forwarding_rotate_' ~ account.id.toRfc4122()) }}">
-                        <button type="submit" class="btn btn--secondary btn--sm">Cambiar la dirección</button>
+                        <button type="submit" class="btn btn-outline-secondary btn-sm">Cambiar la dirección</button>
                     </form>
                     <form method="post" action="{{ path('app_mail_accounts_forwarding_disable', {id: account.id.toRfc4122()}) }}"
                           data-controller="confirm"
                           data-confirm-message-value="La dirección dejará de aceptar correo. Podrás volver a activarla.">
                         <input type="hidden" name="_token" value="{{ csrf_token('mail_account_forwarding_disable_' ~ account.id.toRfc4122()) }}">
-                        <button type="submit" class="btn btn--ghost btn--sm">Desactivar reenvío</button>
+                        <button type="submit" class="btn btn-outline-secondary btn-sm">Desactivar reenvío</button>
                     </form>
                 </div>
             {% endif %}
         </div>
     </div>
 
-    <div class="card mb-6">
-        <div class="card__header">
-            <h2 class="card__title">Últimas lecturas</h2>
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="card-title">Últimas lecturas</h2>
         </div>
-        <div class="card__body{% if runs is not empty %} card__body--flush{% endif %}">
+        <div class="card-body{% if runs is not empty %} p-0{% endif %}">
             {% if runs is empty %}
                 <p class="text-muted">Todavía no hemos leído este buzón.</p>
             {% else %}
-                <div class="table-wrapper">
-                    <table class="table table--responsive">
+                <div class="table-responsive">
+                    <table class="table bo-table bo-table--stack align-middle">
                         <thead>
                             <tr>
                                 <th scope="col">Cuándo</th>
                                 <th scope="col">Resultado</th>
-                                <th scope="col" class="text-right">Revisados</th>
-                                <th scope="col" class="text-right">Nuevos</th>
-                                <th scope="col" class="text-right">Descubrimientos</th>
+                                <th scope="col" class="text-end">Revisados</th>
+                                <th scope="col" class="text-end">Nuevos</th>
+                                <th scope="col" class="text-end">Descubrimientos</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -173,16 +173,16 @@
                                         <time datetime="{{ run.startedAt|date('c') }}">{{ run.startedAt|date('d/m/Y H:i') }}</time>
                                     </td>
                                     <td data-label="Resultado">
-                                        <span class="badge badge--{{ run.status.value == 'completed' ? 'success' : (run.status.value == 'failed' ? 'danger' : 'info') }}">
+                                        <span class="badge text-bg-{{ run.status.value == 'completed' ? 'success' : (run.status.value == 'failed' ? 'danger' : 'info') }}">
                                             {{ run.status.label() }}
                                         </span>
                                         {% if run.error %}
-                                            <p class="text-sm text-muted">{{ run.error }}</p>
+                                            <p class="small text-muted">{{ run.error }}</p>
                                         {% endif %}
                                     </td>
-                                    <td data-label="Revisados" class="text-right num">{{ run.messagesSeen }}</td>
-                                    <td data-label="Nuevos" class="text-right num">{{ run.messagesProcessed }}</td>
-                                    <td data-label="Descubrimientos" class="text-right num">{{ run.discoveriesCreated }}</td>
+                                    <td data-label="Revisados" class="text-end">{{ run.messagesSeen }}</td>
+                                    <td data-label="Nuevos" class="text-end">{{ run.messagesProcessed }}</td>
+                                    <td data-label="Descubrimientos" class="text-end">{{ run.discoveriesCreated }}</td>
                                 </tr>
                             {% endfor %}
                         </tbody>
@@ -193,10 +193,10 @@
     </div>
 
     <div class="card">
-        <div class="card__header">
-            <h2 class="card__title">Eliminar el buzón</h2>
+        <div class="card-header">
+            <h2 class="card-title">Eliminar el buzón</h2>
         </div>
-        <div class="card__body">
+        <div class="card-body">
             <p class="text-muted">
                 Se borran las credenciales y todos los mensajes indexados de este buzón.
                 Los servicios que ya hayas confirmado se conservan, porque son datos tuyos.
@@ -205,7 +205,7 @@
                   data-controller="confirm"
                   data-confirm-message-value="Se eliminará el buzón y todo lo leído de él. Esta acción no se puede deshacer.">
                 <input type="hidden" name="_token" value="{{ csrf_token('mail_account_delete_' ~ account.id.toRfc4122()) }}">
-                <button type="submit" class="btn btn--danger">Eliminar buzón y sus datos</button>
+                <button type="submit" class="btn btn-danger">Eliminar buzón y sus datos</button>
             </form>
         </div>
     </div>

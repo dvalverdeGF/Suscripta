@@ -1,51 +1,44 @@
-{% extends 'base.html.twig' %}
+{% extends 'layout/auth.html.twig' %}
 
 {% block title %}Entrar — Suscripta{% endblock %}
 
-{% block body %}
-    <main class="auth-layout">
-        <div class="auth-card card">
-            <div class="card__body">
-                <h1 class="auth-card__title">Entrar en Suscripta</h1>
-                <p class="text-muted mb-6">Descubre y controla tus servicios recurrentes.</p>
+{% block heading %}Entrar en Suscripta{% endblock %}
 
-                {% include 'layout/_flashes.html.twig' %}
+{% block subtitle %}<p class="bo-login__subtitle">Descubre y controla tus servicios recurrentes.</p>{% endblock %}
 
-                {% if error %}
-                    <div class="alert alert--danger mb-4" role="alert">
-                        {{ error.messageKey|trans(error.messageData, 'security') }}
-                    </div>
-                {% endif %}
-
-                <form method="post" class="form">
-                    <div class="field">
-                        <label class="field__label" for="email">Correo electrónico</label>
-                        <input class="input" type="email" id="email" name="email"
-                               value="{{ last_username }}" required autofocus
-                               autocomplete="email" inputmode="email">
-                    </div>
-
-                    <div class="field">
-                        <label class="field__label" for="password">Contraseña</label>
-                        <input class="input" type="password" id="password" name="password"
-                               required autocomplete="current-password">
-                    </div>
-
-                    <label class="checkbox">
-                        <input type="checkbox" name="_remember_me" value="on">
-                        <span>Mantener la sesión iniciada</span>
-                    </label>
-
-                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
-
-                    <button type="submit" class="btn btn--primary btn--block">Entrar</button>
-                </form>
-
-                <p class="text-center text-sm mt-6 mb-0">
-                    ¿Todavía no tienes cuenta?
-                    <a href="{{ path('app_register') }}">Crear una cuenta</a>
-                </p>
-            </div>
+{% block content %}
+    {% if error %}
+        <div class="alert alert-danger" role="alert">
+            <i class="fa-solid fa-circle-exclamation me-2"></i>{{ error.messageKey|trans(error.messageData, 'security') }}
         </div>
-    </main>
+    {% endif %}
+
+    <form method="post" novalidate>
+        <div class="mb-3">
+            <label class="form-label" for="email">Correo electrónico</label>
+            <input class="form-control" type="email" id="email" name="email"
+                   value="{{ last_username }}" required autofocus
+                   autocomplete="email" inputmode="email">
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="password">Contraseña</label>
+            <input class="form-control" type="password" id="password" name="password"
+                   required autocomplete="current-password">
+        </div>
+
+        <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" id="remember_me" name="_remember_me" value="on">
+            <label class="form-check-label" for="remember_me">Mantener la sesión iniciada</label>
+        </div>
+
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
+
+        <button type="submit" class="btn btn-primary w-100">Entrar</button>
+    </form>
+
+    <p class="text-center small mt-4 mb-0">
+        ¿Todavía no tienes cuenta?
+        <a href="{{ path('app_register') }}">Crear una cuenta</a>
+    </p>
 {% endblock %}

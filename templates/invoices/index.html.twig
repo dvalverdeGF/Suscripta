@@ -1,29 +1,29 @@
-{% extends 'layout/app.html.twig' %}
+{% extends 'backoffice/base.html.twig' %}
 
 {% block title %}Facturas — Suscripta{% endblock %}
 
-{% block main %}
-    <div class="page-header">
-        <div class="page-header__title">
-            <h1>Facturas</h1>
-            <p class="page-header__subtitle">
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">Facturas</h1>
+            <p class="bo-page-header__subtitle">
                 Lo que realmente se ha cobrado, con su importe y su fecha.
             </p>
         </div>
-        <div class="page-header__actions">
-            <a class="btn btn--ghost" href="{{ path('app_documents_index') }}">Documentos</a>
-            <a class="btn btn--primary" href="{{ path('app_invoices_new') }}">Registrar factura</a>
+        <div class="bo-page-header__actions">
+            <a class="btn btn-outline-secondary" href="{{ path('app_documents_index') }}">Documentos</a>
+            <a class="btn btn-primary" href="{{ path('app_invoices_new') }}">Registrar factura</a>
         </div>
     </div>
 
-    <nav class="cluster mb-6" aria-label="Filtrar facturas">
-        <a class="btn btn--sm {{ status is null ? 'btn--primary' : 'btn--ghost' }}"
+    <nav class="d-flex flex-wrap align-items-center gap-2 mb-4" aria-label="Filtrar facturas">
+        <a class="btn btn-sm {{ status is null ? 'btn-primary' : 'btn-outline-secondary' }}"
            href="{{ path('app_invoices_index') }}"
            {% if status is null %}aria-current="page"{% endif %}>
-            Todas <span class="text-xs">({{ total }})</span>
+            Todas <span class="small text-secondary">({{ total }})</span>
         </a>
         {% for candidate in statuses %}
-            <a class="btn btn--sm {{ status == candidate ? 'btn--primary' : 'btn--ghost' }}"
+            <a class="btn btn-sm {{ status == candidate ? 'btn-primary' : 'btn-outline-secondary' }}"
                href="{{ path('app_invoices_index', {status: candidate.value}) }}"
                {% if status == candidate %}aria-current="page"{% endif %}>
                 {{ candidate.label() }}
@@ -33,18 +33,18 @@
 
     {% if invoices is empty %}
         <div class="card">
-            <div class="card__body">
-                <div class="empty-state">
-                    <p class="empty-state__title">Todavía no hay facturas registradas</p>
-                    <p class="empty-state__text">
+            <div class="card-body">
+                <div class="bo-empty">
+                    <p class="bo-empty__title">Todavía no hay facturas registradas</p>
+                    <p class="bo-empty__text">
                         Cada cobro que detectemos en tu correo se registrará aquí con su importe y su fecha.
                     </p>
                 </div>
             </div>
         </div>
     {% else %}
-        <div class="table-wrapper">
-            <table class="table table--responsive">
+        <div class="table-responsive">
+            <table class="table bo-table bo-table--stack align-middle">
                 <thead>
                     <tr>
                         <th scope="col">Fecha</th>
@@ -52,7 +52,7 @@
                         <th scope="col">Número</th>
                         <th scope="col">Periodo</th>
                         <th scope="col">Estado</th>
-                        <th scope="col" class="text-right">Importe</th>
+                        <th scope="col" class="text-end">Importe</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -80,11 +80,11 @@
                                 {% endif %}
                             </td>
                             <td data-label="Estado">
-                                <span class="badge badge--{{ invoice.status.value == 'paid' ? 'success' : (invoice.status.value == 'failed' ? 'danger' : 'info') }}">
+                                <span class="badge text-bg-{{ invoice.status.value == 'paid' ? 'success' : (invoice.status.value == 'failed' ? 'danger' : 'info') }}">
                                     {{ invoice.status.label() }}
                                 </span>
                             </td>
-                            <td data-label="Importe" class="num text-right">{{ invoice.total.format() }}</td>
+                            <td data-label="Importe" class="text-end">{{ invoice.total.format() }}</td>
                         </tr>
                     {% endfor %}
                 </tbody>

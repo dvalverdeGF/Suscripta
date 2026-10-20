@@ -1,0 +1,64 @@
+{#
+    Barra de acciones de los formularios de alta y edicion.
+
+    Un solo sitio para las acciones de todas las fichas: antes cada pantalla las
+    colocaba donde queria (unas en la cabecera, otras en un pie suelto dentro
+    del contenido) y el resultado era que "guardar" aparecia en un lugar distinto
+    segun la pantalla. Aqui van siempre al **pie fijo**, que es lo que se pidio:
+    mismo sitio, misma jerarquia, misma distancia al borde en todas las pantallas.
+
+    El boton de guardar **no vive dentro** del `<form>`: va asociado por el
+    atributo HTML `form`, que apunta al `id` que la pantalla le pone al
+    formulario. Asi el boton puede estar en la barra del pie y el formulario en
+    el contenido, sin envolver la pagina en un `<form>` gigante ni perder el
+    envio nativo (que funciona sin JavaScript y respeta la validacion del
+    navegador).
+
+    Parametros:
+      form_id        id del formulario al que se asocia "guardar" (obligatorio).
+      submit_label   texto del boton principal.
+      submit_icon    icono Font Awesome del boton principal (sin el prefijo `fa-solid`).
+      cancel_path    ruta del boton de salida sin guardar (opcional).
+      back_path      ruta del boton "volver" (opcional; sustituye a `cancel_path`
+                     cuando la pantalla vuelve a un listado en lugar de descartar
+                     un alta).
+      delete_path    ruta del boton de borrado (opcional).
+      delete_token   token CSRF del borrado (opcional, requerido con delete_path).
+      delete_message mensaje de confirmacion del borrado (opcional).
+
+    El orden es el del riesgo: primero lo reversible, despues lo que guarda, y
+    **al final y separado** lo irreversible. Borrar no es "una accion mas de la
+    ficha".
+#}
+<div class="bo-actions">
+    {% if back_path is defined %}
+        <a class="btn btn-outline-secondary" href="{{ back_path }}">
+            <i class="fa-solid fa-arrow-left me-1" aria-hidden="true"></i> Volver
+        </a>
+    {% elseif cancel_path is defined %}
+        <a class="btn btn-outline-secondary" href="{{ cancel_path }}">Cancelar</a>
+    {% endif %}
+
+    <button class="btn btn-primary" type="submit" form="{{ form_id }}">
+        <i class="fa-solid {{ submit_icon|default('fa-floppy-disk') }} me-1" aria-hidden="true"></i>
+        {{ submit_label|default('Guardar') }}
+    </button>
+
+    {% if delete_path is defined and delete_path is not null %}
+        <span class="bo-actions__spacer"></span>
+
+        {#
+            El borrado se confirma en el navegador (`data-controller="confirm"`). El
+            mensaje lo pone la pantalla porque solo ella sabe que se lleva por delante.
+        #}
+        <form method="post"
+              action="{{ delete_path }}"
+              data-controller="confirm"
+              data-confirm-message-value="{{ delete_message|default('¿Seguro que quieres eliminarlo? Esta acción no se puede deshacer.') }}">
+            <input type="hidden" name="_token" value="{{ delete_token }}">
+            <button class="btn btn-outline-danger" type="submit" data-action="confirm#submit">
+                <i class="fa-solid fa-trash-can me-1" aria-hidden="true"></i> Eliminar
+            </button>
+        </form>
+    {% endif %}
+</div>

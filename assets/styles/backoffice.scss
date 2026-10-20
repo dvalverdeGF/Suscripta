@@ -1,0 +1,1017 @@
+// ============================================================================
+// BACKOFFICE DE SUSCRIPTA — hoja de estilo
+// ============================================================================
+//
+// Estilo heredado del backoffice de Orian (referencia del cliente): sistema de
+// superficies con jerarquia, radio casi recto, sidebar oscuro, tipografia
+// tecnica y una rejilla de cifras que se reparte sola.
+//
+// La paleta es propia de Suscripta. La estructura de la referencia se respeta
+// porque es la que el usuario reconocia: mismas clases (`bo-sidebar`,
+// `bo-menu`, `bo-topbar`, `bo-page-header`, `bo-metrics`, `bo-table`...), misma
+// jerarquia visual y mismos mensajes de commented en el codigo.
+
+// Rutas relativas al directorio `assets/styles`, que es el `--load-path` del
+// comando de compilacion. Ver `docs/ARCHITECTURE.md` §12 (hoja de estilo del
+// backoffice): el SCSS es la **fuente** y el CSS compulado es lo que se sirve.
+@import 'backoffice/variables';
+
+// Tipografia de la marca: se cargan las **tres** familias porque el contraste
+// entre la serif de titulares, la sans de cuerpo y la mono de datos tecnicos es
+// parte de la identidad. Usar una sola dejaria el backoffice parecido pero no
+// igual.
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+@import 'bootstrap/bootstrap.scss';
+
+// ---------------------------------------------------------------------------
+// Variables CSS de Bootstrap.
+//
+// Bootstrap 5.3 publica sus tokens en **dos** capas: las variables Sass que se
+// compilan y las variables CSS (`--bs-*`) que los componentes leen en tiempo de
+// ejecucion. Cambiar solo la capa Sass no basta: `.form-control` resuelve a
+// `var(--bs-body-bg)` y su valor efectivo seria el mismo que el del lienzo y la
+// tarjeta, que es exactamente el problema de fondo que hace la interfaz plana.
+//
+// Aqui se redeclaran **despues** del import para que ganen a las de Bootstrap.
+// Es el unico punto del sistema donde hay que tocar las dos capas.
+// ---------------------------------------------------------------------------
+:root {
+    --bs-body-bg: #{$bo-canvas};
+    --bs-body-color: #{$bo-body-color};
+    --bs-border-color: #{$bo-line};
+
+    --bo-canvas: #{$bo-canvas};
+    --bo-sunken: #{$bo-sunken};
+    --bo-surface: #{$bo-surface};
+    --bo-line: #{$bo-line};
+    --bo-line-strong: #{$bo-line-strong};
+}
+
+// ============================================================================
+// LAYOUT PRINCIPAL
+// ============================================================================
+.bo-body {
+    min-height: 100vh;
+    overflow-x: hidden;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+}
+
+// ── Sidebar ─────────────────────────────────────────────────────────────────
+.bo-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: $bo-sidebar-width;
+    background: $bo-sidebar-bg;
+    color: $bo-sidebar-color;
+    display: flex;
+    flex-direction: column;
+    z-index: 1040;
+    transition: transform $bo-transition;
+
+    &__brand {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    &__logo {
+        width: auto;
+        max-width: 100%;
+        height: 22px;
+        object-fit: contain;
+        flex: 0 1 auto;
+    }
+
+    &__brand-text {
+        font-size: 1.125rem;
+        font-weight: 700;
+        color: #f8fafc;
+        letter-spacing: -0.02em;
+    }
+
+    &__close {
+        margin-left: auto;
+        background: none;
+        border: none;
+        color: $bo-sidebar-color;
+        font-size: 1.25rem;
+        cursor: pointer;
+        padding: 0.25rem;
+
+        &:hover {
+            color: #f8fafc;
+        }
+    }
+
+    &__nav {
+        flex: 1;
+        overflow-y: auto;
+        padding: 0.75rem 0;
+
+        // Scrollbar sutil
+        &::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        &::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 2px;
+        }
+    }
+
+    &__footer {
+        padding: 0.75rem 1.25rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        text-align: center;
+        font-size: 0.75rem;
+    }
+}
+
+// ── Menu sidebar ────────────────────────────────────────────────────────────
+.bo-menu {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+
+    &__heading {
+        padding: 1.25rem 1.25rem 0.5rem;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: rgba(148, 163, 184, 0.6);
+    }
+
+    &__item {
+        margin: 1px 0.5rem;
+    }
+
+    &__link {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.5rem 0.75rem;
+        color: $bo-sidebar-color;
+        text-decoration: none;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: all 0.15s ease;
+
+        &:hover {
+            color: #e2e8f0;
+            background: $bo-sidebar-hover-bg;
+            text-decoration: none;
+        }
+    }
+
+    &__icon {
+        width: 1.25rem;
+        text-align: center;
+        font-size: 0.9375rem;
+        opacity: 0.7;
+        flex-shrink: 0;
+    }
+
+    &__item--active {
+        .bo-menu__link {
+            color: $bo-sidebar-active;
+            background: rgba($bo-sidebar-active, 0.1);
+        }
+
+        .bo-menu__icon {
+            opacity: 1;
+        }
+    }
+
+    &__item--disabled {
+        .bo-menu__link {
+            opacity: 0.45;
+            cursor: default;
+
+            &:hover {
+                background: transparent;
+                color: $bo-sidebar-color;
+            }
+        }
+    }
+}
+
+// ── Contenido principal ─────────────────────────────────────────────────────
+.bo-main {
+    margin-left: $bo-sidebar-width;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    transition: margin-left $bo-transition;
+}
+
+// ── Topbar ──────────────────────────────────────────────────────────────────
+.bo-topbar {
+    position: sticky;
+    top: 0;
+    // `min-height` en vez de `height` fijo: el breadcrumb puede necesitar mas de
+    // una linea y con una altura fija se desbordaba por arriba y por abajo.
+    min-height: $bo-topbar-height;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.5rem 1.5rem;
+    background: $bo-surface;
+    border-bottom: 1px solid $bo-line;
+    z-index: 1020;
+
+    &__toggle {
+        display: none; // visible en mobile
+        background: none;
+        border: none;
+        font-size: 1.25rem;
+        color: #475569;
+        cursor: pointer;
+        padding: 0.25rem;
+        flex-shrink: 0;
+
+        &:hover {
+            color: $bo-body-color;
+        }
+    }
+
+    &__actions {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-shrink: 0;
+    }
+
+    &__user {
+        color: #475569;
+        font-size: 1.5rem;
+        text-decoration: none;
+        transition: color 0.15s;
+
+        &:hover {
+            color: $primary;
+        }
+    }
+
+    // En pantallas estrechas el usuario y su nombre no caben junto al
+    // breadcrumb: se oculta lo secundario para no comprimir la navegacion.
+    &__email {
+        display: none;
+
+        @media (min-width: 768px) {
+            display: inline;
+        }
+    }
+}
+
+.bo-breadcrumb {
+    // `min-width: 0` permite que el breadcrumb encoja dentro del flex en lugar de
+    // empujar a los demas elementos y provocar desbordamiento horizontal.
+    min-width: 0;
+
+    .breadcrumb {
+        // Nunca en varias lineas: crecer en alto es lo que rompia el topbar.
+        // Si no cabe, se desplaza en horizontal (predecible y accesible).
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+
+        &::-webkit-scrollbar {
+            display: none;
+        }
+    }
+
+    .breadcrumb-item {
+        white-space: nowrap;
+    }
+
+    .breadcrumb-item a {
+        color: #64748b;
+        text-decoration: none;
+        font-size: 0.875rem;
+
+        &:hover {
+            color: $primary;
+        }
+    }
+
+    .breadcrumb-item.active {
+        color: $bo-body-color;
+        font-weight: 500;
+    }
+}
+
+// ── Selector de organizacion del topbar ─────────────────────────────────────
+// El `<select>` crece con el nombre de la organizacion y, sin limite, empuja el
+// topbar mas alla del viewport en movil. Se le fija un ancho maximo y se permite
+// truncar el texto de la opcion.
+.bo-company-switcher {
+    min-width: 0;
+
+    select {
+        max-width: 12rem;
+        text-overflow: ellipsis;
+    }
+
+    @media (max-width: 575.98px) {
+        select {
+            max-width: 8.5rem;
+        }
+    }
+}
+
+// ── Contenido ───────────────────────────────────────────────────────────────
+.bo-content {
+    flex: 1;
+    padding: 1.5rem;
+    // `min-width: 0` es imprescindible: es un hijo de un flex column y, sin
+    // esto, el contenido ancho (una tabla con `th { white-space: nowrap }`)
+    // impone su ancho al padre y la pagina entera se desplaza en horizontal.
+    // Con `min-width: 0`, el desbordamiento se queda DENTRO del
+    // `.table-responsive`, que ya tiene `overflow-x: auto`.
+    min-width: 0;
+}
+
+// ── Barra de acciones del pie ───────────────────────────────────────────────
+// Las acciones que cierran una pagina (guardar, volver) viven **abajo y en su
+// propio sitio**, no en la cabecera. Motivos, no gusto:
+//
+//  - En la cabecera competian con el titulo y con las acciones de navegacion, y
+//    "guardar" quedaba a la altura de la mirada cuando el formulario esta mas
+//    abajo: se pulsa antes de haberlo visto.
+//  - Al pie, la accion aparece **al terminar de recorrer el formulario**, que es
+//    cuando el operador ha acabado de rellenarlo.
+//
+// Se usa `position: sticky` y no `fixed` a proposito: un elemento sticky
+// **conserva su hueco** en el flujo, asi que no necesita reservar espacio con
+// relleno y nunca tapa la ultima fila del formulario.
+.bo-actions {
+    position: sticky;
+    bottom: 0;
+    // Por debajo de la topbar: si el contenido es tan corto que ambas se tocan,
+    // la que manda es la navegacion.
+    z-index: 1010;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: $bo-surface;
+    border-top: 1px solid $bo-line;
+    box-shadow: 0 -8px 16px -14px rgba(15, 23, 42, 0.35);
+
+    // Empuja lo que vaya detras al extremo opuesto.
+    &__spacer {
+        margin-left: auto;
+    }
+}
+
+// ============================================================================
+// COMPONENTES REUTILIZABLES
+// ============================================================================
+
+// Cards mejoradas
+.card {
+    // El contenido es lo mas claro: la tarjeta es el papel, el lienzo queda por debajo.
+    background-color: $bo-surface;
+    box-shadow: $bo-card-shadow;
+    border: 1px solid $bo-line;
+    transition: box-shadow $bo-transition, border-color $bo-transition;
+
+    &:hover {
+        box-shadow: $bo-card-shadow-hover;
+    }
+}
+
+// Cabecera de la pagina: el titulo grande y las acciones a la derecha.
+.bo-page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+
+    // Titulo y subtitulo van juntos: la cabecera reparte el espacio en tres
+    // zonas (titulo | hueco | acciones) y el subtitulo pertenece al titulo.
+    &__heading {
+        min-width: 0;
+    }
+
+    // Vuelta atras: va **encima** del titular y no en la barra de migas porque
+    // la barra es el sitio del pan de migas del sistema, y esta vuelta es
+    // atajo a la lista de la que se ha salido.
+    &__back {
+        margin: 0 0 0.25rem;
+        font-size: 0.8125rem;
+    }
+
+    &__title {
+        margin: 0;
+        font-family: 'IBM Plex Serif', 'Iowan Old Style', Georgia, serif;
+        font-size: 1.5rem;
+        font-weight: 500;
+        color: $bo-heading-color;
+    }
+
+    &__subtitle {
+        margin: 0.25rem 0 0;
+        color: $bo-body-color-muted;
+        font-size: 0.875rem;
+    }
+
+    &__actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-shrink: 0;
+        flex-wrap: wrap;
+
+        // Altura y tipografia homogeneas en todas las acciones: es lo que evita
+        // que una accion parezca mas importante solo por ser mas alta.
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+        }
+    }
+
+    // Metadatos del titular (estado, etiquetas de origen). Se separan de las
+    // acciones para que el reparto `space-between` de la cabecera no los
+    // empuje al centro de la pantalla: van pegados al titulo, que es donde se
+    // leen, y no en el extremo opuesto.
+    &__meta {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+        flex-wrap: wrap;
+        margin-top: 0.5rem;
+    }
+}
+
+// Titulo de seccion dentro de una tarjeta.
+.bo-summary__title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: $bo-heading-color;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+// Tablas del backoffice: la cabecera en el tono hundido y las filas sin rayas
+// zebrada, que compite con el color de los badges de estado.
+.bo-table {
+    thead th {
+        background-color: $bo-sunken;
+        border-bottom: 1px solid $bo-line;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: $bo-body-color-muted;
+        white-space: nowrap;
+        padding: 0.625rem 0.75rem;
+    }
+
+    tbody td {
+        padding: 0.625rem 0.75rem;
+        border-bottom: 1px solid $bo-line;
+        font-size: 0.875rem;
+        vertical-align: middle;
+    }
+
+    tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    tbody tr:hover {
+        background-color: rgba($bo-sunken, 0.5);
+    }
+}
+
+// Tabla que se convierte en lista de fichas en pantallas estrechas.
+//
+// Cada celda lleva su encabezado en `data-label`, y en el breakpoint estrecho
+// ese texto se muestra **encima** del valor: en una tabla que no cabe, lo que
+// falla no es que haya menos columnas, sino que se pierde a que columna
+// pertenece cada dato. Con la etiqueta a la vista, la tabla sigue leyendose.
+//
+// El `<thead>` se oculta porque en este modo cada celda ya dice a que columna
+// pertenece; mantenerlo seria repetir el mismo dato 8 veces.
+@media (max-width: 767.98px) {
+    .bo-table--stack {
+        thead {
+            display: none;
+        }
+
+        tbody tr {
+            display: block;
+            padding: 0.75rem 0.875rem;
+            border-bottom: 1px solid $bo-line;
+        }
+
+        tbody td {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 0.25rem 0;
+            border-bottom: none;
+
+            &::before {
+                content: attr(data-label);
+                flex-shrink: 0;
+                font-size: 0.6875rem;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: $bo-body-color-muted;
+            }
+
+            // La celda sin etiqueta (acciones, por ejemplo) se deja como esta.
+            &:not([data-label]) {
+                justify-content: flex-end;
+            }
+        }
+    }
+}
+
+// ── Panel de inicio ─────────────────────────────────────────────────────────
+//
+// Rejilla de cifras que se reparte sola: con cuatro indicadores caben cuatro en
+// una fila y con seis caben tres y tres, sin escribir un ancho por indicador. El
+// `minmax` con un minimo comodo es lo que evita que un numero largo se parta o
+// que la etiqueta se comprima hasta no leerse.
+.bo-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 0.75rem;
+}
+
+.bo-metric {
+    // Columna, no fila: en Suscripta el indicador no lleva icono, asi que la
+    // cifra, la etiqueta y la nota se apilan. El `gap` va en el eje vertical.
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    padding: 0.875rem 1rem;
+    // Es una cifra sobre el lienzo, no una tarjeta dentro de otra: si llevara el
+    // mismo blanco que las tarjetas, el panel pareceria una rejilla de cajas y la
+    // cifra se perderia entre bordes.
+    background-color: $bo-surface;
+    border: 1px solid $bo-line;
+    // El filete de la izquierda es el que da el tono sin teint la caja entera: un
+    // indicador en rojo con el fondo rojo grita, y esto tiene que informar.
+    border-left: 3px solid $bo-line-strong;
+    border-radius: 0.5rem;
+    text-decoration: none;
+    color: $bo-body-color;
+    transition: border-color $bo-transition, box-shadow $bo-transition;
+
+    &:hover,
+    &:focus-visible {
+        border-color: $bo-line-strong;
+        box-shadow: $bo-card-shadow;
+        color: $bo-body-color;
+        text-decoration: none;
+    }
+
+    &:focus-visible {
+        outline: 2px solid $primary;
+        outline-offset: 1px;
+    }
+
+    &__icon {
+        flex: 0 0 auto;
+        width: 2.25rem;
+        height: 2.25rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 0.5rem;
+        background-color: $bo-sunken;
+        color: $bo-body-color-muted;
+        font-size: 1rem;
+        margin-bottom: 0.25rem;
+    }
+
+    &__body {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    &__value {
+        font-size: 1.375rem;
+        font-weight: 700;
+        line-height: 1.2;
+        letter-spacing: -0.01em;
+    }
+
+    &__unit {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: $bo-body-color-muted;
+        margin-left: 0.125rem;
+    }
+
+    &__label {
+        font-size: 0.8125rem;
+        color: $bo-body-color-muted;
+    }
+
+    // La procedencia del dato solo aparece si no es obvia.
+    &__hint {
+        font-size: 0.6875rem;
+        color: $bo-body-color-muted;
+        opacity: 0.85;
+    }
+
+    &--positive {
+        border-left-color: $success;
+
+        .bo-metric__icon {
+            background-color: rgba($success, 0.12);
+            color: $success;
+        }
+    }
+
+    &--warning {
+        border-left-color: $warning;
+
+        .bo-metric__icon {
+            background-color: rgba($warning, 0.14);
+            color: $warning;
+        }
+    }
+
+    &--danger {
+        border-left-color: $danger;
+
+        .bo-metric__icon {
+            background-color: rgba($danger, 0.12);
+            color: $danger;
+        }
+    }
+}
+
+// Estado "todo en orden" en una linea.
+//
+// Es la alternativa a una tarjeta de exito: cuando no hay nada que hacer, decir
+// "no hay nada que hacer" es todo lo que hace falta, y dedicarle una caja entera
+// ensena a ignorar ese espacio.
+.bo-inline-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 0.875rem;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+    border-radius: 0.5rem;
+    background-color: $bo-sunken;
+    border-left: 3px solid $bo-line-strong;
+
+    &--ok {
+        border-left-color: $success;
+        background-color: rgba($success, 0.08);
+
+        i {
+            color: $success;
+        }
+    }
+
+    &--warn {
+        border-left-color: $warning;
+        background-color: rgba($warning, 0.1);
+
+        i {
+            color: $warning;
+        }
+    }
+}
+
+// ── Rejilla de formularios ──────────────────────────────────────────────────
+// Dos columnas que colapsan a una en movil. La media y la completa se marcan
+// con `bo-form-grid__half` y `bo-form-grid__full`: el ancho lo decide el
+// formulario, no cada campo.
+.bo-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+
+    &__half,
+    &__full {
+        min-width: 0;
+    }
+
+    &__full {
+        grid-column: 1 / -1;
+    }
+
+    @media (max-width: 767.98px) {
+        grid-template-columns: 1fr;
+
+        &__full {
+            grid-column: auto;
+        }
+    }
+}
+
+// ── Integraciones ───────────────────────────────────────────────────────────
+//
+// Dos piezas, y **una sola superficie cada una**: el listado es una tabla dentro de una
+// tarjeta, y la ficha de una integracion (su formulario) son tarjetas por seccion dentro
+// del lienzo. Nada se envuelve dos veces: caja dentro de caja dentro de caja convierte
+// una pantalla de datos en una muneca rusa.
+//
+// El nombre de la integracion se usa en el listado, donde compite con las demas filas y
+// por eso lleva su icono apagado; el estado lo aporta el badge de la columna contigua.
+
+// Nombre de la integracion en la tabla del listado.
+.bo-integration-name {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    color: $bo-heading-color;
+
+    // El icono en tono apagado: identifica la integracion sin competir con su nombre.
+    >i:first-child {
+        color: $bo-body-color-muted;
+    }
+}
+
+// El ultimo error, en linea y sin caja: es un dato de la integracion, no un panel. Sin
+// margen inferior porque vive dentro de una celda, y ahi el aire lo da la propia tabla.
+.bo-integration__error {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    font-size: 0.8125rem;
+    color: $danger;
+    padding: 0.375rem 0.5rem;
+    border-left: 3px solid $danger;
+    background-color: rgba($danger, 0.06);
+    border-radius: 2px;
+}
+
+// ── Listado: contadores y estado vacio ──────────────────────────────────────
+.bo-list {
+    background-color: $bo-surface;
+    border: 1px solid $bo-line;
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+.bo-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 2.5rem 1rem;
+    text-align: center;
+
+    &__icon {
+        font-size: 1.5rem;
+        color: #cbd5e1;
+    }
+
+    &__title {
+        margin: 0;
+        color: $bo-body-color-muted;
+        font-size: 0.875rem;
+    }
+
+    // Texto que explica que hacer a continuacion. Va mas apagado que el
+    // titulo, pero sigue siendo legible: es la instruccion, no un adorno.
+    &__text {
+        margin: 0;
+        max-width: 32rem;
+        color: $bo-body-color-muted;
+        font-size: 0.8125rem;
+    }
+}
+
+// ── Linea de tiempo ─────────────────────────────────────────────────────────
+//
+// Lista de hechos con su fecha, en vertical. El motivo de que la fecha vaya a la
+// izquierda y no encima es que asi las fechas de una columna se leen de un
+// vistazo: en una lista de cobros, la pregunta no es "que paso" sino "cuando".
+.bo-timeline {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+
+    &__item {
+        display: flex;
+        align-items: baseline;
+        gap: 0.75rem;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid $bo-line;
+
+        &:last-child {
+            border-bottom: none;
+        }
+    }
+
+    &__date {
+        flex: 0 0 6rem;
+        font-size: 0.8125rem;
+        color: $bo-body-color-muted;
+        font-variant-numeric: tabular-nums;
+    }
+
+    &__label {
+        min-width: 0;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 0.375rem;
+        font-size: 0.875rem;
+    }
+}
+
+// ── Lista de definiciones ───────────────────────────────────────────────────
+//
+// Pares "etiqueta / dato" en dos columnas. La etiqueta se estrecha para que el
+// dato sea lo que se lee, y no al reves: en una ficha de servicio, el dato es
+// el contenido y la etiqueta es el indice.
+.bo-definition-list {
+    display: grid;
+    grid-template-columns: minmax(6rem, 12rem) minmax(0, 1fr);
+    gap: 0.375rem 1rem;
+    margin: 0;
+    font-size: 0.875rem;
+
+    dt {
+        color: $bo-body-color-muted;
+        font-weight: 500;
+    }
+
+    dd {
+        margin: 0;
+        min-width: 0;
+    }
+}
+
+// ── Seccion de formulario ───────────────────────────────────────────────────
+//
+// Titulo de un grupo de campos. Va **encima** de su grupo, nunca entre medio:
+// un titulo con espacio por debajo parece una etiqueta suelta, y con el
+// separador de una linea se lee como el comienzo de la seccion que explica.
+.bo-form-section {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: $bo-body-color-muted;
+    margin-top: 1.125rem;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.375rem;
+    border-bottom: 1px solid $bo-line;
+
+    &:first-child {
+        margin-top: 0;
+    }
+}
+
+// ── Paginacion ──────────────────────────────────────────────────────────────
+.bo-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+
+    &__info {
+        font-size: 0.8125rem;
+        color: $bo-body-color-muted;
+    }
+}
+
+// ── Overlay mobile ──────────────────────────────────────────────────────────
+.bo-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 1035;
+    backdrop-filter: blur(2px);
+}
+
+// ============================================================================
+// LOGIN
+// ============================================================================
+//
+// El login es la primera pantalla que se ve y es donde mas se nota si el color es de
+// marca o de plantilla: por eso el fondo es el tono mas oscuro de la marca, no un
+// degradado de grises.
+.bo-login {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+    background-color: $bo-sidebar-bg;
+
+    &__card {
+        width: 100%;
+        max-width: 420px;
+        // Sobre el fondo oscuro, la tarjeta es **papel calido** y no blanco puro: el
+        // blanco puro sobre un fondo casi negro da un contraste duro que no usa
+        // ninguna otra pantalla.
+        background-color: $bo-canvas;
+        border-radius: 3px;
+        padding: 2.5rem;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+    }
+
+    &__header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    &__logo {
+        width: auto;
+        height: 30px;
+        margin-bottom: 1.25rem;
+    }
+
+    // El titular va en la serif de la marca, igual que los titulares del backoffice.
+    &__title {
+        font-family: 'IBM Plex Serif', 'Iowan Old Style', Georgia, serif;
+        font-size: 1.5rem;
+        font-weight: 500;
+        color: $bo-heading-color;
+        margin: 0 0 0.25rem;
+    }
+
+    &__subtitle {
+        color: $bo-body-color-muted;
+        font-size: 0.875rem;
+        margin: 0;
+    }
+}
+
+// ============================================================================
+// RESPONSIVE
+// ============================================================================
+@media (max-width: 991.98px) {
+    .bo-sidebar {
+        transform: translateX(-100%);
+
+        &.bo-sidebar--open {
+            transform: translateX(0);
+        }
+    }
+
+    .bo-main {
+        margin-left: 0;
+    }
+
+    .bo-topbar__toggle {
+        display: block !important;
+    }
+
+    .bo-overlay--visible {
+        display: block;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .bo-content {
+        padding: 1rem;
+    }
+
+    .bo-page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+
+        &__actions {
+            width: 100%;
+            // `flex-wrap` + `flex: 1 1 auto` en vez de `flex: 1`: con `flex: 1` a
+            // secas los botones se estrujaban y el texto partia en dos lineas
+            // dentro del boton. Con `nowrap` el texto nunca se parte; si no caben, se
+            // reparten en varias filas en lugar de comprimirse.
+            flex-wrap: wrap;
+
+            .btn {
+                flex: 1 1 auto;
+                white-space: nowrap;
+            }
+        }
+    }
+}

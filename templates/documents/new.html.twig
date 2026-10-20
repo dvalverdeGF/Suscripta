@@ -1,36 +1,45 @@
-{% extends 'layout/app.html.twig' %}
+{% extends 'backoffice/base.html.twig' %}
 
 {% block title %}Subir documento — Suscripta{% endblock %}
 
-{% block main %}
-    <div class="page-header">
-        <div class="page-header__title">
-            <p class="text-muted text-sm">
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <p class="bo-page-header__back">
                 <a href="{{ path('app_documents_index') }}">← Documentos</a>
             </p>
-            <h1>Subir documento</h1>
-            <p class="page-header__subtitle">
+            <h1 class="bo-page-header__title">Subir documento</h1>
+            <p class="bo-page-header__subtitle">
                 Facturas en papel, contratos firmados o justificantes que no llegaron por correo.
             </p>
         </div>
     </div>
 
-    {{ form_start(form, {attr: {class: 'form'}}) }}
+    {#
+    El formulario lleva `id` porque el boton de guardar vive en la barra de
+    acciones del pie y se le asocia con el atributo HTML `form`.
+#}
+{{ form_start(form, {attr: {id: 'document-form', class: 'form'}}) }}
         {{ form_errors(form) }}
 
-        <div class="card mb-6">
-            <div class="card__body">
+        <div class="card mb-4">
+            <div class="card-body">
                 {{ form_row(form.file) }}
-                <div class="grid grid--2">
+                <div class="row g-3">
                     {{ form_row(form.type) }}
                     {{ form_row(form.serviceId) }}
                 </div>
             </div>
         </div>
 
-        <div class="form-actions">
-            <button type="submit" class="btn btn--primary">Guardar documento</button>
-            <a class="btn btn--ghost" href="{{ path('app_documents_index') }}">Cancelar</a>
-        </div>
     {{ form_end(form) }}
+{% endblock %}
+
+{% block page_actions %}
+    {{ include('backoffice/_form_actions.html.twig', {
+        form_id: 'document-form',
+        submit_label: 'Guardar documento',
+        submit_icon: 'fa-cloud-arrow-up',
+        back_path: path('app_documents_index'),
+    }) }}
 {% endblock %}

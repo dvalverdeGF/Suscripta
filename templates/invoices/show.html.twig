@@ -1,32 +1,32 @@
-{% extends 'layout/app.html.twig' %}
+{% extends 'backoffice/base.html.twig' %}
 
 {% block title %}Factura del {{ invoice.issuedAt|date('d/m/Y') }} — Suscripta{% endblock %}
 
-{% block main %}
-    <div class="page-header">
-        <div class="page-header__title">
-            <p class="text-muted text-sm">
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <p class="bo-page-header__back">
                 <a href="{{ path('app_invoices_index') }}">← Facturas</a>
             </p>
-            <h1>{{ invoice.total.format() }}</h1>
-            <p class="page-header__subtitle">
+            <h1 class="bo-page-header__title">{{ invoice.total.format() }}</h1>
+            <p class="bo-page-header__subtitle">
                 <time datetime="{{ invoice.issuedAt|date('c') }}">{{ invoice.issuedAt|date('d/m/Y') }}</time>
-                <span class="badge badge--{{ invoice.status.value == 'paid' ? 'success' : (invoice.status.value == 'failed' ? 'danger' : 'info') }}">
+                <span class="badge text-bg-{{ invoice.status.value == 'paid' ? 'success' : (invoice.status.value == 'failed' ? 'danger' : 'info') }}">
                     {{ invoice.status.label() }}
                 </span>
             </p>
         </div>
     </div>
 
-    <div class="grid grid--2">
+    <div class="row g-3">
         <div class="card">
-            <div class="card__header">
-                <h2 class="card__title">Detalle</h2>
+            <div class="card-header">
+                <h2 class="card-title">Detalle</h2>
             </div>
-            <div class="card__body">
-                <dl class="definition-list">
+            <div class="card-body">
+                <dl class="bo-definition-list">
                     <dt>Importe</dt>
-                    <dd class="num">{{ invoice.total.format() }}</dd>
+                    <dd class="text-end">{{ invoice.total.format() }}</dd>
 
                     <dt>Moneda</dt>
                     <dd>{{ invoice.currency.value }}</dd>
@@ -60,17 +60,17 @@
             </div>
         </div>
 
-        <div class="stack">
+        <div class="d-flex flex-column gap-3">
             {% if service %}
                 <div class="card">
-                    <div class="card__header">
-                        <h2 class="card__title">Servicio</h2>
+                    <div class="card-header">
+                        <h2 class="card-title">Servicio</h2>
                     </div>
-                    <div class="card__body">
+                    <div class="card-body">
                         <p>
                             <a href="{{ path('app_services_show', {id: service.id.toRfc4122()}) }}">{{ service.name }}</a>
                         </p>
-                        <dl class="definition-list">
+                        <dl class="bo-definition-list">
                             <dt>Estado</dt>
                             <dd>{{ service.status.label() }}</dd>
                             <dt>Periodicidad</dt>
@@ -81,15 +81,15 @@
             {% endif %}
 
             <div class="card">
-                <div class="card__header">
-                    <h2 class="card__title">Documento</h2>
+                <div class="card-header">
+                    <h2 class="card-title">Documento</h2>
                 </div>
-                <div class="card__body">
+                <div class="card-body">
                     {% if document %}
                         <p>
                             <a href="{{ path('app_documents_show', {id: document.id.toRfc4122()}) }}">{{ document.displayName() }}</a>
                         </p>
-                        <a class="btn btn--secondary btn--sm" href="{{ path('app_documents_download', {id: document.id.toRfc4122()}) }}">Descargar</a>
+                        <a class="btn btn-outline-secondary btn-sm" href="{{ path('app_documents_download', {id: document.id.toRfc4122()}) }}">Descargar</a>
                     {% else %}
                         <p class="text-muted">Esta factura no tiene un fichero asociado.</p>
                     {% endif %}
