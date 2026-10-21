@@ -110,10 +110,39 @@ services:
         arguments:
             $config: '%app.processing.billing_score%'
 
+    # El read model de servicios (Fase 12). Es un servicio explícito, y no un
+    # alias, porque tiene su propia implementación: el repositorio de escritura
+    # devuelve entidades y este devuelve vistas. Ver ARCHITECTURE.md §3.
+    App\Services\Domain\Repository\ServiceViewRepositoryInterface: '@App\Services\Infrastructure\Repository\ServiceViewRepository'
+
+    # Los pesos del matching de servicios son configuración de producto
+    # (config/packages/processing.yaml), igual que los del filtro de facturación.
+    App\Processing\Application\Matching\ServiceMatchWeights:
+        factory: ['App\Processing\Application\Matching\ServiceMatchWeights', 'fromArray']
+        arguments:
+            $config: '%app.processing.matching%'
+
+    # Los parámetros de la bandeja de descubrimientos (cuánto vive una
+    # propuesta, cuánto se recuerda que el usuario la descartó) son política de
+    # producto: config/packages/discovery.yaml.
+    App\Discovery\Application\DiscoverySettings:
+        factory: ['App\Discovery\Application\DiscoverySettings', 'fromArray']
+        arguments:
+            $config: '%app.discovery%'
+
     # El pipeline depende del puerto, no de la implementación: qué merece
     # analizarse es una política de producto y debe poder sustituirse sin tocar
     # el orquestador (D-31).
     App\Processing\Domain\Billing\BillingClassifierInterface: '@App\Processing\Application\Billing\BillingScoreCalculator'
+
+    # El emparejamiento con el inventario también es política de producto: qué
+    # señales pesan y qué puntuación asocia sola (ARCHITECTURE.md §13.10, D-35).
+    App\Processing\Domain\Matching\ServiceMatcherInterface: '@App\Processing\Application\Matching\ServiceMatcher'
+
+    # La detección de periodicidad es determinista por diseño (ARCHITECTURE.md §9):
+    # el puerto existe para poder sustituirla, no porque la implementación vaya a
+    # cambiar pronto.
+    App\Discovery\Domain\Recurrence\RecurrenceDetectorInterface: '@App\Discovery\Application\Recurrence\IntervalRecurrenceDetector'
 
     # ── Nivel 3: lectura de documentos (ARCHITECTURE.md §13.6) ──────────────
     # El orden importa: se prueba el primero que reconozca el formato. El PDF va

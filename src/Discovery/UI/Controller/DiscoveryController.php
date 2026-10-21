@@ -6,6 +6,7 @@ namespace App\Discovery\UI\Controller;
 
 use App\Catalog\Domain\Repository\CategoryRepositoryInterface;
 use App\Catalog\Domain\Repository\ProviderRepositoryInterface;
+use App\Discovery\Application\BatchReviewDiscoveries;
 use App\Discovery\Application\ConfirmDiscovery;
 use App\Discovery\Application\DismissDiscovery;
 use App\Discovery\Domain\Entity\Discovery;
@@ -20,6 +21,7 @@ use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Exception\InvalidArgumentException;
 use App\Shared\Domain\ValueObject\Currency;
 
+use function is_string;
 use function sprintf;
 
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -76,6 +78,51 @@ final class DiscoveryController extends AbstractController
             'status' => $status,
             'counts' => $this->discoveries->countByStatus(),
         ]);
+    }
+
+    /**
+     * Revisión por lotes: el usuario marca varias propuestas y las acepta o
+     * descarta de una vez.
+     *
+     * El lote confirma lo que el pipeline propuso, sin tocar los datos. La
+     * revisión fina sigue estando en la pantalla de cada propuesta.
+     */
+    #[Route('/batch', name: 'batch', methods: ['POST'])]
+    public function batch(Request $request, BatchReviewDiscoveries $batchReview): Response
+    {
+        if (!$this->isCsrfTokenValid('discovery_batch', (string) $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException('Token CSRF no válido.');
+        }
+
+        $discoveries = $this->loadSelected($request);
+
+        if ([] === $discoveries) {
+            $this->addFlash('info', 'No has seleccionado ninguna propuesta.');
+
+            return $this->redirectToRoute('app_discoveries_index');
+        }
+
+        $action = (string) $request->request->get('action', '');
+
+        if ('confirm' === $action) {
+            $result = $batchReview->confirm($discoveries, $this->actorId());
+            $this->addFlash('success', sprintf(
+                '%d propuesta(s) confirmada(s). %s',
+                $result->confirmed,
+                $result->failed > 0 ? sprintf('%d no se han podido confirmar.', $result->failed) : '',
+            ));
+        } elseif ('dismiss' === $action) {
+            $result = $batchReview->dismiss($discoveries, null, $this->actorId());
+            $this->addFlash('info', sprintf(
+                '%d propuesta(s) descartada(s). %s',
+                $result->dismissed,
+                $result->failed > 0 ? sprintf('%d no se han podido descartar.', $result->failed) : '',
+            ));
+        } else {
+            throw $this->createAccessDeniedException('Acción de lote no reconocida.');
+        }
+
+        return $this->redirectToRoute('app_discoveries_index');
     }
 
     #[Route('/{id}', name: 'show', methods: ['GET'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
@@ -181,6 +228,35 @@ final class DiscoveryController extends AbstractController
             'provider_choices' => $providerChoices,
             'category_choices' => $categoryChoices,
         ];
+    }
+
+    /**
+     * Propuestas marcadas en el formulario de lote.
+     *
+     * Los identificadores que no son UUID válidos se descartan en silencio: un
+     * formulario manipulado no debe romper la pantalla, solo no debe hacer
+     * nada con lo que no reconoce.
+     *
+     * @return list<Discovery>
+     */
+    private function loadSelected(Request $request): array
+    {
+        $ids = $request->request->all('discoveries');
+        $discoveries = [];
+
+        foreach ($ids as $id) {
+            if (!is_string($id) || !Uuid::isValid($id)) {
+                continue;
+            }
+
+            $discovery = $this->discoveries->find(Uuid::fromString($id));
+
+            if (null !== $discovery) {
+                $discoveries[] = $discovery;
+            }
+        }
+
+        return $discoveries;
     }
 
     private function actorId(): ?Uuid

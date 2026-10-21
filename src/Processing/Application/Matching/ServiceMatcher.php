@@ -8,9 +8,11 @@ use function abs;
 
 use App\Processing\Domain\Dto\ExtractedDocument;
 use App\Processing\Domain\Dto\ServiceMatchResult;
-use App\Services\Domain\Entity\Service;
+use App\Processing\Domain\Matching\MatchConfidence;
+use App\Processing\Domain\Matching\ServiceMatcherInterface;
+use App\Services\Domain\Dto\ServiceView;
 use App\Services\Domain\Repository\ServiceFilters;
-use App\Services\Domain\Repository\ServiceRepositoryInterface;
+use App\Services\Domain\Repository\ServiceViewRepositoryInterface;
 use App\Shared\Domain\ValueObject\Currency;
 use App\Shared\Domain\ValueObject\Money;
 
@@ -21,6 +23,9 @@ use function sprintf;
 use function str_contains;
 use function strpos;
 use function substr;
+
+use Symfony\Component\Uid\Uuid;
+
 use function trim;
 
 /**
@@ -35,32 +40,23 @@ use function trim;
  *
  * Regla de producto: **nunca se crea un servicio automáticamente**. Este
  * servicio solo puntúa; la decisión la toma el usuario sobre un `Discovery`.
+ *
+ * Lee el inventario por el **read model** (`ServiceView`) y no por la entidad:
+ * el emparejamiento solo necesita consultar, y atarlo a la forma interna de
+ * `Service` obligaría a tocar el pipeline cada vez que la entidad cambie
+ * (ARCHITECTURE.md §3).
  */
-final readonly class ServiceMatcher
+final readonly class ServiceMatcher implements ServiceMatcherInterface
 {
-    public const int PROVIDER_WEIGHT = 40;
-    public const int DOMAIN_WEIGHT = 20;
-    public const int NAME_WEIGHT = 20;
-    public const int CURRENCY_WEIGHT = 5;
-    public const int PERIODICITY_WEIGHT = 5;
-    public const int AMOUNT_WEIGHT = 5;
-    public const int SENDER_WEIGHT = 5;
-
-    /**
-     * Tolerancia de importe: una subida de precio sigue siendo el mismo
-     * servicio, pero un importe muy distinto suele ser otro plan u otro
-     * producto.
-     */
-    private const float AMOUNT_TOLERANCE = 0.10;
-
     public function __construct(
-        private ServiceRepositoryInterface $services,
+        private ServiceViewRepositoryInterface $services,
+        private ServiceMatchWeights $weights,
     ) {
     }
 
-    public function match(ExtractedDocument $document): ServiceMatchResult
+    public function match(ExtractedDocument $document, ?Uuid $providerId = null): ServiceMatchResult
     {
-        $candidates = $this->services->findForOrganization(ServiceFilters::none());
+        $candidates = $this->services->findAll(ServiceFilters::none());
 
         if ([] === $candidates) {
             return ServiceMatchResult::none();
@@ -69,7 +65,7 @@ final readonly class ServiceMatcher
         $best = ServiceMatchResult::none();
 
         foreach ($candidates as $service) {
-            $result = $this->scoreAgainst($service, $document);
+            $result = $this->scoreAgainst($service, $document, $providerId);
 
             if ($result->score > $best->score) {
                 $best = $result;
@@ -79,61 +75,71 @@ final readonly class ServiceMatcher
         return $best;
     }
 
-    private function scoreAgainst(Service $service, ExtractedDocument $document): ServiceMatchResult
-    {
+    private function scoreAgainst(
+        ServiceView $service,
+        ExtractedDocument $document,
+        ?Uuid $providerId,
+    ): ServiceMatchResult {
         $score = 0;
         $reasons = [];
 
-        if (null !== $document->providerName && null !== $service->getProviderId()) {
-            $score += self::PROVIDER_WEIGHT;
+        // La señal de proveedor es la más pesada del modelo, así que solo se
+        // concede cuando hay **identidad**: el proveedor resuelto en el
+        // catálogo tiene que ser exactamente el del servicio. Comparar nombres
+        // —o simplemente suponer que «ambos tienen proveedor»— puntuaría igual
+        // una factura de Netflix contra un servicio de OVH. Un proveedor
+        // provisional (deducido por nombre, sin identidad) no puntúa: un nombre
+        // adivinado no es una identidad.
+        if (null !== $providerId && null !== $service->providerId && $providerId->equals($service->providerId)) {
+            $score += $this->weights->provider;
             $reasons[] = [
                 'signal' => 'Proveedor identificado',
-                'weight' => self::PROVIDER_WEIGHT,
+                'weight' => $this->weights->provider,
                 'detail' => $document->providerName,
             ];
         }
 
         if (null !== $document->senderDomain && $this->domainMatches($service, $document->senderDomain)) {
-            $score += self::DOMAIN_WEIGHT;
+            $score += $this->weights->domain;
             $reasons[] = [
                 'signal' => 'Dominio del remitente',
-                'weight' => self::DOMAIN_WEIGHT,
+                'weight' => $this->weights->domain,
                 'detail' => $document->senderDomain,
             ];
         }
 
-        if (null !== $document->serviceName && $this->nameMatches($service->getName(), $document->serviceName)) {
-            $score += self::NAME_WEIGHT;
+        if (null !== $document->serviceName && $this->nameMatches($service->name, $document->serviceName)) {
+            $score += $this->weights->name;
             $reasons[] = [
                 'signal' => 'Nombre del servicio',
-                'weight' => self::NAME_WEIGHT,
+                'weight' => $this->weights->name,
                 'detail' => $document->serviceName,
             ];
         }
 
-        if (null !== $document->currency && $document->currency === $service->getCurrency()->value) {
-            $score += self::CURRENCY_WEIGHT;
+        if (null !== $document->currency && $document->currency === $service->currency->value) {
+            $score += $this->weights->currency;
             $reasons[] = [
                 'signal' => 'Misma moneda',
-                'weight' => self::CURRENCY_WEIGHT,
+                'weight' => $this->weights->currency,
                 'detail' => $document->currency,
             ];
         }
 
-        if (null !== $document->billingPeriod && $document->billingPeriod === $service->getBillingPeriod()) {
-            $score += self::PERIODICITY_WEIGHT;
+        if (null !== $document->billingPeriod && $document->billingPeriod === $service->billingPeriod) {
+            $score += $this->weights->periodicity;
             $reasons[] = [
                 'signal' => 'Misma periodicidad',
-                'weight' => self::PERIODICITY_WEIGHT,
+                'weight' => $this->weights->periodicity,
                 'detail' => $document->billingPeriod->label(),
             ];
         }
 
         if ($this->amountMatches($service, $document)) {
-            $score += self::AMOUNT_WEIGHT;
+            $score += $this->weights->amount;
             $reasons[] = [
                 'signal' => 'Importe compatible',
-                'weight' => self::AMOUNT_WEIGHT,
+                'weight' => $this->weights->amount,
                 'detail' => null !== $document->amountMinor && null !== $document->currency
                     ? Money::of($document->amountMinor, Currency::from($document->currency))->format()
                     : null,
@@ -141,20 +147,25 @@ final readonly class ServiceMatcher
         }
 
         if (null !== $document->sender && $this->senderMatches($service, $document->sender)) {
-            $score += self::SENDER_WEIGHT;
+            $score += $this->weights->sender;
             $reasons[] = [
                 'signal' => 'Remitente exacto ya visto',
-                'weight' => self::SENDER_WEIGHT,
+                'weight' => $this->weights->sender,
                 'detail' => $document->sender,
             ];
         }
 
-        return ServiceMatchResult::forService($service, $score, $reasons);
+        return ServiceMatchResult::forService(
+            $service->id,
+            $score,
+            $reasons,
+            MatchConfidence::fromScore($score, $this->weights->highThreshold, $this->weights->mediumThreshold),
+        );
     }
 
-    private function domainMatches(Service $service, string $domain): bool
+    private function domainMatches(ServiceView $service, string $domain): bool
     {
-        $name = mb_strtolower($service->getName());
+        $name = mb_strtolower($service->name);
         $domain = mb_strtolower($domain);
 
         // `ovh.com` → `ovh`: el nombre del servicio casi nunca incluye el TLD.
@@ -184,13 +195,13 @@ final readonly class ServiceMatcher
         return str_contains($a, $b) || str_contains($b, $a);
     }
 
-    private function amountMatches(Service $service, ExtractedDocument $document): bool
+    private function amountMatches(ServiceView $service, ExtractedDocument $document): bool
     {
         if (null === $document->amountMinor || null === $document->currency) {
             return false;
         }
 
-        $current = $service->getCurrentAmount();
+        $current = $service->currentAmount;
 
         if (null === $current || $current->currency->value !== $document->currency) {
             return false;
@@ -204,12 +215,12 @@ final readonly class ServiceMatcher
 
         $delta = abs($document->amountMinor - $reference) / $reference;
 
-        return $delta <= self::AMOUNT_TOLERANCE;
+        return $delta <= $this->weights->amountTolerance;
     }
 
-    private function senderMatches(Service $service, string $sender): bool
+    private function senderMatches(ServiceView $service, string $sender): bool
     {
-        $name = mb_strtolower(trim($service->getName()));
+        $name = mb_strtolower(trim($service->name));
         $sender = mb_strtolower($sender);
 
         if ('' === $sender || '' === $name) {

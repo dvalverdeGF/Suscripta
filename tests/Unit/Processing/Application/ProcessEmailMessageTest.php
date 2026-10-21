@@ -11,10 +11,12 @@ use App\Catalog\Domain\Entity\ProviderIdentity;
 use App\Catalog\Domain\Enum\ProviderIdentityType;
 use App\Catalog\Domain\Repository\ProviderIdentityRepositoryInterface;
 use App\Catalog\Domain\Repository\ProviderParserRepositoryInterface;
+use App\Discovery\Application\DiscoverySettings;
 use App\Discovery\Domain\Entity\Discovery;
 use App\Discovery\Domain\Entity\DiscoveryEvidence;
 use App\Discovery\Domain\Enum\DiscoveryType;
 use App\Discovery\Domain\Repository\DiscoveryRepositoryInterface;
+use App\Documents\Domain\Repository\DocumentRepositoryInterface;
 use App\Mailbox\Application\CredentialCipherInterface;
 use App\Mailbox\Application\Imap\ImapClientInterface;
 use App\Mailbox\Application\Imap\ImapConnectionConfig;
@@ -35,6 +37,7 @@ use App\Processing\Application\Extraction\DateParser;
 use App\Processing\Application\Extraction\DeterministicExtractor;
 use App\Processing\Application\Extraction\InvoiceNumberReader;
 use App\Processing\Application\Matching\ServiceMatcher;
+use App\Processing\Application\Matching\ServiceMatchWeights;
 use App\Processing\Application\MessageStateMachine;
 use App\Processing\Application\ProcessEmailMessage;
 use App\Processing\Application\Provider\ExtractWithProviderParser;
@@ -46,8 +49,10 @@ use App\Processing\Domain\Dto\ExtractedDocument;
 use App\Processing\Infrastructure\Ocr\NullOcrEngine;
 use App\Processing\Infrastructure\Text\PdfTextExtractor;
 use App\Processing\Infrastructure\Text\PlainTextExtractor;
+use App\Services\Domain\Dto\ServiceView;
 use App\Services\Domain\Entity\Service;
-use App\Services\Domain\Repository\ServiceRepositoryInterface;
+use App\Services\Domain\Repository\ServiceFilters;
+use App\Services\Domain\Repository\ServiceViewRepositoryInterface;
 use App\Shared\Application\Audit\AuditLoggerInterface;
 use App\Shared\Application\Clock;
 use App\Shared\Application\TenantContext;
@@ -100,9 +105,14 @@ final class ProcessEmailMessageTest extends TestCase
 
     private ProviderParserRepositoryInterface&MockObject $parsers;
 
-    private ServiceRepositoryInterface&MockObject $services;
+    private ServiceViewRepositoryInterface&MockObject $services;
+
+    private DocumentRepositoryInterface&MockObject $documents;
 
     private InMemoryExtractionCacheRepository $cache;
+
+    /** @var list<ServiceView> */
+    private array $serviceViews = [];
 
     /** @var list<Discovery> */
     private array $savedDiscoveries = [];
@@ -130,8 +140,15 @@ final class ProcessEmailMessageTest extends TestCase
         $this->audit = $this->createMock(AuditLoggerInterface::class);
         $this->identities = $this->createMock(ProviderIdentityRepositoryInterface::class);
         $this->parsers = $this->createMock(ProviderParserRepositoryInterface::class);
-        $this->services = $this->createMock(ServiceRepositoryInterface::class);
+        $this->services = $this->createMock(ServiceViewRepositoryInterface::class);
+        $this->documents = $this->createMock(DocumentRepositoryInterface::class);
         $this->cache = new InMemoryExtractionCacheRepository();
+
+        $this->serviceViews = [];
+
+        $this->services
+            ->method('findAll')
+            ->willReturnCallback(fn (ServiceFilters $filters): array => $this->serviceViews);
 
         $this->savedDiscoveries = [];
         $this->savedEvidence = [];
@@ -168,7 +185,10 @@ final class ProcessEmailMessageTest extends TestCase
      */
     private function orchestrator(array $services = [], ?AiExtractionInterface $aiExtraction = null): ProcessEmailMessage
     {
-        $this->services->method('findForOrganization')->willReturn($services);
+        $this->serviceViews = array_map(
+            static fn (Service $service): ServiceView => ServiceView::fromService($service),
+            $services,
+        );
 
         $clock = new Clock(new MockClock(new DateTimeImmutable('2026-10-05 10:00:00')));
 
@@ -180,8 +200,10 @@ final class ProcessEmailMessageTest extends TestCase
             documentText: $this->documentText(),
             providerResolver: new ProviderResolver($this->identities, $clock),
             providerParser: new ExtractWithProviderParser($this->parsers, new ProviderParserRegistry([]), $clock),
-            matcher: new ServiceMatcher($this->services),
+            matcher: new ServiceMatcher($this->services, ServiceMatchWeights::default()),
             discoveries: $this->discoveries,
+            documents: $this->documents,
+            discoverySettings: new DiscoverySettings(),
             stateMachine: new MessageStateMachine($this->events, $clock),
             imapClient: $this->imap,
             cipher: $this->cipher,
@@ -241,15 +263,23 @@ final class ProcessEmailMessageTest extends TestCase
         return $account;
     }
 
-    private function knownProvider(string $name, string $domain): void
+    /**
+     * Registra un proveedor conocido en el catálogo y devuelve la entidad: el
+     * servicio de prueba tiene que apuntar al **mismo** proveedor, porque la
+     * señal de proveedor solo concede puntos con identidad exacta.
+     */
+    private function knownProvider(string $name, string $domain): Provider
     {
-        $identity = new ProviderIdentity(new Provider($name, mb_strtolower($name)), ProviderIdentityType::DOMAIN, $domain);
+        $provider = new Provider($name, mb_strtolower($name));
+        $identity = new ProviderIdentity($provider, ProviderIdentityType::DOMAIN, $domain);
 
         $this->identities
             ->method('findByTypeAndValue')
             ->willReturnCallback(
                 static fn (ProviderIdentityType $type, string $value): ?ProviderIdentity => ProviderIdentityType::DOMAIN === $type && $value === $domain ? $identity : null,
             );
+
+        return $provider;
     }
 
     private function withBody(string $body): void
@@ -408,11 +438,11 @@ final class ProcessEmailMessageTest extends TestCase
 
     public function testAHighConfidenceMatchIsAssociatedWithoutCreatingAService(): void
     {
-        $this->knownProvider('OVH', 'ovh.com');
+        $provider = $this->knownProvider('OVH', 'ovh.com');
         $this->withBody('Factura nº: FRA-1. Total 29,90 €. Facturación mensual.');
 
         $service = new Service($this->organizationId, 'OVH', Currency::EUR, BillingPeriod::MONTHLY);
-        $service->setProviderId(Uuid::v7());
+        $service->setProviderId($provider->getId());
         $service->changePrice(Money::of(2990, Currency::EUR), new DateTimeImmutable('2026-01-01'));
 
         $message = $this->message();
@@ -425,11 +455,11 @@ final class ProcessEmailMessageTest extends TestCase
 
     public function testAHighConfidenceMatchWithADifferentAmountProposesAPriceChange(): void
     {
-        $this->knownProvider('OVH', 'ovh.com');
+        $provider = $this->knownProvider('OVH', 'ovh.com');
         $this->withBody('Factura nº: FRA-1. Total 34,90 €. Facturación mensual.');
 
         $service = new Service($this->organizationId, 'OVH', Currency::EUR, BillingPeriod::MONTHLY);
-        $service->setProviderId(Uuid::v7());
+        $service->setProviderId($provider->getId());
         $service->changePrice(Money::of(2990, Currency::EUR), new DateTimeImmutable('2026-01-01'));
 
         $message = $this->message();
@@ -486,7 +516,7 @@ final class ProcessEmailMessageTest extends TestCase
             ],
         );
 
-        $this->discoveries->method('findOpenByDedupKey')->willReturn($existing);
+        $this->discoveries->method('findBlockingByDedupKey')->willReturn($existing);
 
         $message = $this->message('Factura', 'facturacion@desconocido.com');
         $result = $this->orchestrator()($message);
@@ -541,8 +571,10 @@ final class ProcessEmailMessageTest extends TestCase
             documentText: $this->documentText(),
             providerResolver: new ProviderResolver($this->identities, $clock),
             providerParser: new ExtractWithProviderParser($this->parsers, new ProviderParserRegistry([]), $clock),
-            matcher: new ServiceMatcher($this->services),
+            matcher: new ServiceMatcher($this->services, ServiceMatchWeights::default()),
             discoveries: $this->discoveries,
+            documents: $this->documents,
+            discoverySettings: new DiscoverySettings(),
             stateMachine: new MessageStateMachine($this->events, $clock),
             imapClient: $this->imap,
             cipher: $this->cipher,

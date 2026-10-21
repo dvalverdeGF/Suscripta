@@ -23,6 +23,7 @@ enum ServiceEventType: string
     case CANCELLED = 'cancelled';
     case DOCUMENT_ADDED = 'document_added';
     case DISCOVERED = 'discovered';
+    case RECURRENCE_DETECTED = 'recurrence_detected';
     case NOTE_ADDED = 'note_added';
 
     public function label(): string
@@ -37,6 +38,7 @@ enum ServiceEventType: string
             self::CANCELLED => 'Servicio cancelado',
             self::DOCUMENT_ADDED => 'Documento añadido',
             self::DISCOVERED => 'Descubierto en el correo',
+            self::RECURRENCE_DETECTED => 'Periodicidad detectada',
             self::NOTE_ADDED => 'Nota añadida',
         };
     }

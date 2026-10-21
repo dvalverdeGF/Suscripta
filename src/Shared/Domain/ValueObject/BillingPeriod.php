@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Shared\Domain\ValueObject;
 
 use App\Shared\Domain\Exception\InvalidArgumentException;
+use DateTimeImmutable;
 
 use function in_array;
 
@@ -137,6 +138,50 @@ enum BillingPeriod: string
         }
 
         return $best;
+    }
+
+    /**
+     * Avanza una fecha según la periodicidad.
+     *
+     * Los periodos expresables en meses se avanzan con aritmética de calendario,
+     * no sumando 30 días: una suscripción mensual del 31 de enero se cobra el 28
+     * de febrero, no el 2 de marzo.
+     *
+     * `DateTimeImmutable::modify('+1 month')` **desborda**: el 31 de enero más un
+     * mes da el 3 de marzo, porque PHP normaliza el 31 de febrero. Por eso el
+     * cálculo se hace a mano y se recorta al último día del mes destino.
+     */
+    public function advance(DateTimeImmutable $from, int $intervalCount = 1): DateTimeImmutable
+    {
+        $months = $this->months();
+
+        if (null !== $months) {
+            return self::addMonths($from, $months * $intervalCount);
+        }
+
+        $days = $this->days();
+
+        if (null !== $days) {
+            return $from->modify(sprintf('+%d days', $days * $intervalCount));
+        }
+
+        return $from;
+    }
+
+    /**
+     * Suma meses conservando el día del mes cuando existe en el mes destino y
+     * recortando al último día cuando no (31 de enero + 1 mes = 28 de febrero).
+     */
+    private static function addMonths(DateTimeImmutable $from, int $months): DateTimeImmutable
+    {
+        $month = (int) $from->format('n') + $months;
+        $year = (int) $from->format('Y') + intdiv($month - 1, 12);
+        $month = (($month - 1) % 12 + 12) % 12 + 1;
+
+        $day = (int) $from->format('j');
+        $lastDayOfMonth = (int) $from->setDate($year, $month, 1)->format('t');
+
+        return $from->setDate($year, $month, min($day, $lastDayOfMonth));
     }
 
     /**

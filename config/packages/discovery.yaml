@@ -1,0 +1,26 @@
+# Parámetros de la bandeja de descubrimientos (ARCHITECTURE.md §13.10, Fase 12).
+#
+# Son decisiones de producto: cuánto tiempo vive una propuesta antes de
+# expirar y cuánto tiempo se recuerda que el usuario la descartó. Viven aquí y
+# no en el código para poder ajustarlos sin desplegar.
+#
+# Se declaran como un bloque plano porque Symfony no resuelve el acceso a
+# claves de un array anidado (D-43): el bloque se consume entero.
+parameters:
+    app.discovery:
+        # Días que una propuesta sigue viva en la bandeja antes de expirar.
+        #
+        # Expirar no es borrar: la propuesta pasa a `expired` y sale de la
+        # bandeja, pero se conserva el histórico. Pasado este tiempo el
+        # usuario ya no va a decidir nada sobre ella.
+        expiry_days: 90
+
+        # Días durante los que una propuesta ignorada sigue bloqueando nuevas
+        # propuestas con la misma clave (mismo proveedor, importe, moneda y
+        # periodicidad).
+        #
+        # Es una ventana, no un veto eterno: si el usuario descartó la
+        # suscripción de ejemplo hace seis meses, una factura nueva de ese
+        # proveedor vuelve a merecer una pregunta. Sin ventana, descartar una
+        # sola vez silenciaría al proveedor para siempre.
+        ignore_suppression_days: 90

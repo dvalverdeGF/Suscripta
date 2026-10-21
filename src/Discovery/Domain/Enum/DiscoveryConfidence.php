@@ -27,8 +27,13 @@ enum DiscoveryConfidence: string
     }
 
     /**
-     * Umbrales: ≥ 80 alta, ≥ 55 media, por debajo baja. Son los mismos que usa
-     * el `ServiceMatcher` para decidir entre asociar y proponer (§13.10).
+     * Umbrales de la **confianza de extracción**: ≥ 80 alta, ≥ 55 media, por
+     * debajo baja.
+     *
+     * No son los umbrales del emparejamiento (70/40, §13.10): estos miden
+     * cuánto confía el extractor en los datos que ha leído, y aquellos miden
+     * cuánto se parece un documento a un servicio que ya existe. Son dos
+     * preguntas distintas y por eso tienen dos escalas distintas.
      */
     public static function fromScore(int $score): self
     {

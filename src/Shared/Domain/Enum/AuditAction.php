@@ -59,6 +59,7 @@ enum AuditAction: string
     case DISCOVERY_CONFIRMED = 'discovery.confirmed';
     case DISCOVERY_DISMISSED = 'discovery.dismissed';
     case DISCOVERY_CREATED = 'discovery.created';
+    case DISCOVERY_EXPIRED = 'discovery.expired';
 
     // Avisos y notificaciones
     case ALERT_GENERATED = 'alert.generated';
@@ -113,6 +114,7 @@ enum AuditAction: string
             self::SERVICE_DELETED => 'Servicio eliminado',
             self::SERVICE_PRICE_CHANGED => 'Precio del servicio modificado',
             self::DISCOVERY_CREATED => 'Descubrimiento creado',
+            self::DISCOVERY_EXPIRED => 'Descubrimiento caducado',
             self::DISCOVERY_CONFIRMED => 'Descubrimiento confirmado',
             self::DISCOVERY_DISMISSED => 'Descubrimiento descartado',
             self::ALERT_GENERATED => 'Avisos generados',

@@ -7,20 +7,22 @@ namespace App\Tests\Unit\Processing\Application\Matching;
 use App\Documents\Domain\Enum\DocumentType;
 use App\Mailbox\Domain\Enum\ExtractionTier;
 use App\Processing\Application\Matching\ServiceMatcher;
+use App\Processing\Application\Matching\ServiceMatchWeights;
 use App\Processing\Domain\Dto\ExtractedDocument;
+use App\Services\Domain\Dto\ServiceView;
 use App\Services\Domain\Entity\Service;
 use App\Services\Domain\Repository\ServiceFilters;
-use App\Services\Domain\Repository\ServiceRepositoryInterface;
+use App\Services\Domain\Repository\ServiceViewRepositoryInterface;
 use App\Shared\Domain\ValueObject\BillingPeriod;
 use App\Shared\Domain\ValueObject\Currency;
 use App\Shared\Domain\ValueObject\Money;
 
 use function array_column;
 use function array_key_exists;
+use function array_map;
 
 use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
 
@@ -29,27 +31,30 @@ use Symfony\Component\Uid\Uuid;
  * proveedor puede tener varios servicios y una coincidencia exacta de nombre no
  * siempre significa lo mismo. Y sobre todo: **nunca se crea un servicio
  * automáticamente** (D-35).
+ *
+ * El matcher lee el inventario por el read model (`ServiceView`), así que el
+ * inventario de prueba son vistas construidas a partir de la entidad.
  */
 #[CoversClass(ServiceMatcher::class)]
 final class ServiceMatcherTest extends TestCase
 {
-    private ServiceRepositoryInterface&MockObject $services;
-
-    protected function setUp(): void
-    {
-        $this->services = $this->createMock(ServiceRepositoryInterface::class);
-    }
-
     /**
      * @param list<Service> $services
      */
     private function matcher(array $services): ServiceMatcher
     {
-        $this->services
-            ->method('findForOrganization')
-            ->willReturnCallback(static fn (ServiceFilters $filters): array => $services);
+        $repository = $this->createMock(ServiceViewRepositoryInterface::class);
 
-        return new ServiceMatcher($this->services);
+        $repository
+            ->method('findAll')
+            ->willReturnCallback(
+                static fn (ServiceFilters $filters): array => array_map(
+                    static fn (Service $service): ServiceView => ServiceView::fromService($service),
+                    $services,
+                ),
+            );
+
+        return new ServiceMatcher($repository, ServiceMatchWeights::default());
     }
 
     private function service(
@@ -106,9 +111,10 @@ final class ServiceMatcherTest extends TestCase
 
     public function testAFullMatchIsHighConfidence(): void
     {
-        $service = $this->service('OVH', amount: Money::of(2990, Currency::EUR), providerId: Uuid::v7());
+        $providerId = Uuid::v7();
+        $service = $this->service('OVH', amount: Money::of(2990, Currency::EUR), providerId: $providerId);
 
-        $result = $this->matcher([$service])->match($this->document());
+        $result = $this->matcher([$service])->match($this->document(), $providerId);
 
         self::assertSame($service->getId(), $result->serviceId);
         self::assertTrue($result->isHighConfidence());
@@ -117,9 +123,10 @@ final class ServiceMatcherTest extends TestCase
 
     public function testEverySignalIsExplainable(): void
     {
-        $service = $this->service('OVH', amount: Money::of(2990, Currency::EUR), providerId: Uuid::v7());
+        $providerId = Uuid::v7();
+        $service = $this->service('OVH', amount: Money::of(2990, Currency::EUR), providerId: $providerId);
 
-        $result = $this->matcher([$service])->match($this->document());
+        $result = $this->matcher([$service])->match($this->document(), $providerId);
 
         $signals = array_column($result->reasonsAsArray(), 'signal');
 
@@ -132,12 +139,33 @@ final class ServiceMatcherTest extends TestCase
         self::assertStringContainsString('Puntuación', $result->explain());
     }
 
+    /**
+     * La señal de proveedor es la más pesada (40 puntos) y solo se concede con
+     * **identidad**: el proveedor resuelto tiene que ser exactamente el del
+     * servicio. Un nombre deducido, o un proveedor distinto, no puntúa.
+     */
+    public function testTheProviderSignalOnlyFiresForTheSameIdentity(): void
+    {
+        $providerId = Uuid::v7();
+        $service = $this->service('OVH', amount: Money::of(2990, Currency::EUR), providerId: $providerId);
+
+        $same = $this->matcher([$service])->match($this->document(), $providerId);
+        $other = $this->matcher([$service])->match($this->document(), Uuid::v7());
+        $unknown = $this->matcher([$service])->match($this->document());
+
+        self::assertContains('Proveedor identificado', array_column($same->reasonsAsArray(), 'signal'));
+        self::assertNotContains('Proveedor identificado', array_column($other->reasonsAsArray(), 'signal'));
+        self::assertNotContains('Proveedor identificado', array_column($unknown->reasonsAsArray(), 'signal'));
+        self::assertSame(40, $same->score - $other->score);
+    }
+
     public function testTheBestCandidateWins(): void
     {
+        $providerId = Uuid::v7();
         $weak = $this->service('Netflix', Currency::USD, BillingPeriod::ANNUAL);
-        $strong = $this->service('OVH', amount: Money::of(2990, Currency::EUR), providerId: Uuid::v7());
+        $strong = $this->service('OVH', amount: Money::of(2990, Currency::EUR), providerId: $providerId);
 
-        $result = $this->matcher([$weak, $strong])->match($this->document());
+        $result = $this->matcher([$weak, $strong])->match($this->document(), $providerId);
 
         self::assertSame($strong->getId(), $result->serviceId);
     }
@@ -148,7 +176,7 @@ final class ServiceMatcherTest extends TestCase
      */
     public function testAmountToleranceAcceptsASmallPriceRise(): void
     {
-        $service = $this->service('OVH', amount: Money::of(2990, Currency::EUR), providerId: Uuid::v7());
+        $service = $this->service('OVH', amount: Money::of(2990, Currency::EUR));
 
         $result = $this->matcher([$service])->match($this->document(['amountMinor' => 3200]));
 
@@ -157,7 +185,7 @@ final class ServiceMatcherTest extends TestCase
 
     public function testAmountToleranceRejectsADifferentProduct(): void
     {
-        $service = $this->service('OVH', amount: Money::of(2990, Currency::EUR), providerId: Uuid::v7());
+        $service = $this->service('OVH', amount: Money::of(2990, Currency::EUR));
 
         $result = $this->matcher([$service])->match($this->document(['amountMinor' => 29900]));
 
@@ -187,9 +215,10 @@ final class ServiceMatcherTest extends TestCase
     {
         // Proveedor + dominio = 60: hay un candidato razonable, pero el usuario
         // debe decidir. Es la zona de revisión.
-        $service = $this->service('OVH', Currency::USD, BillingPeriod::ANNUAL, providerId: Uuid::v7());
+        $providerId = Uuid::v7();
+        $service = $this->service('OVH', Currency::USD, BillingPeriod::ANNUAL, providerId: $providerId);
 
-        $result = $this->matcher([$service])->match($this->document(['serviceName' => null]));
+        $result = $this->matcher([$service])->match($this->document(['serviceName' => null]), $providerId);
 
         self::assertTrue($result->isMediumConfidence());
         self::assertGreaterThanOrEqual(40, $result->score);

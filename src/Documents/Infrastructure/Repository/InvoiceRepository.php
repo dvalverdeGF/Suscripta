@@ -67,6 +67,7 @@ final class InvoiceRepository extends DoctrineRepository implements InvoiceRepos
             ->from(Invoice::class, 'i')
             ->where('i.serviceId = :service')
             ->orderBy('i.issuedAt', 'DESC')
+            ->setParameter('service', $serviceId)
             ->getQuery()
             ->getResult();
 

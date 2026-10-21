@@ -803,6 +803,54 @@
     }
 }
 
+// ── Revision por lotes ──────────────────────────────────────────────────────
+//
+// Barra de acciones de la revision por lotes. Se apoya en la tabla y no flota:
+// pertenece a la lista que gobierna, y si se separara de ella el usuario
+// dejaria de saber sobre que filas acts.
+//
+// El estado "vacia" no se oculta, solo se apaga: una barra siempre visible
+// ensena que se puede decidir en lote aunque no haya nada marcado, y el
+// contador dice cuantas hay.
+.bo-batch-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+    padding: 0.75rem 0.875rem;
+    background-color: $bo-surface;
+    border: 1px solid $bo-line;
+    border-radius: 0.5rem;
+
+    // Con algo marcado la barra se distingue: es el momento de decidir.
+    &--active {
+        border-color: rgba($primary, 0.45);
+        background-color: rgba($primary, 0.04);
+    }
+
+    &__count {
+        font-size: 0.8125rem;
+        color: $bo-body-color-muted;
+    }
+
+    &__actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+    }
+}
+
+// Columna de seleccion de la tabla. Va estrecha a proposito: las casillas son
+// un mecanismo, no un dato, y no deben competir con el nombre del servicio.
+.bo-table__select {
+    width: 2.5rem;
+    padding-left: 0.875rem !important;
+    padding-right: 0.25rem !important;
+}
+
 // ── Linea de tiempo ─────────────────────────────────────────────────────────
 //
 // Lista de hechos con su fecha, en vertical. El motivo de que la fecha vaya a la

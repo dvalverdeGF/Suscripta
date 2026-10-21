@@ -37,4 +37,51 @@ final readonly class DiscoveryInput
         public ?string $notes = null,
     ) {
     }
+
+    /**
+     * Copia con otro proveedor asignado.
+     */
+    public function withProviderId(?Uuid $providerId): self
+    {
+        return new self(
+            name: $this->name,
+            currency: $this->currency,
+            billingPeriod: $this->billingPeriod,
+            billingIntervalCount: $this->billingIntervalCount,
+            amount: $this->amount,
+            providerId: $providerId,
+            categoryId: $this->categoryId,
+            planName: $this->planName,
+            startedAt: $this->startedAt,
+            nextChargeAt: $this->nextChargeAt,
+            renewalAt: $this->renewalAt,
+            noticePeriodDays: $this->noticePeriodDays,
+            autoRenews: $this->autoRenews,
+            notes: $this->notes,
+        );
+    }
+
+    /**
+     * Acepta la propuesta tal cual la hizo el pipeline.
+     *
+     * Es lo que se usa en la revisión por lotes: el usuario ha marcado varias
+     * propuestas sin tocar los datos, así que se confirma exactamente lo que
+     * el sistema propuso. Cualquier corrección se hace en la pantalla de
+     * revisión de una propuesta concreta.
+     */
+    public static function fromProposal(ProposedData $proposed): self
+    {
+        $renewalAt = $proposed->renewalAt();
+
+        return new self(
+            name: $proposed->name() ?? 'Servicio sin nombre',
+            currency: $proposed->currency(),
+            billingPeriod: $proposed->billingPeriod(),
+            amount: $proposed->amount(),
+            planName: $proposed->planName(),
+            startedAt: $proposed->startedAt(),
+            nextChargeAt: $renewalAt ?? $proposed->dueAt(),
+            renewalAt: $renewalAt,
+        );
+    }
 }

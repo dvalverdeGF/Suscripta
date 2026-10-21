@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Processing\Application;
 
 use App\Ai\Application\AiExtractionInterface;
+use App\Discovery\Application\DiscoverySettings;
 use App\Discovery\Domain\Entity\Discovery;
 use App\Discovery\Domain\Entity\DiscoveryEvidence;
 use App\Discovery\Domain\Enum\DiscoveryType;
 use App\Discovery\Domain\Repository\DiscoveryRepositoryInterface;
 use App\Documents\Domain\Enum\DocumentType;
+use App\Documents\Domain\Repository\DocumentRepositoryInterface;
 use App\Mailbox\Application\CredentialCipherInterface;
 use App\Mailbox\Application\Imap\ImapClientInterface;
 use App\Mailbox\Application\Imap\ImapConnectionConfig;
@@ -23,13 +25,13 @@ use App\Mailbox\Domain\Exception\ImapFetchException;
 use App\Mailbox\Domain\Repository\EmailAccountRepositoryInterface;
 use App\Mailbox\Domain\Repository\EmailMessageRepositoryInterface;
 use App\Processing\Application\Extraction\DeterministicExtractor;
-use App\Processing\Application\Matching\ServiceMatcher;
 use App\Processing\Application\Provider\ExtractWithProviderParser;
 use App\Processing\Application\Text\ExtractDocumentText;
 use App\Processing\Domain\Billing\BillingClassifierInterface;
 use App\Processing\Domain\Dto\ExtractedDocument;
 use App\Processing\Domain\Dto\ServiceMatchResult;
 use App\Processing\Domain\Entity\ExtractionCache;
+use App\Processing\Domain\Matching\ServiceMatcherInterface;
 use App\Processing\Domain\Provider\ProviderResolverInterface;
 use App\Processing\Domain\Repository\ExtractionCacheRepositoryInterface;
 use App\Shared\Application\Audit\AuditLoggerInterface;
@@ -89,8 +91,10 @@ final readonly class ProcessEmailMessage
         private ExtractDocumentText $documentText,
         private ProviderResolverInterface $providerResolver,
         private ExtractWithProviderParser $providerParser,
-        private ServiceMatcher $matcher,
+        private ServiceMatcherInterface $matcher,
         private DiscoveryRepositoryInterface $discoveries,
+        private DocumentRepositoryInterface $documents,
+        private DiscoverySettings $discoverySettings,
         private MessageStateMachine $stateMachine,
         private ImapClientInterface $imapClient,
         private CredentialCipherInterface $cipher,
@@ -262,7 +266,11 @@ final readonly class ProcessEmailMessage
         );
 
         // ── Nivel 4: emparejamiento con el inventario de servicios ─────────
-        $match = $this->matcher->match($document);
+        // El proveedor resuelto se pasa al emparejador porque la señal de
+        // proveedor es la más pesada del modelo y solo puede concederse cuando
+        // hay **identidad** en el catálogo. Un proveedor provisional (deducido
+        // por nombre) no aporta ninguno: un nombre adivinado no prueba nada.
+        $match = $this->matcher->match($document, $providerMatch->providerId());
 
         if ($match->isHighConfidence()) {
             return $this->associate($message, $document, $match, $extractorName, $actorUserId);
@@ -350,16 +358,24 @@ final readonly class ProcessEmailMessage
     ): Discovery {
         $proposedData = $document->toArray();
         $dedupKey = Discovery::buildDedupKey($type, $proposedData);
+        $documentId = $this->documentIdFor($message->getId());
 
         // Deduplicación entre cuentas (D-27): la misma factura puede llegar por
         // dos buzones de la organización y no debe proponerse dos veces.
-        $existing = $this->discoveries->findOpenByDedupKey($dedupKey);
+        //
+        // También bloquea lo que el usuario ya descartó (D-45): una propuesta
+        // ignorada no vuelve a preguntar durante la ventana de supresión.
+        $existing = $this->discoveries->findBlockingByDedupKey(
+            $dedupKey,
+            $this->discoverySettings->ignoredSince($this->clock->now()),
+        );
 
         if (null !== $existing) {
             $this->discoveries->saveEvidence(new DiscoveryEvidence(
                 discoveryId: $existing->getId(),
                 createdAt: $this->clock->now(),
                 emailMessageId: $message->getId(),
+                documentId: $documentId,
                 weight: $match->score,
             ));
 
@@ -383,6 +399,7 @@ final readonly class ProcessEmailMessage
             discoveryId: $discovery->getId(),
             createdAt: $this->clock->now(),
             emailMessageId: $message->getId(),
+            documentId: $documentId,
             weight: $match->score,
         ));
 
@@ -400,6 +417,25 @@ final readonly class ProcessEmailMessage
         );
 
         return $discovery;
+    }
+
+    /**
+     * Documento del que procede la propuesta, si el correo tiene uno guardado.
+     *
+     * La evidencia sirve para que el usuario pueda ir al documento original y
+     * comprobar por sí mismo lo que el sistema ha deducido. Un correo sin
+     * documento guardado (porque el pipeline no guarda el cuerpo, D-10) sólo
+     * puede aportar la referencia al mensaje.
+     */
+    private function documentIdFor(Uuid $emailMessageId): ?Uuid
+    {
+        $documents = $this->documents->findForEmailMessage($emailMessageId);
+
+        if ([] === $documents) {
+            return null;
+        }
+
+        return $documents[0]->getId();
     }
 
     /**

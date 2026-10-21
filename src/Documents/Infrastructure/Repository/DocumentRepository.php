@@ -60,6 +60,7 @@ final class DocumentRepository extends DoctrineRepository implements DocumentRep
             ->where('d.serviceId = :service')
             ->andWhere('d.deletedAt IS NULL')
             ->orderBy('d.createdAt', 'DESC')
+            ->setParameter('service', $serviceId)
             ->getQuery()
             ->getResult();
 
@@ -76,6 +77,7 @@ final class DocumentRepository extends DoctrineRepository implements DocumentRep
             ->where('d.invoiceId = :invoice')
             ->andWhere('d.deletedAt IS NULL')
             ->orderBy('d.createdAt', 'DESC')
+            ->setParameter('invoice', $invoiceId)
             ->getQuery()
             ->getResult();
 
@@ -92,6 +94,7 @@ final class DocumentRepository extends DoctrineRepository implements DocumentRep
             ->where('d.emailMessageId = :message')
             ->andWhere('d.deletedAt IS NULL')
             ->orderBy('d.createdAt', 'DESC')
+            ->setParameter('message', $emailMessageId)
             ->getQuery()
             ->getResult();
 

@@ -127,6 +127,37 @@ parameters:
             - boletin
             - boletín
 
+    # ── Nivel 4: emparejamiento con el inventario (ARCHITECTURE.md §13.10) ──
+    #
+    # Pesos y umbrales del emparejamiento entre un documento extraído y los
+    # servicios ya registrados. Igual que los pesos del filtro, son una decisión
+    # de producto: cambiar el peso del proveedor decide cuántas facturas se
+    # asocian solas y cuántas pasan por revisión.
+    #
+    # La suma de los pesos positivos es 100, que es la escala de
+    # `Discovery.matchScore`.
+    app.processing.matching:
+        # Peso de cada señal (ARCHITECTURE.md §13.10).
+        provider_weight: 40
+        domain_weight: 20
+        name_weight: 20
+        currency_weight: 5
+        periodicity_weight: 5
+        amount_weight: 5
+        sender_weight: 5
+
+        # Umbrales de las tres zonas de decisión.
+        #   >= high_threshold    asociación automática
+        #   >= medium_threshold  propuesta para revisión
+        #   <  medium_threshold  servicio nuevo
+        high_threshold: 70
+        medium_threshold: 40
+
+        # Tolerancia de importe: una subida de precio sigue siendo el mismo
+        # servicio, pero un importe muy distinto suele ser otro plan u otro
+        # producto. 0.10 = ±10 %.
+        amount_tolerance: 0.10
+
     # ── Nivel 3: lectura de documentos (ARCHITECTURE.md §13.6) ──────────────
     #
     # El OCR es el último recurso y el más caro: solo se paga cuando el

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Processing\Domain\Dto;
 
-use App\Services\Domain\Entity\Service;
+use App\Processing\Domain\Matching\MatchConfidence;
 
 use function implode;
 use function sprintf;
@@ -19,6 +19,11 @@ use Symfony\Component\Uid\Uuid;
  * puntos queda registrada para que la interfaz pueda justificar la propuesta.
  * Nunca se crea ni se modifica un `Service` a partir de este resultado sin
  * confirmación del usuario (D-35).
+ *
+ * Solo guarda el **identificador** del servicio candidato, no la entidad: este
+ * DTO vive en el módulo `Processing` y no debe arrastrar la entidad de otro
+ * módulo (ARCHITECTURE.md §3). El pipeline necesita saber *a quién* pertenece
+ * el documento, no mutarlo.
  */
 final readonly class ServiceMatchResult
 {
@@ -29,12 +34,13 @@ final readonly class ServiceMatchResult
         public int $score,
         public ?Uuid $serviceId,
         public array $reasons = [],
+        public MatchConfidence $confidence = MatchConfidence::LOW,
     ) {
     }
 
     public static function none(): self
     {
-        return new self(0, null);
+        return new self(0, null, [], MatchConfidence::LOW);
     }
 
     /**
@@ -43,7 +49,7 @@ final readonly class ServiceMatchResult
      */
     public function isHighConfidence(): bool
     {
-        return $this->score >= 70 && null !== $this->serviceId;
+        return MatchConfidence::HIGH === $this->confidence && null !== $this->serviceId;
     }
 
     /**
@@ -52,7 +58,7 @@ final readonly class ServiceMatchResult
      */
     public function isMediumConfidence(): bool
     {
-        return $this->score >= 40 && $this->score < 70 && null !== $this->serviceId;
+        return MatchConfidence::MEDIUM === $this->confidence && null !== $this->serviceId;
     }
 
     /**
@@ -60,7 +66,7 @@ final readonly class ServiceMatchResult
      */
     public function isLowConfidence(): bool
     {
-        return $this->score < 40 || null === $this->serviceId;
+        return !$this->isHighConfidence() && !$this->isMediumConfidence();
     }
 
     /**
@@ -89,8 +95,12 @@ final readonly class ServiceMatchResult
     /**
      * @param list<array{signal: string, weight: int, detail?: string|null}> $reasons
      */
-    public static function forService(Service $service, int $score, array $reasons): self
-    {
-        return new self($score, $service->getId(), $reasons);
+    public static function forService(
+        Uuid $serviceId,
+        int $score,
+        array $reasons,
+        MatchConfidence $confidence,
+    ): self {
+        return new self($score, $serviceId, $reasons, $confidence);
     }
 }

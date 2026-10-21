@@ -9,6 +9,7 @@ use App\Discovery\Domain\Entity\DiscoveryEvidence;
 use App\Discovery\Domain\Enum\DiscoveryStatus;
 use App\Discovery\Domain\Repository\DiscoveryRepositoryInterface;
 use App\Shared\Infrastructure\Persistence\DoctrineRepository;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -56,19 +57,40 @@ final class DiscoveryRepository extends DoctrineRepository implements DiscoveryR
         return $discoveries;
     }
 
-    public function findOpenByDedupKey(string $dedupKey): ?Discovery
+    public function findBlockingByDedupKey(string $dedupKey, DateTimeImmutable $ignoredSince): ?Discovery
     {
         return $this->entityManager
             ->createQueryBuilder()
             ->select('d')
             ->from(Discovery::class, 'd')
             ->where('d.dedupKey = :key')
-            ->andWhere('d.status IN (:open)')
+            ->andWhere('(d.status IN (:open) OR (d.status = :ignored AND d.reviewedAt >= :since))')
             ->setParameter('key', $dedupKey)
-            ->setParameter('open', [DiscoveryStatus::PENDING, DiscoveryStatus::EDITED])
+            ->setParameter('open', [DiscoveryStatus::PENDING])
+            ->setParameter('ignored', DiscoveryStatus::IGNORED)
+            ->setParameter('since', $ignoredSince)
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+    }
+
+    public function findExpired(DateTimeImmutable $before, int $limit = 100): array
+    {
+        /** @var list<Discovery> $discoveries */
+        $discoveries = $this->entityManager
+            ->createQueryBuilder()
+            ->select('d')
+            ->from(Discovery::class, 'd')
+            ->where('d.status = :status')
+            ->andWhere('d.detectedAt <= :before')
+            ->setParameter('status', DiscoveryStatus::PENDING)
+            ->setParameter('before', $before)
+            ->orderBy('d.detectedAt', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+
+        return $discoveries;
     }
 
     public function countPending(): int
@@ -106,6 +128,11 @@ final class DiscoveryRepository extends DoctrineRepository implements DiscoveryR
     public function save(Discovery $discovery, bool $flush = true): void
     {
         $this->persist($discovery, $flush);
+    }
+
+    public function flush(): void
+    {
+        parent::flush();
     }
 
     public function saveEvidence(DiscoveryEvidence $evidence, bool $flush = true): void

@@ -57,59 +57,110 @@
             </div>
         </div>
     {% else %}
-        <div class="table-responsive">
-            <table class="table bo-table bo-table--stack align-middle">
-                <caption class="visually-hidden">Propuestas de servicios detectados en el correo</caption>
-                <thead>
-                    <tr>
-                        <th scope="col">Servicio</th>
-                        <th scope="col">Tipo</th>
-                        <th scope="col">Importe</th>
-                        <th scope="col">Confianza</th>
-                        <th scope="col">Detectado</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for discovery in discoveries %}
-                        {% set proposed = discovery.proposedData %}
-                        {% set source = sources[discovery.id.toRfc4122()]|default(null) %}
+        {#
+            La bandeja de pendientes se envuelve en un formulario de lote: marcar
+            varias propuestas y decidir de una vez es la forma más rápida de
+            vaciarla. El lote confirma **exactamente** lo que propuso el
+            pipeline; para corregir datos hay que abrir la propuesta.
+
+            El formulario solo envuelve la tabla de pendientes: en las demás
+            pestañas no hay nada que decidir en lote.
+        #}
+        {% set is_pending = status.value == 'pending' %}
+
+        <form method="post"
+              action="{{ path('app_discoveries_batch') }}"
+              {% if is_pending %}data-controller="batch-select"{% endif %}>
+            <input type="hidden" name="_token" value="{{ csrf_token('discovery_batch') }}">
+
+            <div class="table-responsive">
+                <table class="table bo-table bo-table--stack align-middle">
+                    <caption class="visually-hidden">Propuestas de servicios detectados en el correo</caption>
+                    <thead>
                         <tr>
-                            <td data-label="Servicio">
-                                <a href="{{ path('app_discoveries_show', {id: discovery.id.toRfc4122()}) }}">
-                                    {{ proposed.providerName|default(proposed.serviceName|default('Proveedor sin identificar')) }}
-                                </a>
-                                {% if source and source.subject %}
-                                    <span class="text-muted small">· {{ source.subject|slice(0, 60) }}</span>
-                                {% endif %}
-                            </td>
-                            <td data-label="Tipo">
-                                <span class="badge text-bg-{{ discovery.type.value == 'new_service' ? 'info' : 'warning' }}">
-                                    {{ discovery.type.label() }}
-                                </span>
-                            </td>
-                            <td data-label="Importe" class="text-end">
-                                {% if proposed.amountMinor is defined and proposed.amountMinor is not null %}
-                                    {{ (proposed.amountMinor / 100)|number_format(2, ',', '.') }} {{ proposed.currency|default('EUR') }}
-                                    {% if proposed.billingPeriod is defined and proposed.billingPeriod %}
-                                        <span class="text-muted small">/ {{ proposed.billingPeriod }}</span>
-                                    {% endif %}
-                                {% else %}
-                                    <span class="text-secondary">—</span>
-                                {% endif %}
-                            </td>
-                            <td data-label="Confianza">
-                                <span class="badge text-bg-{{ discovery.confidence.value == 'high' ? 'success' : (discovery.confidence.value == 'medium' ? 'warning' : 'danger') }}">
-                                    {{ discovery.confidence.label() }}
-                                </span>
-                                <span class="text-muted small">{{ discovery.confidenceScore }} %</span>
-                            </td>
-                            <td data-label="Detectado">
-                                <time datetime="{{ discovery.detectedAt|date('c') }}">{{ discovery.detectedAt|date('d/m/Y') }}</time>
-                            </td>
+                            {% if is_pending %}
+                                <th scope="col" class="bo-table__select">
+                                    <input type="checkbox"
+                                           class="form-check-input"
+                                           data-batch-select-target="toggle"
+                                           aria-label="Seleccionar todas las propuestas">
+                                </th>
+                            {% endif %}
+                            <th scope="col">Servicio</th>
+                            <th scope="col">Tipo</th>
+                            <th scope="col">Importe</th>
+                            <th scope="col">Confianza</th>
+                            <th scope="col">Detectado</th>
                         </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <tbody>
+                        {% for discovery in discoveries %}
+                            {% set proposed = discovery.proposedData %}
+                            {% set source = sources[discovery.id.toRfc4122()]|default(null) %}
+                            <tr>
+                                {% if is_pending %}
+                                    <td class="bo-table__select">
+                                        <input type="checkbox"
+                                               class="form-check-input"
+                                               name="discoveries[]"
+                                               value="{{ discovery.id.toRfc4122() }}"
+                                               data-batch-select-target="checkbox"
+                                               aria-label="Seleccionar la propuesta de {{ proposed.providerName|default('proveedor sin identificar') }}">
+                                    </td>
+                                {% endif %}
+                                <td data-label="Servicio">
+                                    <a href="{{ path('app_discoveries_show', {id: discovery.id.toRfc4122()}) }}">
+                                        {{ proposed.providerName|default(proposed.serviceName|default('Proveedor sin identificar')) }}
+                                    </a>
+                                    {% if source and source.subject %}
+                                        <span class="text-muted small">· {{ source.subject|slice(0, 60) }}</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Tipo">
+                                    <span class="badge text-bg-{{ discovery.type.value == 'new_service' ? 'info' : 'warning' }}">
+                                        {{ discovery.type.label() }}
+                                    </span>
+                                </td>
+                                <td data-label="Importe" class="text-end">
+                                    {% if proposed.amountMinor is defined and proposed.amountMinor is not null %}
+                                        {{ (proposed.amountMinor / 100)|number_format(2, ',', '.') }} {{ proposed.currency|default('EUR') }}
+                                        {% if proposed.billingPeriod is defined and proposed.billingPeriod %}
+                                            <span class="text-muted small">/ {{ proposed.billingPeriod }}</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-secondary">—</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Confianza">
+                                    <span class="badge text-bg-{{ discovery.confidence.value == 'high' ? 'success' : (discovery.confidence.value == 'medium' ? 'warning' : 'danger') }}">
+                                        {{ discovery.confidence.label() }}
+                                    </span>
+                                    <span class="text-muted small">{{ discovery.confidenceScore }} %</span>
+                                </td>
+                                <td data-label="Detectado">
+                                    <time datetime="{{ discovery.detectedAt|date('c') }}">{{ discovery.detectedAt|date('d/m/Y') }}</time>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if is_pending %}
+                <div class="bo-batch-toolbar" data-batch-select-target="toolbar">
+                    <span class="bo-batch-toolbar__count" data-batch-select-target="counter" aria-live="polite">
+                        0 propuestas seleccionadas
+                    </span>
+                    <div class="bo-batch-toolbar__actions">
+                        <button type="submit" name="action" value="confirm" class="btn btn-sm btn-primary">
+                            Confirmar seleccionadas
+                        </button>
+                        <button type="submit" name="action" value="dismiss" class="btn btn-sm btn-outline-secondary">
+                            Descartar seleccionadas
+                        </button>
+                    </div>
+                </div>
+            {% endif %}
+        </form>
     {% endif %}
 {% endblock %}
