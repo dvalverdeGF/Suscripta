@@ -1,0 +1,125 @@
+{% extends 'backoffice/base.html.twig' %}
+
+{#
+    Listado de integraciones.
+
+    Se genera desde el **registro** (`IntegrationRegistry`), no con una tabla
+    escrita a mano: añadir una integración nueva al registro la hace aparecer
+    aquí sin tocar esta plantilla.
+
+    Aquí solo se **ve el estado**; la configuración de cada una vive en su
+    propia pantalla (`edit.html.twig`). Editar en la fila convertiría el
+    listado en un formulario por fila, que es justo lo que no se quiere.
+#}
+{% block title %}Integraciones{% endblock %}
+
+{% block breadcrumb %}
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{{ path('app_dashboard') }}">Panel</a></li>
+        <li class="breadcrumb-item active">Integraciones</li>
+    </ol>
+{% endblock %}
+
+{% block content %}
+    <div class="bo-page-header">
+        <h1 class="bo-page-header__title">Integraciones</h1>
+    </div>
+
+    <p class="text-muted">
+        Credenciales y ajustes de los servicios externos que usa Suscripta.
+        La configuración es <strong>por organización</strong>: cada cliente usa
+        sus propias claves y sus datos no se mezclan con los de nadie.
+    </p>
+
+    <div class="bo-list">
+        <div class="table-responsive">
+            <table class="table bo-table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Integración</th>
+                        <th>Estado</th>
+                        <th>Credenciales</th>
+                        <th>IA</th>
+                        <th class="text-end">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                        {% set integration = row.integration %}
+                        {% set configured = integration is not null and integration.hasCredentials %}
+                        <tr>
+                            <td>
+                                <span class="bo-integration-name">
+                                    <i class="{{ row.icon|join(' ') }}"></i>
+                                    <span>{{ row.label }}</span>
+                                </span>
+                                <code class="small text-muted">{{ row.key }}</code>
+
+                                {# El último fallo, en la propia fila: es donde se mira cuando algo no va. #}
+                                {% if integration is not null and integration.lastError is not null %}
+                                    <div class="bo-integration__error mt-1">
+                                        <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                                        {{ integration.lastError }}
+                                        {% if integration.lastErrorAt is not null %}
+                                            <span class="text-muted">· {{ integration.lastErrorAt|date('d/m/Y H:i') }}</span>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if integration is null %}
+                                    <span class="badge text-bg-light border">Sin configurar</span>
+                                {% elseif not integration.enabled %}
+                                    <span class="badge text-bg-secondary">Desactivada</span>
+                                {% elseif not configured %}
+                                    {# Habilitada sin credenciales está **a medias**: decir «activa» sería engañoso. #}
+                                    <span class="badge text-bg-warning">Incompleta</span>
+                                {% else %}
+                                    <span class="badge text-bg-success">Activa</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if configured %}
+                                    <span class="text-success small"><i class="fa-solid fa-check me-1"></i>Configuradas</span>
+                                {% else %}
+                                    <span class="text-muted small">Sin configurar</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if row.definition.isAiProvider %}
+                                    {% if configured and integration.enabled %}
+                                        <span class="badge text-bg-info">Disponible</span>
+                                    {% else %}
+                                        <span class="text-muted small">No disponible</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <a class="btn btn-sm btn-outline-primary"
+                                   href="{{ path('app_integrations_edit', { key: row.key }) }}"
+                                   aria-label="Configurar {{ row.label }}"
+                                   title="Configurar">
+                                    <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="alert alert-info d-flex align-items-start mt-3" role="status">
+        <i class="fa-solid fa-robot mt-1 me-2"></i>
+        <div>
+            <strong>Elige qué IA se usa para cada necesidad.</strong>
+            <div class="small">
+                Configura las credenciales aquí y después decide qué proveedor
+                se usa para extraer, resumir o clasificar.
+                <a href="{{ path('app_ai_settings') }}">Ir a la configuración de IA</a>.
+            </div>
+        </div>
+    </div>
+{% endblock %}

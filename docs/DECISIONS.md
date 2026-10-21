@@ -1167,3 +1167,129 @@ de producto, pero su comparación es una decisión de seguridad.
 `newsletter` y `marketing` —que no eran ni direcciones ni dominios— se retiraron de la
 configuración: ya estaban cubiertas por `newsletter_local_parts`. La semántica queda cubierta
 por pruebas que incluyen los dos casos de suplantación.
+
+---
+
+## D-43 — El proveedor de IA se elige por necesidad y por organización
+
+**Estado:** aceptada.
+
+**Contexto.** La primera versión del diseño hablaba de «el proveedor de IA», en singular. Pero
+un modelo que extrae importes de una factura y otro que redacta un resumen para el usuario no
+son intercambiables: uno se ejecuta en cada documento que las reglas no leen (volumen alto, hace
+falta que sea barato) y el otro es esporádico (puede permitirse uno caro). Un único ajuste
+obligaría a elegir por el caso más común y a pagar de más en el resto.
+
+**Decisión.** Se introduce `AiPurpose` con cuatro necesidades —`extraction`,
+`advanced_extraction`, `summarization`, `classification`— y el proveedor se elige **por
+necesidad**. La elección se guarda en `Organization.settings`, con lo que **es por cliente**:
+
+```json
+{ "ai.enabled": true, "ai.providers": { "extraction": "groq", "advanced_extraction": "openai" } }
+```
+
+**Por qué por organización y no global.** En un SaaS, el cliente que paga la factura de IA es
+quien decide con qué proveedor se le cobra. Una configuración global obligaría a todos a usar el
+mismo, que es exactamente lo contrario de lo que un multi-tenant vende.
+
+**Por qué el interruptor es separado de la elección.** «Tener una clave puesta» y «querer que se
+use» no son lo mismo: un operador puede dejar la clave configurada para probar y apagarla sin
+borrarla. Por eso hay un `ai.enabled` aparte, y por eso la IA está **desactivada por defecto**
+(D-08): sin el interruptor, ninguna llamada se hace, aunque haya claves.
+
+**El catálogo es el código.** Un proveedor de IA se declara en `IntegrationRegistry` con su
+nivel (`AiTier::CHEAP` o `AiTier::ADVANCED`) y sus necesidades, y el selector usa esos mismos
+datos. El panel de integraciones y el de IA no pueden desincronizarse porque no hay dos listas
+que mantener.
+
+**Consecuencias.** Cambiar de proveedor para una necesidad no toca el dominio ni el resto de las
+necesidades. Un `purpose` o un `provider` inexistente en el POST se ignora: la lista válida la
+pone el código.
+
+---
+
+## D-44 — El nivel 6 comprueba el nivel del proveedor, no solo que haya uno
+
+**Estado:** aceptada.
+
+**Contexto.** El escalado a IA avanzada (nivel 6) se activa cuando la confianza del nivel 5 es
+insuficiente. La primera implementación comprobaba únicamente que hubiera **algún** proveedor
+configurado para `advanced_extraction`, leyendo la elección guardada. Eso no basta: la elección
+guardada puede apuntar a un proveedor **económico**, y entonces una llamada etiquetada como
+avanzada la paga un modelo `CHEAP`, el registro de coste miente y la premisa del nivel 6 —«esta
+necesidad es más difícil y necesita un modelo más capaz»— es falsa.
+
+**Decisión.** `AdvancedAiDocumentExtractor::supports()` resuelve el proveedor **real** con
+`forPurpose()` y exige que su `AiTier` sea `ADVANCED`. Si la resolución falla
+(`AiProviderException`), no hay escalado.
+
+**Por qué no basta con mirar el nombre.** El nivel de un proveedor es un dato del catálogo, no
+una convención sobre el texto de la clave: `ollama` es `CHEAP` y `openai` es `ADVANCED`, pero
+eso está declarado en `IntegrationRegistry::aiTierOf()` y va a poder cambiar.
+
+**Consecuencias.** Un proveedor económico elegido para `advanced_extraction` no se usa, y el
+panel de coste muestra lo que de verdad se ha gastado.
+
+---
+
+## D-45 — El secreto guardado no vuelve al navegador, y en blanco significa «no lo he tocado»
+
+**Estado:** aceptada.
+
+**Contexto.** Un formulario de credenciales tiene dos problemas que aparecen cuando hay más de
+una integración. El primero es de seguridad: si el token guardado se devuelve al HTML, aparece
+en el historial del navegador, en la caché, en cualquier captura de pantalla y en el «copiar y
+pegar» del operador. El segundo es de comportamiento: con el campo del secreto pintado vacío
+—porque no debe volver—, «vacío» es ambiguo. Puede ser «no lo he tocado» o «quiero quitarlo».
+
+**Decisión.** Dos reglas.
+
+1. El secreto guardado **no se devuelve**. El campo va vacío y su estado se dice aparte («ya
+   configurada»). El operador no necesita leer su token: necesita saber que está puesto.
+2. Dejar el campo en blanco **conserva** la credencial. Se interpreta como «no lo he tocado».
+
+**Por qué no borrar con el blanco.** Si guardar en blanco borrara, cualquier guardado por otro
+motivo —cambiar el modelo, activar la integración, corregir otro campo— dejaría la integración
+muerta sin que nadie lo hubiera pedido, y el síntoma («no funciona») no apuntaría a la causa.
+Quitar una credencial es una **acción explícita** con su propio botón y su propio mensaje.
+
+**Alternativas.**
+
+- *Devolver el secreto enmascarado (`sk-••••abcd`).* Descartado: sigue siendo parte del
+  secreto en el DOM, y no aporta nada: nadie necesita el final de su token.
+- *Borrar cuando el campo viene vacío.* Descartado por el motivo anterior.
+- *Un botón de «borrar credenciales» en cada ficha.* Elegido: es explícito, reversible (se puede
+  volver a escribir) y no se confunde con «eliminar la integración».
+
+**Consecuencias.** El único sitio donde una credencial está en claro y se persiste es
+`IntegrationConfigWriter`; el único donde una guardada se descifra es `IntegrationConfigReader`.
+Los logs registran si hay credenciales, nunca sus valores.
+
+---
+
+## D-46 — `Assert\Range` con `min` y `max` no admite mensajes por extremo
+
+**Estado:** aceptada.
+
+**Contexto.** `AiExtractionResult` valida la confianza con
+`#[Assert\Range(min: 0, max: 1, minMessage: ..., maxMessage: ...)]`. En Symfony 8 esa
+combinación está **prohibida**: `Range` lanza `ConstraintDefinitionException` al construirse
+(«The Range constraint can not use minMessage and maxMessage when the min and max options are
+both set. Use notInRangeMessage instead.»).
+
+El detalle que la hace especialmente dangerous es **cuándo** ocurre: al construir la
+restricción, no al validar. La restricción se construye al arrancar el contenedor, así que el
+sistema entero no arrancaba con la IA activada.
+
+**Decisión.** Con `min` y `max` se usa **`notInRangeMessage`**, un único mensaje para el
+intervalo. Las alternativas válidas son dos restricciones separadas (`GreaterThanOrEqual` +
+`LessThanOrEqual`) o `Range` sin mensajes.
+
+**Por qué se documenta.** Es un fallo **silencioso en la revisión**: el código parece correcto y
+lee bien, y solo falla al construir la restricción. Una validación que no se puede construir no
+produce «un campo con error»: rompe la aplicación entera.
+
+**Consecuencias.** Las pruebas que construyen el Validator a mano deben habilitar el mapeo por
+atributos (`Validation::createValidatorBuilder()->enableAttributeMapping()`): `Validation::createValidator()`
+no lo hace, y entonces las restricciones `Assert\*` no se evalúan y la prueba pasa sin
+comprobar nada.

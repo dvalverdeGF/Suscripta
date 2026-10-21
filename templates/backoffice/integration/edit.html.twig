@@ -1,0 +1,260 @@
+{% extends 'backoffice/base.html.twig' %}
+
+{#
+    Ficha de una integración: **su propio formulario, en su propia pantalla**.
+
+    No hay un campo escrito a mano: se recorre `definition.credentialFields` y
+    `definition.settingsFields`, así que añadir un campo a la definición lo hace
+    aparecer aquí. Un formulario por integración sería una copia más que se
+    desincroniza (una pediría el token oculto, otra no).
+
+    El listado se queda como listado: aquí se entra, se edita una cosa y se
+    vuelve.
+#}
+{% block title %}{{ definition.label }}{% endblock %}
+
+{% block breadcrumb %}
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{{ path('app_dashboard') }}">Panel</a></li>
+        <li class="breadcrumb-item"><a href="{{ path('app_integrations_index') }}">Integraciones</a></li>
+        <li class="breadcrumb-item active">{{ definition.label }}</li>
+    </ol>
+{% endblock %}
+
+{% block content %}
+    <div class="bo-page-header">
+        <h1 class="bo-page-header__title">
+            <i class="{{ definition.icon|join(' ') }} me-1"></i>{{ definition.label }}
+        </h1>
+    </div>
+
+    <p class="text-muted">{{ definition.help }}</p>
+
+    {# El resultado de guardar se dice **en la ficha**, que es donde el operador sigue. #}
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="alert alert-{{ label }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+            </div>
+        {% endfor %}
+    {% endfor %}
+
+    {% if integration is not null and integration.lastError is not null %}
+        {#
+            Último fallo observado. Se enseña **con su fecha**: un error sin fecha
+            no dice si la integración está rota ahora o se recuperó ayer.
+        #}
+        <div class="alert alert-danger d-flex align-items-start" role="alert">
+            <i class="fa-solid fa-triangle-exclamation me-2 mt-1"></i>
+            <div>
+                <strong>Último error</strong>
+                <div class="small">{{ integration.lastError }}</div>
+                {% if integration.lastErrorAt is not null %}
+                    <div class="small text-muted">{{ integration.lastErrorAt|date('d/m/Y H:i') }}</div>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+
+    <form method="post" action="{{ path('app_integrations_edit', { key: definition.key }) }}" id="integration-form">
+        <input type="hidden" name="_token" value="{{ csrf_token('save_integration_' ~ definition.key) }}">
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <h2 class="bo-summary__title">
+                    <i class="fa-solid fa-sliders me-1"></i> General
+                </h2>
+
+                <div class="bo-form-grid">
+                    <div class="bo-form-grid__full">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch"
+                                   id="enabled" name="enabled" value="1"
+                                   {{ integration is null or integration.enabled ? 'checked' : '' }}>
+                            <label class="form-check-label" for="enabled">
+                                Integración activada
+                                <span class="d-block form-text mb-0">
+                                    Una integración desactivada conserva su configuración
+                                    pero no se usa. Sirve para dejar de usarla sin perder
+                                    lo escrito.
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+
+                    {% if definition.requiresBaseUrl %}
+                        <div class="bo-form-grid__half">
+                            <label for="base_url" class="form-label">URL base</label>
+                            <input type="text" id="base_url" name="base_url" class="form-control"
+                                   value="{{ integration is not null and integration.baseUrl is not null ? integration.baseUrl : '' }}"
+                                   placeholder="https://api.ejemplo.com/v1">
+                            <div class="form-text">
+                                Se le añadirá la ruta de la API. Escribe la URL base,
+                                no la ruta completa.
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <h2 class="bo-summary__title">
+                    <i class="fa-solid fa-key me-1"></i> Credenciales
+                </h2>
+
+                {% if definition.credentialFields is empty %}
+                    <p class="text-muted mb-0">
+                        Esta integración no necesita credenciales.
+                    </p>
+                {% else %}
+                    <div class="bo-form-grid">
+                        {% for field in definition.credentialFields %}
+                            {% set isSet = field.name in configuredCredentials %}
+                            <div class="bo-form-grid__half">
+                                <label for="credential_{{ field.name }}" class="form-label">
+                                    {{ field.label }}
+                                    {% if field.required %}<span class="text-danger">*</span>{% endif %}
+                                </label>
+
+                                {#
+                                    Un secreto guardado **no se devuelve al navegador**: el
+                                    campo va vacío y su estado se dice aparte. Devolverlo
+                                    obligaría a que atravesara HTML, logs y caché para no
+                                    aportar nada (el operador no necesita leer su token,
+                                    necesita saber que está puesto).
+
+                                    El `type` sale de `inputType()` y no de una condición en
+                                    la vista: `field.secret` colisiona con el constructor
+                                    estático `secret()` de la definición y Twig lo invoca sin
+                                    argumentos.
+                                #}
+                                <input type="{{ field.inputType }}"
+                                       id="credential_{{ field.name }}"
+                                       name="credential_{{ field.name }}"
+                                       class="form-control {{ errors['credential_' ~ field.name] is defined ? 'is-invalid' : '' }}"
+                                       autocomplete="new-password"
+                                       {% if field.placeholder %}placeholder="{{ field.placeholder }}"{% endif %}
+                                       {% if field.placeholder is null and isSet %}placeholder="Se conserva la actual"{% endif %}>
+
+                                {% if errors['credential_' ~ field.name] is defined %}
+                                    <div class="invalid-feedback d-block">{{ errors['credential_' ~ field.name] }}</div>
+                                {% endif %}
+
+                                {% if isSet %}
+                                    <div class="form-text text-success">
+                                        <i class="fa-solid fa-check me-1"></i>Ya configurada
+                                    </div>
+                                {% endif %}
+                                {% if field.hint is not null %}
+                                    <div class="form-text">{{ field.hint }}</div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if definition.settingsFields is not empty %}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h2 class="bo-summary__title">
+                        <i class="fa-solid fa-gear me-1"></i> Ajustes
+                    </h2>
+
+                    <div class="bo-form-grid">
+                        {% for field in definition.settingsFields %}
+                            {% set currentValue = configuredSettings[field.name]|default('') %}
+                            <div class="bo-form-grid__half">
+                                <label for="setting_{{ field.name }}" class="form-label">
+                                    {{ field.label }}
+                                    {% if field.required %}<span class="text-danger">*</span>{% endif %}
+                                </label>
+
+                                {#
+                                    El control depende del **tipo declarado** en la
+                                    definición, no de lo que la plantilla decida: un
+                                    desplegable para el modelo (las opciones hay que
+                                    verlas, no recordarlas) y un número con su rango para
+                                    los límites (así no se guarda `2000` donde el
+                                    proveedor admite `200`).
+                                #}
+                                {% if field.isSelect %}
+                                    <select id="setting_{{ field.name }}" name="setting_{{ field.name }}"
+                                            class="form-select {{ errors['setting_' ~ field.name] is defined ? 'is-invalid' : '' }}">
+                                        {% if not field.required %}
+                                            <option value="">Usar el valor por defecto</option>
+                                        {% endif %}
+                                        {% for choice in field.choices %}
+                                            <option value="{{ choice.value }}"
+                                                    {{ currentValue == choice.value or (currentValue == '' and field.default == choice.value) ? 'selected' : '' }}>
+                                                {{ choice.label }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                {% elseif field.isNumber %}
+                                    <input type="number"
+                                           id="setting_{{ field.name }}"
+                                           name="setting_{{ field.name }}"
+                                           class="form-control {{ errors['setting_' ~ field.name] is defined ? 'is-invalid' : '' }}"
+                                           value="{{ currentValue }}"
+                                           {% if field.min is not null %}min="{{ field.min }}"{% endif %}
+                                           {% if field.max is not null %}max="{{ field.max }}"{% endif %}
+                                           {% if field.step is not null %}step="{{ field.step }}"{% endif %}
+                                           {% if field.default is not null %}placeholder="{{ field.default }}"{% endif %}>
+                                {% else %}
+                                    <input type="text"
+                                           id="setting_{{ field.name }}"
+                                           name="setting_{{ field.name }}"
+                                           class="form-control {{ errors['setting_' ~ field.name] is defined ? 'is-invalid' : '' }}"
+                                           value="{{ currentValue }}"
+                                           {% if field.placeholder %}placeholder="{{ field.placeholder }}"{% endif %}>
+                                {% endif %}
+
+                                {% if errors['setting_' ~ field.name] is defined %}
+                                    <div class="invalid-feedback d-block">{{ errors['setting_' ~ field.name] }}</div>
+                                {% endif %}
+
+                                {#
+                                    El valor por defecto se **dice**: un límite sin valor
+                                    guardado no está «sin definir», usa el de la
+                                    aplicación, y no decirlo deja al operador sin saber
+                                    qué pasa si lo deja en blanco.
+                                #}
+                                {% if field.default is not null %}
+                                    <div class="form-text">Por defecto: {{ field.default }}</div>
+                                {% endif %}
+                                {% if field.hint is not null %}
+                                    <div class="form-text">{{ field.hint }}</div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </form>
+{% endblock %}
+
+{#
+    Acciones de la ficha, en el pie común.
+
+    El borrado es de **credenciales**, no de la integración: la clave la declara el
+    código y aquí solo se guarda su configuración, así que lo único reversible de
+    verdad es volver a escribir el token. Por eso el destructivo aparece solo cuando
+    hay algo que borrar, y su mensaje lo dice.
+#}
+{% block page_actions %}
+    {{ include('backoffice/_form_actions.html.twig', {
+        form_id: 'integration-form',
+        back_path: path('app_integrations_index'),
+        delete_path: integration is not null and integration.hasCredentials ? path('app_integrations_clear_credentials', { key: definition.key }) : null,
+        delete_token: csrf_token('clear_integration_credentials_' ~ definition.key),
+        delete_message: '¿Seguro que quieres borrar las credenciales? Tendrás que escribirlas de nuevo para que esta integración funcione.',
+        delete_label: 'Borrar credenciales',
+        delete_icon: 'fa-eraser',
+    }) }}
+{% endblock %}

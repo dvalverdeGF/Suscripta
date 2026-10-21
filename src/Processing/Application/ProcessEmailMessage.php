@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Processing\Application;
 
+use App\Ai\Application\AiExtractionInterface;
 use App\Discovery\Domain\Entity\Discovery;
 use App\Discovery\Domain\Entity\DiscoveryEvidence;
 use App\Discovery\Domain\Enum\DiscoveryType;
@@ -97,6 +98,7 @@ final readonly class ProcessEmailMessage
         private TenantContext $tenantContext,
         private AuditLoggerInterface $auditLogger,
         private Clock $clock,
+        private AiExtractionInterface $aiExtraction,
     ) {
     }
 
@@ -198,7 +200,26 @@ final readonly class ProcessEmailMessage
                 );
                 $extractorName = $parsed->parserKey;
             }
+        }
 
+        // ── Nivel 5-6: escalera de IA ─────────────────────────────────────
+        // Solo entra si la vía determinista no ha resuelto el caso. Un
+        // documento que ya tiene importe, proveedor y periodicidad no se
+        // manda a un modelo: se pagaría por no obtener nada. Un acierto de
+        // caché tampoco se reinterpreta: el contenido ya se analysó una vez y
+        // volver a llamaría a la IA sería pagar dos veces por lo mismo (D-37).
+        if (null === $cached && !$document->isActionable()) {
+            $aiDocument = $this->aiExtraction->enrich($document, $haystack, $header);
+
+            if (null !== $aiDocument && $aiDocument->isActionable()) {
+                $document = $aiDocument;
+                $extractorName = 'ai:'.$aiDocument->tier->value;
+            }
+        }
+
+        // La caché guarda el mejor documento conocido: si la IA ha completado
+        // uno que el extractor determinista dejó a medias, se guarda ese.
+        if (null === $cached) {
             $this->remember($message, $haystack, $contentHash, $document);
         }
 

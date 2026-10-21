@@ -1,0 +1,139 @@
+{% extends 'backoffice/base.html.twig' %}
+
+{#
+    Elección de IA por necesidad.
+
+    La pantalla tiene dos bloques que se complementan: el **interruptor** (¿se
+    usa IA en esta organización?) y la **tabla de elecciones** (¿qué proveedor
+    para cada necesidad?).
+
+    El interruptor va primero a propósito. Está desactivado por defecto (D-08)
+    porque activarlo implica gasto; que el operador lo vea antes de elegir
+    proveedores hace que la decisión sea consciente.
+#}
+{% block title %}Configuración de IA{% endblock %}
+
+{% block breadcrumb %}
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{{ path('app_dashboard') }}">Panel</a></li>
+        <li class="breadcrumb-item"><a href="{{ path('app_integrations_index') }}">Integraciones</a></li>
+        <li class="breadcrumb-item active">Configuración de IA</li>
+    </ol>
+{% endblock %}
+
+{% block content %}
+    <div class="bo-page-header">
+        <h1 class="bo-page-header__title">Configuración de IA</h1>
+    </div>
+
+    <p class="text-muted">
+        Decide qué proveedor de IA se usa para cada necesidad. La elección es
+        <strong>de tu organización</strong> y no afecta a ningún otro cliente.
+    </p>
+
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="alert alert-{{ label }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+            </div>
+        {% endfor %}
+    {% endfor %}
+
+    <form method="post" action="{{ path('app_ai_settings') }}" id="ai-settings-form">
+        <input type="hidden" name="_token" value="{{ csrf_token('save_ai_settings') }}">
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <h2 class="bo-summary__title">
+                    <i class="fa-solid fa-power-off me-1"></i> Activación
+                </h2>
+
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch"
+                           id="ai_enabled" name="ai_enabled" value="1" {{ enabled ? 'checked' : '' }}>
+                    <label class="form-check-label" for="ai_enabled">
+                        Usar IA en esta organización
+                        <span class="d-block form-text mb-0">
+                            Mientras esté desactivada, Suscripta funciona igual: los
+                            correos se procesan con las reglas deterministas y los que
+                            no se entienden quedan para revisión manual. Al activarla,
+                            los documentos que las reglas no consiguen leer se
+                            envían al proveedor que elijas abajo, y **se cobra por
+                            cada llamada**.
+                        </span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <h2 class="bo-summary__title">
+                    <i class="fa-solid fa-diagram-project me-1"></i> Proveedor por necesidad
+                </h2>
+
+                <p class="text-muted">
+                    Un proveedor solo es seleccionable si tiene las credenciales
+                    configuradas y está activado. Configúralas en
+                    <a href="{{ path('app_integrations_index') }}">Integraciones</a>.
+                </p>
+
+                <div class="table-responsive">
+                    <table class="table bo-table align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Necesidad</th>
+                                <th>Proveedor</th>
+                                <th>Nivel</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for purpose in purposes %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ purpose.label }}</strong>
+                                        <div class="small text-muted">{{ purpose.description }}</div>
+                                    </td>
+                                    <td>
+                                        <select class="form-select" name="provider[{{ purpose.value }}]"
+                                                aria-label="Proveedor para {{ purpose.label }}">
+                                            <option value="">— Ninguno —</option>
+                                            {% for provider in providers %}
+                                                <option value="{{ provider.key }}"
+                                                        {{ choices[purpose.value]|default('') == provider.key ? 'selected' : '' }}>
+                                                    {{ provider.label }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        {% set selected = choices[purpose.value]|default('') %}
+                                        {% if selected is not empty %}
+                                            {% for provider in providers %}
+                                                {% if provider.key == selected %}
+                                                    <span class="badge text-bg-light border">
+                                                        {{ provider.key == 'openai' or provider.key == 'anthropic' ? 'Avanzado' : 'Económico' }}
+                                                    </span>
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% else %}
+                                            <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </form>
+{% endblock %}
+
+{% block page_actions %}
+    {{ include('backoffice/_form_actions.html.twig', {
+        form_id: 'ai-settings-form',
+        back_path: path('app_integrations_index'),
+    }) }}
+{% endblock %}

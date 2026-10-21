@@ -578,7 +578,7 @@ y no rompe el lote.
 
 ## Fase 11 — IA económica y avanzada con validación (niveles 5–7)
 
-> **Estado:** ⬜ Pendiente.
+> **Estado:** ✅ Completada.
 
 
 **Objetivo:** resolver la incertidumbre que las reglas no cubren, **sin que la IA sea el camino
@@ -603,6 +603,56 @@ por defecto** y sin que pueda corromper el dominio.
 configurada, un documento ambiguo se resuelve y uno con datos imposibles se rechaza y queda en
 `REQUIRES_REVIEW`; se puede cambiar de proveedor de IA sin tocar el dominio; el texto enviado
 no contiene firmas, tracking ni el correo completo.
+
+### Qué se entregó
+
+- **`src/Ai/Domain/`** — `AiPurpose` (las cuatro necesidades), `AiTier` (económico/avanzado),
+  `AiProviderInterface` y `AiProviderRegistryInterface`, `AiUsage` (registro de uso y coste),
+  `AiRequest`/`AiResponse`/`AiPrice`/`AiExtractionResult` (contrato de salida estructurado).
+- **`src/Ai/Application/`** — `AiPurposeSelector` (elección por necesidad y por organización),
+  `AiExtractionService` (la escalera en el pipeline), `AiBudget` (tope mensual del mes natural),
+  `AiUsageRecorder`, `AiPriceCatalog` (precios por defecto, corregibles por integración),
+  `RedactContent` (redacción previa: sin HTML, firmas, tracking ni correo completo),
+  `ExtractionValidator` (reglas de negocio que el Validator no expresa) y
+  `Extraction/AbstractAiDocumentExtractor`, `AiDocumentExtractor` (nivel 5),
+  `AdvancedAiDocumentExtractor` (nivel 6) y `DocumentExtractorChain`.
+- **`src/Ai/Infrastructure/Provider/`** — `GroqProvider`, `OpenAiProvider`, `AnthropicProvider`,
+  `OllamaProvider` (autoalojado) y `AbstractOpenAiCompatibleProvider`.
+- **`src/Integrations/`** — `IntegrationRegistry` (catálogo), `IntegrationDefinition` e
+  `IntegrationField` (declaración de campos), `IntegrationConfigWriter` (cifra) y
+  `IntegrationConfigReader` (descifra bajo demanda), entidad `Integration` y sus controladores.
+- **`src/Shared/Application/OrganizationSettingsReader.php`** — los ajustes de la organización
+  (`Organization.settings` es un `json` genérico: añadir un ajuste no obliga a migrar).
+- **Panel de integraciones** (`/integrations`) y **panel de IA** (`/ai`), con el estilo del
+  backoffice de la plataforma de referencia.
+- **Migración `Version20261020232102`** — tabla `integration` y tabla `ai_usage`, ejecutada.
+
+**Correcciones relevantes de la fase:**
+
+1. **Ninguna extracción con IA funcionaba (bug de producción).** `AiExtractionResult` usaba
+   `#[Assert\Range(min: 0, max: 1, minMessage: ..., maxMessage: ...)]`, combinación **prohibida**
+   en Symfony 8: `Range` lanza `ConstraintDefinitionException` al construirse. Como la
+   restricción se construye al arrancar el contenedor, el sistema no arrancaba con la IA
+   activada. Corregido a `notInRangeMessage`. Ver D-46.
+2. **El nivel 6 pagaba con un modelo económico.** `AdvancedAiDocumentExtractor::supports()`
+   comprobaba solo que hubiera un proveedor elegido para `advanced_extraction`, no que fuera de
+   nivel `ADVANCED`. Ahora resuelve el proveedor real con `forPurpose()` y exige su nivel. Ver
+   D-44.
+3. **El escalado al nivel 6 se activaba antes de tiempo.** La escalera de IA entra solo si no
+   hay resultado en caché **y** el documento no es accionable; y el documento que devuelve la IA
+   solo se adopta si es accionable. Un documento que la IA no ha podido completar no sustituye
+   al determinista: el caso acaba en `REQUIRES_REVIEW`.
+
+**Verificación ejecutada al cerrar la fase:**
+
+| Comprobación | Resultado |
+|---|---|
+| `php bin/phpunit` | ✅ 1026 tests, 3927 assertions |
+| `vendor/bin/phpstan analyse --no-progress` | ✅ 0 errores (nivel 8) |
+| `vendor/bin/php-cs-fixer fix --dry-run --diff` | ✅ 0 ficheros pendientes |
+| `bin/console lint:container` | ✅ |
+| `bin/console lint:yaml config/ --parse-tags` | ✅ 32 ficheros |
+| `bin/console lint:twig templates/` | ✅ 42 plantillas |
 
 ## Fase 12 — Service matching y descubrimientos (nivel 8)
 

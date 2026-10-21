@@ -88,6 +88,7 @@ src/
 ├── Mailbox/           # EmailAccount, EmailMessage, EmailSyncCursor, EmailSyncRun, IMAP, reenvío
 ├── Processing/        # Pipeline: BillingClassifier, extractores, validación, estados, MailboxKnowledge
 ├── Ai/                # AiProviderInterface, adaptadores, AiUsage, AiBudget, guard de coste
+├── Integrations/      # Integration, catálogo de integraciones, credenciales cifradas
 ├── Discovery/         # Discovery, ServiceMatcher, detección de recurrencia y de cambios
 ├── Notifications/     # Alert, Notification, NotificationPreference, canales
 └── Dashboard/         # Consultas de lectura agregadas (sin entidades propias)
@@ -717,6 +718,44 @@ y solo si aportan algo que IMAP no da (p. ej. notificaciones push de buzón). Ve
 pasar a un modelo autoalojado— sin tocar el dominio. La IA está desactivada por defecto y su
 uso se decide por capa de extracción (§4.11).
 
+### 9.1 Panel de integraciones (Fase 11)
+
+Configurar un proveedor exigía editar `.env` y **redesplegar**: la configuración vivía fuera
+de la aplicación, así que no había forma de verla ni de cambiarla. Con una integración se
+sostiene; con cinco, no. En la Fase 11 la configuración pasa a ser **un dato**.
+
+**El catálogo es el código, no la base de datos.** `IntegrationRegistry` declara las
+integraciones que el sistema sabe usar: `groq`, `openai`, `anthropic` y `ollama`. Cada
+`IntegrationDefinition` declara **qué campos necesita** (credenciales y ajustes), con su tipo, su
+etiqueta, sus opciones y sus límites. La pantalla se construye recorriendo esa declaración, de
+modo que añadir una integración es **añadir una entrada al registro**, no escribir un formulario
+nuevo. Una clave escrita a mano en la base de datos no aparece en el panel: no tiene código
+detrás, así que no puede parecer operativa.
+
+**Los secretos van cifrados y no vuelven al navegador.** Las credenciales se cifran con el
+mismo cifrador que usa la contraseña del buzón (`v1:<base64(nonce||caja)>`, clave derivada de
+`APP_SECRET` con BLAKE2b). En la ficha el campo del secreto se pinta **vacío** y su estado se
+dice aparte («ya configurada»): el operador no necesita leer su token, necesita saber que está
+puesto. Un secreto guardado que volviera al HTML aparecería en el historial, en la caché del
+navegador y en cualquier copia de la página.
+
+**Dejar el secreto en blanco no lo borra.** Es la decisión de diseño que más importa en un
+formulario de credenciales: con el campo vacío, «vacío» es ambiguo —«no lo he tocado» o
+«quiero quitarlo»—. Se interpreta como **no tocado**, porque al revés, guardar la pantalla por
+cualquier otro motivo borraría el token y dejaría la integración muerta sin que nadie lo haya
+pedido. Quitarlo es una **acción explícita** (`clear_credentials`), con su propio botón y su
+propio mensaje.
+
+**Solo se leen los campos que la definición declara.** El controlador recorre
+`definition.credentialFields` y `definition.settingsFields`; un `credential_inventado` o un
+`setting_inventado` en el POST **se ignora**. Sin esto, un POST manipulado podría meter ajustes
+arbitrarios en la configuración de la organización.
+
+**El mismo catálogo gobierna la elección de IA.** Un proveedor de IA se declara con
+`isAiProvider` y con su nivel (`AiTier::CHEAP` o `AiTier::ADVANCED`) en la misma definición, y
+`AiPurposeSelector` usa esos mismos datos. El panel de integraciones y el de IA **no pueden
+desincronizarse**: no hay dos listas que mantener.
+
 ## 10. Cálculos de negocio
 
 **Equivalente mensual** (normaliza cualquier periodicidad a un mes):
@@ -1293,6 +1332,43 @@ interface AiProviderInterface
 Cambiar de proveedor —o pasar a un modelo autoalojado o europeo— **no toca el dominio ni los
 casos de uso**.
 
+#### 13.8.1 Lo que se implementó (Fase 11)
+
+**El proveedor se elige por necesidad y por organización.** `AiPurpose` enumera las cuatro
+necesidades (`extraction`, `advanced_extraction`, `summarization`, `classification`) y
+`AiPurposeSelector` guarda en `Organization.settings` qué proveedor se usa en cada una:
+
+```json
+{
+  "ai.enabled": true,
+  "ai.providers": { "extraction": "groq", "advanced_extraction": "openai" }
+}
+```
+
+La elección es **por cliente**, no global: el que paga la factura de IA es quien decide con qué
+proveedor se le cobra. Un `purpose` o un `provider` que no exista se ignora —la lista válida la
+pone el código, no el formulario— y la IA está **desactivada por defecto** (D-08): sin
+`ai.enabled` no hay proveedor, aunque las claves estén configuradas.
+
+**El escalado del nivel 6 comprueba el nivel del proveedor, no solo su nombre.** Un proveedor
+económico elegido para `advanced_extraction` **no** se usa: se resolvería el proveedor real con
+`forPurpose()` y se exige que su `AiTier` sea `ADVANCED`. Sin esa comprobación, un `CHEAP`
+pagaría una llamada etiquetada como avanzada y el panel de coste mentiría.
+
+**La redacción previa es un caso de uso propio.** `RedactContent` quita HTML, firmas, avisos
+legales, tracking y contenido irrelevante, limita la longitud y devuelve el texto con el que se
+llama al modelo. Nunca se envía el correo entero.
+
+**El coste se persiste en el momento de la llamada** (D-36). `AiUsage` guarda tokens de entrada
+y salida, el coste en céntimos y el nivel. Los precios salen de `AiPriceCatalog` (tarifas
+públicas por defecto) y se pueden corregir por integración (`prompt_price`,
+`completion_price`); un proveedor desconocido se registra como `0`, que es un cero conocido, no
+una cifra inventada.
+
+**El presupuesto se comprueba antes de llamar.** `AiBudget` cuenta el mes natural y
+`allowsCall()` responde si se puede gastar; `AiExtractionService` lo pregunta **antes** de
+invocar al proveedor, de modo que un tope agotado no cuesta una llamada.
+
 ### 13.9 Nivel 7 — Validación posterior a la IA
 
 **La IA no es una fuente de verdad.** Su salida es una *propuesta* que atraviesa una cadena de
@@ -1325,6 +1401,23 @@ resultado inválido →  REQUIRES_REVIEW o descarte
 
 **Consecuencia:** un modelo que alucina no corrompe el dominio. Como mucho, genera un
 `Discovery` que el usuario rechaza.
+
+#### 13.9.1 Lo que se implementó (Fase 11)
+
+`AiExtractionResult` es el **DTO tipado** de la salida del modelo. Sus restricciones son
+`Assert\*` sobre propiedades, y `ExtractionValidator` añade las reglas de negocio que el
+Validator no expresa (coherencia de fechas, importe coherente con el contexto).
+
+Una sutileza de Symfony 8 que conviene documentar porque **rompe en producción**: `Assert\Range`
+no admite `min` y `max` **junto con** `minMessage`/`maxMessage`; la combinación está prohibida y
+lanza `ConstraintDefinitionException` al construir la restricción. Con `min` y `max` hay que usar
+`notInRangeMessage` (o dos restricciones separadas). Una validación que falla al construirse no
+produce «un campo con error»: **tira toda la extracción**.
+
+En el pipeline, el documento que devuelve la IA **solo se adopta si es accionable** (importe,
+proveedor y periodicidad recurrente). Si no lo es, el pipeline sigue con lo que tenía y el caso
+acaba en `REQUIRES_REVIEW`: una IA que no sabe leer un documento no debe poder empeorar lo que
+las reglas ya habian conseguido.
 
 ### 13.10 Nivel 8 — Service matching
 

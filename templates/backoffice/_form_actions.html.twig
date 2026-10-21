@@ -25,6 +25,11 @@
       delete_path    ruta del boton de borrado (opcional).
       delete_token   token CSRF del borrado (opcional, requerido con delete_path).
       delete_message mensaje de confirmacion del borrado (opcional).
+      delete_label   texto del boton de borrado (opcional; por defecto "Eliminar").
+                     Se personaliza cuando lo que se borra no es la entidad entera
+                     sino una parte suya: "Eliminar" no dice qué desaparece.
+      delete_icon    icono Font Awesome del boton de borrado (opcional, sin el
+                     prefijo `fa-solid`).
 
     El orden es el del riesgo: primero lo reversible, despues lo que guarda, y
     **al final y separado** lo irreversible. Borrar no es "una accion mas de la
@@ -57,7 +62,8 @@
               data-confirm-message-value="{{ delete_message|default('¿Seguro que quieres eliminarlo? Esta acción no se puede deshacer.') }}">
             <input type="hidden" name="_token" value="{{ delete_token }}">
             <button class="btn btn-outline-danger" type="submit" data-action="confirm#submit">
-                <i class="fa-solid fa-trash-can me-1" aria-hidden="true"></i> Eliminar
+                <i class="fa-solid {{ delete_icon|default('fa-trash-can') }} me-1" aria-hidden="true"></i>
+                {{ delete_label|default('Eliminar') }}
             </button>
         </form>
     {% endif %}

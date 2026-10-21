@@ -137,6 +137,27 @@
                 </a>
             </li>
 
+            {#
+                Integraciones e IA van **juntas** en configuracion: una sin la otra
+                no sirve. Las integraciones guardan las credenciales; la pantalla de
+                IA decide cual se usa para cada necesidad. Separarlas haria que el
+                operador tuviera que saltar entre dos sitios para configurar un
+                proveedor.
+            #}
+            <li class="bo-menu__item {{ app.request.attributes.get('_route') starts with 'app_integrations' ? 'bo-menu__item--active' : '' }}">
+                <a href="{{ path('app_integrations_index') }}" class="bo-menu__link">
+                    <i class="fa-solid fa-plug bo-menu__icon"></i>
+                    <span>Integraciones</span>
+                </a>
+            </li>
+
+            <li class="bo-menu__item {{ app.request.attributes.get('_route') starts with 'app_ai' ? 'bo-menu__item--active' : '' }}">
+                <a href="{{ path('app_ai_settings') }}" class="bo-menu__link">
+                    <i class="fa-solid fa-robot bo-menu__icon"></i>
+                    <span>Inteligencia artificial</span>
+                </a>
+            </li>
+
             <li class="bo-menu__item {{ app.request.attributes.get('_route') starts with 'app_settings' ? 'bo-menu__item--active' : '' }}">
                 <a href="{{ path('app_settings_profile') }}" class="bo-menu__link">
                     <i class="fa-solid fa-user-gear bo-menu__icon"></i>

@@ -10,6 +10,28 @@ parameters:
     # Dominio de las direcciones de ingesta por reenvío (D-21).
     app.mail.forwarding_domain: '%env(MAIL_FORWARDING_DOMAIN)%'
 
+    # ── IA (ARCHITECTURE.md §13.8, §13.9) ────────────────────────────────
+    # Longitud máxima del texto que se manda a un modelo tras el redactado.
+    # Es un límite de coste: el texto que se recorta es texto que no se
+    # procesa, y lo que queda es lo que suele contener los datos de la factura.
+    app.ai.max_text_length: 8000
+
+    # Confianza determinista por debajo de la cual un documento se considera
+    # «raro» y se puede escalar al nivel 6 (IA avanzada).
+    app.ai.advanced.confidence_threshold: 0.3
+
+    # Longitud de texto a partir de la cual un documento sin importe se
+    # considera complejo y merece un modelo grande.
+    app.ai.advanced.max_text_length: 8000
+
+    # Coste máximo por organización y mes, en céntimos.
+    #
+    # El presupuesto es lo que convierte «IA activada» en algo responsable:
+    # sin tope, un correo mal formado en bucle puede vaciar la cuenta del
+    # cliente. Al superarlo, el pipeline degrada a revisión manual en vez de
+    # seguir gastando.
+    app.ai.budget.monthly_minor: 500
+
 services:
     # default configuration for services in *this* file
     _defaults:
@@ -28,6 +50,14 @@ services:
             tags: ['app.document_text_extractor']
         App\Processing\Domain\Provider\ProviderParserInterface:
             tags: ['app.provider_parser']
+        # Los proveedores de IA se recogen por etiqueta: añadir uno nuevo es
+        # escribir la clase y registrar la integración en el catálogo.
+        App\Ai\Domain\Contract\AiProviderInterface:
+            tags: ['app.ai_provider']
+        # Los extractores de documento se recogen por etiqueta: la escalera de
+        # niveles se monta con las clases, no con un `switch` (ARCHITECTURE.md §13.8).
+        App\Ai\Domain\Contract\DocumentExtractorInterface:
+            tags: ['app.document_extractor']
 
     # makes classes in src/ available to be used as services
     # this creates a service per class whose id is the fully-qualified class name
@@ -117,3 +147,49 @@ services:
             $parsers: !tagged_iterator app.provider_parser
 
     App\Processing\Domain\Provider\ProviderResolverInterface: '@App\Processing\Application\Provider\ProviderResolver'
+
+    # ── Fase 11: IA e integraciones (ARCHITECTURE.md §13.8, §13.9) ────────
+    # El registro de proveedores de IA se construye con las clases etiquetadas.
+    # Es la única lista de proveedores que existe: el panel de integraciones
+    # la consulta, y el selector también, de modo que no pueden divergir.
+    App\Ai\Infrastructure\Provider\AiProviderRegistry:
+        arguments:
+            $providers: !tagged_iterator app.ai_provider
+
+    App\Ai\Domain\Contract\AiProviderRegistryInterface: '@App\Ai\Infrastructure\Provider\AiProviderRegistry'
+
+    # El selector de proveedor es la política de «qué IA se usa para cada
+    # necesidad». La implementación vive en `Ai\Application` porque decide
+    # sobre datos del dominio (la elección de la organización).
+    App\Ai\Domain\Contract\AiProviderSelectorInterface: '@App\Ai\Application\AiPurposeSelector'
+
+    # La escalera de niveles: se recorren en orden, y cada extractor decide si
+    # le toca. El orden importa, así que se declara explícitamente en vez de
+    # confiar en el orden de discovery del contenedor.
+    App\Ai\Application\Extraction\DocumentExtractorChain:
+        arguments:
+            $extractors:
+                - '@App\Ai\Application\Extraction\AiDocumentExtractor'
+                - '@App\Ai\Application\Extraction\AdvancedAiDocumentExtractor'
+
+    App\Ai\Application\RedactContent:
+        arguments:
+            $maxLength: '%app.ai.max_text_length%'
+
+    App\Ai\Application\Extraction\AdvancedAiDocumentExtractor:
+        arguments:
+            $confidenceThreshold: '%app.ai.advanced.confidence_threshold%'
+            $maxTextLength: '%app.ai.advanced.max_text_length%'
+
+    # El presupuesto se comprueba **antes** de cada llamada, así que su tope
+    # es un parámetro de la aplicación y no una constante del código: es una
+    # decisión comercial (lo que se está dispuesto a gastar por organización
+    # y mes) y tiene que poder cambiar sin tocar PHP.
+    App\Ai\Application\AiBudget:
+        arguments:
+            $monthlyMinor: '%app.ai.budget.monthly_minor%'
+
+    # El pipeline depende de la puerta, no de la implementación: qué se manda
+    # a un modelo y con qué presupuesto es política del módulo de IA, y el
+    # pipeline no debe saber de eso (D-08).
+    App\Ai\Application\AiExtractionInterface: '@App\Ai\Application\AiExtractionService'

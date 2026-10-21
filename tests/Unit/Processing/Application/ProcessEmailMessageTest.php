@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Processing\Application;
 
+use App\Ai\Application\AiExtractionInterface;
+use App\Ai\Application\NullAiExtraction;
 use App\Catalog\Domain\Entity\Provider;
 use App\Catalog\Domain\Entity\ProviderIdentity;
 use App\Catalog\Domain\Enum\ProviderIdentityType;
@@ -20,6 +22,7 @@ use App\Mailbox\Application\Imap\ImapMessageBody;
 use App\Mailbox\Domain\Entity\EmailAccount;
 use App\Mailbox\Domain\Entity\EmailMessage;
 use App\Mailbox\Domain\Entity\MessageProcessingEvent;
+use App\Mailbox\Domain\Enum\ExtractionTier;
 use App\Mailbox\Domain\Enum\ImapEncryption;
 use App\Mailbox\Domain\Enum\MessageProcessingState;
 use App\Mailbox\Domain\Repository\EmailAccountRepositoryInterface;
@@ -39,6 +42,7 @@ use App\Processing\Application\Provider\ProviderParserRegistry;
 use App\Processing\Application\Provider\ProviderResolver;
 use App\Processing\Application\Text\DocumentTextExtractorRegistry;
 use App\Processing\Application\Text\ExtractDocumentText;
+use App\Processing\Domain\Dto\ExtractedDocument;
 use App\Processing\Infrastructure\Ocr\NullOcrEngine;
 use App\Processing\Infrastructure\Text\PdfTextExtractor;
 use App\Processing\Infrastructure\Text\PlainTextExtractor;
@@ -51,6 +55,7 @@ use App\Shared\Domain\Enum\AuditAction;
 use App\Shared\Domain\ValueObject\BillingPeriod;
 use App\Shared\Domain\ValueObject\Currency;
 use App\Shared\Domain\ValueObject\Money;
+use App\Tests\Support\Ai\RecordingAiExtraction;
 use App\Tests\Support\Processing\InMemoryExtractionCacheRepository;
 use App\Tests\Support\Processing\PdfFixture;
 
@@ -161,7 +166,7 @@ final class ProcessEmailMessageTest extends TestCase
     /**
      * @param list<Service> $services
      */
-    private function orchestrator(array $services = []): ProcessEmailMessage
+    private function orchestrator(array $services = [], ?AiExtractionInterface $aiExtraction = null): ProcessEmailMessage
     {
         $this->services->method('findForOrganization')->willReturn($services);
 
@@ -184,6 +189,7 @@ final class ProcessEmailMessageTest extends TestCase
             tenantContext: new TenantContext(),
             auditLogger: $this->audit,
             clock: $clock,
+            aiExtraction: $aiExtraction ?? new NullAiExtraction(),
         );
     }
 
@@ -544,6 +550,7 @@ final class ProcessEmailMessageTest extends TestCase
             tenantContext: $tenantContext,
             auditLogger: $this->audit,
             clock: $clock,
+            aiExtraction: new NullAiExtraction(),
         );
 
         $orchestrator($this->message('Factura', 'facturacion@desconocido.com'));
@@ -682,6 +689,102 @@ final class ProcessEmailMessageTest extends TestCase
         self::assertCount($discoveriesAfterFirstPass, $this->savedDiscoveries);
         self::assertCount($eventsAfterFirstPass, $this->savedEvents);
         self::assertCount(1, $this->cache->all());
+    }
+
+    // ── Escalera de IA: cuándo se llama y cuándo no ────────────────────────
+
+    public function testTheAiEsCalledWhenTheDeterministicPathIsNotEnough(): void
+    {
+        $this->knownProvider('OVH', 'ovh.com');
+        $this->withBody('Total 29,90 €');
+
+        $ai = new RecordingAiExtraction();
+        $this->orchestrator([], $ai)($this->message());
+
+        self::assertSame(1, $ai->callCount());
+    }
+
+    public function testTheAiIsNotCalledWhenTheDocumentIsAlreadyActionable(): void
+    {
+        // El caso ya está resuelto: llamarla sería pagar por no obtener nada.
+        $this->knownProvider('OVH', 'ovh.com');
+        $this->withBody('Factura nº: FRA-1. Total 29,90 €. Facturación mensual.');
+
+        $ai = new RecordingAiExtraction();
+        $this->orchestrator([], $ai)($this->message());
+
+        self::assertFalse($ai->wasCalled());
+    }
+
+    public function testTheAiIsNotCalledOnACacheHit(): void
+    {
+        // Un acierto de caché no se reinterpreta: el contenido ya se analysó
+        // una vez, y volver a llamarla sería pagar dos veces por lo mismo.
+        $this->knownProvider('OVH', 'ovh.com');
+        $this->withBody('Factura nº: FRA-1. Total 29,90 €. Facturación mensual.');
+
+        $ai = new RecordingAiExtraction();
+        $orchestrator = $this->orchestrator([], $ai);
+
+        $orchestrator($this->message());
+        $orchestrator($this->message('RV: Factura OVH 2026-10', 'reenvio@miempresa.com'));
+
+        self::assertSame(0, $ai->callCount());
+    }
+
+    public function testTheDocumentOfTheAiIsAdoptedWhenItIsActionable(): void
+    {
+        // El cuerpo no trae periodicidad: la vía determinista no puede
+        // resolverlo, y el modelo sí.
+        $this->knownProvider('OVH', 'ovh.com');
+        $this->withBody('Factura nº: FRA-1. Total 29,90 €.');
+
+        $aiDocument = new ExtractedDocument(
+            tier: ExtractionTier::AI_CHEAP,
+            confidence: 0.9,
+            amountMinor: 3490,
+            currency: 'EUR',
+            billingPeriod: BillingPeriod::MONTHLY,
+            providerName: 'OVH',
+        );
+
+        $ai = new RecordingAiExtraction($aiDocument);
+        $result = $this->orchestrator([], $ai)($this->message('Factura', 'facturacion@desconocido.com'));
+
+        self::assertNotNull($result);
+        self::assertSame(3490, $result->getProposedData()['amountMinor']);
+
+        $extracted = $this->lastEventOf(MessageProcessingState::EXTRACTED);
+
+        self::assertNotNull($extracted);
+        self::assertSame('ai:ai_cheap', $extracted->getExtractor());
+        self::assertSame(ExtractionTier::AI_CHEAP, $extracted->getTier());
+    }
+
+    public function testTheDocumentOfTheAiIsIgnoredWhenItIsNotActionable(): void
+    {
+        // Un documento que la IA no ha podido completar no sustituye al
+        // determinista: el pipeline sigue con lo que tiene.
+        $this->knownProvider('OVH', 'ovh.com');
+        $this->withBody('Factura nº: FRA-1. Total 29,90 €.');
+
+        $aiDocument = new ExtractedDocument(
+            tier: ExtractionTier::AI_CHEAP,
+            confidence: 0.5,
+            amountMinor: 2990,
+        );
+
+        $ai = new RecordingAiExtraction($aiDocument);
+        $message = $this->message('Factura', 'facturacion@desconocido.com');
+        $result = $this->orchestrator([], $ai)($message);
+
+        self::assertNull($result, 'El documento no es accionable: no hay nada que proponer.');
+        self::assertSame(MessageProcessingState::REQUIRES_REVIEW, $message->getProcessingState());
+
+        $extracted = $this->lastEventOf(MessageProcessingState::EXTRACTED);
+
+        self::assertNotNull($extracted);
+        self::assertNotSame('ai:ai_cheap', $extracted->getExtractor());
     }
 
     private function lastEventOf(MessageProcessingState $state): ?MessageProcessingEvent
