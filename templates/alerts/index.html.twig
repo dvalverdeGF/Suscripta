@@ -87,6 +87,11 @@
                                 Servicio:
                                 <a href="{{ path('app_services_show', {id: service.id.toRfc4122()}) }}">{{ service.name }}</a>
                             </p>
+                        {% elseif alert.discoveryId %}
+                            <p class="text-muted small">
+                                Propuesta:
+                                <a href="{{ path('app_discoveries_show', {id: alert.discoveryId.toRfc4122()}) }}">Ver en descubrimientos</a>
+                            </p>
                         {% endif %}
 
                         {% if alert.status.value == 'open' %}

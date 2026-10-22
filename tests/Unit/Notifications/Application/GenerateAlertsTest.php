@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Notifications\Application;
 
+use App\Discovery\Domain\Entity\Discovery;
+use App\Discovery\Domain\Enum\DiscoveryType;
 use App\Discovery\Domain\Repository\DiscoveryRepositoryInterface;
 use App\Notifications\Application\Dto\AlertGenerationResult;
 use App\Notifications\Application\GenerateAlerts;
@@ -11,10 +13,11 @@ use App\Notifications\Domain\Entity\Alert;
 use App\Notifications\Domain\Enum\AlertSeverity;
 use App\Notifications\Domain\Enum\AlertStatus;
 use App\Notifications\Domain\Enum\AlertType;
+use App\Services\Domain\Dto\ServiceView;
 use App\Services\Domain\Entity\Service;
 use App\Services\Domain\Enum\ServiceSource;
 use App\Services\Domain\Enum\ServiceStatus;
-use App\Services\Domain\Repository\ServiceRepositoryInterface;
+use App\Services\Domain\Repository\ServiceViewRepositoryInterface;
 use App\Services\Domain\Service\ServiceCostCalculator;
 use App\Shared\Application\Audit\AuditLoggerInterface;
 use App\Shared\Application\Clock;
@@ -24,8 +27,11 @@ use App\Shared\Domain\ValueObject\Currency;
 use App\Shared\Domain\ValueObject\Money;
 use App\Tests\Support\Notifications\InMemoryAlertRepository;
 
+use function array_filter;
 use function array_map;
+use function array_unique;
 use function array_values;
+use function count;
 
 use DateTimeImmutable;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -47,23 +53,36 @@ final class GenerateAlertsTest extends TestCase
 
     private Uuid $organizationId;
     private InMemoryAlertRepository $alerts;
-    private ServiceRepositoryInterface&MockObject $services;
+    private ServiceViewRepositoryInterface&MockObject $services;
     private DiscoveryRepositoryInterface&MockObject $discoveries;
     private AuditLoggerInterface&MockObject $auditLogger;
     private DateTimeImmutable $now;
     private int $pendingDiscoveries = 0;
 
+    /** @var list<Service> */
+    private array $serviceList = [];
+
+    /** @var list<Discovery> */
+    private array $pendingDiscoveryList = [];
+
+    /** @var array<string, Discovery> */
+    private array $knownDiscoveries = [];
+
     protected function setUp(): void
     {
         $this->organizationId = Uuid::v7();
         $this->alerts = new InMemoryAlertRepository();
-        $this->services = $this->createMock(ServiceRepositoryInterface::class);
+        $this->services = $this->createMock(ServiceViewRepositoryInterface::class);
         $this->discoveries = $this->createMock(DiscoveryRepositoryInterface::class);
         $this->auditLogger = $this->createMock(AuditLoggerInterface::class);
         $this->now = new DateTimeImmutable(self::TODAY.' 09:00:00');
 
-        $this->services->method('findForOrganization')->willReturn([]);
+        $this->services->method('findAll')->willReturnCallback(fn (): array => $this->views());
         $this->discoveries->method('countPending')->willReturnCallback(fn (): int => $this->pendingDiscoveries);
+        $this->discoveries->method('findPending')->willReturnCallback(fn (): array => $this->pendingDiscoveryList);
+        $this->discoveries->method('find')->willReturnCallback(
+            fn (Uuid $id): ?Discovery => $this->knownDiscoveries[$id->toRfc4122()] ?? null,
+        );
     }
 
     public function testItCreatesNothingWhenThereIsNothingToWarnAbout(): void
@@ -188,6 +207,87 @@ final class GenerateAlertsTest extends TestCase
 
         self::assertSame(AlertType::DISCOVERY_PENDING, $this->alerts->all()[0]->getType());
         self::assertSame(AlertSeverity::INFO, $this->alerts->all()[0]->getSeverity());
+    }
+
+    public function testItWarnsAboutEachNewServiceDetected(): void
+    {
+        $discovery = $this->discovery('Netflix', 1299);
+        $this->withPendingDiscoveries($discovery);
+
+        $this->generate();
+
+        $alerts = $this->newServiceAlerts();
+
+        self::assertCount(1, $alerts);
+        self::assertSame(AlertSeverity::INFO, $alerts[0]->getSeverity());
+        self::assertSame($discovery->getId(), $alerts[0]->getDiscoveryId());
+        self::assertStringContainsString('Netflix', $alerts[0]->getTitle());
+        self::assertStringContainsString('12,99', $alerts[0]->getMessage());
+    }
+
+    public function testTwoNewServicesGetTwoDifferentAlerts(): void
+    {
+        $this->withPendingDiscoveries($this->discovery('Netflix'), $this->discovery('Spotify'));
+
+        $this->generate();
+
+        $alerts = $this->newServiceAlerts();
+
+        self::assertCount(2, $alerts);
+        self::assertCount(2, array_unique(array_map(
+            static fn (Alert $alert): string => $alert->getDedupKey(),
+            $alerts,
+        )));
+    }
+
+    public function testItDoesNotWarnTwiceAboutTheSameNewService(): void
+    {
+        $this->withPendingDiscoveries($this->discovery('Netflix'));
+
+        $this->generate();
+        $second = $this->generate();
+
+        self::assertCount(1, $this->newServiceAlerts());
+        self::assertSame(0, $second->created);
+    }
+
+    public function testItResolvesTheAlertWhenTheProposalIsConfirmed(): void
+    {
+        $discovery = $this->discovery('Netflix');
+        $this->withPendingDiscoveries($discovery);
+
+        $this->generate();
+
+        $discovery->confirm(Uuid::v7(), $this->now);
+        $this->withPendingDiscoveries();
+
+        $this->generate();
+
+        self::assertSame(AlertStatus::RESOLVED, $this->newServiceAlerts()[0]->getStatus());
+    }
+
+    public function testTheAlertSurvivesWhileTheProposalIsStillPending(): void
+    {
+        $this->withPendingDiscoveries($this->discovery('Netflix'));
+
+        $this->generate();
+
+        // La propuesta sigue pendiente aunque no salga en el barrido: el aviso
+        // no se cierra por un límite de la consulta.
+        $this->withPendingDiscoveries();
+
+        $this->generate();
+
+        self::assertSame(AlertStatus::OPEN, $this->newServiceAlerts()[0]->getStatus());
+    }
+
+    public function testItDoesNotWarnAboutOtherKindsOfProposal(): void
+    {
+        $this->withPendingDiscoveries($this->discovery('Netflix', type: DiscoveryType::PRICE_CHANGE));
+
+        $this->generate();
+
+        self::assertSame([], $this->newServiceAlerts());
     }
 
     public function testItIgnoresPausedServices(): void
@@ -331,10 +431,71 @@ final class GenerateAlertsTest extends TestCase
         return array_map(static fn (Alert $alert): AlertType => $alert->getType(), $this->alerts->all());
     }
 
+    /**
+     * Solo los avisos de servicio nuevo, sin el agregado «hay algo que
+     * revisar»: son dos cosas distintas y mezclarlos esconde los fallos.
+     *
+     * @return list<Alert>
+     */
+    private function newServiceAlerts(): array
+    {
+        return array_values(array_filter(
+            $this->alerts->all(),
+            static fn (Alert $alert): bool => AlertType::NEW_SERVICE_DETECTED === $alert->getType(),
+        ));
+    }
+
     private function withServices(Service ...$services): void
     {
-        $this->services = $this->createMock(ServiceRepositoryInterface::class);
-        $this->services->method('findForOrganization')->willReturn(array_values($services));
+        $this->serviceList = array_values($services);
+    }
+
+    /**
+     * El generador lee del read model. La conversión se hace en cada llamada
+     * para que una mutación posterior del servicio (por ejemplo, que el cobro
+     * se adelante) se refleje en la siguiente ejecución.
+     *
+     * @return list<ServiceView>
+     */
+    private function views(): array
+    {
+        return array_map(
+            static fn (Service $service): ServiceView => ServiceView::fromService($service),
+            $this->serviceList,
+        );
+    }
+
+    /**
+     * @param Discovery ...$discoveries propuestas que siguen esperando decisión
+     */
+    private function withPendingDiscoveries(Discovery ...$discoveries): void
+    {
+        $this->pendingDiscoveryList = array_values($discoveries);
+        $this->pendingDiscoveries = count($this->pendingDiscoveryList);
+    }
+
+    private function discovery(
+        string $providerName,
+        ?int $amountMinor = null,
+        DiscoveryType $type = DiscoveryType::NEW_SERVICE,
+    ): Discovery {
+        $proposedData = ['providerName' => $providerName];
+
+        if (null !== $amountMinor) {
+            $proposedData['amountMinor'] = $amountMinor;
+            $proposedData['currency'] = 'EUR';
+        }
+
+        $discovery = new Discovery(
+            organizationId: $this->organizationId,
+            type: $type,
+            detectedAt: $this->now,
+            proposedData: $proposedData,
+        );
+
+        $this->knownDiscoveries[$discovery->getId()->toRfc4122()] = $discovery;
+
+        return $discovery;
     }
 
     private function service(

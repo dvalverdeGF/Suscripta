@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\Domain\Dto;
 
-use App\Services\Domain\Entity\ServicePrice;
 use App\Services\Domain\Enum\ServiceSource;
 use App\Shared\Domain\ValueObject\Money;
 use DateTimeImmutable;
@@ -15,11 +14,15 @@ use DateTimeImmutable;
  * La variación se calcula al construir la fila y no en la vista: es una regla
  * de negocio (comparar filas consecutivas) y tiene que poder probarse sin
  * renderizar nada.
+ *
+ * La fila guarda la **vista** del precio (`ServicePriceView`), no la entidad
+ * `ServicePrice`: el historial se muestra, no se escribe, y la entidad da
+ * permisos que el lector no usa (ARCHITECTURE.md §3).
  */
 final readonly class PriceHistoryEntry
 {
     public function __construct(
-        public ServicePrice $price,
+        public ServicePriceView $price,
         public Money $amount,
         public DateTimeImmutable $validFrom,
         public ?DateTimeImmutable $validTo,

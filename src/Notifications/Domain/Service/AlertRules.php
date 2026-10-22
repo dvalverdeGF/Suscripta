@@ -54,6 +54,19 @@ final class AlertRules
     /** Un aviso de renovación a menos de una semana es urgente. */
     public const CRITICAL_RENEWAL_DAYS = 7;
 
+    /**
+     * Cuántas propuestas pendientes se miran como máximo para generar avisos
+     * de «servicio nuevo detectado».
+     *
+     * Es un tope de seguridad, no una regla de producto: una organización con
+     * más de 500 propuestas sin revisar es patológica, y el barrido se hace en
+     * memoria. Las propuestas que se queden fuera **no** pierden su aviso: la
+     * resolución de estos avisos comprueba el estado real de la propuesta, no
+     * la presencia en la lista, así que un aviso vivo no se cierra por no
+     * haber salido en el barrido.
+     */
+    public const PENDING_DISCOVERY_SCAN_LIMIT = 500;
+
     public static function noticeLeadDays(int $noticePeriodDays): int
     {
         return max(self::NOTICE_LEAD_MIN_DAYS, $noticePeriodDays * self::NOTICE_LEAD_MULTIPLIER);
@@ -114,6 +127,7 @@ final class AlertRules
             AlertType::COMMITMENT_ENDING,
             AlertType::PRICE_INCREASE,
             AlertType::DISCOVERY_PENDING,
+            AlertType::NEW_SERVICE_DETECTED,
         ];
     }
 }

@@ -16,7 +16,7 @@ use App\Notifications\Domain\Repository\NotificationPreferenceRepositoryInterfac
 use App\Notifications\Domain\Repository\NotificationRepositoryInterface;
 use App\Notifications\Domain\Service\AlertRules;
 use App\Notifications\UI\Form\NotificationPreferenceFormType;
-use App\Services\Domain\Repository\ServiceRepositoryInterface;
+use App\Services\Domain\Repository\ServiceViewRepositoryInterface;
 use App\Shared\Application\Clock;
 
 use function sprintf;
@@ -44,7 +44,7 @@ final class AlertController extends AbstractController
         private readonly AlertRepositoryInterface $alerts,
         private readonly NotificationRepositoryInterface $notifications,
         private readonly NotificationPreferenceRepositoryInterface $preferences,
-        private readonly ServiceRepositoryInterface $services,
+        private readonly ServiceViewRepositoryInterface $services,
         private readonly UpdateNotificationPreferences $updatePreferences,
         private readonly Clock $clock,
     ) {
@@ -61,7 +61,7 @@ final class AlertController extends AbstractController
             $serviceId = $alert->getServiceId();
 
             if (null !== $serviceId) {
-                $services[$serviceId->toRfc4122()] = $this->services->find($serviceId);
+                $services[$serviceId->toRfc4122()] = $this->services->findOne($serviceId);
             }
         }
 
@@ -81,7 +81,7 @@ final class AlertController extends AbstractController
 
         return $this->render('alerts/show.html.twig', [
             'alert' => $alert,
-            'service' => null === $serviceId ? null : $this->services->find($serviceId),
+            'service' => null === $serviceId ? null : $this->services->findOne($serviceId),
             'notifications' => $this->notifications->findForAlert($alert->getId()),
         ]);
     }

@@ -65,6 +65,21 @@
         </div>
 
         <div class="d-flex flex-column gap-3">
+            {% if alert.discoveryId %}
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Propuesta</h2>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-0">
+                            <a href="{{ path('app_discoveries_show', {id: alert.discoveryId.toRfc4122()}) }}">
+                                Ver la propuesta en la bandeja de descubrimientos
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            {% endif %}
+
             {% if service %}
                 <div class="card">
                     <div class="card-header">

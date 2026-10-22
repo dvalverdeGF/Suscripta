@@ -16,7 +16,7 @@ use App\Discovery\UI\Form\DiscoveryFormData;
 use App\Discovery\UI\Form\DiscoveryFormType;
 use App\Identity\Domain\Entity\User;
 use App\Mailbox\Domain\Repository\EmailMessageRepositoryInterface;
-use App\Services\Domain\Repository\ServiceRepositoryInterface;
+use App\Services\Domain\Repository\ServiceViewRepositoryInterface;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Exception\InvalidArgumentException;
 use App\Shared\Domain\ValueObject\Currency;
@@ -50,7 +50,7 @@ final class DiscoveryController extends AbstractController
     public function __construct(
         private readonly DiscoveryRepositoryInterface $discoveries,
         private readonly EmailMessageRepositoryInterface $messages,
-        private readonly ServiceRepositoryInterface $services,
+        private readonly ServiceViewRepositoryInterface $services,
         private readonly ProviderRepositoryInterface $providers,
         private readonly CategoryRepositoryInterface $categories,
         private readonly TenantContext $tenantContext,
@@ -139,7 +139,7 @@ final class DiscoveryController extends AbstractController
             'source' => null === $messageId ? null : $this->messages->find($messageId),
             'matchedService' => null === $discovery->getMatchedServiceId()
                 ? null
-                : $this->services->find($discovery->getMatchedServiceId()),
+                : $this->services->findOne($discovery->getMatchedServiceId()),
             'evidence' => $this->discoveries->findEvidence($discovery->getId()),
         ]);
     }
@@ -160,7 +160,7 @@ final class DiscoveryController extends AbstractController
                 'source' => null === $messageId ? null : $this->messages->find($messageId),
                 'matchedService' => null === $discovery->getMatchedServiceId()
                     ? null
-                    : $this->services->find($discovery->getMatchedServiceId()),
+                    : $this->services->findOne($discovery->getMatchedServiceId()),
                 'evidence' => $this->discoveries->findEvidence($discovery->getId()),
             ]);
         }

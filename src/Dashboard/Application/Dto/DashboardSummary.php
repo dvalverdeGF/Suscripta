@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Dashboard\Application\Dto;
 
 use App\Discovery\Domain\Entity\Discovery;
+use App\Services\Domain\Dto\ServiceView;
 use App\Services\Domain\Dto\SpendPoint;
-use App\Services\Domain\Entity\Service;
 use App\Services\Domain\Enum\ServiceStatus;
 use App\Shared\Domain\ValueObject\Money;
 
@@ -19,6 +19,10 @@ use function count;
  *
  * Es un DTO de solo lectura: la vista no consulta la base de datos ni calcula
  * nada por su cuenta.
+ *
+ * Los servicios aparecen como **`ServiceView`**, no como entidad `Service`:
+ * el panel es un lector del inventario y no necesita permiso de escritura
+ * sobre él (ARCHITECTURE.md §3).
  */
 final readonly class DashboardSummary
 {
@@ -26,12 +30,12 @@ final readonly class DashboardSummary
      * @param array<string, Money>                           $monthlyByCurrency  clave = código ISO de la moneda
      * @param array<string, Money>                           $annualByCurrency
      * @param list<UpcomingWindow>                           $upcomingWindows    ventanas de 30 y 60 días
-     * @param list<Service>                                  $upcomingRenewals
+     * @param list<ServiceView>                              $upcomingRenewals
      * @param list<Discovery>                                $pendingDiscoveries
      * @param int                                            $openAlerts         avisos abiertos que piden atención
-     * @param list<Service>                                  $recentPriceChanges
+     * @param list<ServiceView>                              $recentPriceChanges
      * @param list<CategoryCost>                             $monthlyByCategory  ordenado de mayor a menor coste
-     * @param list<Service>                                  $topServices        los más caros, por coste mensual
+     * @param list<ServiceView>                              $topServices        los más caros, por coste mensual
      * @param list<array{status: ServiceStatus, total: int}> $servicesByStatus
      * @param list<SpendPoint>                               $spendEvolution     del mes más antiguo al más reciente
      */

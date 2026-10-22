@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Services\Domain;
 
+use App\Services\Domain\Dto\ServiceView;
 use App\Services\Domain\Entity\Service;
 use App\Services\Domain\Enum\ServiceStatus;
 use App\Services\Domain\Service\ServiceCostCalculator;
@@ -32,7 +33,7 @@ final class ServiceCostCalculatorTest extends TestCase
         Currency $currency = Currency::EUR,
         int $intervalCount = 1,
         ServiceStatus $status = ServiceStatus::ACTIVE,
-    ): Service {
+    ): ServiceView {
         $service = new Service(Uuid::v7(), 'Servicio', $currency, $period, status: $status);
         $service->changePrice(Money::of($amountMinor, $currency), new DateTimeImmutable('2026-01-01'));
 
@@ -40,7 +41,7 @@ final class ServiceCostCalculatorTest extends TestCase
             $service->changeBillingPeriod($period, $intervalCount);
         }
 
-        return $service;
+        return ServiceView::fromService($service);
     }
 
     #[DataProvider('monthlyEquivalentProvider')]
@@ -68,7 +69,7 @@ final class ServiceCostCalculatorTest extends TestCase
 
     public function testMonthlyEquivalentIsNullWithoutPrice(): void
     {
-        $service = new Service(Uuid::v7(), 'Sin precio', Currency::EUR, BillingPeriod::MONTHLY);
+        $service = ServiceView::fromService(new Service(Uuid::v7(), 'Sin precio', Currency::EUR, BillingPeriod::MONTHLY));
 
         self::assertNull($this->calculator->monthlyEquivalent($service));
         self::assertNull($this->calculator->annualCost($service));
@@ -119,10 +120,11 @@ final class ServiceCostCalculatorTest extends TestCase
 
     public function testPriceChangeRatio(): void
     {
-        $service = $this->service(1000, BillingPeriod::MONTHLY);
+        $service = new Service(Uuid::v7(), 'Servicio', Currency::EUR, BillingPeriod::MONTHLY);
+        $service->changePrice(Money::of(1000, Currency::EUR), new DateTimeImmutable('2026-01-01'));
         $service->changePrice(Money::of(1200, Currency::EUR), new DateTimeImmutable('2026-06-01'));
 
-        self::assertSame(0.2, $this->calculator->priceChangeRatio($service));
+        self::assertSame(0.2, $this->calculator->priceChangeRatio(ServiceView::fromService($service)));
     }
 
     public function testPriceChangeRatioIsNullWithoutHistory(): void
@@ -143,7 +145,7 @@ final class ServiceCostCalculatorTest extends TestCase
 
     public function testDominantCurrencyIsNullWithoutPrices(): void
     {
-        $service = new Service(Uuid::v7(), 'Sin precio', Currency::EUR, BillingPeriod::MONTHLY);
+        $service = ServiceView::fromService(new Service(Uuid::v7(), 'Sin precio', Currency::EUR, BillingPeriod::MONTHLY));
 
         self::assertNull($this->calculator->dominantCurrency([$service]));
     }

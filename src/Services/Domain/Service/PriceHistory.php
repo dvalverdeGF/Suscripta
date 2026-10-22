@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Domain\Service;
 
 use App\Services\Domain\Dto\PriceHistoryEntry;
-use App\Services\Domain\Entity\Service;
-use App\Services\Domain\Entity\ServicePrice;
+use App\Services\Domain\Dto\ServicePriceView;
+use App\Services\Domain\Dto\ServiceView;
 use App\Shared\Domain\ValueObject\Money;
 
 use function count;
@@ -23,15 +23,21 @@ use function usort;
  * La variación se mide contra la fila inmediatamente anterior en el tiempo, no
  * contra la primera: lo que el usuario quiere saber es «cuánto me ha subido
  * esta vez», no «cuánto me ha subido desde que me di de alta».
+ *
+ * Lee de `ServiceView`, no de la entidad: quien muestra el historial (el
+ * backoffice) no necesita permiso de escritura sobre el inventario
+ * (ARCHITECTURE.md §3).
  */
 final class PriceHistory
 {
     /**
      * @return list<PriceHistoryEntry>
      */
-    public function entries(Service $service): array
+    public function entries(ServiceView $service): array
     {
-        $prices = $service->getPrices()->toArray();
+        // Copia local: `ServiceView` es de solo lectura y su propiedad no se
+        // puede ordenar en su sitio.
+        $prices = $service->prices;
 
         if ([] === $prices) {
             return [];
@@ -39,25 +45,25 @@ final class PriceHistory
 
         usort(
             $prices,
-            static fn (ServicePrice $a, ServicePrice $b): int => $a->getValidFrom() <=> $b->getValidFrom(),
+            static fn (ServicePriceView $a, ServicePriceView $b): int => $a->validFrom <=> $b->validFrom,
         );
 
-        $current = $service->getCurrentPrice();
+        $current = $service->currentPrice;
         $entries = [];
         $previous = null;
 
         foreach ($prices as $price) {
-            $amount = $price->getAmount();
-            $variation = null === $previous ? null : $amount->subtract($previous->getAmount());
-            $ratio = null === $previous ? null : $amount->relativeDifferenceTo($previous->getAmount());
+            $amount = $price->amount;
+            $variation = null === $previous ? null : $amount->subtract($previous->amount);
+            $ratio = null === $previous ? null : $amount->relativeDifferenceTo($previous->amount);
 
             $entries[] = new PriceHistoryEntry(
                 price: $price,
                 amount: $amount,
-                validFrom: $price->getValidFrom(),
-                validTo: $price->getValidTo(),
-                source: $price->getSource(),
-                note: $price->getNote(),
+                validFrom: $price->validFrom,
+                validTo: $price->validTo,
+                source: $price->source,
+                note: $price->note,
                 isCurrent: $price === $current,
                 variationAbsolute: $variation,
                 variationRatio: $ratio,
@@ -75,7 +81,7 @@ final class PriceHistory
      * Null si no hay al menos dos precios: con uno solo no hay evolución que
      * contar, y devolver cero haría creer que el precio nunca ha cambiado.
      */
-    public function totalVariation(Service $service): ?Money
+    public function totalVariation(ServiceView $service): ?Money
     {
         $entries = $this->entries($service);
 
@@ -89,7 +95,7 @@ final class PriceHistory
     /**
      * Variación porcentual entre el primer precio conocido y el vigente.
      */
-    public function totalVariationRatio(Service $service): ?float
+    public function totalVariationRatio(ServiceView $service): ?float
     {
         $entries = $this->entries($service);
 
@@ -103,7 +109,7 @@ final class PriceHistory
     /**
      * Cuántas veces ha cambiado el precio.
      */
-    public function changeCount(Service $service): int
+    public function changeCount(ServiceView $service): int
     {
         $entries = $this->entries($service);
 

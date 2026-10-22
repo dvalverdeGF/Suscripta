@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Services\Domain\Service;
 
+use App\Services\Domain\Dto\ServiceView;
 use App\Services\Domain\Entity\Service;
 use App\Services\Domain\Service\SpendEvolution;
 use App\Shared\Domain\ValueObject\BillingPeriod;
@@ -60,7 +61,7 @@ final class SpendEvolutionTest extends TestCase
         $service->changePrice(Money::of(1500, Currency::EUR), new DateTimeImmutable('2026-08-01'));
 
         $points = $this->evolution->monthly(
-            [$service],
+            [$this->view($service)],
             new DateTimeImmutable('2026-06-01'),
             new DateTimeImmutable('2026-10-01'),
         );
@@ -79,7 +80,7 @@ final class SpendEvolutionTest extends TestCase
         $service->changePrice(Money::of(1000, Currency::EUR), new DateTimeImmutable('2026-09-01'));
 
         $points = $this->evolution->monthly(
-            [$service],
+            [$this->view($service)],
             new DateTimeImmutable('2026-06-01'),
             new DateTimeImmutable('2026-10-01'),
         );
@@ -97,7 +98,7 @@ final class SpendEvolutionTest extends TestCase
         $service->cancel(new DateTimeImmutable('2026-08-10'));
 
         $points = $this->evolution->monthly(
-            [$service],
+            [$this->view($service)],
             new DateTimeImmutable('2026-06-01'),
             new DateTimeImmutable('2026-10-01'),
         );
@@ -114,7 +115,7 @@ final class SpendEvolutionTest extends TestCase
         $annual->changePrice(Money::of(12000, Currency::EUR), new DateTimeImmutable('2026-01-15'));
 
         $points = $this->evolution->monthly(
-            [$annual],
+            [$this->view($annual)],
             new DateTimeImmutable('2026-10-01'),
             new DateTimeImmutable('2026-10-01'),
         );
@@ -131,7 +132,7 @@ final class SpendEvolutionTest extends TestCase
         $dollars->changePrice(Money::of(400, Currency::USD), new DateTimeImmutable('2026-01-15'));
 
         $points = $this->evolution->monthly(
-            [$euros, $dollars],
+            [$this->view($euros), $this->view($dollars)],
             new DateTimeImmutable('2026-10-01'),
             new DateTimeImmutable('2026-10-01'),
         );
@@ -144,7 +145,7 @@ final class SpendEvolutionTest extends TestCase
     public function testAServiceWithoutPricesDoesNotCount(): void
     {
         $points = $this->evolution->monthly(
-            [$this->service('Sin precio', BillingPeriod::MONTHLY)],
+            [$this->view($this->service('Sin precio', BillingPeriod::MONTHLY))],
             new DateTimeImmutable('2026-10-01'),
             new DateTimeImmutable('2026-10-01'),
         );
@@ -158,7 +159,7 @@ final class SpendEvolutionTest extends TestCase
         $service->changePrice(Money::of(9900, Currency::EUR), new DateTimeImmutable('2026-01-15'));
 
         $points = $this->evolution->monthly(
-            [$service],
+            [$this->view($service)],
             new DateTimeImmutable('2026-10-01'),
             new DateTimeImmutable('2026-10-01'),
         );
@@ -172,5 +173,13 @@ final class SpendEvolutionTest extends TestCase
         Currency $currency = Currency::EUR,
     ): Service {
         return new Service(Uuid::v7(), $name, $currency, $period);
+    }
+
+    /**
+     * La evolución se calcula sobre el read model, no sobre la entidad.
+     */
+    private function view(Service $service): ServiceView
+    {
+        return ServiceView::fromService($service);
     }
 }

@@ -122,15 +122,31 @@ class Alert implements TenantAwareInterface
      *
      * Incluye la fecha objetivo porque un cobro que se retrasa es, a efectos
      * prácticos, un aviso nuevo: el anterior ya no describe la realidad.
+     *
+     * La clave de la propuesta **no** incluye el servicio ni la fecha —no los
+     * tiene todavía— sino el identificador de la propuesta. Sin él, dos
+     * servicios nuevos detectados a la vez producirían la misma clave y el
+     * segundo aviso no se crearía nunca. El identificador solo se añade cuando
+     * existe, de modo que las claves ya guardadas siguen siendo válidas.
      */
-    public static function buildDedupKey(AlertType $type, ?Uuid $serviceId, ?DateTimeImmutable $dueAt): string
-    {
-        return mb_substr(sprintf(
+    public static function buildDedupKey(
+        AlertType $type,
+        ?Uuid $serviceId,
+        ?DateTimeImmutable $dueAt,
+        ?Uuid $discoveryId = null,
+    ): string {
+        $key = sprintf(
             '%s|%s|%s',
             $type->value,
             $serviceId?->toRfc4122() ?? '-',
             $dueAt?->format('Y-m-d') ?? '-',
-        ), 0, 255);
+        );
+
+        if (null !== $discoveryId) {
+            $key = sprintf('%s|%s', $key, $discoveryId->toRfc4122());
+        }
+
+        return mb_substr($key, 0, 255);
     }
 
     public function getId(): Uuid

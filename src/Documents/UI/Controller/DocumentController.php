@@ -17,7 +17,7 @@ use App\Documents\Domain\Repository\DocumentRepositoryInterface;
 use App\Documents\UI\Form\DocumentFormData;
 use App\Documents\UI\Form\DocumentFormType;
 use App\Identity\Domain\Entity\User;
-use App\Services\Domain\Repository\ServiceRepositoryInterface;
+use App\Services\Domain\Repository\ServiceViewRepositoryInterface;
 use App\Shared\Domain\Exception\InvalidArgumentException;
 
 use function is_string;
@@ -47,7 +47,7 @@ final class DocumentController extends AbstractController
 {
     public function __construct(
         private readonly DocumentRepositoryInterface $documents,
-        private readonly ServiceRepositoryInterface $services,
+        private readonly ServiceViewRepositoryInterface $services,
         private readonly UploadDocument $uploadDocument,
         private readonly DownloadDocument $downloadDocument,
         private readonly DeleteDocument $deleteDocument,
@@ -66,7 +66,7 @@ final class DocumentController extends AbstractController
             $serviceId = $document->getServiceId();
 
             if (null !== $serviceId) {
-                $services[$serviceId->toRfc4122()] = $this->services->find($serviceId);
+                $services[$serviceId->toRfc4122()] = $this->services->findOne($serviceId);
             }
         }
 
@@ -139,7 +139,7 @@ final class DocumentController extends AbstractController
 
         return $this->render('documents/show.html.twig', [
             'document' => $document,
-            'service' => null === $serviceId ? null : $this->services->find($serviceId),
+            'service' => null === $serviceId ? null : $this->services->findOne($serviceId),
             'serviceChoices' => $this->serviceChoices(),
         ]);
     }
@@ -247,8 +247,8 @@ final class DocumentController extends AbstractController
     {
         $choices = [];
 
-        foreach ($this->services->findForOrganization() as $service) {
-            $choices[$service->getName()] = $service->getId();
+        foreach ($this->services->findAll() as $service) {
+            $choices[$service->name] = $service->id;
         }
 
         return $choices;

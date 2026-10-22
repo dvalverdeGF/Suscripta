@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Notifications\Application;
 
+use App\Discovery\Application\Dto\ProposedData;
+use App\Discovery\Domain\Entity\Discovery;
+use App\Discovery\Domain\Enum\DiscoveryType;
 use App\Discovery\Domain\Repository\DiscoveryRepositoryInterface;
 use App\Notifications\Application\Dto\AlertCandidate;
 use App\Notifications\Application\Dto\AlertGenerationResult;
@@ -12,8 +15,8 @@ use App\Notifications\Domain\Enum\AlertSeverity;
 use App\Notifications\Domain\Enum\AlertType;
 use App\Notifications\Domain\Repository\AlertRepositoryInterface;
 use App\Notifications\Domain\Service\AlertRules;
-use App\Services\Domain\Entity\Service;
-use App\Services\Domain\Repository\ServiceRepositoryInterface;
+use App\Services\Domain\Dto\ServiceView;
+use App\Services\Domain\Repository\ServiceViewRepositoryInterface;
 use App\Services\Domain\Service\ServiceCostCalculator;
 use App\Shared\Application\Audit\AuditLoggerInterface;
 use App\Shared\Application\Clock;
@@ -23,6 +26,8 @@ use DateTimeImmutable;
 
 use function max;
 use function sprintf;
+
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Decide qué avisos debería tener abiertos la organización (ARCHITECTURE.md §4.7).
@@ -45,7 +50,7 @@ use function sprintf;
 final readonly class GenerateAlerts
 {
     public function __construct(
-        private ServiceRepositoryInterface $services,
+        private ServiceViewRepositoryInterface $services,
         private AlertRepositoryInterface $alerts,
         private DiscoveryRepositoryInterface $discoveries,
         private ServiceCostCalculator $costs,
@@ -100,14 +105,7 @@ final readonly class GenerateAlerts
                 ++$created;
             }
 
-            foreach ($this->alerts->findOpenByType($type) as $open) {
-                if (isset($keep[$open->getId()->toRfc4122()])) {
-                    continue;
-                }
-
-                $open->resolve($now);
-                ++$resolved;
-            }
+            $resolved += $this->resolveStaleAlerts($type, $keep, $now);
         }
 
         if ($created > 0 || $resolved > 0) {
@@ -132,14 +130,64 @@ final readonly class GenerateAlerts
     }
 
     /**
+     * Cierra los avisos que ya no describen la realidad.
+     *
+     * La regla general es «si no hay candidato para este aviso, la situación
+     * que lo motivó ya no se da». Para los avisos que cuelgan de una propuesta
+     * hay que ser más cuidadoso: que la propuesta no haya salido en el barrido
+     * no significa que haya dejado de estar pendiente, así que se consulta su
+     * estado real antes de cerrarla.
+     *
+     * @param array<string, true> $keep identificadores de los avisos que se
+     *                                  quedan abiertos
+     *
+     * @return int número de avisos resueltos
+     */
+    private function resolveStaleAlerts(AlertType $type, array $keep, DateTimeImmutable $now): int
+    {
+        $resolved = 0;
+
+        foreach ($this->alerts->findOpenByType($type) as $open) {
+            if (isset($keep[$open->getId()->toRfc4122()])) {
+                continue;
+            }
+
+            if (AlertType::NEW_SERVICE_DETECTED === $type && $this->discoveryIsPending($open->getDiscoveryId())) {
+                continue;
+            }
+
+            $open->resolve($now);
+            ++$resolved;
+        }
+
+        return $resolved;
+    }
+
+    /**
+     * ¿La propuesta que motivó el aviso sigue esperando una decisión?
+     *
+     * Si ya no existe o ya está resuelta, el aviso se puede cerrar.
+     */
+    private function discoveryIsPending(?Uuid $discoveryId): bool
+    {
+        if (null === $discoveryId) {
+            return false;
+        }
+
+        $discovery = $this->discoveries->find($discoveryId);
+
+        return null !== $discovery && $discovery->getStatus()->isPending();
+    }
+
+    /**
      * @return array<string, list<AlertCandidate>> clave = valor del tipo de aviso
      */
     private function collectCandidates(DateTimeImmutable $now): array
     {
         $candidates = [];
 
-        foreach ($this->services->findForOrganization() as $service) {
-            if (!$service->getStatus()->countsTowardsRecurringCost()) {
+        foreach ($this->services->findAll() as $service) {
+            if (!$service->status->countsTowardsRecurringCost()) {
                 continue;
             }
 
@@ -161,13 +209,54 @@ final readonly class GenerateAlerts
             );
         }
 
+        foreach ($this->discoveries->findPending(AlertRules::PENDING_DISCOVERY_SCAN_LIMIT) as $discovery) {
+            if (DiscoveryType::NEW_SERVICE !== $discovery->getType()) {
+                continue;
+            }
+
+            $candidates[AlertType::NEW_SERVICE_DETECTED->value][] = $this->newServiceCandidate($discovery);
+        }
+
         return $candidates;
+    }
+
+    /**
+     * Aviso de un servicio nuevo encontrado en el correo.
+     *
+     * Es **por propuesta**: el aviso identifica qué servicio se ha detectado,
+     * no solo que hay algo pendiente. Por eso su clave de deduplicación lleva
+     * el identificador de la propuesta y no el del servicio, que todavía no
+     * existe.
+     */
+    private function newServiceCandidate(Discovery $discovery): AlertCandidate
+    {
+        $proposal = ProposedData::fromArray($discovery->getProposedData());
+        $name = $proposal->name() ?? 'un servicio nuevo';
+        $amount = $proposal->amount();
+
+        return new AlertCandidate(
+            type: AlertType::NEW_SERVICE_DETECTED,
+            severity: AlertSeverity::INFO,
+            title: sprintf('Nuevo servicio detectado: %s', $name),
+            message: null === $amount
+                ? sprintf('Hemos encontrado %s en tu correo y no lo tienes registrado. Confírmalo para empezar a controlarlo.', $name)
+                : sprintf('Hemos encontrado %s (%s) en tu correo y no lo tienes registrado. Confírmalo para empezar a controlarlo.', $name, $amount->format()),
+            dedupKey: Alert::buildDedupKey(AlertType::NEW_SERVICE_DETECTED, null, null, $discovery->getId()),
+            discoveryId: $discovery->getId(),
+            metadata: [
+                'providerName' => $name,
+                'amount' => $amount?->format(),
+                'currency' => $proposal->currency()->value,
+                'confidence' => $discovery->getConfidence()->value,
+                'confidenceScore' => $discovery->getConfidenceScore(),
+            ],
+        );
     }
 
     /**
      * @return list<AlertCandidate>
      */
-    private function candidatesForService(Service $service, DateTimeImmutable $now): array
+    private function candidatesForService(ServiceView $service, DateTimeImmutable $now): array
     {
         $candidates = [];
 
@@ -204,11 +293,11 @@ final readonly class GenerateAlerts
         return $candidates;
     }
 
-    private function chargeCandidate(Service $service, DateTimeImmutable $now): ?AlertCandidate
+    private function chargeCandidate(ServiceView $service, DateTimeImmutable $now): ?AlertCandidate
     {
-        $nextChargeAt = $service->getNextChargeAt();
+        $nextChargeAt = $service->nextChargeAt;
 
-        if (null === $nextChargeAt || !$service->getBillingPeriod()->isRecurring()) {
+        if (null === $nextChargeAt || !$service->billingPeriod->isRecurring()) {
             return null;
         }
 
@@ -218,70 +307,70 @@ final readonly class GenerateAlerts
             return null;
         }
 
-        $amount = $service->getCurrentAmount();
+        $amount = $service->currentAmount;
 
         return new AlertCandidate(
             type: AlertType::UPCOMING_CHARGE,
             severity: AlertRules::chargeSeverity($days),
-            title: sprintf('Cobro próximo: %s', $service->getName()),
+            title: sprintf('Cobro próximo: %s', $service->name),
             message: null === $amount
-                ? sprintf('%s se cobra el %s (%s).', $service->getName(), $this->formatDate($nextChargeAt), $this->formatDays($days))
-                : sprintf('%s te cobrará %s el %s (%s).', $service->getName(), $amount->format(), $this->formatDate($nextChargeAt), $this->formatDays($days)),
-            dedupKey: Alert::buildDedupKey(AlertType::UPCOMING_CHARGE, $service->getId(), $nextChargeAt),
+                ? sprintf('%s se cobra el %s (%s).', $service->name, $this->formatDate($nextChargeAt), $this->formatDays($days))
+                : sprintf('%s te cobrará %s el %s (%s).', $service->name, $amount->format(), $this->formatDate($nextChargeAt), $this->formatDays($days)),
+            dedupKey: Alert::buildDedupKey(AlertType::UPCOMING_CHARGE, $service->id, $nextChargeAt),
             dueAt: $nextChargeAt,
-            serviceId: $service->getId(),
+            serviceId: $service->id,
             metadata: [
                 'daysUntil' => $days,
                 'amount' => $amount?->format(),
-                'currency' => $service->getCurrency()->value,
+                'currency' => $service->currency->value,
             ],
         );
     }
 
-    private function noticeCandidate(Service $service, DateTimeImmutable $now): ?AlertCandidate
+    private function noticeCandidate(ServiceView $service, DateTimeImmutable $now): ?AlertCandidate
     {
-        $deadline = $service->getNoticeDeadline();
+        $deadline = $service->noticeDeadline;
 
-        if (null === $deadline || !$service->isAutoRenews()) {
+        if (null === $deadline || !$service->autoRenews) {
             return null;
         }
 
         $days = $this->daysUntil($now, $deadline);
 
-        if ($days < 0 || $days > AlertRules::noticeLeadDays($service->getNoticePeriodDays() ?? 0)) {
+        if ($days < 0 || $days > AlertRules::noticeLeadDays($service->noticePeriodDays ?? 0)) {
             return null;
         }
 
-        $renewalAt = $service->getRenewalAt();
+        $renewalAt = $service->renewalAt;
 
         return new AlertCandidate(
             type: AlertType::NOTICE_DEADLINE,
             severity: AlertRules::renewalSeverity($days),
-            title: sprintf('Se acaba el plazo para no renovar %s', $service->getName()),
+            title: sprintf('Se acaba el plazo para no renovar %s', $service->name),
             message: null === $renewalAt
-                ? sprintf('Tienes hasta el %s para avisar de que no quieres renovar %s.', $this->formatDate($deadline), $service->getName())
+                ? sprintf('Tienes hasta el %s para avisar de que no quieres renovar %s.', $this->formatDate($deadline), $service->name)
                 : sprintf(
                     'Tienes hasta el %s para avisar de que no quieres renovar %s. Se renueva el %s.',
                     $this->formatDate($deadline),
-                    $service->getName(),
+                    $service->name,
                     $this->formatDate($renewalAt),
                 ),
-            dedupKey: Alert::buildDedupKey(AlertType::NOTICE_DEADLINE, $service->getId(), $deadline),
+            dedupKey: Alert::buildDedupKey(AlertType::NOTICE_DEADLINE, $service->id, $deadline),
             dueAt: $deadline,
-            serviceId: $service->getId(),
+            serviceId: $service->id,
             metadata: [
                 'daysUntil' => $days,
-                'noticePeriodDays' => $service->getNoticePeriodDays(),
+                'noticePeriodDays' => $service->noticePeriodDays,
                 'renewalAt' => $renewalAt?->format('Y-m-d'),
             ],
         );
     }
 
-    private function renewalCandidate(Service $service, DateTimeImmutable $now): ?AlertCandidate
+    private function renewalCandidate(ServiceView $service, DateTimeImmutable $now): ?AlertCandidate
     {
-        $renewalAt = $service->getRenewalAt();
+        $renewalAt = $service->renewalAt;
 
-        if (null === $renewalAt || !$service->isAutoRenews()) {
+        if (null === $renewalAt || !$service->autoRenews) {
             return null;
         }
 
@@ -294,38 +383,38 @@ final readonly class GenerateAlerts
         }
 
         $type = $annual ? AlertType::ANNUAL_RENEWAL : AlertType::UPCOMING_RENEWAL;
-        $amount = $service->getCurrentAmount();
+        $amount = $service->currentAmount;
 
         return new AlertCandidate(
             type: $type,
             severity: AlertRules::renewalSeverity($days),
             title: $annual
-                ? sprintf('Renovación anual de %s', $service->getName())
-                : sprintf('%s se renueva pronto', $service->getName()),
+                ? sprintf('Renovación anual de %s', $service->name)
+                : sprintf('%s se renueva pronto', $service->name),
             message: null === $amount
-                ? sprintf('%s se renueva el %s (%s).', $service->getName(), $this->formatDate($renewalAt), $this->formatDays($days))
+                ? sprintf('%s se renueva el %s (%s).', $service->name, $this->formatDate($renewalAt), $this->formatDays($days))
                 : sprintf(
                     '%s se renueva el %s (%s) por %s.',
-                    $service->getName(),
+                    $service->name,
                     $this->formatDate($renewalAt),
                     $this->formatDays($days),
                     $amount->format(),
                 ),
-            dedupKey: Alert::buildDedupKey($type, $service->getId(), $renewalAt),
+            dedupKey: Alert::buildDedupKey($type, $service->id, $renewalAt),
             dueAt: $renewalAt,
-            serviceId: $service->getId(),
+            serviceId: $service->id,
             metadata: [
                 'daysUntil' => $days,
                 'annual' => $annual,
                 'amount' => $amount?->format(),
-                'currency' => $service->getCurrency()->value,
+                'currency' => $service->currency->value,
             ],
         );
     }
 
-    private function commitmentCandidate(Service $service, DateTimeImmutable $now): ?AlertCandidate
+    private function commitmentCandidate(ServiceView $service, DateTimeImmutable $now): ?AlertCandidate
     {
-        $commitmentEndAt = $service->getCommitmentEndAt();
+        $commitmentEndAt = $service->commitmentEndAt;
 
         if (null === $commitmentEndAt) {
             return null;
@@ -340,21 +429,21 @@ final readonly class GenerateAlerts
         return new AlertCandidate(
             type: AlertType::COMMITMENT_ENDING,
             severity: AlertSeverity::INFO,
-            title: sprintf('Termina el compromiso de %s', $service->getName()),
+            title: sprintf('Termina el compromiso de %s', $service->name),
             message: sprintf(
                 'El compromiso de %s termina el %s (%s). A partir de ahí podrás cancelar sin coste.',
-                $service->getName(),
+                $service->name,
                 $this->formatDate($commitmentEndAt),
                 $this->formatDays($days),
             ),
-            dedupKey: Alert::buildDedupKey(AlertType::COMMITMENT_ENDING, $service->getId(), $commitmentEndAt),
+            dedupKey: Alert::buildDedupKey(AlertType::COMMITMENT_ENDING, $service->id, $commitmentEndAt),
             dueAt: $commitmentEndAt,
-            serviceId: $service->getId(),
+            serviceId: $service->id,
             metadata: ['daysUntil' => $days],
         );
     }
 
-    private function priceIncreaseCandidate(Service $service): ?AlertCandidate
+    private function priceIncreaseCandidate(ServiceView $service): ?AlertCandidate
     {
         $ratio = $this->costs->priceChangeRatio($service);
 
@@ -362,33 +451,33 @@ final readonly class GenerateAlerts
             return null;
         }
 
-        $current = $service->getCurrentPrice();
+        $current = $service->currentPrice;
 
         if (null === $current) {
             return null;
         }
 
-        $validFrom = $current->getValidFrom();
+        $validFrom = $current->validFrom;
         $percent = (int) round(max(0.0, $ratio ?? 0.0) * 100);
 
         return new AlertCandidate(
             type: AlertType::PRICE_INCREASE,
             severity: AlertSeverity::WARNING,
-            title: sprintf('%s ha subido de precio', $service->getName()),
+            title: sprintf('%s ha subido de precio', $service->name),
             message: sprintf(
                 '%s cuesta ahora %s, un %d %% más que antes.',
-                $service->getName(),
-                $current->getAmount()->format(),
+                $service->name,
+                $current->amount->format(),
                 $percent,
             ),
-            dedupKey: Alert::buildDedupKey(AlertType::PRICE_INCREASE, $service->getId(), $validFrom),
+            dedupKey: Alert::buildDedupKey(AlertType::PRICE_INCREASE, $service->id, $validFrom),
             dueAt: $validFrom,
-            serviceId: $service->getId(),
+            serviceId: $service->id,
             metadata: [
                 'ratio' => $ratio,
                 'percent' => $percent,
-                'amount' => $current->getAmount()->format(),
-                'currency' => $service->getCurrency()->value,
+                'amount' => $current->amount->format(),
+                'currency' => $service->currency->value,
             ],
         );
     }
@@ -397,9 +486,9 @@ final readonly class GenerateAlerts
      * ¿La periodicidad es anual? Se mira la periodicidad y no el precio: un
      * servicio anual sin precio registrado sigue siendo anual.
      */
-    private function isAnnual(Service $service): bool
+    private function isAnnual(ServiceView $service): bool
     {
-        return 12 === $service->getBillingPeriod()->months() && 1 === $service->getBillingIntervalCount();
+        return 12 === $service->billingPeriod->months() && 1 === $service->billingIntervalCount;
     }
 
     /**

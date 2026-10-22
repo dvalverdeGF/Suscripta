@@ -22,6 +22,7 @@ enum AlertType: string
     case COMMITMENT_ENDING = 'commitment_ending';
     case PRICE_INCREASE = 'price_increase';
     case DISCOVERY_PENDING = 'discovery_pending';
+    case NEW_SERVICE_DETECTED = 'new_service_detected';
 
     public function label(): string
     {
@@ -33,6 +34,7 @@ enum AlertType: string
             self::COMMITMENT_ENDING => 'Se acaba el compromiso',
             self::PRICE_INCREASE => 'Ha subido de precio',
             self::DISCOVERY_PENDING => 'Hay algo que revisar',
+            self::NEW_SERVICE_DETECTED => 'Servicio nuevo detectado',
         };
     }
 
@@ -46,6 +48,7 @@ enum AlertType: string
             self::COMMITMENT_ENDING => 'Termina el periodo de compromiso y podrás cancelar sin coste.',
             self::PRICE_INCREASE => 'Un servicio ha subido de precio.',
             self::DISCOVERY_PENDING => 'Hemos encontrado algo en tu correo y esperamos tu confirmación.',
+            self::NEW_SERVICE_DETECTED => 'Hemos encontrado un servicio que no tienes registrado y esperamos tu confirmación.',
         };
     }
 

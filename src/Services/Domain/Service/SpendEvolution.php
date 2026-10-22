@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Domain\Service;
 
+use App\Services\Domain\Dto\ServiceView;
 use App\Services\Domain\Dto\SpendPoint;
-use App\Services\Domain\Entity\Service;
 use App\Shared\Domain\ValueObject\Money;
 
 use function array_values;
@@ -35,13 +35,13 @@ use function round;
 final class SpendEvolution
 {
     /**
-     * @param iterable<Service> $services
+     * @param iterable<ServiceView> $services
      *
      * @return list<SpendPoint> del mes más antiguo al más reciente
      */
     public function monthly(iterable $services, DateTimeImmutable $from, DateTimeImmutable $to): array
     {
-        /** @var list<Service> $services */
+        /** @var list<ServiceView> $services */
         $services = is_array($services) ? array_values($services) : iterator_to_array($services, false);
 
         $points = [];
@@ -57,7 +57,7 @@ final class SpendEvolution
     }
 
     /**
-     * @param list<Service> $services
+     * @param list<ServiceView> $services
      */
     private function pointAt(array $services, DateTimeImmutable $month): SpendPoint
     {
@@ -69,13 +69,13 @@ final class SpendEvolution
                 continue;
             }
 
-            $price = $service->getPriceAt($month);
+            $price = $service->priceAt($month);
 
             if (null === $price) {
                 continue;
             }
 
-            $monthly = $this->monthlyEquivalent($service, $price->getAmount());
+            $monthly = $this->monthlyEquivalent($service, $price->amount);
 
             if (null === $monthly) {
                 continue;
@@ -92,15 +92,15 @@ final class SpendEvolution
     /**
      * ¿Estaba el servicio dado de alta y sin cancelar en ese mes?
      */
-    private function wasBillableIn(Service $service, DateTimeImmutable $month): bool
+    private function wasBillableIn(ServiceView $service, DateTimeImmutable $month): bool
     {
-        $startedAt = $service->getStartedAt();
+        $startedAt = $service->startedAt;
 
         if (null !== $startedAt && $startedAt > $month->modify('last day of this month')) {
             return false;
         }
 
-        $cancelledAt = $service->getCancelledAt();
+        $cancelledAt = $service->cancelledAt;
 
         return null === $cancelledAt || $cancelledAt >= $month;
     }
@@ -113,15 +113,15 @@ final class SpendEvolution
      * anual, la evolución usa la periodicidad de hoy para todos los meses. Es
      * una aproximación consciente; el historial de precios sí es exacto.
      */
-    private function monthlyEquivalent(Service $service, Money $amount): ?Money
+    private function monthlyEquivalent(ServiceView $service, Money $amount): ?Money
     {
-        $base = $service->getBillingPeriod()->occurrencesPerYear();
+        $base = $service->billingPeriod->occurrencesPerYear();
 
         if (null === $base) {
             return null;
         }
 
-        $occurrences = $base / max(1, $service->getBillingIntervalCount());
+        $occurrences = $base / max(1, $service->billingIntervalCount);
 
         if ($occurrences <= 0.0) {
             return null;

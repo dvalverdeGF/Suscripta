@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Services\Domain\Service;
 
+use App\Services\Domain\Dto\ServiceView;
 use App\Services\Domain\Entity\Service;
 use App\Services\Domain\Enum\ServiceSource;
 use App\Services\Domain\Service\PriceHistory;
@@ -32,10 +33,10 @@ final class PriceHistoryTest extends TestCase
 
     public function testAServiceWithoutPricesHasAnEmptyHistory(): void
     {
-        self::assertSame([], $this->history->entries($this->service()));
-        self::assertNull($this->history->totalVariation($this->service()));
-        self::assertNull($this->history->totalVariationRatio($this->service()));
-        self::assertSame(0, $this->history->changeCount($this->service()));
+        self::assertSame([], $this->history->entries($this->view($this->service())));
+        self::assertNull($this->history->totalVariation($this->view($this->service())));
+        self::assertNull($this->history->totalVariationRatio($this->view($this->service())));
+        self::assertSame(0, $this->history->changeCount($this->view($this->service())));
     }
 
     public function testTheFirstPriceHasNoVariation(): void
@@ -43,7 +44,7 @@ final class PriceHistoryTest extends TestCase
         $service = $this->service();
         $service->changePrice(Money::of(1199, Currency::EUR), new DateTimeImmutable('2026-01-15'));
 
-        $entries = $this->history->entries($service);
+        $entries = $this->history->entries($this->view($service));
 
         self::assertCount(1, $entries);
         self::assertNull($entries[0]->variationAbsolute);
@@ -59,7 +60,7 @@ final class PriceHistoryTest extends TestCase
         $service->changePrice(Money::of(1200, Currency::EUR), new DateTimeImmutable('2026-04-01'));
         $service->changePrice(Money::of(1500, Currency::EUR), new DateTimeImmutable('2026-07-01'));
 
-        $entries = $this->history->entries($service);
+        $entries = $this->history->entries($this->view($service));
 
         self::assertCount(3, $entries);
 
@@ -84,7 +85,7 @@ final class PriceHistoryTest extends TestCase
         $service->changePrice(Money::of(2000, Currency::EUR), new DateTimeImmutable('2026-01-15'));
         $service->changePrice(Money::of(1500, Currency::EUR), new DateTimeImmutable('2026-04-01'));
 
-        $entries = $this->history->entries($service);
+        $entries = $this->history->entries($this->view($service));
 
         self::assertSame(-500, $entries[1]->variationAbsolute?->amountMinor);
         self::assertFalse($entries[1]->isIncrease());
@@ -97,7 +98,7 @@ final class PriceHistoryTest extends TestCase
         $service->changePrice(Money::of(1000, Currency::EUR), new DateTimeImmutable('2026-01-15'));
         $service->changePrice(Money::of(1200, Currency::EUR), new DateTimeImmutable('2026-04-01'));
 
-        $entries = $this->history->entries($service);
+        $entries = $this->history->entries($this->view($service));
 
         self::assertFalse($entries[0]->isCurrent);
         self::assertNotNull($entries[0]->validTo);
@@ -112,9 +113,9 @@ final class PriceHistoryTest extends TestCase
         $service->changePrice(Money::of(1200, Currency::EUR), new DateTimeImmutable('2026-04-01'));
         $service->changePrice(Money::of(1500, Currency::EUR), new DateTimeImmutable('2026-07-01'));
 
-        self::assertSame(500, $this->history->totalVariation($service)?->amountMinor);
-        self::assertEqualsWithDelta(0.5, $this->history->totalVariationRatio($service) ?? 0.0, 0.0001);
-        self::assertSame(2, $this->history->changeCount($service));
+        self::assertSame(500, $this->history->totalVariation($this->view($service))?->amountMinor);
+        self::assertEqualsWithDelta(0.5, $this->history->totalVariationRatio($this->view($service)) ?? 0.0, 0.0001);
+        self::assertSame(2, $this->history->changeCount($this->view($service)));
     }
 
     public function testASinglePriceHasNoTotalVariation(): void
@@ -123,8 +124,8 @@ final class PriceHistoryTest extends TestCase
         $service->changePrice(Money::of(1000, Currency::EUR), new DateTimeImmutable('2026-01-15'));
 
         // Devolver cero haría creer que el precio nunca ha cambiado.
-        self::assertNull($this->history->totalVariation($service));
-        self::assertNull($this->history->totalVariationRatio($service));
+        self::assertNull($this->history->totalVariation($this->view($service)));
+        self::assertNull($this->history->totalVariationRatio($this->view($service)));
     }
 
     public function testTheHistoryKeepsTheSourceAndTheNoteOfEveryRow(): void
@@ -133,7 +134,7 @@ final class PriceHistoryTest extends TestCase
         $service->changePrice(Money::of(1000, Currency::EUR), new DateTimeImmutable('2026-01-15'), ServiceSource::MANUAL, 'Alta');
         $service->changePrice(Money::of(1200, Currency::EUR), new DateTimeImmutable('2026-04-01'), ServiceSource::EMAIL_DISCOVERY, 'Subida anual');
 
-        $entries = $this->history->entries($service);
+        $entries = $this->history->entries($this->view($service));
 
         self::assertSame(ServiceSource::MANUAL, $entries[0]->source);
         self::assertSame('Alta', $entries[0]->note);
@@ -147,11 +148,11 @@ final class PriceHistoryTest extends TestCase
         $service->changePrice(Money::of(1000, Currency::EUR), new DateTimeImmutable('2026-01-15'));
         $service->changePrice(Money::of(1200, Currency::EUR), new DateTimeImmutable('2026-04-01'));
 
-        $before = $this->history->entries($service);
+        $before = $this->history->entries($this->view($service));
 
         // Volver a leer no reescribe nada: la fila antigua sigue cerrada con su
         // importe original.
-        $after = $this->history->entries($service);
+        $after = $this->history->entries($this->view($service));
 
         self::assertSame(1000, $after[0]->amount->amountMinor);
         self::assertSame($before[0]->validTo?->format('Y-m-d'), $after[0]->validTo?->format('Y-m-d'));
@@ -161,5 +162,13 @@ final class PriceHistoryTest extends TestCase
     private function service(): Service
     {
         return new Service(Uuid::v7(), 'OVH VPS', Currency::EUR, BillingPeriod::MONTHLY);
+    }
+
+    /**
+     * El historial se calcula sobre el read model, no sobre la entidad.
+     */
+    private function view(Service $service): ServiceView
+    {
+        return ServiceView::fromService($service);
     }
 }

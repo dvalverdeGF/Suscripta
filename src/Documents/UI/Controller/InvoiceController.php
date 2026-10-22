@@ -13,7 +13,7 @@ use App\Documents\Domain\Repository\InvoiceRepositoryInterface;
 use App\Documents\UI\Form\InvoiceFormData;
 use App\Documents\UI\Form\InvoiceFormType;
 use App\Identity\Domain\Entity\User;
-use App\Services\Domain\Repository\ServiceRepositoryInterface;
+use App\Services\Domain\Repository\ServiceViewRepositoryInterface;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Exception\InvalidArgumentException;
 
@@ -42,7 +42,7 @@ final class InvoiceController extends AbstractController
     public function __construct(
         private readonly InvoiceRepositoryInterface $invoices,
         private readonly DocumentRepositoryInterface $documents,
-        private readonly ServiceRepositoryInterface $services,
+        private readonly ServiceViewRepositoryInterface $services,
         private readonly ProviderRepositoryInterface $providers,
         private readonly CreateInvoice $createInvoice,
         private readonly TenantContext $tenantContext,
@@ -60,7 +60,7 @@ final class InvoiceController extends AbstractController
             $serviceId = $invoice->getServiceId();
 
             if (null !== $serviceId) {
-                $services[$serviceId->toRfc4122()] = $this->services->find($serviceId);
+                $services[$serviceId->toRfc4122()] = $this->services->findOne($serviceId);
             }
         }
 
@@ -112,7 +112,7 @@ final class InvoiceController extends AbstractController
 
         return $this->render('invoices/show.html.twig', [
             'invoice' => $invoice,
-            'service' => null === $serviceId ? null : $this->services->find($serviceId),
+            'service' => null === $serviceId ? null : $this->services->findOne($serviceId),
             'document' => null === $documentId ? null : $this->documents->find($documentId),
         ]);
     }
@@ -136,8 +136,8 @@ final class InvoiceController extends AbstractController
         $organizationId = $this->tenantContext->requireOrganizationId();
 
         $serviceChoices = [];
-        foreach ($this->services->findForOrganization() as $service) {
-            $serviceChoices[$service->getName()] = $service->getId();
+        foreach ($this->services->findAll() as $service) {
+            $serviceChoices[$service->name] = $service->id;
         }
 
         $providerChoices = [];

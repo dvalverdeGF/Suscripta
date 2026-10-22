@@ -12,10 +12,11 @@ use App\Services\Application\ChangeServiceStatus;
 use App\Services\Application\CreateService;
 use App\Services\Application\DeleteService;
 use App\Services\Application\UpdateService;
+use App\Services\Domain\Dto\ServiceView;
 use App\Services\Domain\Entity\Service;
 use App\Services\Domain\Enum\ServiceStatus;
 use App\Services\Domain\Repository\ServiceFilters;
-use App\Services\Domain\Repository\ServiceRepositoryInterface;
+use App\Services\Domain\Repository\ServiceViewRepositoryInterface;
 use App\Services\Domain\Service\PriceHistory;
 use App\Services\Domain\Service\ServiceCostCalculator;
 use App\Services\UI\Form\ServiceFormData;
@@ -49,7 +50,7 @@ use Throwable;
 final class ServiceController extends AbstractController
 {
     public function __construct(
-        private readonly ServiceRepositoryInterface $services,
+        private readonly ServiceViewRepositoryInterface $serviceViews,
         private readonly ProviderRepositoryInterface $providers,
         private readonly CategoryRepositoryInterface $categories,
         private readonly ServiceCostCalculator $costCalculator,
@@ -69,7 +70,7 @@ final class ServiceController extends AbstractController
             sort: $request->query->get('sort'),
         );
 
-        $services = $this->services->findForOrganization($filters);
+        $services = $this->serviceViews->findAll($filters);
         $organizationId = $this->tenantContext->requireOrganizationId();
 
         $monthlyByService = [];
@@ -77,7 +78,7 @@ final class ServiceController extends AbstractController
             $monthly = $this->costCalculator->monthlyEquivalent($service);
 
             if (null !== $monthly) {
-                $monthlyByService[$service->getId()->toRfc4122()] = $monthly;
+                $monthlyByService[$service->id->toRfc4122()] = $monthly;
             }
         }
 
@@ -118,16 +119,20 @@ final class ServiceController extends AbstractController
     {
         $organizationId = $this->tenantContext->requireOrganizationId();
 
+        // Los cálculos trabajan sobre el read model: la entidad se queda aquí,
+        // donde hace falta para escribir (cambiar precio, pausar, cancelar).
+        $view = ServiceView::fromService($service);
+
         return $this->render('services/show.html.twig', [
             'service' => $service,
             'provider' => null === $service->getProviderId() ? null : $this->providers->find($service->getProviderId()),
             'category' => null === $service->getCategoryId() ? null : $this->categories->find($service->getCategoryId()),
-            'monthlyEquivalent' => $this->costCalculator->monthlyEquivalent($service),
-            'annualCost' => $this->costCalculator->annualCost($service),
-            'priceChangeRatio' => $this->costCalculator->priceChangeRatio($service),
-            'priceHistory' => $this->priceHistory->entries($service),
-            'totalVariation' => $this->priceHistory->totalVariation($service),
-            'totalVariationRatio' => $this->priceHistory->totalVariationRatio($service),
+            'monthlyEquivalent' => $this->costCalculator->monthlyEquivalent($view),
+            'annualCost' => $this->costCalculator->annualCost($view),
+            'priceChangeRatio' => $this->costCalculator->priceChangeRatio($view),
+            'priceHistory' => $this->priceHistory->entries($view),
+            'totalVariation' => $this->priceHistory->totalVariation($view),
+            'totalVariationRatio' => $this->priceHistory->totalVariationRatio($view),
             'organizationId' => $organizationId,
         ]);
     }

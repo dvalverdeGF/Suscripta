@@ -1293,3 +1293,152 @@ produce «un campo con error»: rompe la aplicación entera.
 atributos (`Validation::createValidatorBuilder()->enableAttributeMapping()`): `Validation::createValidator()`
 no lo hace, y entonces las restricciones `Assert\*` no se evalúan y la prueba pasa sin
 comprobar nada.
+
+---
+
+## D-47 — Ignorar una propuesta la suprime una ventana, no para siempre
+
+**Estado:** aceptada.
+
+**Contexto.** Descartar una propuesta de descubrimiento significa «esto no es mío, no me lo
+vuelvas a preguntar». La tentación es convertir ese gesto en un veto permanente: si el usuario
+descartó la suscripción de ejemplo, nunca más se propone nada de ese proveedor.
+
+El problema es que la señal **envejece**. Una suscripción que el usuario descartó hace seis
+meses puede ser hoy algo que sí quiere: un plan nuevo, un segundo asiento, una factura de un
+servicio que ya se ha dado de baja. Con un veto eterno, el sistema aprende una falsehood y la
+sostiene para siempre; además, el usuario no tiene forma de deshacerlo salvo entrando en la
+base de datos.
+
+**Decisión.** La supresión es una **ventana** de `ignore_suppression_days` (90 días por defecto,
+configurable en `config/packages/discovery.yaml`). Mientras la ventana está abierta, no se
+proponen nuevas propuestas con la misma clave; al vencerla, la propuesta vuelve a merecer una
+pregunta.
+
+La **caducidad** de la bandeja (`expiry_days`, 90 días) es la otra cara de lo mismo: una propuesta
+que nadie ha decidido deja de pedir atención, pero **no se borra** — pasa a `expired` y conserva
+su evidencia. Caducar no es borrar: es dejar de molestar.
+
+**Alternativas.**
+
+- *Veto permanente por clave de propuesta.* Descartado: envejece mal y no se puede deshacer.
+- *No suprimir nada, o suprimir solo mientras la propuesta siga viva.* Descartado: el usuario
+  seguiría recibiendo la misma pregunta cada vez que llega una factura, que es exactamente lo
+  que hace inservible la bandeja.
+- *Borrar la propuesta descartada.* Descartado: se pierde la evidencia y la explicación de por
+  qué el sistema dejó de proponerlo.
+
+**Consecuencias.** `DiscoverySettings` es política de producto, no constantes: vive en un
+parámetro de contenedor. La clave de supresión es la misma que identifica una propuesta
+(proveedor, importe, moneda y periodicidad), de modo que suprimir es por *servicio*, no por
+*remitente*.
+
+---
+
+## D-48 — El fallo de una propuesta no aborta el lote
+
+**Estado:** aceptada.
+
+**Contexto.** La bandeja admite revisar varias propuestas de una vez. El lote confirma o
+descarta cada una con las mismas reglas que la revisión individual, y cada propuesta puede
+fallar: ya estaba confirmada, el servicio ya existe, el importe no cuadra, la propuesta cambió
+entre medias.
+
+La implementación natural —recorrer las propuestas y dejar que la primera excepción se salga—
+convierte un error puntual en la pérdida de **todas** las propuestas del lote. Veinte propuestas
+confirmadas se convierten en veinte propuestas que hay que confirmar una a una, que es
+precisamente la razón de ser del lote.
+
+**Decisión.** Cada propuesta se aísla: `BatchReviewDiscoveries` captura el error de cada una,
+sigue con la siguiente y devuelve un recuento (`BatchReviewResult`) con lo confirmado, lo
+descartado y lo fallido. El lote **nunca** se aborta a medias, y el resultado se le dice al
+usuario: «3 confirmada(s). 1 no se ha podido confirmar».
+
+**Alternativas.**
+
+- *Propagar la primera excepción.* Descartado: un error puntual destruye el trabajo de veinte.
+- *Validar todo el lote antes de tocar nada (todo o nada).* Descartado: es peor; el usuario
+  pierde también las propuestas válidas y tiene que empezar de cero.
+- *Confirmar en silencio solo lo que funciona, sin avisar de los fallos.* Descartado: el usuario
+  no puede saber qué se perdió, y una propuesta que «desaparece» de la bandeja parece un error del
+  sistema.
+
+**Consecuencias.** La operación de lote es **parcialmente idempotente**: repetirla sobre
+propuestas ya resueltas no falla, simplemente no las cuenta. El aviso al usuario es explícito
+sobre los fallos, porque un lote que falla en silencio es indistinguible de un lote que no ha
+hecho nada.
+
+---
+
+## D-49 — La periodicidad detectada nunca degrada la declarada por el usuario
+
+**Estado:** aceptada.
+
+**Contexto.** El detector de periodicidad (`IntervalRecurrenceDetector`) calcula la regularidad
+del cobro a partir del historial de facturas: si tres facturas caen el día 15 de tres meses
+seguidos, la periodicidad es mensual y el próximo cobro es predecible. La detección puede
+equivocarse —un cobro puntual, un aplazamiento, una factura prorrateada— y su margen de error es
+real.
+
+El usuario, en cambio, **sabe** lo que tiene contratado. Si ha declarado «trimestral» y el
+historial dice «mensual», hay dos posibilidades: el historial es un subconjunto (una sola factura
+de un plan trimestral), o el usuario se equivocó al declararlo. En la primera —que es la más
+frecuente— la detección es la que está equivocada.
+
+**Decisión.** La detección **solo adopta** la periodicidad calculada cuando la declarada es
+`UNKNOWN`; si el usuario ya declaró una, esta se respeta siempre. Lo que sí se actualiza, en
+ambos casos, es la **fecha** del próximo cobro, que es un dato derivado del historial y no una
+declaración del usuario.
+
+Cuando el historial es irregular, el detector no propone fecha: una cobrança irregular **no**
+tiene próximo cobro predecible, y un dashboard que promete un cobro que no llegará enseña al
+usuario a no fiarse del producto.
+
+**Alternativas.**
+
+- *La detección siempre pisa la declarada.* Descartado: un único cobro aislado puede convertir un
+  plan trimestral en mensual y desordenar todas las alertas de cobro.
+- *No detectar nada nunca.* Descartado: la detección es el mecanismo que permite dar de alta un
+  servicio sin que el usuario declare su periodicidad a mano.
+- *Detectar siempre y guardar ambas.* Descartado: obliga al usuario a decidir entre dos
+ _verdades_ que el sistema no sabe distinguir.
+
+**Consecuencias.** `DetectRecurrence` solo toca el servicio si la detección es **confiable**
+(confianza ≥ 0,65) y registra el resultado en la línea de tiempo del servicio
+(`RECURRENCE_DETECTED`, con `adopted` a `true` o `false`), de modo que siempre se puede
+explicar por qué la fecha se movió.
+
+---
+
+## D-50 — Las rutas de lectura leen del modelo de lectura, no de la entidad de escritura
+
+**Estado:** aceptada.
+
+**Contexto.** `Service` es la entidad central del producto: precio actual, historial de precios,
+eventos, periodicidad, próximo cobro. La usan tanto las **escrituras** (crear, cambiar precio,
+cambiar estado) como las **lecturas** (panel, detalle, alertas, emparejamiento, informes).
+
+En la Fase 12 se movieron todas las lecturas al read model `ServiceView` y sus DTOs
+(`ServicePriceView`, `ServiceEventView`). El motivo no es purismo de capas: una entidad que se
+serializa en caché, se indexa o se exporta deja de ser «la entidad» y pasa a ser *una* forma de
+la entidad. Cada consumidor atado a su forma interna se rompe en cuanto esa forma cambia, y el
+cambio se propaga a pantallas, cálculos y al pipeline.
+
+**Decisión.** El módulo `Services` publica un **read model** en `src/Services/Domain/Dto/` y una
+interfaz de lectura `ServiceViewRepositoryInterface`. Las lecturas —panel, detalle de servicio,
+alertas, documentos, facturas, descubrimientos, emparejamiento, histórico de precios, evolución
+del gasto— consumen DTOs. La entidad `Service` queda para el módulo que la escribe.
+
+**Alternativas.**
+
+- *Un único modelo (entidad) para todo.* Descartado: es la causa del problema, no su solución.
+- *CQRS completo, con modelos separados de lectura y de escritura por módulo.* Descartado por
+  coste: no aporta nada aquí donde la operación de lectura es simple, y multiplica el trabajo sin
+  un beneficio proporcional. El read model se aplica donde aporta: el servicio, que es la entidad
+  más consultada y más inestable.
+- *Repositories de Doctrine filtrados sin read model.* Descartado: reproduce el problema con
+  menos código, no con más.
+
+**Consecuencias.** `ServiceViewRepositoryInterface` es la frontera: los controladores que solo
+leen no dependen de Doctrine. `ServiceView` es inmutable y se construye desde la entidad, de modo
+que el read model nunca escribe.

@@ -12,9 +12,9 @@ use App\Discovery\Domain\Repository\DiscoveryRepositoryInterface;
 use App\Mailbox\Domain\Repository\EmailAccountRepositoryInterface;
 use App\Mailbox\Domain\Repository\EmailMessageRepositoryInterface;
 use App\Notifications\Domain\Repository\AlertRepositoryInterface;
-use App\Services\Domain\Entity\Service;
+use App\Services\Domain\Dto\ServiceView;
 use App\Services\Domain\Enum\ServiceStatus;
-use App\Services\Domain\Repository\ServiceRepositoryInterface;
+use App\Services\Domain\Repository\ServiceViewRepositoryInterface;
 use App\Services\Domain\Service\ServiceCostCalculator;
 use App\Services\Domain\Service\SpendEvolution;
 use App\Shared\Application\Clock;
@@ -53,7 +53,7 @@ final readonly class BuildDashboardSummary
     private const SPEND_EVOLUTION_MONTHS = 6;
 
     public function __construct(
-        private ServiceRepositoryInterface $services,
+        private ServiceViewRepositoryInterface $services,
         private DiscoveryRepositoryInterface $discoveries,
         private EmailAccountRepositoryInterface $accounts,
         private EmailMessageRepositoryInterface $messages,
@@ -69,7 +69,7 @@ final readonly class BuildDashboardSummary
     public function __invoke(): DashboardSummary
     {
         $now = $this->clock->now();
-        $services = $this->services->findForOrganization();
+        $services = $this->services->findAll();
 
         $accounts = $this->accounts->findForOrganization();
         $messageCounts = $this->messages->countByAccount();
@@ -80,7 +80,7 @@ final readonly class BuildDashboardSummary
         }
 
         return new DashboardSummary(
-            activeServices: count(array_filter($services, static fn (Service $service): bool => $service->getStatus()->countsTowardsRecurringCost())),
+            activeServices: count(array_filter($services, static fn (ServiceView $service): bool => $service->status->countsTowardsRecurringCost())),
             totalServices: count($services),
             monthlyByCurrency: $this->costs->totalMonthlyByCurrency($services),
             annualByCurrency: $this->costs->totalAnnualByCurrency($services),
@@ -109,7 +109,7 @@ final readonly class BuildDashboardSummary
      * lanzar una consulta por ventana: el panel ya tiene todos los servicios
      * cargados y una consulta más solo añadiría latencia.
      *
-     * @param list<Service> $services
+     * @param list<ServiceView> $services
      *
      * @return list<UpcomingWindow>
      */
@@ -122,11 +122,11 @@ final readonly class BuildDashboardSummary
             $charges = [];
 
             foreach ($services as $service) {
-                if (!$service->getStatus()->countsTowardsRecurringCost()) {
+                if (!$service->status->countsTowardsRecurringCost()) {
                     continue;
                 }
 
-                $nextChargeAt = $service->getNextChargeAt();
+                $nextChargeAt = $service->nextChargeAt;
 
                 if (null === $nextChargeAt || $nextChargeAt > $until) {
                     continue;
@@ -137,7 +137,7 @@ final readonly class BuildDashboardSummary
 
             usort(
                 $charges,
-                static fn (Service $a, Service $b): int => $a->getNextChargeAt() <=> $b->getNextChargeAt(),
+                static fn (ServiceView $a, ServiceView $b): int => $a->nextChargeAt <=> $b->nextChargeAt,
             );
 
             $windows[] = new UpcomingWindow(
@@ -157,7 +157,7 @@ final readonly class BuildDashboardSummary
      * pregunta que responde esta ventana es «cuánto me van a cobrar», no
      * «cuánto me cuesta al mes».
      *
-     * @param list<Service> $charges
+     * @param list<ServiceView> $charges
      *
      * @return array<string, Money>
      */
@@ -166,7 +166,7 @@ final readonly class BuildDashboardSummary
         $totals = [];
 
         foreach ($charges as $service) {
-            $amount = $service->getCurrentAmount();
+            $amount = $service->currentAmount;
 
             if (null === $amount) {
                 continue;
@@ -180,9 +180,9 @@ final readonly class BuildDashboardSummary
     }
 
     /**
-     * @param list<Service> $services
+     * @param list<ServiceView> $services
      *
-     * @return list<Service>
+     * @return list<ServiceView>
      */
     private function upcomingRenewals(array $services, DateTimeImmutable $now): array
     {
@@ -190,11 +190,11 @@ final readonly class BuildDashboardSummary
         $renewals = [];
 
         foreach ($services as $service) {
-            if (!$service->getStatus()->countsTowardsRecurringCost()) {
+            if (!$service->status->countsTowardsRecurringCost()) {
                 continue;
             }
 
-            $renewalAt = $service->getRenewalAt();
+            $renewalAt = $service->renewalAt;
 
             if (null === $renewalAt || $renewalAt > $until) {
                 continue;
@@ -205,7 +205,7 @@ final readonly class BuildDashboardSummary
 
         usort(
             $renewals,
-            static fn (Service $a, Service $b): int => $a->getRenewalAt() <=> $b->getRenewalAt(),
+            static fn (ServiceView $a, ServiceView $b): int => $a->renewalAt <=> $b->renewalAt,
         );
 
         return array_slice($renewals, 0, self::UPCOMING_LIMIT);
@@ -218,7 +218,7 @@ final readonly class BuildDashboardSummary
      * desaparecer: si no aparecen, el desglose no cuadra con el total y el
      * usuario deja de fiarse de él.
      *
-     * @param list<Service> $services
+     * @param list<ServiceView> $services
      *
      * @return list<CategoryCost>
      */
@@ -229,7 +229,7 @@ final readonly class BuildDashboardSummary
         $counts = [];
 
         foreach ($services as $service) {
-            if (!$service->getStatus()->countsTowardsRecurringCost()) {
+            if (!$service->status->countsTowardsRecurringCost()) {
                 continue;
             }
 
@@ -239,7 +239,7 @@ final readonly class BuildDashboardSummary
                 continue;
             }
 
-            $categoryId = $service->getCategoryId();
+            $categoryId = $service->categoryId;
             $key = null === $categoryId ? '' : $categoryId->toRfc4122();
             $label = $names[$key] ?? 'Sin categoría';
             $code = $monthly->currency->value;
@@ -270,16 +270,16 @@ final readonly class BuildDashboardSummary
     /**
      * Los servicios que más cuestan al mes.
      *
-     * @param list<Service> $services
+     * @param list<ServiceView> $services
      *
-     * @return list<Service>
+     * @return list<ServiceView>
      */
     private function topServices(array $services): array
     {
         $ranked = [];
 
         foreach ($services as $service) {
-            if (!$service->getStatus()->countsTowardsRecurringCost()) {
+            if (!$service->status->countsTowardsRecurringCost()) {
                 continue;
             }
 
@@ -298,7 +298,7 @@ final readonly class BuildDashboardSummary
         );
 
         return array_map(
-            static fn (array $row): Service => $row['service'],
+            static fn (array $row): ServiceView => $row['service'],
             array_slice($ranked, 0, self::TOP_SERVICES_LIMIT),
         );
     }
@@ -307,7 +307,7 @@ final readonly class BuildDashboardSummary
      * Recuento de servicios por estado, en el orden de declaración del enum
      * para que la vista no tenga que ordenar nada.
      *
-     * @param list<Service> $services
+     * @param list<ServiceView> $services
      *
      * @return list<array{status: ServiceStatus, total: int}>
      */
@@ -316,7 +316,7 @@ final readonly class BuildDashboardSummary
         $counts = [];
 
         foreach ($services as $service) {
-            $value = $service->getStatus()->value;
+            $value = $service->status->value;
             $counts[$value] = ($counts[$value] ?? 0) + 1;
         }
 
@@ -339,9 +339,9 @@ final readonly class BuildDashboardSummary
      * Es la respuesta a «¿qué ha cambiado?»: un cambio de precio silencioso es
      * exactamente lo que el usuario no habría detectado por su cuenta.
      *
-     * @param list<Service> $services
+     * @param list<ServiceView> $services
      *
-     * @return list<Service>
+     * @return list<ServiceView>
      */
     private function recentPriceChanges(array $services, DateTimeImmutable $now): array
     {
@@ -349,9 +349,9 @@ final readonly class BuildDashboardSummary
         $changed = [];
 
         foreach ($services as $service) {
-            $current = $service->getCurrentPrice();
+            $current = $service->currentPrice;
 
-            if (null === $current || $current->getValidFrom() < $threshold) {
+            if (null === $current || $current->validFrom < $threshold) {
                 continue;
             }
 

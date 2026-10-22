@@ -83,7 +83,7 @@ src/
 │
 ├── Identity/          # User, Organization, Membership, autenticación
 ├── Catalog/           # Provider, Category, ProviderIdentity, ProviderParser (conocimiento global)
-├── Services/          # Service, ServicePrice, ServiceEvent  ← núcleo del producto
+├── Services/          # Service, ServicePrice, ServiceEvent + read model  ← núcleo del producto
 ├── Documents/         # Document, Invoice
 ├── Mailbox/           # EmailAccount, EmailMessage, EmailSyncCursor, EmailSyncRun, IMAP, reenvío
 ├── Processing/        # Pipeline: BillingClassifier, extractores, validación, estados, MailboxKnowledge
@@ -107,6 +107,24 @@ Cada módulo que lo necesite usa:
 **Regla de dependencias:** `UI → Application → Domain`. `Infrastructure` implementa interfaces
 declaradas en `Domain`/`Application`. Un módulo nunca accede a las entidades de otro módulo
 directamente: usa su capa `Application` (casos de uso) o interfaces publicadas.
+
+### 3.1 Modelo de lectura (`ServiceView`)
+
+Las **lecturas** no cargan la entidad de escritura `Service`. El módulo `Services` publica un
+**read model** en `src/Services/Domain/Dto/`:
+
+| DTO | Qué aporta |
+|---|---|
+| `ServiceView` | Ficha del servicio con su precio actual, periodicidad, estado y próximo cobro. |
+| `ServicePriceView` | Historial de precios aplanado, con su rango de fechas. |
+| `ServiceEventView` | Eventos del servicio en forma plana, para la línea de tiempo. |
+
+Se leen con `ServiceViewRepositoryInterface` (`findOne()`, `findAll()`,
+`findForOrganization()`), que devuelve DTOs y no entidades. Motivo: atar las pantallas y los
+cálculos a la forma interna de la entidad obliga a tocarlos cada vez que la entidad cambia, y una
+entidad que además se serializa, se indexa o se exporta ya no es la misma entidad. El
+emparejamiento del pipeline (`ServiceMatcher`) lee del read model por el mismo motivo: solo
+necesita consultar. Ver D-50.
 
 ## 4. Modelo de dominio
 

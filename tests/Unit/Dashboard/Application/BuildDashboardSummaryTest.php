@@ -13,9 +13,10 @@ use App\Mailbox\Domain\Entity\EmailAccount;
 use App\Mailbox\Domain\Repository\EmailAccountRepositoryInterface;
 use App\Mailbox\Domain\Repository\EmailMessageRepositoryInterface;
 use App\Notifications\Domain\Repository\AlertRepositoryInterface;
+use App\Services\Domain\Dto\ServiceView;
 use App\Services\Domain\Entity\Service;
 use App\Services\Domain\Enum\ServiceStatus;
-use App\Services\Domain\Repository\ServiceRepositoryInterface;
+use App\Services\Domain\Repository\ServiceViewRepositoryInterface;
 use App\Services\Domain\Service\ServiceCostCalculator;
 use App\Services\Domain\Service\SpendEvolution;
 use App\Shared\Application\Clock;
@@ -42,7 +43,7 @@ final class BuildDashboardSummaryTest extends TestCase
 
     private Uuid $organizationId;
 
-    private ServiceRepositoryInterface&MockObject $services;
+    private ServiceViewRepositoryInterface&MockObject $services;
 
     private DiscoveryRepositoryInterface&MockObject $discoveries;
 
@@ -71,7 +72,7 @@ final class BuildDashboardSummaryTest extends TestCase
     {
         $this->organizationId = Uuid::v7();
 
-        $this->services = $this->createMock(ServiceRepositoryInterface::class);
+        $this->services = $this->createMock(ServiceViewRepositoryInterface::class);
         $this->discoveries = $this->createMock(DiscoveryRepositoryInterface::class);
         $this->accounts = $this->createMock(EmailAccountRepositoryInterface::class);
         $this->messages = $this->createMock(EmailMessageRepositoryInterface::class);
@@ -98,7 +99,7 @@ final class BuildDashboardSummaryTest extends TestCase
 
     public function testItCountsMessagesWithASingleQuery(): void
     {
-        $this->services->method('findForOrganization')->willReturn([]);
+        $this->services->method('findAll')->willReturn($this->views([]));
 
         // El recuento por buzón se pide una sola vez, en bloque. Si alguien
         // vuelve a recorrer los buzones preguntando de uno en uno, esta prueba
@@ -115,7 +116,7 @@ final class BuildDashboardSummaryTest extends TestCase
         $first = new EmailAccount($this->organizationId, 'ada@example.com');
         $second = new EmailAccount($this->organizationId, 'facturas@example.com');
 
-        $this->services->method('findForOrganization')->willReturn([]);
+        $this->services->method('findAll')->willReturn($this->views([]));
         $this->accountList = [$first, $second];
         $this->messageCounts = [
             $first->getId()->toRfc4122() => 12,
@@ -134,11 +135,11 @@ final class BuildDashboardSummaryTest extends TestCase
         $software = new Category('Software', 'software');
 
         $this->categoryList = [$hosting, $software];
-        $this->services->method('findForOrganization')->willReturn([
+        $this->services->method('findAll')->willReturn($this->views([
             $this->service('OVH VPS', 1199, BillingPeriod::MONTHLY, category: $hosting->getId()),
             $this->service('Hetzner', 500, BillingPeriod::MONTHLY, category: $hosting->getId()),
             $this->service('GitHub', 400, BillingPeriod::MONTHLY, category: $software->getId()),
-        ]);
+        ]));
 
         $summary = $this->build();
 
@@ -153,9 +154,9 @@ final class BuildDashboardSummaryTest extends TestCase
 
     public function testServicesWithoutACategoryAreGroupedInsteadOfDisappearing(): void
     {
-        $this->services->method('findForOrganization')->willReturn([
+        $this->services->method('findAll')->willReturn($this->views([
             $this->service('Sin categoría', 1000, BillingPeriod::MONTHLY),
-        ]);
+        ]));
 
         $summary = $this->build();
 
@@ -168,10 +169,10 @@ final class BuildDashboardSummaryTest extends TestCase
         $hosting = new Category('Hosting', 'hosting');
 
         $this->categoryList = [$hosting];
-        $this->services->method('findForOrganization')->willReturn([
+        $this->services->method('findAll')->willReturn($this->views([
             $this->service('OVH VPS', 1199, BillingPeriod::MONTHLY, category: $hosting->getId()),
             $this->service('Vercel', 2000, BillingPeriod::MONTHLY, Currency::USD, $hosting->getId()),
-        ]);
+        ]));
 
         $summary = $this->build();
 
@@ -185,20 +186,20 @@ final class BuildDashboardSummaryTest extends TestCase
 
     public function testItRanksTheMostExpensiveServicesByMonthlyCost(): void
     {
-        $this->services->method('findForOrganization')->willReturn([
+        $this->services->method('findAll')->willReturn($this->views([
             // 12,00 €/año = 1,00 €/mes
             $this->service('Dominio .com', 1200, BillingPeriod::ANNUAL),
             // 11,99 €/mes
             $this->service('OVH VPS', 1199, BillingPeriod::MONTHLY),
             // 4,00 €/mes
             $this->service('GitHub', 400, BillingPeriod::MONTHLY),
-        ]);
+        ]));
 
         $summary = $this->build();
 
         self::assertSame(
             ['OVH VPS', 'GitHub', 'Dominio .com'],
-            array_map(static fn (Service $service): string => $service->getName(), $summary->topServices),
+            array_map(static fn (ServiceView $service): string => $service->name, $summary->topServices),
         );
     }
 
@@ -207,10 +208,10 @@ final class BuildDashboardSummaryTest extends TestCase
         $paused = $this->service('Servicio en pausa', 5000, BillingPeriod::MONTHLY);
         $paused->pause();
 
-        $this->services->method('findForOrganization')->willReturn([
+        $this->services->method('findAll')->willReturn($this->views([
             $this->service('OVH VPS', 1199, BillingPeriod::MONTHLY),
             $paused,
-        ]);
+        ]));
 
         $summary = $this->build();
 
@@ -227,11 +228,11 @@ final class BuildDashboardSummaryTest extends TestCase
         $cancelled = $this->service('Cancelado', 500, BillingPeriod::MONTHLY);
         $cancelled->cancel(new DateTimeImmutable('2026-09-01'));
 
-        $this->services->method('findForOrganization')->willReturn([
+        $this->services->method('findAll')->willReturn($this->views([
             $this->service('OVH VPS', 1199, BillingPeriod::MONTHLY),
             $paused,
             $cancelled,
-        ]);
+        ]));
 
         $summary = $this->build();
 
@@ -253,7 +254,7 @@ final class BuildDashboardSummaryTest extends TestCase
         $later = $this->service('Cobro lejano', 2000, BillingPeriod::MONTHLY);
         $later->setNextChargeAt(new DateTimeImmutable('2026-11-15'));
 
-        $this->services->method('findForOrganization')->willReturn([$soon, $later]);
+        $this->services->method('findAll')->willReturn($this->views([$soon, $later]));
 
         $summary = $this->build();
 
@@ -264,7 +265,7 @@ final class BuildDashboardSummaryTest extends TestCase
         self::assertNotNull($window60);
 
         self::assertCount(1, $window30->charges);
-        self::assertSame('Cobro próximo', $window30->charges[0]->getName());
+        self::assertSame('Cobro próximo', $window30->charges[0]->name);
         self::assertSame(1199, $window30->totalsByCurrency['EUR']->amountMinor);
 
         self::assertCount(2, $window60->charges);
@@ -279,7 +280,7 @@ final class BuildDashboardSummaryTest extends TestCase
         $dollars = $this->service('GitHub', 400, BillingPeriod::MONTHLY, Currency::USD);
         $dollars->setNextChargeAt(new DateTimeImmutable('2026-10-21'));
 
-        $this->services->method('findForOrganization')->willReturn([$euros, $dollars]);
+        $this->services->method('findAll')->willReturn($this->views([$euros, $dollars]));
 
         $summary = $this->build();
         $window = $summary->window(30);
@@ -297,12 +298,12 @@ final class BuildDashboardSummaryTest extends TestCase
         $farAway = $this->service('Otro dominio', 1200, BillingPeriod::ANNUAL);
         $farAway->setRenewalAt(new DateTimeImmutable('2026-12-20'));
 
-        $this->services->method('findForOrganization')->willReturn([$renewing, $farAway]);
+        $this->services->method('findAll')->willReturn($this->views([$renewing, $farAway]));
 
         $summary = $this->build();
 
         self::assertCount(1, $summary->upcomingRenewals);
-        self::assertSame('Dominio .com', $summary->upcomingRenewals[0]->getName());
+        self::assertSame('Dominio .com', $summary->upcomingRenewals[0]->name);
     }
 
     public function testItReportsWhatHasChangedInTheLastNinetyDays(): void
@@ -313,17 +314,17 @@ final class BuildDashboardSummaryTest extends TestCase
         $old = $this->service('GitHub', 400, BillingPeriod::MONTHLY);
         $old->changePrice(Money::of(500, Currency::EUR), new DateTimeImmutable('2026-03-01'));
 
-        $this->services->method('findForOrganization')->willReturn([$changed, $old]);
+        $this->services->method('findAll')->willReturn($this->views([$changed, $old]));
 
         $summary = $this->build();
 
         self::assertCount(1, $summary->recentPriceChanges);
-        self::assertSame('OVH VPS', $summary->recentPriceChanges[0]->getName());
+        self::assertSame('OVH VPS', $summary->recentPriceChanges[0]->name);
     }
 
     public function testAnEmptyOrganizationHasNothingToShow(): void
     {
-        $this->services->method('findForOrganization')->willReturn([]);
+        $this->services->method('findAll')->willReturn($this->views([]));
 
         $summary = $this->build();
 
@@ -337,7 +338,7 @@ final class BuildDashboardSummaryTest extends TestCase
 
     public function testItCountsTheOpenAlerts(): void
     {
-        $this->services->method('findForOrganization')->willReturn([]);
+        $this->services->method('findAll')->willReturn($this->views([]));
         $this->alerts->method('countOpen')->willReturn(3);
 
         self::assertSame(3, $this->build()->openAlerts);
@@ -373,5 +374,17 @@ final class BuildDashboardSummaryTest extends TestCase
         $service->setCategoryId($category);
 
         return $service;
+    }
+
+    /**
+     * El panel lee del read model, no de la entidad.
+     *
+     * @param list<Service> $services
+     *
+     * @return list<ServiceView>
+     */
+    private function views(array $services): array
+    {
+        return array_map(static fn (Service $service): ServiceView => ServiceView::fromService($service), $services);
     }
 }

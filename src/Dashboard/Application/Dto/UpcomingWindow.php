@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Dashboard\Application\Dto;
 
-use App\Services\Domain\Entity\Service;
+use App\Services\Domain\Dto\ServiceView;
 use App\Shared\Domain\ValueObject\Money;
 
 /**
@@ -19,7 +19,7 @@ use App\Shared\Domain\ValueObject\Money;
 final readonly class UpcomingWindow
 {
     /**
-     * @param list<Service>        $charges          ordenados por fecha de cobro
+     * @param list<ServiceView>    $charges          ordenados por fecha de cobro
      * @param array<string, Money> $totalsByCurrency clave = código ISO de la moneda
      */
     public function __construct(

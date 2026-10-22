@@ -656,7 +656,7 @@ no contiene firmas, tracking ni el correo completo.
 
 ## Fase 12 — Service matching y descubrimientos (nivel 8)
 
-> **Estado:** ⬜ Pendiente.
+> **Estado:** ✅ Completada.
 
 
 **Objetivo:** decidir a qué servicio pertenece un documento, **sin crear servicios
@@ -678,6 +678,65 @@ automáticamente**.
 emparejamientos ambiguos quedan en confianza media y pasan por revisión; **ningún servicio se
 crea sin confirmación**; confirmar crea el servicio con su precio inicial; ignorar no vuelve a
 proponerlo; el flujo completo funciona sin tocar la base de datos a mano.
+
+### Qué se entregó
+
+- **Emparejamiento explicable** — `ServiceMatcherInterface` y `ServiceMatcher`
+  (`src/Processing/`): puntuación ponderada (proveedor +40, dominio +20, nombre +20, moneda +5,
+  periodicidad +5, similitud de importe +5, remitente +5) con umbrales configurables (≥70 `HIGH`,
+  40–69 `MEDIUM`, <40 `LOW`). Devuelve la mejor candidata **y el desglose** que la justifica. Ver
+  D-35.
+- **Propuesta** — entidad `Discovery` con `matchScore` y `matchReasons` persistidos, estado
+  (`pending`, `confirmed`, `edited`, `ignored`, `expired`) y `DiscoveryConfidence`.
+- **Evidencia** — `DiscoveryEvidence` enlaza cada propuesta con los correos y documentos que la
+  sostienen; exige al menos un origen y pondera cada evidencia entre 0 y 100.
+- **Periodicidad** — `RecurrenceDetectorInterface` e `IntervalRecurrenceDetector`: intervalos entre
+  facturas, importe, regularidad y fecha del próximo cobro. `DetectRecurrence` la aplica al
+  servicio **sin degradar** la periodicidad declarada por el usuario (D-49).
+- **Bandeja** — `templates/discoveries/index.html.twig` con evidencia, filtros por estado y
+  acciones en lote; el detalle cuenta cuántos correos distintos sostienen la propuesta.
+- **Decisiones** — `ConfirmDiscovery` (servicio + precio + evento), `DismissDiscovery` (ignorar y
+  no volver a proponer) y `ExpireStaleDiscoveries` (caducar **conservando** la evidencia).
+- **Lote** — `BatchReviewDiscoveries`: confirma o descarta varias propuestas de una vez; el fallo
+  de una propuesta no aborta el resto (D-48).
+- **Alertas** — `AlertType::NEW_SERVICE_DETECTED`, con clave de deduplicación que incluye la
+  propuesta de origen, para que cada descubrimiento genere **una** alerta y no un duplicado por
+  barrido.
+- **Modelo de lectura** — `ServiceView`, `ServicePriceView` y `ServiceEventView`
+  (`src/Services/Domain/Dto/`): las rutas de lectura ya no cargan la entidad de escritura (D-50).
+- **Comandos** — `app:recurrence:detect` y `app:discoveries:expire`.
+- **Parámetros** — `config/packages/discovery.yaml`: `expiry_days` e `ignore_suppression_days`.
+
+### Correcciones relevantes de la fase
+
+1. **Las rutas de lectura leían la entidad de escritura.** `ServiceCostCalculator`, `PriceHistory`,
+   `SpendEvolution`, `BuildDashboardSummary` y los controladores de alertas, documentos, facturas
+   y descubrimientos cargaban la entidad `Service`. Ahora leen del modelo de lectura `ServiceView`:
+   el pipeline y las pantallas dejan de depender de la forma interna del dominio (D-50).
+2. **Una propuesta que fallaba tiraba abajo el lote.** `BatchReviewDiscoveries` capturaba el error
+   de la primera propuesta y abortaba. Ahora aísla el fallo de cada propuesta: perder veinte
+   propuestas porque la primera ya estaba confirmada sería peor que el error (D-48).
+3. **La detección de periodicidad podía pisar lo declarado por el usuario.** Si el usuario dijo
+   «trimestral» y el historial dice «mensual», ahora se actualiza la fecha pero la periodicidad
+   sigue siendo la del usuario; la detección solo adopta el periodo cuando el declarado es
+   `UNKNOWN` (D-49).
+4. **La alerta de servicio nuevo se duplicaba.** `Alert::buildDedupKey()` ahora incluye el
+   identificador de la propuesta: cada descubrimiento genera su propia alerta y los barridos
+   sucesivos no acumulan duplicados de la misma.
+5. **Ignorar una propuesta la silenciaba para siempre.** La supresión es ahora una **ventana**
+   (`ignore_suppression_days`, 90 días por defecto): descartar la suscripción de ejemplo hace seis
+   meses no impide que una factura nueva vuelva a merecer una pregunta (D-47).
+
+**Verificación ejecutada al cerrar la fase:**
+
+| Comprobación | Resultado |
+|---|---|
+| `php bin/phpunit` | ✅ 1095 tests, 4171 assertions |
+| `vendor/bin/phpstan analyse --no-progress` | ✅ 0 errores (nivel 8) |
+| `vendor/bin/php-cs-fixer fix --dry-run --diff` | ✅ 0 ficheros pendientes |
+| `bin/console lint:container` | ✅ |
+| `bin/console lint:yaml config/ --parse-tags` | ✅ 33 ficheros |
+| `bin/console lint:twig templates/` | ✅ 42 plantillas |
 
 ## Fase 13 — Aprendizaje del buzón
 
