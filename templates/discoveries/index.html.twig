@@ -7,12 +7,18 @@
         <div class="bo-page-header__heading">
             <h1 class="bo-page-header__title">Propuestas</h1>
             <p class="bo-page-header__subtitle">
-                Servicios que Suscripta ha encontrado en tu correo y que esperan tu confirmación.
+                {% if scope == 'suggestions' %}
+                    Sospechas que Suscripta ha deducido de tu inventario. Son sugerencias, no hechos: revísalas y decide.
+                {% elseif scope == 'facts' %}
+                    Lo que Suscripta ha encontrado en tu correo y que espera tu confirmación.
+                {% else %}
+                    Lo que Suscripta ha encontrado en tu correo, y lo que ha deducido de tu inventario.
+                {% endif %}
             </p>
         </div>
     </div>
 
-    <nav class="d-flex flex-wrap align-items-center gap-2 mb-4" aria-label="Filtrar propuestas">
+    <nav class="d-flex flex-wrap align-items-center gap-2 mb-3" aria-label="Filtrar propuestas">
         {% set tabs = {
             'pending': 'Pendientes',
             'confirmed': 'Confirmadas',
@@ -21,10 +27,42 @@
         } %}
         {% for value, label in tabs %}
             <a class="btn btn-sm {{ status.value == value ? 'btn-primary' : 'btn-outline-secondary' }}"
-               href="{{ path('app_discoveries_index', {status: value}) }}"
+               href="{{ path('app_discoveries_index', {status: value, type: type ? type.value : null, scope: scope != 'all' ? scope : null}) }}"
                {% if status.value == value %}aria-current="page"{% endif %}>
                 {{ label }}
                 {% if counts[value] is defined %}<span class="small text-secondary">({{ counts[value] }})</span>{% endif %}
+            </a>
+        {% endfor %}
+    </nav>
+
+    {#
+        Dos filtros más: por tipo de propuesta y por familia. La familia
+        separa los **hechos** (lo que el sistema ha leído en un documento) de
+        las **sugerencias** (lo que ha deducido del inventario). Mezclarlos es
+        justo lo que el usuario quiere evitar, así que se pueden apartar con
+        un clic (D-59).
+    #}
+    <nav class="d-flex flex-wrap align-items-center gap-2 mb-4" aria-label="Filtrar por tipo de propuesta">
+        <span class="small text-muted">Familia:</span>
+        {% for value, label in {'all': 'Todas', 'facts': 'Hechos', 'suggestions': 'Sugerencias'} %}
+            <a class="btn btn-sm {{ scope == value ? 'btn-primary' : 'btn-outline-secondary' }}"
+               href="{{ path('app_discoveries_index', {status: status.value, scope: value == 'all' ? null : value, type: type ? type.value : null}) }}"
+               {% if scope == value %}aria-current="page"{% endif %}>
+                {{ label }}
+            </a>
+        {% endfor %}
+
+        <span class="small text-muted ms-2">Tipo:</span>
+        <a class="btn btn-sm {{ type is null ? 'btn-primary' : 'btn-outline-secondary' }}"
+           href="{{ path('app_discoveries_index', {status: status.value, scope: scope != 'all' ? scope : null}) }}"
+           {% if type is null %}aria-current="page"{% endif %}>
+            Todos
+        </a>
+        {% for candidate in types %}
+            <a class="btn btn-sm {{ type and type.value == candidate.value ? 'btn-primary' : 'btn-outline-secondary' }}"
+               href="{{ path('app_discoveries_index', {status: status.value, scope: scope != 'all' ? scope : null, type: candidate.value}) }}"
+               {% if type and type.value == candidate.value %}aria-current="page"{% endif %}>
+                {{ candidate.label() }}
             </a>
         {% endfor %}
     </nav>
@@ -41,7 +79,10 @@
                         {% endif %}
                     </p>
                     <p class="bo-empty__text">
-                        {% if status.value == 'pending' %}
+                        {% if status.value == 'pending' and scope == 'suggestions' %}
+                            No hay sospechas pendientes. Cuando el barrido detecte un posible duplicado,
+                            un cobro que no ha llegado o un servicio sin actividad, aparecerá aquí.
+                        {% elseif status.value == 'pending' %}
                             Cuando Suscripta encuentre una factura o un aviso de renovación en tu correo,
                             aparecerá aquí para que decidas si quieres seguirla.
                         {% else %}
@@ -120,6 +161,11 @@
                                     <span class="badge text-bg-{{ discovery.type.value == 'new_service' ? 'info' : 'warning' }}">
                                         {{ discovery.type.label() }}
                                     </span>
+                                    {% if discovery.inference %}
+                                        <span class="badge text-bg-secondary" title="Deducido del inventario, no leído en un documento">
+                                            Sugerencia
+                                        </span>
+                                    {% endif %}
                                 </td>
                                 <td data-label="Importe" class="text-end">
                                     {% if proposed.amountMinor is defined and proposed.amountMinor is not null %}

@@ -367,6 +367,21 @@ final readonly class ProcessEmailMessage
         $message->markProcessed($this->clock->now());
         $this->messages->save($message);
 
+        // Un cambio de plan manda sobre un cambio de precio: cuando el plan
+        // cambia, el importe suele cambiar con él, y proponer solo el importe
+        // dejaría el servicio con el plan viejo y el precio nuevo. La
+        // propuesta de cambio de plan lleva los dos datos, así que el usuario
+        // decide los dos de una vez.
+        if (null !== $this->planChange($document, $match)) {
+            return $this->createDiscovery(
+                $message,
+                $document,
+                $match,
+                DiscoveryType::PLAN_CHANGE,
+                $actorUserId,
+            );
+        }
+
         if (!$this->amountDiffers($document, $match)) {
             return null;
         }
@@ -418,6 +433,18 @@ final readonly class ProcessEmailMessage
         ?Uuid $actorUserId,
     ): Discovery {
         $proposedData = $document->toArray();
+
+        // El servicio al que pertenece la propuesta viaja en los datos
+        // propuestos: es lo que permite que la interfaz lo enlace y lo que
+        // forma parte de la clave de deduplicación de los cambios.
+        if (null !== $match->serviceId) {
+            $proposedData['serviceId'] = $match->serviceId->toRfc4122();
+        }
+
+        if (DiscoveryType::PLAN_CHANGE === $type) {
+            $proposedData['previousPlan'] = $match->servicePlanName;
+        }
+
         $dedupKey = Discovery::buildDedupKey($type, $proposedData);
         $documentId = $this->documentIdFor($message->getId());
 
@@ -746,5 +773,32 @@ final readonly class ProcessEmailMessage
         }
 
         return true;
+    }
+
+    /**
+     * ¿El documento trae un plan distinto del que tiene el servicio?
+     *
+     * Solo cuenta como cambio si **los dos** lo dicen: un servicio sin plan
+     * registrado al que la factura le dice el plan no está cambiando de
+     * plan, estáyaciendo más completo. Y si la factura no menciona plan, no
+     * hay nada que comparar.
+     */
+    private function planChange(ExtractedDocument $document, ServiceMatchResult $match): ?string
+    {
+        $documentPlan = $document->plan;
+        $servicePlan = $match->servicePlanName;
+
+        if (null === $documentPlan || null === $servicePlan) {
+            return null;
+        }
+
+        $from = mb_strtolower(trim($servicePlan));
+        $to = mb_strtolower(trim($documentPlan));
+
+        if ('' === $from || '' === $to || $from === $to) {
+            return null;
+        }
+
+        return trim($documentPlan);
     }
 }

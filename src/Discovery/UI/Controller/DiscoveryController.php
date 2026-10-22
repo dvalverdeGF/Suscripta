@@ -8,19 +8,25 @@ use App\Catalog\Domain\Repository\CategoryRepositoryInterface;
 use App\Catalog\Domain\Repository\ProviderRepositoryInterface;
 use App\Discovery\Application\BatchReviewDiscoveries;
 use App\Discovery\Application\ConfirmDiscovery;
+use App\Discovery\Application\ConfirmInference;
 use App\Discovery\Application\DismissDiscovery;
 use App\Discovery\Domain\Entity\Discovery;
 use App\Discovery\Domain\Enum\DiscoveryStatus;
+use App\Discovery\Domain\Enum\DiscoveryType;
 use App\Discovery\Domain\Repository\DiscoveryRepositoryInterface;
 use App\Discovery\UI\Form\DiscoveryFormData;
 use App\Discovery\UI\Form\DiscoveryFormType;
 use App\Identity\Domain\Entity\User;
 use App\Mailbox\Domain\Repository\EmailMessageRepositoryInterface;
+use App\Services\Domain\Entity\Service;
 use App\Services\Domain\Repository\ServiceViewRepositoryInterface;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Exception\InvalidArgumentException;
 use App\Shared\Domain\ValueObject\Currency;
 
+use function array_filter;
+use function array_values;
+use function in_array;
 use function is_string;
 use function sprintf;
 
@@ -47,6 +53,15 @@ use function trim;
 #[IsGranted('ROLE_USER')]
 final class DiscoveryController extends AbstractController
 {
+    /** Toda la bandeja, sin distinguir hechos de sugerencias. */
+    private const SCOPE_ALL = 'all';
+
+    /** Solo lo que el sistema ha leído en un documento. */
+    private const SCOPE_FACTS = 'facts';
+
+    /** Solo lo que el sistema ha deducido del inventario (D-59). */
+    private const SCOPE_SUGGESTIONS = 'suggestions';
+
     public function __construct(
         private readonly DiscoveryRepositoryInterface $discoveries,
         private readonly EmailMessageRepositoryInterface $messages,
@@ -61,7 +76,14 @@ final class DiscoveryController extends AbstractController
     public function index(Request $request): Response
     {
         $status = DiscoveryStatus::tryFrom((string) $request->query->get('status', '')) ?? DiscoveryStatus::PENDING;
-        $discoveries = $this->discoveries->findForOrganization($status);
+        $type = DiscoveryType::tryFrom((string) $request->query->get('type', ''));
+        $scope = $this->scope((string) $request->query->get('scope', ''));
+
+        $discoveries = $this->discoveries->findForOrganization($status, 100, $type);
+        $discoveries = array_values(array_filter(
+            $discoveries,
+            static fn (Discovery $discovery): bool => self::matchesScope($discovery, $scope),
+        ));
 
         $sources = [];
         foreach ($discoveries as $discovery) {
@@ -76,6 +98,9 @@ final class DiscoveryController extends AbstractController
             'discoveries' => $discoveries,
             'sources' => $sources,
             'status' => $status,
+            'type' => $type,
+            'scope' => $scope,
+            'types' => DiscoveryType::cases(),
             'counts' => $this->discoveries->countByStatus(),
         ]);
     }
@@ -184,6 +209,40 @@ final class DiscoveryController extends AbstractController
         return $this->redirectToRoute('app_services_show', ['id' => $service->getId()->toRfc4122()]);
     }
 
+    /**
+     * Resolver una **inferencia** (D-59).
+     *
+     * Una inferencia no se confirma con el formulario de servicio: no hay
+     * datos que revisar, hay una sospecha que aceptar o descartar. Por eso
+     * tiene su propia ruta, con su propio token CSRF, y su propia aplicación
+     * (`ConfirmInference`).
+     */
+    #[Route('/{id}/resolve', name: 'resolve', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    public function resolve(Discovery $discovery, Request $request, ConfirmInference $confirmInference): Response
+    {
+        if (!$this->isCsrfTokenValid('discovery_resolve_'.$discovery->getId()->toRfc4122(), (string) $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException('Token CSRF no válido.');
+        }
+
+        if (!$discovery->getType()->isInference()) {
+            $this->addFlash('error', 'Esta propuesta no es una inferencia: confírmala con el formulario de servicio.');
+
+            return $this->redirectToRoute('app_discoveries_show', ['id' => $discovery->getId()->toRfc4122()]);
+        }
+
+        try {
+            $service = $confirmInference($discovery, $this->actorId());
+        } catch (InvalidArgumentException $exception) {
+            $this->addFlash('error', $exception->getMessage());
+
+            return $this->redirectToRoute('app_discoveries_show', ['id' => $discovery->getId()->toRfc4122()]);
+        }
+
+        $this->addFlash('success', $this->resolutionMessage($discovery, $service));
+
+        return $this->redirectToRoute('app_discoveries_index');
+    }
+
     #[Route('/{id}/dismiss', name: 'dismiss', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
     public function dismiss(Discovery $discovery, Request $request, DismissDiscovery $dismissDiscovery): Response
     {
@@ -264,5 +323,41 @@ final class DiscoveryController extends AbstractController
         $user = $this->getUser();
 
         return $user instanceof User ? $user->getId() : null;
+    }
+
+    /**
+     * El alcance de la bandeja: todo, solo hechos o solo sugerencias.
+     *
+     * Los hechos son los que se han leído en un documento; las sugerencias son
+     * inferencias (D-59). Mezclarlos en la misma lista es justo lo que el
+     * usuario quiere evitar, así que se pueden separar.
+     */
+    private function scope(string $value): string
+    {
+        return in_array($value, [self::SCOPE_FACTS, self::SCOPE_SUGGESTIONS], true) ? $value : self::SCOPE_ALL;
+    }
+
+    private static function matchesScope(Discovery $discovery, string $scope): bool
+    {
+        return match ($scope) {
+            self::SCOPE_FACTS => !$discovery->isInference(),
+            self::SCOPE_SUGGESTIONS => $discovery->isInference(),
+            default => true,
+        };
+    }
+
+    /**
+     * El texto que explica qué ha pasado al aceptar una inferencia.
+     */
+    private function resolutionMessage(Discovery $discovery, ?Service $service): string
+    {
+        $name = null === $service ? '' : sprintf(' «%s»', $service->getName());
+
+        return match ($discovery->getType()) {
+            DiscoveryType::DUPLICATE => sprintf('Duplicado confirmado: se ha cancelado el servicio repetido%s.', $name),
+            DiscoveryType::MISSING_CHARGE => sprintf('Cobro revisado%s: queda anotado y se ha adelantado la próxima fecha de cobro.', $name),
+            DiscoveryType::DORMANT => sprintf('Servicio cancelado%s: ya no contará en tus costes.', $name),
+            default => sprintf('Propuesta resuelta%s.', $name),
+        };
     }
 }

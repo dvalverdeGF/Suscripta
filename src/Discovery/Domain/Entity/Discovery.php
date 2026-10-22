@@ -88,6 +88,18 @@ class Discovery implements TenantAwareInterface
     #[ORM\Column(name: 'ai_used', type: Types::BOOLEAN)]
     private bool $aiUsed = false;
 
+    /**
+     * ¿Es una inferencia deducida del inventario y no un hecho leído en un
+     * documento? (D-59).
+     *
+     * Es una columna y no un detalle del `proposedData` porque la interfaz
+     * necesita **filtrar** por ella y porque cambia cómo se presenta la
+     * propuesta: una inferencia se enseña como sugerencia, con su motivo a la
+     * vista, y nunca como un hecho consumado.
+     */
+    #[ORM\Column(name: 'is_inference', type: Types::BOOLEAN, options: ['default' => false])]
+    private bool $isInference = false;
+
     #[ORM\Column(name: 'detected_at', type: Types::DATETIME_IMMUTABLE)]
     private DateTimeImmutable $detectedAt;
 
@@ -203,6 +215,33 @@ class Discovery implements TenantAwareInterface
         return $this->aiUsed;
     }
 
+    /**
+     * ¿Es una inferencia y no un hecho? (D-59).
+     */
+    public function isInference(): bool
+    {
+        return $this->isInference;
+    }
+
+    /**
+     * Marca la propuesta como inferencia.
+     *
+     * Una inferencia nunca es un hecho, así que su confianza se queda en
+     * «baja» aunque el detector esté muy seguro de lo que ha deducido: el
+     * usuario no ha visto ningún documento que lo diga y tiene que poder
+     * sospechar de la conclusión.
+     */
+    public function markAsInference(): void
+    {
+        $this->isInference = true;
+
+        $max = DiscoveryConfidence::LOW->maxScore();
+
+        if ($this->confidenceScore > $max) {
+            $this->applyConfidence($max);
+        }
+    }
+
     public function getDetectedAt(): DateTimeImmutable
     {
         return $this->detectedAt;
@@ -309,18 +348,84 @@ class Discovery implements TenantAwareInterface
     }
 
     /**
+     * Clave de deduplicación entre cuentas (D-27): dos buzones que reciben la
+     * misma factura no deben generar dos propuestas.
+     *
+     * Cada tipo se deduplica por lo que lo identifica de verdad:
+     *
+     * - `NEW_SERVICE` y `CANCELLATION`: por lo que dice la factura
+     *   (proveedor, importe, moneda y periodicidad).
+     * - `PRICE_CHANGE`: por el servicio y el importe nuevo. El importe es
+     *   justo lo que cambia, así que forma parte de la identidad de la
+     *   propuesta.
+     * - `PLAN_CHANGE`: por el servicio y la transición de plan (de «A» a «B»),
+     *   no solo por el plan de destino: volver a un plan anterior es otra
+     *   propuesta.
+     * - `DUPLICATE`, `MISSING_CHARGE` y `DORMANT`: por los servicios
+     *   implicados y el hecho concreto, porque dos facturas distintas pueden
+     *   describir la misma situación.
+     *
      * @param array<string, mixed> $proposedData
      */
     public static function buildDedupKey(DiscoveryType $type, array $proposedData): string
     {
-        return mb_substr(sprintf(
-            '%s|%s|%s|%s|%s',
-            $type->value,
-            self::stringify($proposedData['providerName'] ?? null),
-            self::stringify($proposedData['amountMinor'] ?? null),
-            self::stringify($proposedData['currency'] ?? null),
-            self::stringify($proposedData['billingPeriod'] ?? null),
-        ), 0, 255);
+        // Cada tipo de propuesta se deduplica por lo que la identifica de
+        // verdad. Los tipos leídos de un documento se deducen de la factura
+        // (proveedor, importe, moneda y periodicidad); los tipos inferidos del
+        // inventario se deducen de los servicios implicados, porque dos
+        // facturas distintas pueden describir el mismo par de servicios.
+        return match ($type) {
+            DiscoveryType::DUPLICATE => mb_substr(sprintf(
+                '%s|%s',
+                $type->value,
+                self::pair(self::stringify($proposedData['serviceId'] ?? null), self::stringify($proposedData['relatedServiceId'] ?? null)),
+            ), 0, 255),
+            DiscoveryType::MISSING_CHARGE => mb_substr(sprintf(
+                '%s|%s|%s',
+                $type->value,
+                self::stringify($proposedData['serviceId'] ?? null),
+                self::stringify($proposedData['expectedAt'] ?? null),
+            ), 0, 255),
+            DiscoveryType::DORMANT => mb_substr(sprintf(
+                '%s|%s|%s',
+                $type->value,
+                self::stringify($proposedData['serviceId'] ?? null),
+                self::stringify($proposedData['inactiveSince'] ?? null),
+            ), 0, 255),
+            DiscoveryType::PLAN_CHANGE => mb_substr(sprintf(
+                '%s|%s|%s',
+                $type->value,
+                self::stringify($proposedData['serviceId'] ?? null),
+                self::pair(self::stringify($proposedData['previousPlan'] ?? null), self::stringify($proposedData['plan'] ?? null)),
+            ), 0, 255),
+            DiscoveryType::PRICE_CHANGE => mb_substr(sprintf(
+                '%s|%s|%s|%s',
+                $type->value,
+                self::stringify($proposedData['serviceId'] ?? null),
+                self::stringify($proposedData['amountMinor'] ?? null),
+                self::stringify($proposedData['currency'] ?? null),
+            ), 0, 255),
+            default => mb_substr(sprintf(
+                '%s|%s|%s|%s|%s',
+                $type->value,
+                self::stringify($proposedData['providerName'] ?? null),
+                self::stringify($proposedData['amountMinor'] ?? null),
+                self::stringify($proposedData['currency'] ?? null),
+                self::stringify($proposedData['billingPeriod'] ?? null),
+            ), 0, 255),
+        };
+    }
+
+    /**
+     * Une dos valores en un orden estable.
+     *
+     * La clave de un par no puede depender de quién se ha quedado con el papel
+     * de «original»: si el orden cambiara, la misma pareja de servicios daría
+     * dos claves distintas y el barrido volvería a proponerla.
+     */
+    private static function pair(string $a, string $b): string
+    {
+        return $a <= $b ? $a.'|'.$b : $b.'|'.$a;
     }
 
     /**

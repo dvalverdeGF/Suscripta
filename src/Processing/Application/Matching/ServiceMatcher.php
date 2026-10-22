@@ -160,6 +160,7 @@ final readonly class ServiceMatcher implements ServiceMatcherInterface
             $score,
             $reasons,
             MatchConfidence::fromScore($score, $this->weights->highThreshold, $this->weights->mediumThreshold),
+            $service->planName,
         );
     }
 

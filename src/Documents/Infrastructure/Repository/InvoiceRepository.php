@@ -92,6 +92,33 @@ final class InvoiceRepository extends DoctrineRepository implements InvoiceRepos
         return $invoices;
     }
 
+    public function findLastIssuedAtByService(): array
+    {
+        /** @var list<array{serviceId: string|null, lastIssuedAt: string}> $rows */
+        $rows = $this->entityManager
+            ->createQueryBuilder()
+            ->select('i.serviceId AS serviceId, MAX(i.issuedAt) AS lastIssuedAt')
+            ->from(Invoice::class, 'i')
+            ->where('i.serviceId IS NOT NULL')
+            ->groupBy('i.serviceId')
+            ->getQuery()
+            ->getArrayResult();
+
+        $lastIssuedAt = [];
+
+        foreach ($rows as $row) {
+            $serviceId = $row['serviceId'];
+
+            if (null === $serviceId || '' === $serviceId) {
+                continue;
+            }
+
+            $lastIssuedAt[$serviceId] = new DateTimeImmutable($row['lastIssuedAt']);
+        }
+
+        return $lastIssuedAt;
+    }
+
     /**
      * La clave de deduplicación se compone de columnas, así que no se puede
      * indexar tal cual. Se filtra primero por las partes que sí están en la

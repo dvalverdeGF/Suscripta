@@ -24,10 +24,14 @@ use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Enum\AuditAction;
 use DateTimeImmutable;
 
+use function is_numeric;
+use function is_string;
 use function max;
 use function sprintf;
 
 use Symfony\Component\Uid\Uuid;
+
+use function trim;
 
 /**
  * Decide qué avisos debería tener abiertos la organización (ARCHITECTURE.md §4.7).
@@ -152,7 +156,7 @@ final readonly class GenerateAlerts
                 continue;
             }
 
-            if (AlertType::NEW_SERVICE_DETECTED === $type && $this->discoveryIsPending($open->getDiscoveryId())) {
+            if (null !== $open->getDiscoveryId() && $this->discoveryIsPending($open->getDiscoveryId())) {
                 continue;
             }
 
@@ -210,14 +214,213 @@ final readonly class GenerateAlerts
         }
 
         foreach ($this->discoveries->findPending(AlertRules::PENDING_DISCOVERY_SCAN_LIMIT) as $discovery) {
-            if (DiscoveryType::NEW_SERVICE !== $discovery->getType()) {
-                continue;
-            }
+            $candidate = $this->candidateForDiscovery($discovery);
 
-            $candidates[AlertType::NEW_SERVICE_DETECTED->value][] = $this->newServiceCandidate($discovery);
+            if (null !== $candidate) {
+                $candidates[$candidate->type->value][] = $candidate;
+            }
         }
 
         return $candidates;
+    }
+
+    /**
+     * Aviso que corresponde a una propuesta pendiente, si esa propuesta tiene
+     * un tipo que genera aviso.
+     *
+     * Todos los avisos de propuesta son **por propuesta**: el aviso identifica
+     * qué propuesta es, no solo que hay algo pendiente. Por eso su clave de
+     * deduplicación lleva el identificador de la propuesta.
+     */
+    private function candidateForDiscovery(Discovery $discovery): ?AlertCandidate
+    {
+        return match ($discovery->getType()) {
+            DiscoveryType::NEW_SERVICE => $this->newServiceCandidate($discovery),
+            DiscoveryType::PRICE_CHANGE => $this->priceChangeCandidate($discovery),
+            DiscoveryType::PLAN_CHANGE => $this->planChangeCandidate($discovery),
+            DiscoveryType::DUPLICATE => $this->duplicateCandidate($discovery),
+            DiscoveryType::MISSING_CHARGE => $this->missingChargeCandidate($discovery),
+            DiscoveryType::DORMANT => $this->dormantCandidate($discovery),
+            default => null,
+        };
+    }
+
+    /**
+     * Aviso de un cambio de precio deducido de una factura.
+     */
+    private function priceChangeCandidate(Discovery $discovery): AlertCandidate
+    {
+        $proposal = ProposedData::fromArray($discovery->getProposedData());
+        $name = $proposal->name() ?? 'un servicio';
+        $amount = $proposal->amount();
+
+        return new AlertCandidate(
+            type: AlertType::PRICE_CHANGE_DETECTED,
+            severity: AlertSeverity::INFO,
+            title: sprintf('Cambio de precio en %s', $name),
+            message: null === $amount
+                ? sprintf('La última factura de %s indica un importe nuevo. Confírmalo para actualizar el precio.', $name)
+                : sprintf('La última factura de %s indica un importe de %s. Confírmalo para actualizar el precio.', $name, $amount->format()),
+            dedupKey: Alert::buildDedupKey(AlertType::PRICE_CHANGE_DETECTED, null, null, $discovery->getId()),
+            discoveryId: $discovery->getId(),
+            metadata: [
+                'serviceId' => $discovery->getMatchedServiceId()?->toRfc4122(),
+                'amount' => $amount?->format(),
+                'currency' => $proposal->currency()->value,
+                'confidence' => $discovery->getConfidence()->value,
+                'confidenceScore' => $discovery->getConfidenceScore(),
+            ],
+        );
+    }
+
+    /**
+     * Aviso de un cambio de plan deducido de una factura.
+     */
+    private function planChangeCandidate(Discovery $discovery): AlertCandidate
+    {
+        $proposal = ProposedData::fromArray($discovery->getProposedData());
+        $name = $proposal->name() ?? 'un servicio';
+        $plan = $proposal->planName();
+        $previousPlan = $this->text($discovery->getProposedData()['previousPlan'] ?? null);
+
+        $detail = null === $plan
+            ? 'un plan nuevo'
+            : sprintf('el plan %s', $plan);
+
+        $message = sprintf('La última factura de %s indica %s', $name, $detail);
+
+        if (null !== $previousPlan) {
+            $message = sprintf('La última factura de %s indica %s (antes: %s)', $name, $detail, $previousPlan);
+        }
+
+        return new AlertCandidate(
+            type: AlertType::PLAN_CHANGE_DETECTED,
+            severity: AlertSeverity::INFO,
+            title: sprintf('Cambio de plan en %s', $name),
+            message: $message.'. Confírmalo para actualizar el plan.',
+            dedupKey: Alert::buildDedupKey(AlertType::PLAN_CHANGE_DETECTED, null, null, $discovery->getId()),
+            discoveryId: $discovery->getId(),
+            metadata: [
+                'serviceId' => $discovery->getMatchedServiceId()?->toRfc4122(),
+                'plan' => $plan,
+                'previousPlan' => $previousPlan,
+                'confidence' => $discovery->getConfidence()->value,
+                'confidenceScore' => $discovery->getConfidenceScore(),
+            ],
+        );
+    }
+
+    /**
+     * Aviso de un posible duplicado.
+     *
+     * Es una **sospecha**: el aviso lo dice así en el texto, porque la
+     * diferencia entre dos servicios parecidos puede ser intencionada (una
+     * cuenta personal y otra de empresa, por ejemplo).
+     */
+    private function duplicateCandidate(Discovery $discovery): AlertCandidate
+    {
+        $data = $discovery->getProposedData();
+        $name = $this->text($data['serviceName'] ?? null) ?? 'un servicio';
+        $related = $this->text($data['relatedServiceName'] ?? null);
+
+        $message = null === $related
+            ? sprintf('%s se parece a otro servicio que tienes registrado.', $name)
+            : sprintf('%s se parece a %s, que también tienes registrado.', $name, $related);
+
+        return new AlertCandidate(
+            type: AlertType::POSSIBLE_DUPLICATE,
+            severity: AlertSeverity::WARNING,
+            title: sprintf('Posible duplicado: %s', $name),
+            message: $message.' Revísalo: si son el mismo, te ahorras una cuota.',
+            dedupKey: Alert::buildDedupKey(AlertType::POSSIBLE_DUPLICATE, null, null, $discovery->getId()),
+            discoveryId: $discovery->getId(),
+            metadata: [
+                'serviceName' => $name,
+                'relatedServiceName' => $related,
+                'similarity' => $this->number($data['similarity'] ?? null),
+                'confidence' => $discovery->getConfidence()->value,
+                'confidenceScore' => $discovery->getConfidenceScore(),
+            ],
+        );
+    }
+
+    /**
+     * Aviso de un cobro que no ha llegado.
+     */
+    private function missingChargeCandidate(Discovery $discovery): AlertCandidate
+    {
+        $data = $discovery->getProposedData();
+        $name = $this->text($data['serviceName'] ?? null) ?? 'un servicio';
+        $expectedAt = $this->text($data['expectedAt'] ?? null);
+
+        $message = null === $expectedAt
+            ? sprintf('Esperábamos un cobro de %s y no lo hemos visto.', $name)
+            : sprintf('Esperábamos un cobro de %s el %s y no lo hemos visto.', $name, $expectedAt);
+
+        return new AlertCandidate(
+            type: AlertType::MISSING_CHARGE,
+            severity: AlertSeverity::WARNING,
+            title: sprintf('Cobro que no ha llegado: %s', $name),
+            message: $message.' Puede que no se haya cobrado, o que la factura llegue más tarde.',
+            dedupKey: Alert::buildDedupKey(AlertType::MISSING_CHARGE, null, null, $discovery->getId()),
+            discoveryId: $discovery->getId(),
+            metadata: [
+                'serviceName' => $name,
+                'expectedAt' => $expectedAt,
+                'overdueDays' => $this->number($data['overdueDays'] ?? null),
+                'confidence' => $discovery->getConfidence()->value,
+                'confidenceScore' => $discovery->getConfidenceScore(),
+            ],
+        );
+    }
+
+    /**
+     * Aviso de un servicio sin actividad.
+     */
+    private function dormantCandidate(Discovery $discovery): AlertCandidate
+    {
+        $data = $discovery->getProposedData();
+        $name = $this->text($data['serviceName'] ?? null) ?? 'un servicio';
+        $inactiveDays = $this->number($data['inactiveDays'] ?? null);
+
+        $message = null === $inactiveDays
+            ? sprintf('%s lleva mucho tiempo sin actividad.', $name)
+            : sprintf('%s lleva %d días sin actividad.', $name, $inactiveDays);
+
+        return new AlertCandidate(
+            type: AlertType::DORMANT_SERVICE,
+            severity: AlertSeverity::INFO,
+            title: sprintf('%s lleva tiempo sin actividad', $name),
+            message: $message.' Si ya no lo usas, cancelarlo te quita ruido del inventario.',
+            dedupKey: Alert::buildDedupKey(AlertType::DORMANT_SERVICE, null, null, $discovery->getId()),
+            discoveryId: $discovery->getId(),
+            metadata: [
+                'serviceName' => $name,
+                'inactiveDays' => $inactiveDays,
+                'confidence' => $discovery->getConfidence()->value,
+                'confidenceScore' => $discovery->getConfidenceScore(),
+            ],
+        );
+    }
+
+    private function text(mixed $value): ?string
+    {
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+
+        return '' === $value ? null : $value;
+    }
+
+    private function number(mixed $value): ?int
+    {
+        if (!is_numeric($value)) {
+            return null;
+        }
+
+        return (int) $value;
     }
 
     /**

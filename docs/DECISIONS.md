@@ -1734,3 +1734,96 @@ el ciclo que aparezca en el mapa de módulos se rompe con esta interfaz.
 **Consecuencias.** `Ai` declara lo que espera del exterior; `Processing` decide qué hacer con
 ello. La pantalla de coste puede ofrecer un botón de «poner en cola los correos aplazados»
 porque la operación existe y es idempotente.
+
+## D-59 — Una inferencia se marca como tal, y su confianza no puede subir
+
+**Estado:** aceptada.
+
+**Contexto.** Hasta la fase 14, todo lo que había en la bandeja de descubrimientos venía de un
+documento: el sistema lo había **leído**. La fase 15 introduce otra fuente —el inventario de
+servicios— y con ella propuestas que el sistema **deduce**: un posible duplicado, un cobro que no
+ha llegado, un servicio que lleva meses sin dar señales.
+
+El riesgo no es que la deducción sea mala; es que se **presente como una verdad**. Si la bandeja
+mezcla «la factura de Netflix dice 12,99 €» con «creo que te has dado de alta dos veces en
+Netflix», el usuario no puede saber cuál de las dos merece su atención, y acaba Estate
+-ignorando las dos. Peor: un detector se equivoca con frecuencia, y si sus errores se presentan
+como hechos, el usuario pierde la confianza en el sistema entero.
+
+**Decisión.** Hay dos clases de propuesta y se distinguen **de forma explícita**:
+
+1. **La marca `is_inference`.** Vive en una **columna** (`discovery.is_inference`), no en el JSON de
+   `proposed_data`, porque la interfaz la necesita para dos cosas a la vez: **filtrar** la bandeja
+   (`?scope=facts` / `?scope=suggestions`) y **presentar** la propuesta como sugerencia. Un filtro
+   sobre un JSON sin índice es un filtro en memoria sobre toda la tabla.
+2. **El recorte de la confianza.** `markAsInference()` baja la confianza a la banda `LOW`
+   (`DiscoveryConfidence::LOW->maxScore() = 54`) si hace falta. Una inferencia **nunca** llega a
+   confianza alta, por muchas señales que la respalden: el detector puede estar seguro de tener
+   una sospecha, pero una sospecha sigue siendo una sospecha.
+3. **La presentación.** La ficha de una inferencia dice «Esto es una sugerencia, no un hecho»,
+   explica **de dónde sale** («no viene de un correo») y enseña la **fuerza de la señal** en vez de
+   la puntuación de emparejamiento. Un hecho, en cambio, sigue mostrando el formulario de alta
+   del servicio, porque un hecho se actúa; una sospecha se confirma o se descarta.
+
+**Alternativas.**
+
+- *Confiar en el texto de la propuesta.* Descartado: el usuario lee el texto, pero el sistema tiene
+  que poder **filtrar** y **priorizar**. La distinción tiene que ser consultable.
+- *Bajar la confianza a un número fijo (por ejemplo, 50).* Descartado: el recorte tiene que ser
+  una **banda** con nombre, porque la banda es lo que la interfaz sabe pintar y lo que los filtros
+  saben interpretar. Un número suelto se volvería a subir por accidente en la siguiente fase.
+- *No distinguir, y que el usuario lo adivine por el texto.* Descartado: es exactamente el
+  problema. El sistema tiene que saber qué es deduced y qué es leído, y decirlo.
+
+**Consecuencias.** La bandeja tiene dos filtros («Familia»: todas / hechos / sugerencias) y las
+propuestas inferidas llevan la insignia «Sugerencia». El pipeline sigue siendo el único que crea
+**hechos**; el módulo `Discovery` es el único que crea **inferencias**, y solo mediante el barrido.
+Los avisos que cuelgan de una propuesta pendiente se mantienen abiertos mientras el usuario no
+decida: `resolveStaleAlerts()` trata «la propuesta sigue pendiente» igual que «el problema sigue
+sin resolverse».
+
+## D-60 — Cancelar no es borrar: confirmar una inferencia siempre deja rastro
+
+**Estado:** aceptada.
+
+**Contexto.** Confirmar una inferencia significa **mutar el inventario**: cancelar un servicio
+duplicado, adelantar el próximo cobro de un servicio al que no le ha llegado la factura, cancelar
+un servicio que lleva meses muerto. Es la primera vez que el sistema **borra** algo del punto de
+vista del usuario, aunque internamente no borre: cancela.
+
+La tentación es implementarlo como un borrado: quitar el servicio, quitar su historial, quitar sus
+documentos. Sería más rápido de escribir y más fácil de explicar. Pero el usuario no ve «un
+registro obsoleto que sobraba»: ve **su** historial. Y el historial es la única explicación que
+tiene de por qué tiene lo que tiene. «¿Por qué me aparece esto?» se responde con los eventos.
+
+**Decisión.** `ConfirmInference` es el **único** punto del sistema que aplica una inferencia, y
+aplica una regla sin excepciones: **la historia no se borra**.
+
+- **Duplicado** → se cancela el servicio **más reciente** (el más antiguo es el original) y se
+  deja una nota (`NOTE_ADDED`) **en los dos**. Los dos servicios quedan con su historial.
+- **Cobro que no ha llegado** → se adelanta `nextChargeAt` al siguiente periodo (con tope de 200
+  periodos) y se deja nota. El servicio **no** se cancela: puede que la factura llegue mañana.
+- **Servicio inactivo** → se cancela y se deja nota.
+
+Cancelar es un **estado** del servicio (`ServiceStatus::CANCELLED`), no su ausencia. El evento
+`CANCELLED` dice qué pasó y cuándo, y la nota dice por qué. Toda la operación queda registrada en
+la auditoría (`AuditAction::DISCOVERY_CONFIRMED`, con `metadata['inference'] = true`).
+
+**Alternativas.**
+
+- *Borrar el servicio duplicado y sus facturas.* Descartado: el usuario pierde el histórico de lo
+  que pagó y de lo que le cobraron. Es la clase de pérdida que hace que alguien deje de confiar en
+  la herramienta.
+- *Cancelar el servicio más antiguo en vez del más reciente.* Descartado: el original es el que
+  tiene los eventos, las facturas y el `nextChargeAt` acumulado. Cancelar el más antiguo tiraría
+  justo la información que el usuario necesita.
+- *Un «deshacer» para el duplicado.* Descartado por ahora: no se ha pedido, y el historial ya
+  permite reconstruir qué pasó. Añadir un deshacer es una promesa de más complejidad; si se echa de menos,
+  el evento `CANCELLED` es el punto de apoyo natural.
+
+**Consecuencias.** El detector es **idempotente** y el barrido se puede lanzar cada noche: la
+clave de deduplicación es estable (`serviceId|expectedAt`, `serviceId|inactiveSince`, pareja
+ordenada de ids) y `findByDedupKey()` busca en **cualquier** estado, así que una sospecha que el
+usuario descartó no vuelve a aparecer. Los umbrales que decide qué es una sospecha viven en la
+configuración (`config/packages/discovery.yaml` → `ChangeSettings`) y no en el código, porque
+cambiarlos cambia lo que el usuario ve, y eso se decide con el producto al lado.

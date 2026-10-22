@@ -154,6 +154,13 @@ services:
         arguments:
             $config: '%app.discovery%'
 
+    # Los umbrales del barrido de detección de cambios (Fase 15) son política
+    # de producto: config/packages/discovery.yaml.
+    App\Discovery\Application\Change\ChangeSettings:
+        factory: ['App\Discovery\Application\Change\ChangeSettings', 'fromArray']
+        arguments:
+            $config: '%app.discovery%'
+
     # Los parámetros del conocimiento aprendido del buzón (Fase 13) son
     # política de producto: config/packages/knowledge.yaml.
     App\Processing\Application\Knowledge\KnowledgeSettings:

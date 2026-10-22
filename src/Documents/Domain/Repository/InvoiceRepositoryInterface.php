@@ -31,6 +31,19 @@ interface InvoiceRepositoryInterface
      */
     public function findIssuedBetween(DateTimeImmutable $from, DateTimeImmutable $until): array;
 
+    /**
+     * Fecha del último cobro conocido de cada servicio.
+     *
+     * Lo que hace falta en el barrido de cambios no es el historial de
+     * facturas, sino **cuándo se cobró por última vez**: con esa fecha se
+     * responde a las dos preguntas del barrido —«¿ha llegado el cobro que
+     * esperaba?» y «¿cuándo fue la última señal de vida de este servicio?»—
+     * sin cargar el historial completo en memoria.
+     *
+     * @return array<string, DateTimeImmutable> serviceId (RFC 4122) => fecha del último cobro
+     */
+    public function findLastIssuedAtByService(): array;
+
     public function findByDedupKey(string $dedupKey): ?Invoice;
 
     public function countForOrganization(): int;

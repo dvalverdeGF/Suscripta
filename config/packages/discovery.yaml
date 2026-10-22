@@ -24,3 +24,31 @@ parameters:
         # proveedor vuelve a merecer una pregunta. Sin ventana, descartar una
         # sola vez silenciaría al proveedor para siempre.
         ignore_suppression_days: 90
+
+        # ── Fase 15: detección de cambios ───────────────────────────────────
+        #
+        # Umbrales del barrido sobre el inventario. Son los parámetros que
+        # deciden qué se considera «un cobro que no ha llegado» o «un servicio
+        # sin actividad», y por eso son de producto: cambiarlos cambia lo que
+        # el usuario ve en la bandeja de sugerencias.
+        #
+        # `missing_charge_grace_days`
+        #   Días de margen tras la fecha de cobro esperada antes de sospechar
+        #   que la factura no va a llegar. Sin margen, cualquier proveedor
+        #   que factura un día tarde generaría un aviso falso.
+        missing_charge_grace_days: 7
+
+        # `dormant_service_days`
+        #   Días sin facturas, renovaciones ni documentos antes de sugerir que
+        #   el servicio está inactivo.
+        dormant_service_days: 180
+
+        # `duplicate_amount_tolerance`
+        #   Tolerancia al comparar importes (0.02 = 2 %). Dos servicios con
+        #   importes «prácticamente iguales» son sospechosos de ser el mismo.
+        duplicate_amount_tolerance: 0.02
+
+        # `duplicate_name_similarity`
+        #   Similitud mínima entre los nombres, en porcentaje, para sospechar
+        #   de un duplicado.
+        duplicate_name_similarity: 85

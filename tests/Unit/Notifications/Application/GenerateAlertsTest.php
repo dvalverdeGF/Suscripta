@@ -290,6 +290,159 @@ final class GenerateAlertsTest extends TestCase
         self::assertSame([], $this->newServiceAlerts());
     }
 
+    public function testItWarnsAboutAPriceChange(): void
+    {
+        $discovery = $this->discovery('Netflix', 1599, DiscoveryType::PRICE_CHANGE);
+        $this->withPendingDiscoveries($discovery);
+
+        $this->generate();
+
+        $alerts = $this->alertsOfType(AlertType::PRICE_CHANGE_DETECTED);
+
+        self::assertCount(1, $alerts);
+        self::assertSame(AlertSeverity::INFO, $alerts[0]->getSeverity());
+        self::assertSame($discovery->getId(), $alerts[0]->getDiscoveryId());
+        self::assertStringContainsString('Netflix', $alerts[0]->getTitle());
+    }
+
+    public function testItWarnsAboutAPlanChange(): void
+    {
+        $discovery = $this->discovery(
+            'Netflix',
+            type: DiscoveryType::PLAN_CHANGE,
+            extraData: ['plan' => 'Familiar', 'previousPlan' => 'Básico'],
+        );
+        $this->withPendingDiscoveries($discovery);
+
+        $this->generate();
+
+        $alerts = $this->alertsOfType(AlertType::PLAN_CHANGE_DETECTED);
+
+        self::assertCount(1, $alerts);
+        self::assertSame(AlertSeverity::INFO, $alerts[0]->getSeverity());
+        self::assertStringContainsString('Familiar', $alerts[0]->getMessage());
+        self::assertStringContainsString('Básico', $alerts[0]->getMessage());
+    }
+
+    public function testItWarnsAboutAPossibleDuplicate(): void
+    {
+        $discovery = $this->discovery(
+            'Netflix',
+            type: DiscoveryType::DUPLICATE,
+            extraData: ['serviceName' => 'Netflix', 'relatedServiceName' => 'Netflix Familiar'],
+        );
+        $this->withPendingDiscoveries($discovery);
+
+        $this->generate();
+
+        $alerts = $this->alertsOfType(AlertType::POSSIBLE_DUPLICATE);
+
+        self::assertCount(1, $alerts);
+        self::assertSame(AlertSeverity::WARNING, $alerts[0]->getSeverity());
+        self::assertSame($discovery->getId(), $alerts[0]->getDiscoveryId());
+        self::assertStringContainsString('Netflix Familiar', $alerts[0]->getMessage());
+    }
+
+    public function testItWarnsAboutAMissingCharge(): void
+    {
+        $discovery = $this->discovery(
+            'Netflix',
+            type: DiscoveryType::MISSING_CHARGE,
+            extraData: ['serviceName' => 'Netflix', 'expectedAt' => '2026-08-01'],
+        );
+        $this->withPendingDiscoveries($discovery);
+
+        $this->generate();
+
+        $alerts = $this->alertsOfType(AlertType::MISSING_CHARGE);
+
+        self::assertCount(1, $alerts);
+        self::assertSame(AlertSeverity::WARNING, $alerts[0]->getSeverity());
+        self::assertStringContainsString('Netflix', $alerts[0]->getMessage());
+    }
+
+    public function testItWarnsAboutADormantService(): void
+    {
+        $discovery = $this->discovery(
+            'Netflix',
+            type: DiscoveryType::DORMANT,
+            extraData: ['serviceName' => 'Netflix', 'inactiveDays' => 240],
+        );
+        $this->withPendingDiscoveries($discovery);
+
+        $this->generate();
+
+        $alerts = $this->alertsOfType(AlertType::DORMANT_SERVICE);
+
+        self::assertCount(1, $alerts);
+        self::assertSame(AlertSeverity::INFO, $alerts[0]->getSeverity());
+        self::assertStringContainsString('Netflix', $alerts[0]->getMessage());
+    }
+
+    public function testItDoesNotWarnTwiceAboutTheSameSuspicion(): void
+    {
+        $this->withPendingDiscoveries($this->discovery(
+            'Netflix',
+            type: DiscoveryType::DUPLICATE,
+            extraData: ['serviceName' => 'Netflix'],
+        ));
+
+        $this->generate();
+        $second = $this->generate();
+
+        self::assertCount(1, $this->alertsOfType(AlertType::POSSIBLE_DUPLICATE));
+        self::assertSame(0, $second->created);
+    }
+
+    public function testTheSuspicionAlertSurvivesWhileTheProposalIsStillPending(): void
+    {
+        $discovery = $this->discovery(
+            'Netflix',
+            type: DiscoveryType::DUPLICATE,
+            extraData: ['serviceName' => 'Netflix'],
+        );
+        $this->withPendingDiscoveries($discovery);
+
+        $this->generate();
+
+        // La propuesta sigue pendiente aunque no salga en el barrido.
+        $this->withPendingDiscoveries();
+
+        $this->generate();
+
+        self::assertSame(AlertStatus::OPEN, $this->alertsOfType(AlertType::POSSIBLE_DUPLICATE)[0]->getStatus());
+    }
+
+    public function testTheSuspicionAlertIsClosedWhenTheProposalIsResolved(): void
+    {
+        $discovery = $this->discovery(
+            'Netflix',
+            type: DiscoveryType::DUPLICATE,
+            extraData: ['serviceName' => 'Netflix'],
+        );
+        $this->withPendingDiscoveries($discovery);
+
+        $this->generate();
+
+        $discovery->confirm(Uuid::v7(), $this->now);
+        $this->withPendingDiscoveries();
+
+        $this->generate();
+
+        self::assertSame(AlertStatus::RESOLVED, $this->alertsOfType(AlertType::POSSIBLE_DUPLICATE)[0]->getStatus());
+    }
+
+    /**
+     * @return list<Alert>
+     */
+    private function alertsOfType(AlertType $type): array
+    {
+        return array_values(array_filter(
+            $this->alerts->all(),
+            static fn (Alert $alert): bool => $type === $alert->getType(),
+        ));
+    }
+
     public function testItIgnoresPausedServices(): void
     {
         $this->withServices($this->service(
@@ -474,12 +627,16 @@ final class GenerateAlertsTest extends TestCase
         $this->pendingDiscoveries = count($this->pendingDiscoveryList);
     }
 
+    /**
+     * @param array<string, mixed> $extraData datos adicionales de la propuesta
+     */
     private function discovery(
         string $providerName,
         ?int $amountMinor = null,
         DiscoveryType $type = DiscoveryType::NEW_SERVICE,
+        array $extraData = [],
     ): Discovery {
-        $proposedData = ['providerName' => $providerName];
+        $proposedData = $extraData + ['providerName' => $providerName];
 
         if (null !== $amountMinor) {
             $proposedData['amountMinor'] = $amountMinor;

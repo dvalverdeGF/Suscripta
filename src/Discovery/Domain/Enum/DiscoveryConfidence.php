@@ -43,4 +43,20 @@ enum DiscoveryConfidence: string
             default => self::LOW,
         };
     }
+
+    /**
+     * Puntuación máxima que sigue dentro de esta banda.
+     *
+     * Sirve para **recortar** una puntuación a una banda sin perder del todo
+     * la información: una inferencia nunca puede estar en la banda alta, pero
+     * su puntuación sigue diciendo cuán segura está la deducción (D-59).
+     */
+    public function maxScore(): int
+    {
+        return match ($this) {
+            self::HIGH => 100,
+            self::MEDIUM => 79,
+            self::LOW => 54,
+        };
+    }
 }

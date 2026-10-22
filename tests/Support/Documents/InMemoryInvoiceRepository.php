@@ -78,6 +78,27 @@ final class InMemoryInvoiceRepository implements InvoiceRepositoryInterface
         return $result;
     }
 
+    public function findLastIssuedAtByService(): array
+    {
+        $lastIssuedAt = [];
+
+        foreach ($this->invoices as $invoice) {
+            $serviceId = $invoice->getServiceId()?->toRfc4122();
+
+            if (null === $serviceId) {
+                continue;
+            }
+
+            $issuedAt = $invoice->getIssuedAt();
+
+            if (!isset($lastIssuedAt[$serviceId]) || $issuedAt > $lastIssuedAt[$serviceId]) {
+                $lastIssuedAt[$serviceId] = $issuedAt;
+            }
+        }
+
+        return $lastIssuedAt;
+    }
+
     public function findByDedupKey(string $dedupKey): ?Invoice
     {
         foreach ($this->invoices as $invoice) {

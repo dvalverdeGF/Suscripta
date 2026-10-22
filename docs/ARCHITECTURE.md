@@ -1862,6 +1862,88 @@ aplazado. Se rompe con `AiBudgetChangeHandlerInterface`: `Ai` **declara** el pue
 `Processing` lo **implementa** (D-58). La regla es general, no un caso concreto: un puerto lo
 declara quien **necesita** algo, y lo implementa quien **sabe** hacerlo.
 
+### 13.18 Detección de cambios: hechos e inferencias
+
+Hasta la fase 14, todo lo que aparecía en la bandeja de descubrimientos venía de un documento: el
+sistema lo había **leído**. La fase 15 añade otra fuente —el propio inventario— y con ella una
+distinción que hay que poder defender delante del usuario: **un hecho no es lo mismo que una
+sospecha**.
+
+**Las dos clases de propuesta**
+
+| | Hecho | Inferencia |
+|---|---|---|
+| Origen | Un documento (factura, aviso de renovación) | El inventario de servicios |
+| Ejemplos | `NEW_SERVICE`, `PRICE_CHANGE`, `PLAN_CHANGE` | `DUPLICATE`, `MISSING_CHARGE`, `DORMANT` |
+| Confianza | Hasta `HIGH` | Recortada a la banda `LOW` (`≤ 54`) |
+| En la interfaz | Formulario de alta o de cambio | «Esto es una sugerencia, no un hecho» + dos salidas |
+
+La marca `is_inference` es una **columna**, no un dato del JSON `proposed_data`, porque la interfaz
+la usa para dos cosas a la vez: **filtrar** la bandeja (`?scope=facts` / `?scope=suggestions`) y
+**presentar** la propuesta de otra manera. Filtrar por un JSON sin índice es un filtro en memoria
+sobre toda la tabla (D-59).
+
+**El barrido**
+
+`DetectChanges` es el agregador: recorre el inventario y delega en tres detectores. Cada uno
+devuelve propuestas `Discovery` marcadas como inferencia, con su fuerza de señal en `matchScore` y
+su explicación en `matchReasons`.
+
+```
+DetectChanges
+├── DetectDuplicates      → ¿dos servicios son el mismo?
+├── DetectMissingCharges   → ¿falta un cobro que se esperaba?
+└── DetectDormantServices  → ¿este servicio sigue vivo?
+```
+
+**Las reglas, con sus números**
+
+- **Duplicado** — proveedor 45, importe 30, periodicidad 15, nombre 40 (solo si la similitud es
+  ≥ 85) y categoría 5; **umbral 70**. El más antiguo es el original, el más reciente el
+  sospechoso. Consecuencia práctica: dos servicios con nombres parecidos pero **proveedores
+  distintos** no llegan al umbral, porque 30 + 15 = 45.
+- **Cobro que no ha llegado** — servicio `ACTIVE` con periodicidad recurrente, con el cobro esperado
+  más de `graceDays` (7) de retraso y **ninguna** factura emitida desde `expectedAt - graceDays`. La
+  señal crece con el retraso: `60 + intdiv(overdueDays, 2)`.
+- **Servicio inactivo** — servicio `ACTIVE` sin facturas ni señales de vida (eventos `RENEWED`,
+  `RECURRENCE_DETECTED`, `DOCUMENT_ADDED`) desde hace más de `dormantServiceDays` (180). Si no hay
+  ninguna señal, la referencia de inactividad es la fecha de alta. Fuerza: `60 + intdiv(inactiveDays, 4)`.
+
+**Idempotencia.** El barrido está pensado para correr cada noche. `findByDedupKey()` busca la
+propuesta en **cualquier** estado, no solo en las pendientes: si el usuario descartó una sospecha
+ayer, la de hoy no vuelve a preguntarle lo mismo. Las claves son `serviceId|expectedAt`,
+`serviceId|inactiveSince` y la pareja ordenada de ids.
+
+**Confirmar una inferencia no borra historia.** `ConfirmInference` aplica la acción que
+corresponde y **siempre** deja un rastro (`ServiceEvent::NOTE_ADDED`):
+
+| Inferencia | Qué hace | Qué deja |
+|---|---|---|
+| `DUPLICATE` | Cancela el servicio **más reciente** | Nota en los dos servicios |
+| `MISSING_CHARGE` | Adelanta `nextChargeAt` | Nota en el servicio |
+| `DORMANT` | Cancela el servicio | Nota en el servicio |
+
+El servicio cancelado conserva su historial completo. Cancelar no es borrar: es un estado más del
+servicio, y el evento dice qué pasó y cuándo.
+
+**Avisos.** Los cinco tipos nuevos cuelgan de propuestas **pendientes**
+(`Alert::buildDedupKey($tipo, null, null, $discoveryId)`), con severidad `INFO` salvo
+`POSSIBLE_DUPLICATE` y `MISSING_CHARGE`, que son `WARNING`. `resolveStaleAlerts()` mantiene
+abierto cualquier aviso cuya propuesta siga pendiente: mientras el usuario no ha decidido, el
+aviso sigue vivo.
+
+**Dónde vive cada cosa**
+
+| Pieza | Ubicación | Nota |
+|---|---|---|
+| Marca de inferencia | `Discovery::$isInference` + columna `is_inference` | Filtro e interfaz |
+| Recorte de confianza | `Discovery::markAsInference()` | Tope `LOW->maxScore()` |
+| Detección de plan | `ServiceMatchResult::$servicePlanName` + `ServiceMatcher::scoreAgainst()` | El plan lo extrae el parser del proveedor |
+| Barrido | `src/Discovery/Application/Change/` | Un agregador y tres detectores |
+| Umbrales | `config/packages/discovery.yaml` → `ChangeSettings` | Decisiones de producto |
+| Confirmación | `Discovery\Application\ConfirmInference` | Único punto que muta el inventario |
+| Comando | `Discovery\UI\Command\DetectChangesCommand` | `app:changes:detect` |
+
 ## 14. Riesgos arquitectónicos abiertos
 
 **Riesgos del dominio**

@@ -14,9 +14,15 @@
             <a class="btn btn-outline-secondary" href="{{ path('app_discoveries_index') }}">
                 <i class="fa-solid fa-arrow-left me-1" aria-hidden="true"></i> Volver
             </a>
-            <button class="btn btn-primary" type="submit" form="discovery-form">
-                <i class="fa-solid fa-check me-1" aria-hidden="true"></i> Confirmar y añadir a mis servicios
-            </button>
+            {% if discovery.inference %}
+                <button class="btn btn-primary" type="submit" form="inference-form">
+                    <i class="fa-solid fa-check me-1" aria-hidden="true"></i> Sí, es eso
+                </button>
+            {% else %}
+                <button class="btn btn-primary" type="submit" form="discovery-form">
+                    <i class="fa-solid fa-check me-1" aria-hidden="true"></i> Confirmar y añadir a mis servicios
+                </button>
+            {% endif %}
         </div>
     {% endif %}
 {% endblock %}
@@ -30,8 +36,13 @@
             </p>
         </div>
         <div class="bo-page-header__actions">
+            {% if discovery.inference %}
+                <span class="badge text-bg-secondary" title="Deducido del inventario, no leído en un documento">
+                    Sugerencia
+                </span>
+            {% endif %}
             <span class="badge text-bg-{{ discovery.confidence.value == 'high' ? 'success' : (discovery.confidence.value == 'medium' ? 'warning' : 'danger') }}">
-                Confianza {{ discovery.confidence.label()|lower }} · {{ discovery.confidenceScore }} %
+                {% if discovery.inference %}Fuerza de la señal{% else %}Confianza{% endif %} {{ discovery.confidence.label()|lower }} · {{ discovery.confidenceScore }} %
             </span>
             {% if discovery.aiUsed %}
                 <span class="badge text-bg-info">Analizado con IA</span>
@@ -53,6 +64,26 @@
         </div>
     {% endif %}
 
+    {% if discovery.inference %}
+        <div class="alert alert-secondary mb-4">
+            <p class="mb-1">
+                <strong>Esto es una sugerencia, no un hecho.</strong>
+                Suscripta no ha leído en ningún documento lo que te dice aquí: lo ha deducido
+                comparando lo que ya tienes registrado. Por eso la confianza se muestra como
+                <em>fuerza de la señal</em> y siempre está en la banda baja: puedes estar equivocado.
+            </p>
+            <p class="mb-0 small">
+                {% if discovery.type.value == 'duplicate' %}
+                    Si aceptas, se cancelará el servicio más reciente de la pareja y el original conservará el historial.
+                {% elseif discovery.type.value == 'missing_charge' %}
+                    Si aceptas, se anotará la revisión y se adelantará la fecha del próximo cobro.
+                {% elseif discovery.type.value == 'dormant' %}
+                    Si aceptas, el servicio se cancelará y dejará de contar en tus costes.
+                {% endif %}
+            </p>
+        </div>
+    {% endif %}
+
     <div class="row g-3 mb-4">
         <div class="card">
             <div class="card-header">
@@ -60,7 +91,11 @@
             </div>
             <div class="card-body">
                 <p class="small text-muted">
-                    Puntuación de emparejamiento: <strong>{{ discovery.matchScore }}</strong> / 100
+                    {% if discovery.inference %}
+                        Fuerza de la señal: <strong>{{ discovery.confidenceScore }}</strong> / 100
+                    {% else %}
+                        Puntuación de emparejamiento: <strong>{{ discovery.matchScore }}</strong> / 100
+                    {% endif %}
                 </p>
                 {% if discovery.matchReasons is empty %}
                     <p class="text-secondary">No hay coincidencias con los servicios que ya tienes registrados.</p>
@@ -106,6 +141,30 @@
                         <p class="small text-muted mt-3">Extracto del mensaje:</p>
                         <blockquote class="small">{{ source.bodyExcerpt }}</blockquote>
                     {% endif %}
+                {% elseif discovery.inference %}
+                    <p class="text-secondary mb-0">
+                        Esta propuesta no viene de un correo: sale de comparar tu inventario.
+                    </p>
+                    <dl class="bo-definition-list mt-3">
+                        <dt>Regla</dt>
+                        <dd>{{ discovery.type.label() }}</dd>
+                        {% if discovery.proposedData.serviceName is defined and discovery.proposedData.serviceName %}
+                            <dt>Servicio</dt>
+                            <dd>{{ discovery.proposedData.serviceName }}</dd>
+                        {% endif %}
+                        {% if discovery.proposedData.relatedServiceName is defined and discovery.proposedData.relatedServiceName %}
+                            <dt>Pareja</dt>
+                            <dd>{{ discovery.proposedData.relatedServiceName }}</dd>
+                        {% endif %}
+                        {% if discovery.proposedData.expectedAt is defined and discovery.proposedData.expectedAt %}
+                            <dt>Cobro esperado</dt>
+                            <dd>{{ discovery.proposedData.expectedAt }}</dd>
+                        {% endif %}
+                        {% if discovery.proposedData.inactiveDays is defined and discovery.proposedData.inactiveDays %}
+                            <dt>Días sin actividad</dt>
+                            <dd>{{ discovery.proposedData.inactiveDays }}</dd>
+                        {% endif %}
+                    </dl>
                 {% else %}
                     <p class="text-secondary">El correo original ya no está disponible.</p>
                 {% endif %}
@@ -129,6 +188,28 @@
     {% endif %}
 
     {% if discovery.status.value == 'pending' %}
+        {% if discovery.inference %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h2 class="card-title">¿Es esto cierto?</h2>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted">
+                        Si confirmas, Suscripta aplicará la acción que corresponde a esta sospecha.
+                        Si la descartas, no te volverá a preguntar por ella.
+                    </p>
+                    <form method="post" id="inference-form"
+                          action="{{ path('app_discoveries_resolve', {id: discovery.id.toRfc4122()}) }}"
+                          data-controller="confirm"
+                          data-confirm-message-value="¿Confirmar esta sospecha?">
+                        <input type="hidden" name="_token" value="{{ csrf_token('discovery_resolve_' ~ discovery.id.toRfc4122()) }}">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fa-solid fa-check me-1" aria-hidden="true"></i> Sí, es eso
+                        </button>
+                    </form>
+                </div>
+            </div>
+        {% else %}
         {{ form_start(form, {action: path('app_discoveries_confirm', {id: discovery.id.toRfc4122()}), attr: {id: 'discovery-form', class: 'form'}}) }}
             {{ form_errors(form) }}
 
@@ -161,6 +242,7 @@
             </div>
 
         {{ form_end(form) }}
+        {% endif %}
 
         <div class="card mt-4">
             <div class="card-body">
@@ -174,7 +256,9 @@
                                placeholder="No es mío, ya no lo uso, es un error…">
                         <p class="form-text">Nos ayuda a no volver a proponerte lo mismo.</p>
                     </div>
-                    <button type="submit" class="btn btn-danger">Descartar propuesta</button>
+                    <button type="submit" class="btn btn-danger">
+                        {{ discovery.inference ? 'Descartar sospecha' : 'Descartar propuesta' }}
+                    </button>
                 </form>
             </div>
         </div>

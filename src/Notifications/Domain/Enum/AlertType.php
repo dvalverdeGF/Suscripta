@@ -23,6 +23,11 @@ enum AlertType: string
     case PRICE_INCREASE = 'price_increase';
     case DISCOVERY_PENDING = 'discovery_pending';
     case NEW_SERVICE_DETECTED = 'new_service_detected';
+    case PRICE_CHANGE_DETECTED = 'price_change_detected';
+    case PLAN_CHANGE_DETECTED = 'plan_change_detected';
+    case POSSIBLE_DUPLICATE = 'possible_duplicate';
+    case MISSING_CHARGE = 'missing_charge';
+    case DORMANT_SERVICE = 'dormant_service';
     case AI_BUDGET_WARNING = 'ai_budget_warning';
     case AI_BUDGET_EXCEEDED = 'ai_budget_exceeded';
 
@@ -37,6 +42,11 @@ enum AlertType: string
             self::PRICE_INCREASE => 'Ha subido de precio',
             self::DISCOVERY_PENDING => 'Hay algo que revisar',
             self::NEW_SERVICE_DETECTED => 'Servicio nuevo detectado',
+            self::PRICE_CHANGE_DETECTED => 'Cambio de precio detectado',
+            self::PLAN_CHANGE_DETECTED => 'Cambio de plan detectado',
+            self::POSSIBLE_DUPLICATE => 'Posible duplicado',
+            self::MISSING_CHARGE => 'Cobro que no ha llegado',
+            self::DORMANT_SERVICE => 'Servicio sin actividad',
             self::AI_BUDGET_WARNING => 'El presupuesto de IA se está agotando',
             self::AI_BUDGET_EXCEEDED => 'Se ha agotado el presupuesto de IA',
         };
@@ -53,6 +63,11 @@ enum AlertType: string
             self::PRICE_INCREASE => 'Un servicio ha subido de precio.',
             self::DISCOVERY_PENDING => 'Hemos encontrado algo en tu correo y esperamos tu confirmación.',
             self::NEW_SERVICE_DETECTED => 'Hemos encontrado un servicio que no tienes registrado y esperamos tu confirmación.',
+            self::PRICE_CHANGE_DETECTED => 'Una factura indica que un servicio cambia de precio. Confírmalo para aplicarlo.',
+            self::PLAN_CHANGE_DETECTED => 'Una factura indica que un servicio cambia de plan. Confírmalo para aplicarlo.',
+            self::POSSIBLE_DUPLICATE => 'Dos servicios registrados parecen el mismo. Es una sospecha, no una certeza.',
+            self::MISSING_CHARGE => 'Un cobro que esperabas no ha llegado. Es una sospecha, no una certeza.',
+            self::DORMANT_SERVICE => 'Un servicio lleva meses sin actividad. Es una sospecha, no una certeza.',
             self::AI_BUDGET_WARNING => 'Vas por camino de agotar el presupuesto mensual de IA.',
             self::AI_BUDGET_EXCEEDED => 'Se ha agotado el presupuesto mensual de IA.',
         };

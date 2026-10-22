@@ -129,6 +129,11 @@ final class AlertRules
             AlertType::PRICE_INCREASE,
             AlertType::DISCOVERY_PENDING,
             AlertType::NEW_SERVICE_DETECTED,
+            AlertType::PRICE_CHANGE_DETECTED,
+            AlertType::PLAN_CHANGE_DETECTED,
+            AlertType::POSSIBLE_DUPLICATE,
+            AlertType::MISSING_CHARGE,
+            AlertType::DORMANT_SERVICE,
         ];
     }
 

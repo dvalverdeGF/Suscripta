@@ -35,6 +35,15 @@ final readonly class ServiceMatchResult
         public ?Uuid $serviceId,
         public array $reasons = [],
         public MatchConfidence $confidence = MatchConfidence::LOW,
+        /**
+         * Plan del servicio candidato, tal y como figura hoy en el inventario.
+         *
+         * Se lleva aquí —y no se vuelve a consultar— porque el pipeline
+         * necesita compararlo con el plan que trae el documento para detectar
+         * un cambio de plan, y hacerlo con una consulta aparte duplicaría
+         * trabajo que el emparejador ya ha hecho.
+         */
+        public ?string $servicePlanName = null,
     ) {
     }
 
@@ -100,7 +109,8 @@ final readonly class ServiceMatchResult
         int $score,
         array $reasons,
         MatchConfidence $confidence,
+        ?string $servicePlanName = null,
     ): self {
-        return new self($score, $serviceId, $reasons, $confidence);
+        return new self($score, $serviceId, $reasons, $confidence, $servicePlanName);
     }
 }

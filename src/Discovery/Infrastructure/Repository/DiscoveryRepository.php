@@ -7,6 +7,7 @@ namespace App\Discovery\Infrastructure\Repository;
 use App\Discovery\Domain\Entity\Discovery;
 use App\Discovery\Domain\Entity\DiscoveryEvidence;
 use App\Discovery\Domain\Enum\DiscoveryStatus;
+use App\Discovery\Domain\Enum\DiscoveryType;
 use App\Discovery\Domain\Repository\DiscoveryRepositoryInterface;
 use App\Shared\Infrastructure\Persistence\DoctrineRepository;
 use DateTimeImmutable;
@@ -37,8 +38,11 @@ final class DiscoveryRepository extends DoctrineRepository implements DiscoveryR
         return $this->findForOrganization(DiscoveryStatus::PENDING, $limit);
     }
 
-    public function findForOrganization(?DiscoveryStatus $status = null, int $limit = 100): array
-    {
+    public function findForOrganization(
+        ?DiscoveryStatus $status = null,
+        int $limit = 100,
+        ?DiscoveryType $type = null,
+    ): array {
         $qb = $this->entityManager
             ->createQueryBuilder()
             ->select('d')
@@ -49,6 +53,10 @@ final class DiscoveryRepository extends DoctrineRepository implements DiscoveryR
 
         if (null !== $status) {
             $qb->andWhere('d.status = :status')->setParameter('status', $status);
+        }
+
+        if (null !== $type) {
+            $qb->andWhere('d.type = :type')->setParameter('type', $type);
         }
 
         /** @var list<Discovery> $discoveries */
@@ -69,6 +77,19 @@ final class DiscoveryRepository extends DoctrineRepository implements DiscoveryR
             ->setParameter('open', [DiscoveryStatus::PENDING])
             ->setParameter('ignored', DiscoveryStatus::IGNORED)
             ->setParameter('since', $ignoredSince)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    public function findByDedupKey(string $dedupKey): ?Discovery
+    {
+        return $this->entityManager
+            ->createQueryBuilder()
+            ->select('d')
+            ->from(Discovery::class, 'd')
+            ->where('d.dedupKey = :key')
+            ->setParameter('key', $dedupKey)
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();

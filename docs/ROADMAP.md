@@ -938,7 +938,7 @@ buzón de este usuario?"* y *"¿cuánto cuesta de IA un usuario medio al mes?"*.
 
 ## Fase 15 — Detección de cambios
 
-> **Estado:** ⬜ Pendiente.
+> **Estado:** ✅ Completada.
 
 
 **Objetivo:** detectar lo que ha cambiado y avisar.
@@ -952,6 +952,83 @@ buzón de este usuario?"* y *"¿cuánto cuesta de IA un usuario medio al mes?"*.
 
 **Verificación:** cada tipo de alerta tiene test con datos sintéticos; las inferencias se
 muestran como sugerencias, no como hechos.
+
+### Qué se entregó
+
+- **Dos clases de propuesta** — `Discovery` distingue ahora lo que el sistema ha **leído** de un
+  documento (un hecho: servicio nuevo, cambio de precio, cambio de plan) de lo que ha **deducido**
+  del inventario (una inferencia: posible duplicado, cobro que no ha llegado, servicio sin
+  actividad). La marca vive en una columna (`discovery.is_inference`, migración
+  `Version20261022092002`) y no en el JSON de `proposed_data`, porque la interfaz la necesita para
+  **filtrar** la bandeja y para **presentarla** como sugerencia (D-59).
+- **La banda de confianza** — una inferencia nunca puede subir de la banda `LOW`
+  (`DiscoveryConfidence::LOW->maxScore() = 54`). `markAsInference()` recorta la confianza si hace
+  falta: una sospecha que el detector está seguro de tener no es un hecho, y su confianza tiene que
+  decirlo.
+- **Cambio de plan** — el pipeline lo detecta comparando el plan del documento con el del servicio
+  (`ServiceMatchResult::$servicePlanName`, `ServiceMatcher::scoreAgainst()`). El plan lo extrae el
+  **parser del proveedor** (`OvhParser::PLAN_PATTERN`), no el extractor determinista. Cuando en un
+  mismo correo hay cambio de precio y de plan, **manda el plan**: cambiar de plan explica el
+  precio, y avisar de los dos sería ruido.
+- **Barrido de inferencias** — `DetectChanges` (`src/Discovery/Application/Change/`) recorre el
+  inventario y llama a tres detectores:
+  - `DetectDuplicates` — compara cada pareja de servicios: proveedor (45), importe (30),
+    periodicidad (15), nombre (40, solo si la similitud es ≥ 85) y categoría (5), con **umbral 70**.
+    El más antiguo es el original y el más reciente el sospechoso.
+  - `DetectMissingCharges` — servicio `ACTIVE` con periodicidad recurrente, con el cobro esperado
+    más de `graceDays` (7) de retraso y **ninguna** factura emitida desde `expectedAt - graceDays`.
+    La fuerza de la señal crece con el retraso: `60 + intdiv(overdueDays, 2)`, tope 100.
+  - `DetectDormantServices` — servicio `ACTIVE` sin facturas ni señales de vida (eventos `RENEWED`,
+    `RECURRENCE_DETECTED`, `DOCUMENT_ADDED`) desde hace más de `dormantServiceDays` (180). Fuerza:
+    `60 + intdiv(inactiveDays, 4)`.
+- **Idempotencia** — el barrido se puede lanzar cada noche: `findByDedupKey()` busca la propuesta
+  en **cualquier** estado. Las claves son `serviceId|expectedAt` (cobro que falta),
+  `serviceId|inactiveSince` (servicio inactivo) y la pareja ordenada de ids (duplicado).
+- **Confirmar una inferencia** — `ConfirmInference` aplica la acción que corresponde y **nunca
+  borra historia**: el duplicado cancela el servicio más reciente y deja una nota en los dos; el
+  cobro que falta adelanta `nextChargeAt` y deja nota; el servicio inactivo se cancela con nota.
+  El historial (`ServiceEvent`) se conserva siempre, y la propuesta queda `CONFIRMED` con su
+  entrada de auditoría.
+- **Cinco avisos nuevos** — `PRICE_CHANGE_DETECTED`, `PLAN_CHANGE_DETECTED`, `POSSIBLE_DUPLICATE`,
+  `MISSING_CHARGE` y `DORMANT_SERVICE` cuelgan de propuestas **pendientes**. `resolveStaleAlerts()`
+  mantiene abierto cualquier aviso cuya propuesta siga pendiente: mientras el usuario no decida, el
+  aviso sigue vivo.
+- **Interfaz** — la bandeja (`/discoveries`) tiene filtros de **familia** (todas / hechos /
+  sugerencias) y de **tipo**; las inferencias llevan la insignia «Sugerencia» y un texto que
+  explica que **no** vienen de un correo. La ficha de una inferencia enseña la «fuerza de la
+  señal» y ofrece dos salidas: «Sí, es eso» (aplica la acción) o «Descartar sospecha» (la explica
+  y la aparta). Un hecho, en cambio, sigue mostrando el formulario de alta del servicio.
+- **Comando** — `app:changes:detect` lanza el barrido y resume qué se ha propuesto.
+- **Configuración** — `config/packages/discovery.yaml` con los umbrales (`missing_charge_grace_days`,
+  `dormant_service_days`, `duplicate_amount_tolerance`, `duplicate_name_similarity`) y la clase
+  `ChangeSettings` que los lee.
+
+### Correcciones relevantes de la fase
+
+1. **`DetectMissingChargesTest` moría con nueve `TypeError`.** El helper construía el servicio
+   con `?DateTimeImmutable` y el test le pasaba cadenas; en PHP pasar un `string` a un parámetro
+   tipado no es coerción, es un error de tipos.
+2. **La señal del retraso no crecía.** El test comparaba `getConfidenceScore()`, pero
+   `markAsInference()` recorta la confianza a la banda `LOW`, así que los dos retardos daban 54.
+   Ahora se compara `getMatchScore()`, que es la fuerza bruta de la señal.
+3. **El detector de servicios inactivos devolvía un `?DateTimeImmutable` que nunca era `null`.**
+   La referencia de inactividad siempre existe (si no hay señal, es la fecha de alta), así que el
+   tipo de retorno era engaños y la comprobación de `null` del llamante era código muerto.
+4. **El par de servicios de prueba no llegaba al umbral.** Dos servicios con el mismo nombre pero
+   sin proveedor compartido se quedan en 45 puntos (importe + periodicidad), por debajo del 70. La
+   prueba ahora los registra con el **mismo proveedor**: es lo que hace que dos suscripciones
+   apunten al mismo servicio.
+
+**Verificación ejecutada al cerrar la fase:**
+
+| Comprobación | Resultado |
+|---|---|
+| `php bin/phpunit` | ✅ 1291 tests, 4807 assertions |
+| `vendor/bin/phpstan analyse --no-progress` | ✅ 0 errores (nivel 8) |
+| `vendor/bin/php-cs-fixer fix --dry-run --diff` | ✅ 0 ficheros pendientes |
+| `bin/console lint:container` | ✅ |
+| `bin/console lint:twig templates/` | ✅ |
+| `bin/console doctrine:migrations:status` | ✅ al día en `app` y en `app_test` |
 
 ## Fase 16 — Hardening de seguridad y RGPD
 

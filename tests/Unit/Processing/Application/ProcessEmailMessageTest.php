@@ -8,6 +8,7 @@ use App\Ai\Application\AiExtractionInterface;
 use App\Ai\Application\NullAiExtraction;
 use App\Catalog\Domain\Entity\Provider;
 use App\Catalog\Domain\Entity\ProviderIdentity;
+use App\Catalog\Domain\Entity\ProviderParser;
 use App\Catalog\Domain\Enum\ProviderIdentityType;
 use App\Catalog\Domain\Repository\ProviderIdentityRepositoryInterface;
 use App\Catalog\Domain\Repository\ProviderParserRepositoryInterface;
@@ -44,6 +45,7 @@ use App\Processing\Application\Matching\ServiceMatchWeights;
 use App\Processing\Application\MessageStateMachine;
 use App\Processing\Application\ProcessEmailMessage;
 use App\Processing\Application\Provider\ExtractWithProviderParser;
+use App\Processing\Application\Provider\Parsers\OvhParser;
 use App\Processing\Application\Provider\ProviderParserRegistry;
 use App\Processing\Application\Provider\ProviderResolver;
 use App\Processing\Application\Text\DocumentTextExtractorRegistry;
@@ -187,8 +189,11 @@ final class ProcessEmailMessageTest extends TestCase
     /**
      * @param list<Service> $services
      */
-    private function orchestrator(array $services = [], ?AiExtractionInterface $aiExtraction = null): ProcessEmailMessage
-    {
+    private function orchestrator(
+        array $services = [],
+        ?AiExtractionInterface $aiExtraction = null,
+        ?ProviderParserRegistry $registry = null,
+    ): ProcessEmailMessage {
         $this->serviceViews = array_map(
             static fn (Service $service): ServiceView => ServiceView::fromService($service),
             $services,
@@ -203,7 +208,7 @@ final class ProcessEmailMessageTest extends TestCase
             extractor: new DeterministicExtractor(new AmountParser(), new DateParser(), new InvoiceNumberReader(), $this->identities, $clock),
             documentText: $this->documentText(),
             providerResolver: new ProviderResolver($this->identities, $clock),
-            providerParser: new ExtractWithProviderParser($this->parsers, new ProviderParserRegistry([]), $clock),
+            providerParser: new ExtractWithProviderParser($this->parsers, $registry ?? new ProviderParserRegistry([]), $clock),
             matcher: new ServiceMatcher($this->services, ServiceMatchWeights::default()),
             discoveries: $this->discoveries,
             documents: $this->documents,
@@ -320,6 +325,28 @@ final class ProcessEmailMessageTest extends TestCase
         $this->imap
             ->method('fetchBody')
             ->willReturnCallback(static fn (ImapConnectionConfig $config, string $folder, int $uid): ImapMessageBody => new ImapMessageBody($uid, $body, ''));
+    }
+
+    /**
+     * Registra el parser de código de OVH para el proveedor dado.
+     *
+     * Es lo que hace posible que la factura diga «Plan: Premium»: el
+     * extractor genérico no busca planes, el parser de la plantilla sí.
+     */
+    private function withOvhParser(Provider $provider): void
+    {
+        $row = new ProviderParser($provider, OvhParser::KEY);
+
+        $this->parsers->method('findEnabledForProvider')->willReturn([$row]);
+        $this->parsers->method('save')->willReturnCallback(static function (): void {
+        });
+    }
+
+    private function ovhRegistry(): ProviderParserRegistry
+    {
+        return new ProviderParserRegistry([
+            new OvhParser(new AmountParser(), new DateParser(), new InvoiceNumberReader()),
+        ]);
     }
 
     /**
@@ -511,6 +538,71 @@ final class ProcessEmailMessageTest extends TestCase
         self::assertNotNull($result);
         self::assertSame(DiscoveryType::NEW_SERVICE, $result->getType());
         self::assertSame(MessageProcessingState::DISCOVERY, $message->getProcessingState());
+    }
+
+    /**
+     * Un cambio de plan **manda** sobre un cambio de precio: cuando el plan
+     * cambia, el importe suele cambiar con él, y proponer solo el importe
+     * dejaría el servicio con el plan viejo y el precio nuevo.
+     */
+    public function testAHighConfidenceMatchWithADifferentPlanProposesAPlanChange(): void
+    {
+        $provider = $this->knownProvider('OVH', 'ovh.com');
+        $this->withOvhParser($provider);
+        $this->withBody('Factura nº: FRA-1. Total 34,90 €. Facturación mensual. Plan: Premium');
+
+        $service = new Service($this->organizationId, 'OVH', Currency::EUR, BillingPeriod::MONTHLY);
+        $service->setProviderId($provider->getId());
+        $service->setPlanName('Básico');
+        $service->changePrice(Money::of(2990, Currency::EUR), new DateTimeImmutable('2026-01-01'));
+
+        $message = $this->message();
+        $result = $this->orchestrator([$service], null, $this->ovhRegistry())($message);
+
+        self::assertNotNull($result);
+        self::assertSame(DiscoveryType::PLAN_CHANGE, $result->getType());
+        self::assertSame($service->getId(), $result->getMatchedServiceId());
+        self::assertSame('Básico', $result->getProposedData()['previousPlan']);
+        self::assertSame('Premium', $result->getProposedData()['plan']);
+    }
+
+    public function testTheSamePlanIsNotAChange(): void
+    {
+        $provider = $this->knownProvider('OVH', 'ovh.com');
+        $this->withOvhParser($provider);
+        $this->withBody('Factura nº: FRA-1. Total 29,90 €. Facturación mensual. Plan: Básico');
+
+        $service = new Service($this->organizationId, 'OVH', Currency::EUR, BillingPeriod::MONTHLY);
+        $service->setProviderId($provider->getId());
+        $service->setPlanName('Básico');
+        $service->changePrice(Money::of(2990, Currency::EUR), new DateTimeImmutable('2026-01-01'));
+
+        $message = $this->message();
+        $result = $this->orchestrator([$service], null, $this->ovhRegistry())($message);
+
+        self::assertNull($result, 'Ni el plan ni el importe han cambiado: no hay nada que decidir.');
+        self::assertSame([], $this->savedDiscoveries);
+    }
+
+    /**
+     * Un servicio sin plan registrado al que la factura le dice el plan no
+     * está cambiando de plan: estáyaciendo más completo.
+     */
+    public function testAServiceWithoutPlanDoesNotChangeItsPlan(): void
+    {
+        $provider = $this->knownProvider('OVH', 'ovh.com');
+        $this->withOvhParser($provider);
+        $this->withBody('Factura nº: FRA-1. Total 29,90 €. Facturación mensual. Plan: Premium');
+
+        $service = new Service($this->organizationId, 'OVH', Currency::EUR, BillingPeriod::MONTHLY);
+        $service->setProviderId($provider->getId());
+        $service->changePrice(Money::of(2990, Currency::EUR), new DateTimeImmutable('2026-01-01'));
+
+        $message = $this->message();
+        $result = $this->orchestrator([$service], null, $this->ovhRegistry())($message);
+
+        self::assertNull($result);
+        self::assertSame([], $this->savedDiscoveries);
     }
 
     public function testTheDiscoveryIsAuditedAndLinkedToItsSourceMessage(): void
