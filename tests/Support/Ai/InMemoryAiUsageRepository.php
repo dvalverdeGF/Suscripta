@@ -13,6 +13,7 @@ use function array_slice;
 use function array_values;
 use function count;
 
+use DateTimeImmutable;
 use Symfony\Component\Uid\Uuid;
 
 use function usort;
@@ -189,6 +190,59 @@ final class InMemoryAiUsageRepository implements AiUsageRepositoryInterface
     public function all(): array
     {
         return $this->usages;
+    }
+
+    public function removeForOrganization(Uuid $organizationId): int
+    {
+        $removed = 0;
+        $kept = [];
+
+        foreach ($this->usages as $usage) {
+            if (!$usage->getOrganizationId()->equals($organizationId)) {
+                $kept[] = $usage;
+
+                continue;
+            }
+
+            ++$removed;
+        }
+
+        $this->usages = $kept;
+
+        return $removed;
+    }
+
+    public function purgeOlderThan(DateTimeImmutable $threshold, int $limit = 1000): int
+    {
+        $removed = 0;
+        $kept = [];
+
+        foreach ($this->usages as $usage) {
+            // Cuando ya se ha alcanzado el tope, lo que queda se conserva
+            // entero: el límite acota lo que se borra, no lo que se guarda.
+            if ($removed >= $limit || $usage->getCreatedAt() >= $threshold) {
+                $kept[] = $usage;
+
+                continue;
+            }
+
+            ++$removed;
+        }
+
+        $this->usages = $kept;
+
+        return $removed;
+    }
+
+    /**
+     * @return list<AiUsage>
+     */
+    public function findForOrganization(Uuid $organizationId): array
+    {
+        return array_values(array_filter(
+            $this->usages,
+            static fn (AiUsage $usage): bool => $usage->getOrganizationId()->equals($organizationId),
+        ));
     }
 
     public function count(): int

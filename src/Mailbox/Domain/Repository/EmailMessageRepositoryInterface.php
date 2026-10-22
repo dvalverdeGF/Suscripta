@@ -7,6 +7,7 @@ namespace App\Mailbox\Domain\Repository;
 use App\Mailbox\Domain\Entity\EmailMessage;
 use App\Mailbox\Domain\Enum\MessageProcessingState;
 use App\Shared\Domain\ValueObject\DateRange;
+use DateTimeImmutable;
 use Symfony\Component\Uid\Uuid;
 
 interface EmailMessageRepositoryInterface
@@ -97,4 +98,21 @@ interface EmailMessageRepositoryInterface
     public function flush(): void;
 
     public function removeForAccount(Uuid $emailAccountId): int;
+
+    /**
+     * Borra todos los mensajes de una organización.
+     *
+     * @return int número de mensajes eliminados
+     */
+    public function removeForOrganization(Uuid $organizationId): int;
+
+    /**
+     * Purga los mensajes más antiguos que el umbral indicado.
+     *
+     * Se borran por lotes porque PostgreSQL no admite `LIMIT` en un `DELETE`:
+     * primero se seleccionan los identificadores y después se borran.
+     *
+     * @return int número de mensajes eliminados
+     */
+    public function purgeOlderThan(DateTimeImmutable $threshold, int $limit = 500): int;
 }

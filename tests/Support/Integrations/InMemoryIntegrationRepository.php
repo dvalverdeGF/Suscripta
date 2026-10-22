@@ -7,6 +7,11 @@ namespace App\Tests\Support\Integrations;
 use App\Integrations\Domain\Entity\Integration;
 use App\Integrations\Domain\Repository\IntegrationRepositoryInterface;
 
+use function array_filter;
+use function array_values;
+
+use Symfony\Component\Uid\Uuid;
+
 /**
  * Repositorio de integraciones en memoria.
  *
@@ -50,5 +55,32 @@ final class InMemoryIntegrationRepository implements IntegrationRepositoryInterf
     public function add(Integration $integration): void
     {
         $this->integrations[$integration->getKey()] = $integration;
+    }
+
+    public function removeForOrganization(Uuid $organizationId): int
+    {
+        $removed = 0;
+
+        foreach ($this->integrations as $key => $integration) {
+            if (!$integration->getOrganizationId()->equals($organizationId)) {
+                continue;
+            }
+
+            unset($this->integrations[$key]);
+            ++$removed;
+        }
+
+        return $removed;
+    }
+
+    /**
+     * @return list<Integration>
+     */
+    public function findForOrganization(Uuid $organizationId): array
+    {
+        return array_values(array_filter(
+            $this->integrations,
+            static fn (Integration $integration): bool => $integration->getOrganizationId()->equals($organizationId),
+        ));
     }
 }

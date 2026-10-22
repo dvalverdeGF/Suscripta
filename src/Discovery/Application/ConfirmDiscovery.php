@@ -52,6 +52,7 @@ final readonly class ConfirmDiscovery
         private AuditLoggerInterface $auditLogger,
         private Clock $clock,
         private LearnFromConfirmation $learnFromConfirmation,
+        private ClearSourceExcerpt $clearSourceExcerpt,
     ) {
     }
 
@@ -73,6 +74,10 @@ final readonly class ConfirmDiscovery
         );
 
         $this->discoveries->save($discovery);
+
+        // El extracto del cuerpo solo vive mientras hay una propuesta
+        // pendiente: al confirmar, el correo deja de hacer falta.
+        ($this->clearSourceExcerpt)($discovery);
 
         // ── Fase 13: el buzón aprende de la confirmación ───────────────────
         // Lo que el usuario ha confirmado es la mejor información que existe

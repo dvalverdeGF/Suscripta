@@ -82,6 +82,16 @@ services:
         # niveles se monta con las clases, no con un `switch` (ARCHITECTURE.md §13.8).
         App\Ai\Domain\Contract\DocumentExtractorInterface:
             tags: ['app.document_extractor']
+        # Los tres puertos de privacidad (Fase 16). Cada módulo publica lo
+        # suyo y el módulo `Privacy` lo agrega: exportar o borrar una
+        # organización entera no obliga a que nadie toque las entidades de
+        # otro (ARCHITECTURE.md §15).
+        App\Shared\Application\Privacy\OrganizationDataProviderInterface:
+            tags: ['app.privacy_export']
+        App\Shared\Application\Privacy\OrganizationDataRemoverInterface:
+            tags: ['app.privacy_remove']
+        App\Shared\Application\Privacy\RetentionPurgerInterface:
+            tags: ['app.privacy_purger']
 
     # makes classes in src/ available to be used as services
     # this creates a service per class whose id is the fully-qualified class name
@@ -275,3 +285,46 @@ services:
     # implementa (un adaptador). La dependencia va en un solo sentido:
     # `Processing → Ai` (Fase 14, D-56).
     App\Ai\Application\AiBudgetChangeHandlerInterface: '@App\Processing\Application\ReleaseDeferredMessages'
+
+    # ── Fase 16: privacidad y RGPD (ARCHITECTURE.md §15) ───────────────
+
+    # La política de retención es un bloque plano de parámetros que
+    # `PrivacySettings` convierte en un objeto tipado: cambiar un plazo es
+    # tocar la configuración, no el código (SECURITY.md §6).
+    App\Shared\Application\Privacy\PrivacySettings:
+        factory: ['App\Shared\Application\Privacy\PrivacySettings', 'fromArray']
+        arguments:
+            $config: '%app.privacy%'
+
+    # La puerta de frecuencia compartida necesita acceso a **todos** los
+    # limitadores registrados, no a uno concreto: el limitador lo decide quien
+    # llama (`mail_account`, `document_upload`, `privacy_export`). Por eso
+    # recibe un localizador de servicios en vez de una factoría.
+    App\Shared\Application\RateLimit\RateLimitGuard:
+        arguments:
+            $limiters: !tagged_locator { tag: 'rate_limiter', index_by: 'name' }
+
+    # El libro de auditoría es transversal: lo escriben todos los módulos, y
+    # por eso vive en `Shared`.
+    App\Shared\Domain\Repository\AuditLogRepositoryInterface: '@App\Shared\Infrastructure\Repository\AuditLogRepository'
+
+    # Los tres agregadores de privacidad solo conocen los puertos: la lista de
+    # secciones, de módulos y de categorías la aporta cada módulo con su
+    # propia etiqueta. Añadir un módulo con datos que exportar es escribir una
+    # clase y nada más.
+    App\Privacy\Application\ExportOrganizationData:
+        arguments:
+            $providers: !tagged_iterator app.privacy_export
+
+    App\Privacy\Application\DeleteOrganizationData:
+        arguments:
+            $removers: !tagged_iterator app.privacy_remove
+
+    App\Privacy\Application\PurgeExpiredData:
+        arguments:
+            $purgers: !tagged_iterator app.privacy_purger
+
+    # El puerto de limpieza del conocimiento aprendido lo declara el módulo de
+    # buzón (lo necesita al desconectar) y lo implementa el de procesamiento
+    # (es quien sabe qué es). La dependencia va en un solo sentido.
+    App\Mailbox\Application\MailboxKnowledgeCleanerInterface: '@App\Processing\Application\Knowledge\ClearMailboxKnowledge'

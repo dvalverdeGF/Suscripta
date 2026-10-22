@@ -8,8 +8,11 @@ use App\Documents\Domain\Entity\Document;
 use App\Documents\Domain\Enum\DocumentType;
 use App\Documents\Domain\Repository\DocumentRepositoryInterface;
 
+use function array_filter;
 use function array_values;
 use function count;
+
+use DateTimeImmutable;
 
 use const PHP_INT_MAX;
 
@@ -126,6 +129,54 @@ final class InMemoryDocumentRepository implements DocumentRepositoryInterface
     public function all(): array
     {
         return array_values($this->documents);
+    }
+
+    public function findSoftDeletedBefore(DateTimeImmutable $threshold, int $limit = 500): array
+    {
+        $found = [];
+
+        foreach ($this->documents as $document) {
+            $deletedAt = $document->getDeletedAt();
+
+            if (null === $deletedAt || $deletedAt >= $threshold) {
+                continue;
+            }
+
+            $found[] = $document;
+
+            if (count($found) >= $limit) {
+                break;
+            }
+        }
+
+        return $found;
+    }
+
+    public function removeForOrganization(Uuid $organizationId): int
+    {
+        $removed = 0;
+
+        foreach ($this->documents as $key => $document) {
+            if (!$document->getOrganizationId()->equals($organizationId)) {
+                continue;
+            }
+
+            unset($this->documents[$key]);
+            ++$removed;
+        }
+
+        return $removed;
+    }
+
+    /**
+     * @return list<Document>
+     */
+    public function findAllForOrganization(Uuid $organizationId): array
+    {
+        return array_values(array_filter(
+            $this->documents,
+            static fn (Document $document): bool => $document->getOrganizationId()->equals($organizationId),
+        ));
     }
 
     /**

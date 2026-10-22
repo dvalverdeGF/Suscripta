@@ -1,0 +1,64 @@
+# Política de retención y eliminación (SECURITY.md §6, Fase 16).
+#
+# Son plazos, no constantes: cambiarlos es una decisión de producto y de
+# cumplimiento, y deben poder ajustarse sin desplegar código.
+#
+# El bloque es plano a propósito: Symfony no resuelve el acceso a claves de un
+# array anidado (D-43), así que se consume entero y lo interpreta
+# `App\Privacy\Application\PrivacySettings`.
+parameters:
+    app.privacy:
+        # ── Correo (evidencia temporal) ─────────────────────────────────────
+        #
+        # Los metadatos del mensaje son lo que permite reconstruir de dónde
+        # salió una propuesta. Pasado un año ya no ayudan a nadie y son
+        # datos de una comunicación de terceros.
+        email_messages_days: 365
+
+        # Los eventos de procesamiento cuentan la historia de cada mensaje
+        # (qué extractores pasaron, cuánto tardaron). Mismo plazo que el
+        # mensaje: si el mensaje se purga, su historia también.
+        email_events_days: 365
+
+        # ── Documentos (contenido financiero) ───────────────────────────────
+        #
+        # El borrado de un documento es lógico: la fila se marca y el binario
+        # sigue un tiempo en el almacenamiento por si el usuario se arrepiente.
+        # Pasado ese plazo, la purga lo elimina de verdad.
+        documents_grace_days: 30
+
+        # ── Datos estructurados (el producto) ───────────────────────────────
+        #
+        # Una propuesta ignorada ya está resuelta: se conserva 90 días por si
+        # el usuario quiere revisar qué descartó, y después desaparece.
+        ignored_discoveries_days: 90
+
+        # Una alerta resuelta se conserva un año: es el histórico de los
+        # avisos que le saltaron al usuario, y sirve para explicar un cobro
+        # concreto («¿por qué me avisaste esto en mayo?»).
+        resolved_alerts_days: 365
+
+        # ── Metadatos de procesamiento ──────────────────────────────────────
+        #
+        # El libro de auditoría es append-only mientras exista: 24 meses es lo
+        # que se suele considerar suficiente para dar trazabilidad sin guardarlo
+        # para siempre.
+        audit_log_days: 730
+
+        # El uso de IA (importe, tokens, duración) se conserva dos años y
+        # después se purga. Los importes agregados sobreviven para las
+        # métricas del panel.
+        ai_usage_days: 730
+
+        # El conocimiento aprendido de un buzón se poda si no se ha usado en un
+        # año. Lo que sí se usa se queda: es la razón por la que el sistema
+        # reconoce al remitente.
+        mailbox_knowledge_days: 365
+
+        # La caché de extracción solo sirve para no repetir trabajo: si lleva
+        # un mes sin usarse, es basura.
+        extraction_cache_days: 30
+
+        # Tamaño del lote de purga. PostgreSQL no admite `LIMIT` en un
+        # `DELETE`, así que la purga va en tandas para no bloquear la tabla.
+        purge_batch_size: 500

@@ -24,4 +24,18 @@ interface AiBudgetRepositoryInterface
     public function save(AiBudget $budget, bool $flush = true): void;
 
     public function flush(): void;
+
+    /**
+     * Borra los presupuestos de IA de una organización.
+     *
+     * @return int número de presupuestos eliminados
+     */
+    public function removeForOrganization(Uuid $organizationId): int;
+
+    /**
+     * Los presupuestos de una organización concreta.
+     *
+     * @return list<AiBudget>
+     */
+    public function findForOrganization(Uuid $organizationId): array;
 }

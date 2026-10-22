@@ -9,8 +9,11 @@ use App\Notifications\Domain\Enum\AlertStatus;
 use App\Notifications\Domain\Enum\AlertType;
 use App\Notifications\Domain\Repository\AlertRepositoryInterface;
 
+use function array_filter;
 use function array_values;
 use function count;
+
+use DateTimeImmutable;
 
 use const PHP_INT_MAX;
 
@@ -134,5 +137,58 @@ final class InMemoryAlertRepository implements AlertRepositoryInterface
     public function all(): array
     {
         return array_values($this->alerts);
+    }
+
+    public function removeForOrganization(Uuid $organizationId): int
+    {
+        $removed = 0;
+
+        foreach ($this->alerts as $key => $alert) {
+            if (!$alert->getOrganizationId()->equals($organizationId)) {
+                continue;
+            }
+
+            unset($this->alerts[$key]);
+            ++$removed;
+        }
+
+        return $removed;
+    }
+
+    public function purgeResolvedBefore(DateTimeImmutable $threshold, int $limit = 500): int
+    {
+        $removed = 0;
+
+        foreach ($this->alerts as $key => $alert) {
+            if (AlertStatus::RESOLVED !== $alert->getStatus()) {
+                continue;
+            }
+
+            $resolvedAt = $alert->getResolvedAt();
+
+            if (null === $resolvedAt || $resolvedAt >= $threshold) {
+                continue;
+            }
+
+            unset($this->alerts[$key]);
+            ++$removed;
+
+            if ($removed >= $limit) {
+                break;
+            }
+        }
+
+        return $removed;
+    }
+
+    /**
+     * @return list<Alert>
+     */
+    public function findAllForOrganization(Uuid $organizationId): array
+    {
+        return array_values(array_filter(
+            $this->alerts,
+            static fn (Alert $alert): bool => $alert->getOrganizationId()->equals($organizationId),
+        ));
     }
 }

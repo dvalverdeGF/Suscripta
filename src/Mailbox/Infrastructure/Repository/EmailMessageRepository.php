@@ -9,6 +9,7 @@ use App\Mailbox\Domain\Enum\MessageProcessingState;
 use App\Mailbox\Domain\Repository\EmailMessageRepositoryInterface;
 use App\Shared\Domain\ValueObject\DateRange;
 use App\Shared\Infrastructure\Persistence\DoctrineRepository;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -293,6 +294,42 @@ final class EmailMessageRepository extends DoctrineRepository implements EmailMe
             ->delete(EmailMessage::class, 'm')
             ->where('m.emailAccountId = :accountId')
             ->setParameter('accountId', $emailAccountId)
+            ->getQuery()
+            ->execute();
+    }
+
+    public function removeForOrganization(Uuid $organizationId): int
+    {
+        return (int) $this->entityManager
+            ->createQueryBuilder()
+            ->delete(EmailMessage::class, 'm')
+            ->where('m.organizationId = :organizationId')
+            ->setParameter('organizationId', $organizationId)
+            ->getQuery()
+            ->execute();
+    }
+
+    public function purgeOlderThan(DateTimeImmutable $threshold, int $limit = 500): int
+    {
+        $ids = $this->scalarIds($this->entityManager
+            ->createQueryBuilder()
+            ->select('m.id')
+            ->from(EmailMessage::class, 'm')
+            ->where('m.createdAt < :threshold')
+            ->setParameter('threshold', $threshold)
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getSingleColumnResult());
+
+        if ([] === $ids) {
+            return 0;
+        }
+
+        return (int) $this->entityManager
+            ->createQueryBuilder()
+            ->delete(EmailMessage::class, 'm')
+            ->where('m.id IN (:ids)')
+            ->setParameter('ids', $ids)
             ->getQuery()
             ->execute();
     }

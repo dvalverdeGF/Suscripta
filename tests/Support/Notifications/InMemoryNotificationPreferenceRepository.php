@@ -9,6 +9,7 @@ use App\Notifications\Domain\Enum\AlertType;
 use App\Notifications\Domain\Enum\NotificationChannel;
 use App\Notifications\Domain\Repository\NotificationPreferenceRepositoryInterface;
 
+use function array_filter;
 use function array_values;
 use function sprintf;
 
@@ -78,6 +79,33 @@ final class InMemoryNotificationPreferenceRepository implements NotificationPref
     public function all(): array
     {
         return array_values($this->preferences);
+    }
+
+    public function removeForOrganization(Uuid $organizationId): int
+    {
+        $removed = 0;
+
+        foreach ($this->preferences as $key => $preference) {
+            if (!$preference->getOrganizationId()->equals($organizationId)) {
+                continue;
+            }
+
+            unset($this->preferences[$key]);
+            ++$removed;
+        }
+
+        return $removed;
+    }
+
+    /**
+     * @return list<NotificationPreference>
+     */
+    public function findAllForOrganization(Uuid $organizationId): array
+    {
+        return array_values(array_filter(
+            $this->preferences,
+            static fn (NotificationPreference $preference): bool => $preference->getOrganizationId()->equals($organizationId),
+        ));
     }
 
     private static function key(Uuid $userId, AlertType $type, NotificationChannel $channel): string

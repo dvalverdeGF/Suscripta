@@ -93,4 +93,25 @@ interface DiscoveryRepositoryInterface
      * @return list<DiscoveryEvidence>
      */
     public function findEvidence(Uuid $discoveryId): array;
+
+    /**
+     * Borra todos los descubrimientos de una organización y sus evidencias.
+     *
+     * @return int número de descubrimientos eliminados
+     */
+    public function removeForOrganization(Uuid $organizationId): int;
+
+    /**
+     * Purga los descubrimientos ignorados antes del umbral.
+     *
+     * @return int número de descubrimientos eliminados
+     */
+    public function purgeIgnoredBefore(DateTimeImmutable $threshold, int $limit = 500): int;
+
+    /**
+     * Todos los descubrimientos de una organización concreta, sin límite.
+     *
+     * @return list<Discovery>
+     */
+    public function findAllForOrganization(Uuid $organizationId): array;
 }

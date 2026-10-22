@@ -53,7 +53,13 @@
             collapse, tooltips) siguen funcionando tras navegar.
         #}
         <script src="{{ asset('vendor/bootstrap/js/bootstrap.bundle.min.js') }}" defer></script>
-        {{ importmap('app') }}
+        {#
+            El importmap genera `<script>` **en linea** (el JSON del mapa y el
+            `import 'app'`), y la Content-Security-Policy no los deja pasar sin
+            un nonce. Se lo damos aqui; el listener de seguridad lo genera por
+            peticion y lo refleja en la cabecera.
+        #}
+        {{ importmap('app', { nonce: csp_nonce() }) }}
     {% endblock %}
 </head>
 <body class="bo-body">
@@ -175,6 +181,20 @@
                 <a href="{{ path('app_settings_profile') }}" class="bo-menu__link">
                     <i class="fa-solid fa-user-gear bo-menu__icon"></i>
                     <span>Ajustes</span>
+                </a>
+            </li>
+
+            {#
+                Privacidad va al final de "Configuracion" a proposito: es donde
+                se consulta la retencion, se descargan los datos y se pide el
+                borrado. Es una accion administrativa, no algo con lo que se
+                trabaja a diario, y Buryarla en medio haria que se usara mas
+                de la cuenta.
+            #}
+            <li class="bo-menu__item {{ app.request.attributes.get('_route') starts with 'app_privacy' ? 'bo-menu__item--active' : '' }}">
+                <a href="{{ path('app_privacy_index') }}" class="bo-menu__link">
+                    <i class="fa-solid fa-shield-halved bo-menu__icon"></i>
+                    <span>Privacidad</span>
                 </a>
             </li>
         </ul>

@@ -53,4 +53,18 @@ interface InvoiceRepositoryInterface
     public function remove(Invoice $invoice, bool $flush = true): void;
 
     public function flush(): void;
+
+    /**
+     * Borra todas las facturas de una organización.
+     *
+     * @return int número de facturas eliminadas
+     */
+    public function removeForOrganization(Uuid $organizationId): int;
+
+    /**
+     * Todas las facturas de una organización concreta.
+     *
+     * @return list<Invoice>
+     */
+    public function findAllForOrganization(Uuid $organizationId): array;
 }

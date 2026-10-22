@@ -88,4 +88,31 @@ final class NotificationPreferenceRepository extends DoctrineRepository implemen
     {
         $this->delete($preference, $flush);
     }
+
+    public function removeForOrganization(Uuid $organizationId): int
+    {
+        return (int) $this->entityManager
+            ->createQueryBuilder()
+            ->delete(NotificationPreference::class, 'p')
+            ->where('p.organizationId = :organizationId')
+            ->setParameter('organizationId', $organizationId)
+            ->getQuery()
+            ->execute();
+    }
+
+    public function findAllForOrganization(Uuid $organizationId): array
+    {
+        /** @var list<NotificationPreference> $preferences */
+        $preferences = $this->entityManager
+            ->createQueryBuilder()
+            ->select('p')
+            ->from(NotificationPreference::class, 'p')
+            ->where('p.organizationId = :organizationId')
+            ->setParameter('organizationId', $organizationId)
+            ->orderBy('p.updatedAt', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $preferences;
+    }
 }

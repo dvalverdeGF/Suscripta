@@ -7,6 +7,7 @@ namespace App\Tests\Support\Mailbox;
 use App\Mailbox\Domain\Entity\EmailAccount;
 use App\Mailbox\Domain\Repository\EmailAccountRepositoryInterface;
 
+use function array_filter;
 use function array_values;
 use function count;
 
@@ -91,5 +92,32 @@ final class InMemoryEmailAccountRepository implements EmailAccountRepositoryInte
     public function flush(): void
     {
         ++$this->flushCount;
+    }
+
+    public function removeForOrganization(Uuid $organizationId): int
+    {
+        $removed = 0;
+
+        foreach ($this->accounts as $key => $account) {
+            if (!$account->getOrganizationId()->equals($organizationId)) {
+                continue;
+            }
+
+            unset($this->accounts[$key]);
+            ++$removed;
+        }
+
+        return $removed;
+    }
+
+    /**
+     * @return list<EmailAccount>
+     */
+    public function findAllForOrganization(Uuid $organizationId): array
+    {
+        return array_values(array_filter(
+            $this->accounts,
+            static fn (EmailAccount $account): bool => $account->getOrganizationId()->equals($organizationId),
+        ));
     }
 }

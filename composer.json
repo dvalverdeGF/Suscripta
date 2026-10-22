@@ -8,6 +8,7 @@
     "require": {
         "php": ">=8.4",
         "ext-ctype": "*",
+        "ext-fileinfo": "*",
         "ext-iconv": "*",
         "ext-intl": "*",
         "ext-openssl": "*",

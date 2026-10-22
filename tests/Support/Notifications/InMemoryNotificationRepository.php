@@ -7,6 +7,7 @@ namespace App\Tests\Support\Notifications;
 use App\Notifications\Domain\Entity\Notification;
 use App\Notifications\Domain\Repository\NotificationRepositoryInterface;
 
+use function array_filter;
 use function array_slice;
 use function array_values;
 use function count;
@@ -74,5 +75,32 @@ final class InMemoryNotificationRepository implements NotificationRepositoryInte
     public function count(): int
     {
         return count($this->notifications);
+    }
+
+    public function removeForOrganization(Uuid $organizationId): int
+    {
+        $removed = 0;
+
+        foreach ($this->notifications as $key => $notification) {
+            if (!$notification->getOrganizationId()->equals($organizationId)) {
+                continue;
+            }
+
+            unset($this->notifications[$key]);
+            ++$removed;
+        }
+
+        return $removed;
+    }
+
+    /**
+     * @return list<Notification>
+     */
+    public function findAllForOrganization(Uuid $organizationId): array
+    {
+        return array_values(array_filter(
+            $this->notifications,
+            static fn (Notification $notification): bool => $notification->getOrganizationId()->equals($organizationId),
+        ));
     }
 }

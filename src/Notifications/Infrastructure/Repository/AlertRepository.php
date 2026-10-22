@@ -9,6 +9,7 @@ use App\Notifications\Domain\Enum\AlertStatus;
 use App\Notifications\Domain\Enum\AlertType;
 use App\Notifications\Domain\Repository\AlertRepositoryInterface;
 use App\Shared\Infrastructure\Persistence\DoctrineRepository;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -161,5 +162,60 @@ final class AlertRepository extends DoctrineRepository implements AlertRepositor
     public function flush(): void
     {
         parent::flush();
+    }
+
+    public function removeForOrganization(Uuid $organizationId): int
+    {
+        return (int) $this->entityManager
+            ->createQueryBuilder()
+            ->delete(Alert::class, 'a')
+            ->where('a.organizationId = :organizationId')
+            ->setParameter('organizationId', $organizationId)
+            ->getQuery()
+            ->execute();
+    }
+
+    public function purgeResolvedBefore(DateTimeImmutable $threshold, int $limit = 500): int
+    {
+        $ids = $this->scalarIds($this->entityManager
+            ->createQueryBuilder()
+            ->select('a.id')
+            ->from(Alert::class, 'a')
+            ->where('a.status = :status')
+            ->andWhere('a.resolvedAt IS NOT NULL')
+            ->andWhere('a.resolvedAt < :threshold')
+            ->setParameter('status', AlertStatus::RESOLVED)
+            ->setParameter('threshold', $threshold)
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getSingleColumnResult());
+
+        if ([] === $ids) {
+            return 0;
+        }
+
+        return (int) $this->entityManager
+            ->createQueryBuilder()
+            ->delete(Alert::class, 'a')
+            ->where('a.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->execute();
+    }
+
+    public function findAllForOrganization(Uuid $organizationId): array
+    {
+        /** @var list<Alert> $alerts */
+        $alerts = $this->entityManager
+            ->createQueryBuilder()
+            ->select('a')
+            ->from(Alert::class, 'a')
+            ->where('a.organizationId = :organizationId')
+            ->setParameter('organizationId', $organizationId)
+            ->orderBy('a.createdAt', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $alerts;
     }
 }

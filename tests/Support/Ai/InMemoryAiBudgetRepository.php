@@ -6,6 +6,10 @@ namespace App\Tests\Support\Ai;
 
 use App\Ai\Domain\Entity\AiBudget;
 use App\Ai\Domain\Repository\AiBudgetRepositoryInterface;
+
+use function array_filter;
+use function array_values;
+
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -43,6 +47,33 @@ final class InMemoryAiBudgetRepository implements AiBudgetRepositoryInterface
     public function all(): array
     {
         return array_values($this->budgets);
+    }
+
+    public function removeForOrganization(Uuid $organizationId): int
+    {
+        $removed = 0;
+
+        foreach ($this->budgets as $key => $budget) {
+            if (!$budget->getOrganizationId()->equals($organizationId)) {
+                continue;
+            }
+
+            unset($this->budgets[$key]);
+            ++$removed;
+        }
+
+        return $removed;
+    }
+
+    /**
+     * @return list<AiBudget>
+     */
+    public function findForOrganization(Uuid $organizationId): array
+    {
+        return array_values(array_filter(
+            $this->budgets,
+            static fn (AiBudget $budget): bool => $budget->getOrganizationId()->equals($organizationId),
+        ));
     }
 
     private function key(Uuid $organizationId, string $period): string

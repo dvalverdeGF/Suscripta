@@ -35,4 +35,18 @@ interface NotificationPreferenceRepositoryInterface
      * valor», es dejar de tener opinión, y así lo refleja la base de datos.
      */
     public function remove(NotificationPreference $preference): void;
+
+    /**
+     * Borra todas las preferencias de notificación de una organización.
+     *
+     * @return int número de preferencias eliminadas
+     */
+    public function removeForOrganization(Uuid $organizationId): int;
+
+    /**
+     * Todas las preferencias de notificación de una organización concreta.
+     *
+     * @return list<NotificationPreference>
+     */
+    public function findAllForOrganization(Uuid $organizationId): array;
 }

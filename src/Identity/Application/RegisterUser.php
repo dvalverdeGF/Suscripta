@@ -12,7 +12,6 @@ use App\Identity\Domain\Repository\OrganizationRepositoryInterface;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Shared\Domain\Exception\InvalidArgumentException;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
-use Symfony\Component\String\Slugger\SluggerInterface;
 
 /**
  * Alta de un usuario y creación de su organización personal.
@@ -27,7 +26,7 @@ final readonly class RegisterUser
         private UserRepositoryInterface $users,
         private OrganizationRepositoryInterface $organizations,
         private UserPasswordHasherInterface $passwordHasher,
-        private SluggerInterface $slugger,
+        private OrganizationSlug $slugs,
     ) {
     }
 
@@ -44,7 +43,7 @@ final readonly class RegisterUser
 
         $organization = new Organization(
             name: $displayName,
-            slug: $this->uniqueSlug($displayName, $email),
+            slug: $this->slugs->uniqueFrom($displayName, $email),
             personal: true,
         );
 
@@ -54,25 +53,5 @@ final readonly class RegisterUser
         $this->organizations->save($organization, true);
 
         return $user;
-    }
-
-    private function uniqueSlug(string $displayName, string $email): string
-    {
-        $base = $this->slugger->slug($displayName)->lower()->toString();
-
-        if ('' === $base) {
-            $base = $this->slugger->slug(strstr($email, '@', true) ?: 'organizacion')->lower()->toString();
-        }
-
-        $base = mb_substr($base, 0, 80);
-        $slug = $base;
-        $suffix = 2;
-
-        while ($this->organizations->slugExists($slug)) {
-            $slug = $base.'-'.$suffix;
-            ++$suffix;
-        }
-
-        return $slug;
     }
 }

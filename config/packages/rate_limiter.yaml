@@ -24,3 +24,35 @@ framework:
             policy: 'sliding_window'
             limit: 60
             interval: '1 minute'
+
+        # Operaciones pesadas del buzon (Fase 16).
+        #
+        # Conectar, probar y sincronizar un buzon abre una conexion IMAP, y
+        # sincronizar ademas lanza la escalera de IA. Un bucle de peticiones
+        # desde la sesion de un usuario agotaria la cuota del servidor de
+        # correo y la del proveedor de IA. El limite es por organizacion:
+        # un cliente pesado no puede dejar sin servicio a los demas.
+        mail_account:
+            policy: 'sliding_window'
+            limit: 10
+            interval: '1 minute'
+
+        # Subida de documentos (Fase 16).
+        #
+        # Cada documento ocupa almacenamiento permanente. Limitarlo por
+        # organizacion evita que una sesion comprometida llene el disco.
+        document_upload:
+            policy: 'sliding_window'
+            limit: 20
+            interval: '1 minute'
+
+        # Exportacion de datos (Fase 16).
+        #
+        # Exportar recorre toda la organizacion y arma un fichero en memoria.
+        # Es una operacion de lectura pesada, y en un momento en que el
+        # usuario puede estar pidiendo el derecho de acceso conviene que no
+        # se abuse de ella.
+        privacy_export:
+            policy: 'sliding_window'
+            limit: 5
+            interval: '1 minute'

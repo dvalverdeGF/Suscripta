@@ -112,4 +112,31 @@ final class EmailAccountRepository extends DoctrineRepository implements EmailAc
     {
         $this->delete($account, $flush);
     }
+
+    public function removeForOrganization(Uuid $organizationId): int
+    {
+        return (int) $this->entityManager
+            ->createQueryBuilder()
+            ->delete(EmailAccount::class, 'a')
+            ->where('a.organizationId = :organizationId')
+            ->setParameter('organizationId', $organizationId)
+            ->getQuery()
+            ->execute();
+    }
+
+    public function findAllForOrganization(Uuid $organizationId): array
+    {
+        /** @var list<EmailAccount> $accounts */
+        $accounts = $this->entityManager
+            ->createQueryBuilder()
+            ->select('a')
+            ->from(EmailAccount::class, 'a')
+            ->where('a.organizationId = :organizationId')
+            ->setParameter('organizationId', $organizationId)
+            ->orderBy('a.createdAt', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $accounts;
+    }
 }

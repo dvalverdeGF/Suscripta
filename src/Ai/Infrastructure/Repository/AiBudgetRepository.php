@@ -46,4 +46,31 @@ final class AiBudgetRepository extends DoctrineRepository implements AiBudgetRep
     {
         parent::flush();
     }
+
+    public function removeForOrganization(Uuid $organizationId): int
+    {
+        return (int) $this->entityManager
+            ->createQueryBuilder()
+            ->delete(AiBudget::class, 'b')
+            ->where('b.organizationId = :organizationId')
+            ->setParameter('organizationId', $organizationId)
+            ->getQuery()
+            ->execute();
+    }
+
+    public function findForOrganization(Uuid $organizationId): array
+    {
+        /** @var list<AiBudget> $budgets */
+        $budgets = $this->entityManager
+            ->createQueryBuilder()
+            ->select('b')
+            ->from(AiBudget::class, 'b')
+            ->where('b.organizationId = :organizationId')
+            ->setParameter('organizationId', $organizationId)
+            ->orderBy('b.period', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $budgets;
+    }
 }

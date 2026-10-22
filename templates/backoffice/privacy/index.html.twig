@@ -1,0 +1,243 @@
+{% extends 'backoffice/base.html.twig' %}
+
+{#
+    Panel de privacidad (Fase 16).
+
+    La pantalla responde a tres preguntas, en este orden:
+
+    1. **Que guardamos de ti?** → la politica de retencion, con los plazos
+       concretos de cada tipo de dato.
+    2. **Dame mis datos.** → la exportacion (JSON y CSV por seccion).
+    3. **Borra mis datos.** → el borrado, que pide confirmacion y solo pueden
+       pedirlo un propietario o un administrador.
+
+    La tercera es la unica irreversible, y por eso va la ultima y lleva su
+    confirmacion escrita a mano: un boton que se pulsa sin querer no puede
+    llevarse por delante los servicios y el historico de precios de una
+    organizacion.
+#}
+{% block title %}Privacidad{% endblock %}
+
+{% block breadcrumb %}
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{{ path('app_dashboard') }}">Panel</a></li>
+        <li class="breadcrumb-item active">Privacidad</li>
+    </ol>
+{% endblock %}
+
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">Privacidad</h1>
+            <p class="bo-page-header__subtitle">
+                Lo que Suscripta guarda de la organización
+                {% if organization is not null %}<strong>{{ organization.name }}</strong>{% endif %},
+                cómo se te entrega y cómo se borra.
+            </p>
+        </div>
+        <div class="bo-page-header__actions">
+            <a class="btn btn-outline-primary" href="{{ path('app_privacy_export_json') }}">
+                <i class="fa-solid fa-download me-1"></i>Descargar todo (JSON)
+            </a>
+        </div>
+    </div>
+
+    {# ── 1. Qué guardamos ─────────────────────────────────────────────── #}
+    <div class="bo-list mb-4">
+        <div class="bo-summary__title">
+            <i class="fa-solid fa-clock-rotate-left"></i>Cuánto tiempo guardamos cada cosa
+        </div>
+
+        <p class="text-muted small">
+            La retención no es la misma para todo: el correo es evidencia
+            temporal, pero los servicios y sus precios son el producto y se
+            conservan mientras la organización exista. Estos son los plazos que
+            se aplican hoy.
+        </p>
+
+        <dl class="bo-definition-list">
+            <dt>Correo indexado</dt>
+            <dd>{{ settings.emailMessagesDays }} días</dd>
+
+            <dt>Eventos de procesamiento</dt>
+            <dd>{{ settings.emailEventsDays }} días</dd>
+
+            <dt>Documentos borrados</dt>
+            <dd>{{ settings.documentsGraceDays }} días de margen antes de borrar el archivo</dd>
+
+            <dt>Propuestas descartadas</dt>
+            <dd>{{ settings.ignoredDiscoveriesDays }} días</dd>
+
+            <dt>Alertas resueltas</dt>
+            <dd>{{ settings.resolvedAlertsDays }} días</dd>
+
+            <dt>Registro de auditoría</dt>
+            <dd>{{ settings.auditLogDays }} días</dd>
+
+            <dt>Uso de inteligencia artificial</dt>
+            <dd>{{ settings.aiUsageDays }} días</dd>
+
+            <dt>Conocimiento aprendido del buzón</dt>
+            <dd>{{ settings.mailboxKnowledgeDays }} días sin usarse</dd>
+
+            <dt>Caché de extracción</dt>
+            <dd>{{ settings.extractionCacheDays }} días</dd>
+        </dl>
+    </div>
+
+    {# ── 2. Exportación ───────────────────────────────────────────────── #}
+    <div class="bo-list mb-4">
+        <div class="bo-summary__title">
+            <i class="fa-solid fa-file-export"></i>Llévate tus datos
+        </div>
+
+        <p class="text-muted small">
+            La exportación incluye todo lo que la organización tiene guardado:
+            servicios y precios, facturas, documentos, propuestas detectadas,
+            alertas, avisos enviados, buzones conectados y el uso de
+            inteligencia artificial. Las contraseñas y las claves de las
+            integraciones <strong>no</strong> se exportan: son secretos, no
+            datos tuyos, y el archivo se manda por correo.
+        </p>
+
+        <div class="table-responsive">
+            <table class="table bo-table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Sección</th>
+                        <th>Qué contiene</th>
+                        <th class="text-end">CSV</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>identity</code></td>
+                        <td>Organización y miembros</td>
+                        <td class="text-end">—</td>
+                    </tr>
+                    <tr>
+                        <td><code>services</code></td>
+                        <td>Servicios, precios y su histórico</td>
+                        <td class="text-end">
+                            <a class="btn btn-sm btn-outline-secondary"
+                               href="{{ path('app_privacy_export_csv', { section: 'services' }) }}">Descargar</a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>documents</code></td>
+                        <td>Documentos almacenados (metadatos)</td>
+                        <td class="text-end">
+                            <a class="btn btn-sm btn-outline-secondary"
+                               href="{{ path('app_privacy_export_csv', { section: 'documents' }) }}">Descargar</a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>invoices</code></td>
+                        <td>Facturas emitidas</td>
+                        <td class="text-end">
+                            <a class="btn btn-sm btn-outline-secondary"
+                               href="{{ path('app_privacy_export_csv', { section: 'invoices' }) }}">Descargar</a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>discoveries</code></td>
+                        <td>Propuestas detectadas y su estado</td>
+                        <td class="text-end">
+                            <a class="btn btn-sm btn-outline-secondary"
+                               href="{{ path('app_privacy_export_csv', { section: 'discoveries' }) }}">Descargar</a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>mailbox</code></td>
+                        <td>Buzones conectados (sin credenciales)</td>
+                        <td class="text-end">
+                            <a class="btn btn-sm btn-outline-secondary"
+                               href="{{ path('app_privacy_export_csv', { section: 'mailbox' }) }}">Descargar</a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>processing</code></td>
+                        <td>Lo que el sistema ha aprendido del correo</td>
+                        <td class="text-end">
+                            <a class="btn btn-sm btn-outline-secondary"
+                               href="{{ path('app_privacy_export_csv', { section: 'processing' }) }}">Descargar</a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>notifications</code></td>
+                        <td>Alertas, avisos y preferencias</td>
+                        <td class="text-end">
+                            <a class="btn btn-sm btn-outline-secondary"
+                               href="{{ path('app_privacy_export_csv', { section: 'notifications' }) }}">Descargar</a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>ai</code></td>
+                        <td>Consumo de IA y presupuestos</td>
+                        <td class="text-end">
+                            <a class="btn btn-sm btn-outline-secondary"
+                               href="{{ path('app_privacy_export_csv', { section: 'ai' }) }}">Descargar</a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>integrations</code></td>
+                        <td>Integraciones configuradas (sin claves)</td>
+                        <td class="text-end">
+                            <a class="btn btn-sm btn-outline-secondary"
+                               href="{{ path('app_privacy_export_csv', { section: 'integrations' }) }}">Descargar</a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {# ── 3. Borrado ───────────────────────────────────────────────────── #}
+    <div class="bo-list">
+        <div class="bo-summary__title">
+            <i class="fa-solid fa-trash-can"></i>Borrar los datos de la organización
+        </div>
+
+        {% if not canDelete %}
+            <div class="alert alert-secondary d-flex align-items-start" role="status">
+                <i class="fa-solid fa-lock mt-1 me-2"></i>
+                <div class="small">
+                    Solo un <strong>propietario</strong> o un
+                    <strong>administrador</strong> de la organización puede
+                    borrarla. Tu cuenta y tus datos personales no se ven
+                    afectados: lo que se borra es lo que esta organización
+                    guardó.
+                </div>
+            </div>
+        {% else %}
+            <div class="alert alert-danger d-flex align-items-start" role="alert">
+                <i class="fa-solid fa-triangle-exclamation mt-1 me-2"></i>
+                <div class="small">
+                    <strong>Esto no tiene vuelta atrás.</strong>
+                    Se borran los servicios y su histórico de precios, las
+                    facturas, los documentos, las propuestas, las alertas, los
+                    avisos, los buzones y las integraciones. La cuenta de los
+                    miembros se queda, pero sin esta organización.
+                </div>
+            </div>
+
+            <form method="post" action="{{ path('app_privacy_delete') }}" class="mt-3">
+                <input type="hidden" name="_token" value="{{ csrf_token('delete_organization_data') }}">
+
+                <div class="mb-3">
+                    <label class="form-label" for="confirmation">
+                        Escribe el nombre de la organización
+                        {% if organization is not null %}<code>{{ organization.name }}</code>{% endif %}
+                        para confirmar
+                    </label>
+                    <input type="text" class="form-control" id="confirmation" name="confirmation"
+                           autocomplete="off" required>
+                </div>
+
+                <button type="submit" class="btn btn-danger">
+                    <i class="fa-solid fa-trash-can me-1"></i>Borrar todos los datos
+                </button>
+            </form>
+        {% endif %}
+    </div>
+{% endblock %}

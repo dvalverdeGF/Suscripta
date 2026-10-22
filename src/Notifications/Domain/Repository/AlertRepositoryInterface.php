@@ -7,6 +7,7 @@ namespace App\Notifications\Domain\Repository;
 use App\Notifications\Domain\Entity\Alert;
 use App\Notifications\Domain\Enum\AlertStatus;
 use App\Notifications\Domain\Enum\AlertType;
+use DateTimeImmutable;
 use Symfony\Component\Uid\Uuid;
 
 interface AlertRepositoryInterface
@@ -58,4 +59,25 @@ interface AlertRepositoryInterface
      * lote y no tiene sentido escribir en la base de datos uno a uno.
      */
     public function flush(): void;
+
+    /**
+     * Borra todas las alertas de una organización.
+     *
+     * @return int número de alertas eliminadas
+     */
+    public function removeForOrganization(Uuid $organizationId): int;
+
+    /**
+     * Purga las alertas resueltas antes del umbral.
+     *
+     * @return int número de alertas eliminadas
+     */
+    public function purgeResolvedBefore(DateTimeImmutable $threshold, int $limit = 500): int;
+
+    /**
+     * Todas las alertas de una organización concreta, sin límite.
+     *
+     * @return list<Alert>
+     */
+    public function findAllForOrganization(Uuid $organizationId): array;
 }

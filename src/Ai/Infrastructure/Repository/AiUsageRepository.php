@@ -9,6 +9,7 @@ use App\Ai\Domain\Repository\AiUsageRepositoryInterface;
 use App\Shared\Domain\ValueObject\DateRange;
 use App\Shared\Infrastructure\Persistence\DoctrineRepository;
 use BackedEnum;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
 use Symfony\Component\Uid\Uuid;
@@ -213,5 +214,57 @@ final class AiUsageRepository extends DoctrineRepository implements AiUsageRepos
         }
 
         return $qb;
+    }
+
+    public function removeForOrganization(Uuid $organizationId): int
+    {
+        return (int) $this->entityManager
+            ->createQueryBuilder()
+            ->delete(AiUsage::class, 'u')
+            ->where('u.organizationId = :organizationId')
+            ->setParameter('organizationId', $organizationId)
+            ->getQuery()
+            ->execute();
+    }
+
+    public function purgeOlderThan(DateTimeImmutable $threshold, int $limit = 1000): int
+    {
+        $ids = $this->scalarIds($this->entityManager
+            ->createQueryBuilder()
+            ->select('u.id')
+            ->from(AiUsage::class, 'u')
+            ->where('u.createdAt < :threshold')
+            ->setParameter('threshold', $threshold)
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getSingleColumnResult());
+
+        if ([] === $ids) {
+            return 0;
+        }
+
+        return (int) $this->entityManager
+            ->createQueryBuilder()
+            ->delete(AiUsage::class, 'u')
+            ->where('u.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->execute();
+    }
+
+    public function findForOrganization(Uuid $organizationId): array
+    {
+        /** @var list<AiUsage> $usages */
+        $usages = $this->entityManager
+            ->createQueryBuilder()
+            ->select('u')
+            ->from(AiUsage::class, 'u')
+            ->where('u.organizationId = :organizationId')
+            ->setParameter('organizationId', $organizationId)
+            ->orderBy('u.createdAt', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $usages;
     }
 }

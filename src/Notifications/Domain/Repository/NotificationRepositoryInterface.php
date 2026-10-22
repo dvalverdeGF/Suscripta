@@ -24,4 +24,18 @@ interface NotificationRepositoryInterface
     public function findRecent(int $limit = 50): array;
 
     public function save(Notification $notification): void;
+
+    /**
+     * Borra todas las notificaciones enviadas de una organización.
+     *
+     * @return int número de notificaciones eliminadas
+     */
+    public function removeForOrganization(Uuid $organizationId): int;
+
+    /**
+     * Todas las notificaciones de una organización concreta.
+     *
+     * @return list<Notification>
+     */
+    public function findAllForOrganization(Uuid $organizationId): array;
 }

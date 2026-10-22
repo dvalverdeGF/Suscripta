@@ -18,6 +18,8 @@ use App\Documents\UI\Form\DocumentFormData;
 use App\Documents\UI\Form\DocumentFormType;
 use App\Identity\Domain\Entity\User;
 use App\Services\Domain\Repository\ServiceViewRepositoryInterface;
+use App\Shared\Application\RateLimit\RateLimitGuard;
+use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Exception\InvalidArgumentException;
 
 use function is_string;
@@ -52,6 +54,8 @@ final class DocumentController extends AbstractController
         private readonly DownloadDocument $downloadDocument,
         private readonly DeleteDocument $deleteDocument,
         private readonly AttachDocumentToService $attachDocument,
+        private readonly RateLimitGuard $rateLimits,
+        private readonly TenantContext $tenantContext,
     ) {
     }
 
@@ -96,6 +100,14 @@ final class DocumentController extends AbstractController
                 $form->addError(new FormError('Selecciona un fichero.'));
 
                 return $this->renderInvalid('documents/new.html.twig', $form);
+            }
+
+            // Cada documento ocupa almacenamiento permanente: se limita por
+            // organización para que una sesión comprometida no llene el disco.
+            if (!$this->rateLimits->acquire('document_upload', $this->tenantContext->getOrganizationId()?->toRfc4122() ?? 'anonymous')) {
+                $form->addError(new FormError('Has subido demasiados documentos seguidos. Espera un minuto y vuelve a intentarlo.'));
+
+                return $this->renderInvalid('documents/new.html.twig', $form, Response::HTTP_TOO_MANY_REQUESTS);
             }
 
             try {
@@ -199,10 +211,10 @@ final class DocumentController extends AbstractController
      *
      * @param FormInterface<mixed> $form
      */
-    private function renderInvalid(string $view, FormInterface $form): Response
+    private function renderInvalid(string $view, FormInterface $form, int $status = Response::HTTP_UNPROCESSABLE_ENTITY): Response
     {
         $response = $this->render($view, ['form' => $form]);
-        $response->setStatusCode(Response::HTTP_UNPROCESSABLE_ENTITY);
+        $response->setStatusCode($status);
 
         return $response;
     }

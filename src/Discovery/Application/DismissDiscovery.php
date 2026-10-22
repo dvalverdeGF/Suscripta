@@ -33,6 +33,7 @@ final readonly class DismissDiscovery
         private AuditLoggerInterface $auditLogger,
         private Clock $clock,
         private LearnFromDismissal $learnFromDismissal,
+        private ClearSourceExcerpt $clearSourceExcerpt,
     ) {
     }
 
@@ -51,6 +52,10 @@ final readonly class DismissDiscovery
         );
 
         $this->discoveries->save($discovery);
+
+        // El extracto del cuerpo solo vive mientras hay una propuesta
+        // pendiente: al descartar, el correo deja de hacer falta.
+        ($this->clearSourceExcerpt)($discovery);
 
         // ── Fase 13: el buzón cuenta los descartes ─────────────────────────
         // Un descarte no basta para ignorar al remitente: hacen falta dos.

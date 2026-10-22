@@ -12,9 +12,11 @@ use function is_string;
 
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -33,6 +35,7 @@ final readonly class ActiveOrganizationListener
         private Security $security,
         private TenantContext $tenantContext,
         private OrganizationRepositoryInterface $organizations,
+        private UrlGeneratorInterface $urlGenerator,
     ) {
     }
 
@@ -50,11 +53,38 @@ final readonly class ActiveOrganizationListener
         $organizationId = $this->resolveOrganizationId($user, $event->getRequest());
 
         if (null === $organizationId) {
+            $this->handleUserWithoutOrganization($event);
+
             return;
         }
 
         // setOrganizationId publica el cambio en el filtro de Doctrine.
         $this->tenantContext->setOrganizationId($organizationId);
+    }
+
+    /**
+     * Un usuario sin ninguna organización no puede usar el backoffice.
+     *
+     * No es un caso raro: borrando los datos de su organización, la borración
+     * se lleva la organización entera (derecho de supresión) y el usuario se
+     * queda sin ninguna. Sin este desvío, cada página devolvería un error 500
+     * y, peor, el filtro de Doctrine no restringiría las consultas a ninguna
+     * organización: es decir, se verían datos de otros inquilinos.
+     *
+     * Por eso el desvío es **global** y no una comprobación en cada
+     * controlador: el filtro de tenencia no debe quedarse sin restricting.
+     */
+    private function handleUserWithoutOrganization(RequestEvent $event): void
+    {
+        $request = $event->getRequest();
+
+        if ($request->attributes->get('_route') === 'app_organization_new') {
+            return;
+        }
+
+        $event->setResponse(new RedirectResponse(
+            $this->urlGenerator->generate('app_organization_new'),
+        ));
     }
 
     private function resolveOrganizationId(User $user, Request $request): ?Uuid

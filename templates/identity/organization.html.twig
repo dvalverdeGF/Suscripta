@@ -1,0 +1,48 @@
+{% extends 'backoffice/base.html.twig' %}
+
+{#
+    Crear una organización (Fase 16).
+
+    Esta pantalla aparece cuando el usuario se queda sin ninguna organización.
+    Solo hay un caso: ha borrado los datos de la suya, y la borración se lleva
+    la organización entera. En vez de un error, la aplicacion ofrece empezar
+    de cero.
+#}
+{% block title %}Nueva organización — Suscripta{% endblock %}
+
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">Crea tu organización</h1>
+            <p class="bo-page-header__subtitle">
+                Los servicios, los documentos y los descubrimientos se guardan dentro de una organización.
+            </p>
+        </div>
+    </div>
+
+    <div class="d-flex flex-column gap-3">
+        <section class="card">
+            <div class="card-header">
+                <h2 class="card-title">Datos de la organización</h2>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    Ponle un nombre reconocible. Podrás cambiarlo más adelante, y los datos que
+                    guardes aquí se quedan separados de los de cualquier otra organización.
+                </p>
+                {{ form_start(form, { attr: { id: 'organization-form', class: 'form', novalidate: 'novalidate' } }) }}
+                    {{ form_errors(form) }}
+                    {{ form_row(form.name) }}
+                {{ form_end(form) }}
+            </div>
+        </section>
+    </div>
+{% endblock %}
+
+{% block page_actions %}
+    <div class="bo-actions">
+        <button class="btn btn-primary" type="submit" form="organization-form">
+            <i class="fa-solid fa-building me-1" aria-hidden="true"></i> Crear organización
+        </button>
+    </div>
+{% endblock %}

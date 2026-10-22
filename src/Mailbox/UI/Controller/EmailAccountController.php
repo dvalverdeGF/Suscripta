@@ -23,6 +23,8 @@ use App\Mailbox\UI\Form\EmailAccountFormData;
 use App\Mailbox\UI\Form\EmailAccountFormType;
 use App\Mailbox\UI\Form\ForwardingFormData;
 use App\Mailbox\UI\Form\ForwardingFormType;
+use App\Shared\Application\RateLimit\RateLimitGuard;
+use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Exception\InvalidArgumentException;
 
 use function count;
@@ -52,6 +54,8 @@ final class EmailAccountController extends AbstractController
         private readonly EmailAccountRepositoryInterface $accounts,
         private readonly EmailMessageRepositoryInterface $messages,
         private readonly EmailSyncRunRepositoryInterface $runs,
+        private readonly RateLimitGuard $rateLimits,
+        private readonly TenantContext $tenantContext,
     ) {
     }
 
@@ -74,6 +78,12 @@ final class EmailAccountController extends AbstractController
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
+            if (!$this->rateLimits->acquire('mail_account', $this->organizationKey())) {
+                $form->addError(new FormError('Has conectado demasiados buzones seguidos. Espera un minuto y vuelve a intentarlo.'));
+
+                return $this->render('mail/accounts/new.html.twig', ['form' => $form], new Response(status: Response::HTTP_TOO_MANY_REQUESTS));
+            }
+
             try {
                 $account = $connectEmailAccount($data->toInput(), $this->actorId());
             } catch (ImapConnectionException|InvalidArgumentException $exception) {
@@ -121,6 +131,14 @@ final class EmailAccountController extends AbstractController
     public function sync(EmailAccount $account, Request $request, SyncEmailAccount $syncEmailAccount): Response
     {
         $this->assertCsrf($request, 'mail_account_sync_'.$account->getId()->toRfc4122());
+
+        if (!$this->rateLimits->acquire('mail_account', $account->getOrganizationId()->toRfc4122())) {
+            return $this->tooManyRequests(
+                'Has pedido demasiadas sincronizaciones seguidas. Espera un minuto y vuelve a intentarlo.',
+                'app_mail_accounts_show',
+                ['id' => $account->getId()->toRfc4122()],
+            );
+        }
 
         try {
             $run = $syncEmailAccount($account, $this->actorId());
@@ -243,6 +261,14 @@ final class EmailAccountController extends AbstractController
     {
         $this->assertCsrf($request, 'mail_account_test_'.$account->getId()->toRfc4122());
 
+        if (!$this->rateLimits->acquire('mail_account', $account->getOrganizationId()->toRfc4122())) {
+            return $this->tooManyRequests(
+                'Has probado la conexión demasiadas veces seguidas. Espera un minuto y vuelve a intentarlo.',
+                'app_mail_accounts_show',
+                ['id' => $account->getId()->toRfc4122()],
+            );
+        }
+
         try {
             $folders = $testConnection($account, $this->actorId());
         } catch (ImapConnectionException|InvalidArgumentException $exception) {
@@ -279,6 +305,40 @@ final class EmailAccountController extends AbstractController
         $this->addFlash('success', sprintf('El buzón %s y todo lo leído de él se han eliminado.', $address));
 
         return $this->redirectToRoute('app_mail_accounts_index');
+    }
+
+    /**
+     * La clave del límite de frecuencia es la organización activa.
+     *
+     * Sin organización activa no se puede limitar nada: la operación va a
+     * fallar igualmente por falta de contexto, y no tiene sentido inventar
+     * una clave.
+     */
+    private function organizationKey(): string
+    {
+        return $this->tenantContext->getOrganizationId()?->toRfc4122() ?? 'anonymous';
+    }
+
+    /**
+     * Respuesta de "demasiado rápido".
+     *
+     * El código 429 es lo que le dice al navegador (y a cualquier cliente
+     * que hable HTTP) que el problema es el ritmo, no la petición: así puede
+     * reintentarlo más tarde sin que el usuario piense que la aplicación está
+     * rota.
+     */
+    /**
+     * @param array<string, string> $parameters
+     */
+    private function tooManyRequests(string $message, string $route, array $parameters): Response
+    {
+        $this->addFlash('error', $message);
+
+        $response = $this->redirectToRoute($route, $parameters);
+        $response->headers->set('Retry-After', '60');
+        $response->setStatusCode(Response::HTTP_TOO_MANY_REQUESTS);
+
+        return $response;
     }
 
     private function actorId(): ?Uuid

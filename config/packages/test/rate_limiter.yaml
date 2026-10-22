@@ -15,3 +15,35 @@ framework:
             policy: 'sliding_window'
             limit: 10000
             interval: '1 minute'
+
+        # Los limites de la Fase 16 se suben por el mismo motivo que los
+        # anteriores: una prueba funcional que hace varias sincronizaciones
+        # seguidas no debe chocar con ellos. El limite real se prueba aparte,
+        # con su propio test.
+        mail_account:
+            policy: 'sliding_window'
+            limit: 1000
+            interval: '1 minute'
+
+        document_upload:
+            policy: 'sliding_window'
+            limit: 1000
+            interval: '1 minute'
+
+        # La exportación SÍ se deja con su límite real (5 por minuto): es lo
+        # que hace falta para probar el 429 de verdad, con el limitador de
+        # Symfony y no con un doble. La clave es el identificador de la
+        # organización, que es único en cada test, así que las pruebas no se
+        # pisan entre sí.
+        privacy_export:
+            policy: 'sliding_window'
+            limit: 5
+            interval: '1 minute'
+
+        # Limitador exclusivo de los tests: sirve para comprobar la puerta de
+        # frecuencia (`RateLimitGuard`) con un número de huecos conocido.
+        # No existe en producción; si algún código lo usara, fallaría.
+        test_gate:
+            policy: 'sliding_window'
+            limit: 3
+            interval: '1 hour'

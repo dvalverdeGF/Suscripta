@@ -77,4 +77,31 @@ final class NotificationRepository extends DoctrineRepository implements Notific
     {
         $this->persist($notification, $flush);
     }
+
+    public function removeForOrganization(Uuid $organizationId): int
+    {
+        return (int) $this->entityManager
+            ->createQueryBuilder()
+            ->delete(Notification::class, 'n')
+            ->where('n.organizationId = :organizationId')
+            ->setParameter('organizationId', $organizationId)
+            ->getQuery()
+            ->execute();
+    }
+
+    public function findAllForOrganization(Uuid $organizationId): array
+    {
+        /** @var list<Notification> $notifications */
+        $notifications = $this->entityManager
+            ->createQueryBuilder()
+            ->select('n')
+            ->from(Notification::class, 'n')
+            ->where('n.organizationId = :organizationId')
+            ->setParameter('organizationId', $organizationId)
+            ->orderBy('n.createdAt', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $notifications;
+    }
 }

@@ -6,6 +6,7 @@ namespace App\Identity\Domain\Repository;
 
 use App\Identity\Domain\Entity\Organization;
 use App\Identity\Domain\Entity\User;
+use DateTimeImmutable;
 use Symfony\Component\Uid\Uuid;
 
 interface OrganizationRepositoryInterface
@@ -34,9 +35,14 @@ interface OrganizationRepositoryInterface
     /**
      * Personas que pertenecen a una organización, con su rol.
      *
-     * @return list<array{user: User, role: \App\Identity\Domain\Enum\OrganizationRole}>
+     * @return list<array{user: User, role: \App\Identity\Domain\Enum\OrganizationRole, joinedAt: DateTimeImmutable}>
      */
     public function findMembers(Uuid $organizationId): array;
 
     public function save(Organization $organization, bool $flush = true): void;
+
+    /**
+     * Elimina una organización y, en cascada, sus membresías.
+     */
+    public function remove(Organization $organization, bool $flush = true): void;
 }

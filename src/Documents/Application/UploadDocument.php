@@ -16,6 +16,11 @@ use App\Shared\Domain\Enum\AuditAction;
 use App\Shared\Domain\Exception\InvalidArgumentException;
 
 use function bin2hex;
+
+use const FILEINFO_MIME_TYPE;
+
+use finfo;
+
 use function hash;
 use function in_array;
 use function intdiv;
@@ -61,6 +66,47 @@ final readonly class UploadDocument
     ];
 
     private const MAX_SIZE_BYTES = 20 * 1024 * 1024;
+
+    /**
+     * Contenidos que no se aceptan aunque el fichero se anuncie como PDF.
+     *
+     * El tipo que llega con el fichero no es de fiar: lo decide quien lo
+     * envia. Lo que no se puede falseificar tan facilmente es lo que el
+     * contenido **parece** ser (su "firma"), asi que es eso lo que se
+     * comprueba. Un HTML o un ejecutable renombrado a `.pdf` entra por la
+     * lista blanca de tipos, pero se delata aqui.
+     *
+     * La lista es de contenido peligroso, no de contenido permitido: el
+     * detector de tipos es basto (un CSV puede salir como `text/plain` o como
+     * `text/csv` segun el fichero) y una lista blanca de detecciones
+     * rechazaria documentos legitimos. Lo que no puede colarse es codigo.
+     */
+    private const DANGEROUS_CONTENT_TYPES = [
+        'text/html',
+        'application/xhtml+xml',
+        'text/x-php',
+        'application/x-php',
+        'application/x-httpd-php',
+        'text/x-shellscript',
+        'application/x-sh',
+        'application/x-csh',
+        'application/javascript',
+        'text/javascript',
+        'application/x-javascript',
+        'application/x-executable',
+        'application/x-mach-binary',
+        'application/x-elf',
+        'application/x-msdownload',
+        'application/vnd.microsoft.portable-executable',
+        'application/java-archive',
+        'application/x-java-archive',
+        'application/x-sharedlib',
+        'application/x-object',
+        'application/x-coredump',
+        'text/x-perl',
+        'text/x-python',
+        'text/x-ruby',
+    ];
 
     public function __construct(
         private DocumentRepositoryInterface $documents,
@@ -145,9 +191,43 @@ final readonly class UploadDocument
             throw new InvalidArgumentException(sprintf('El documento supera el tamaño máximo de %d MB.', intdiv(self::MAX_SIZE_BYTES, 1024 * 1024)));
         }
 
-        if (!in_array(strtolower($upload->mimeType), self::ALLOWED_MIME_TYPES, true)) {
+        $declared = strtolower($upload->mimeType);
+
+        if (!in_array($declared, self::ALLOWED_MIME_TYPES, true)) {
             throw new InvalidArgumentException(sprintf('No aceptamos ficheros de tipo "%s".', $upload->mimeType));
         }
+
+        $this->assertContentIsSafe($upload->contents);
+    }
+
+    /**
+     * El contenido no puede ser codigo, diga lo que diga su nombre.
+     *
+     * Los documentos se sirven despues como descarga con `nosniff`, pero
+     * Preferimos no guardar el problema: un HTML o un script dentro del
+     * almacenamiento es un accidente esperando a que alguien lo abra en el
+     * navegador.
+     */
+    private function assertContentIsSafe(string $contents): void
+    {
+        $detected = strtolower($this->detectMimeType($contents));
+
+        if (in_array($detected, self::DANGEROUS_CONTENT_TYPES, true)) {
+            throw new InvalidArgumentException(sprintf('El contenido del fichero parece ser "%s" y no aceptamos ese tipo de contenido.', $detected));
+        }
+    }
+
+    private function detectMimeType(string $contents): string
+    {
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+
+        $detected = $finfo->buffer($contents);
+
+        if (false === $detected || '' === $detected) {
+            return 'application/octet-stream';
+        }
+
+        return $detected;
     }
 
     /**

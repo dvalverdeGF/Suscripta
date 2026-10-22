@@ -85,4 +85,24 @@ final class InMemoryExtractionCacheRepository implements ExtractionCacheReposito
     {
         return array_values($this->entries);
     }
+
+    public function purgeStale(DateTimeImmutable $threshold, int $limit = 500): int
+    {
+        $removed = 0;
+
+        foreach ($this->entries as $key => $entry) {
+            if ($entry->getLastUsedAt() >= $threshold) {
+                continue;
+            }
+
+            unset($this->entries[$key]);
+            ++$removed;
+
+            if ($removed >= $limit) {
+                break;
+            }
+        }
+
+        return $removed;
+    }
 }

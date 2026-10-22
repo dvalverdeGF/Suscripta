@@ -51,4 +51,32 @@ interface MailboxKnowledgeRepositoryInterface
     public function flush(): void;
 
     public function remove(MailboxKnowledgeEntry $entry, bool $flush = true): void;
+
+    /**
+     * Borra el conocimiento aprendido de una cuenta de correo.
+     *
+     * @return int número de entradas eliminadas
+     */
+    public function removeForAccount(Uuid $emailAccountId): int;
+
+    /**
+     * Borra todo el conocimiento aprendido de una organización.
+     *
+     * @return int número de entradas eliminadas
+     */
+    public function removeForOrganization(Uuid $organizationId): int;
+
+    /**
+     * Poda las entradas que no se han usado desde hace tiempo.
+     *
+     * @return int número de entradas eliminadas
+     */
+    public function pruneUnusedBefore(DateTimeImmutable $olderThan, int $limit = 500): int;
+
+    /**
+     * Todo el conocimiento aprendido de una organización concreta.
+     *
+     * @return list<MailboxKnowledgeEntry>
+     */
+    public function findForOrganization(Uuid $organizationId): array;
 }

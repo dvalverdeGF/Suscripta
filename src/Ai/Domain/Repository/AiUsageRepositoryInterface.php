@@ -6,6 +6,7 @@ namespace App\Ai\Domain\Repository;
 
 use App\Ai\Domain\Entity\AiUsage;
 use App\Shared\Domain\ValueObject\DateRange;
+use DateTimeImmutable;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -70,4 +71,25 @@ interface AiUsageRepositoryInterface
      * @return array<string, int> valor del nivel => duración media
      */
     public function durationByTier(Uuid $organizationId, DateRange $period): array;
+
+    /**
+     * Borra todo el registro de uso de IA de una organización.
+     *
+     * @return int número de registros eliminados
+     */
+    public function removeForOrganization(Uuid $organizationId): int;
+
+    /**
+     * Purga los registros de uso anteriores al umbral.
+     *
+     * @return int número de registros eliminados
+     */
+    public function purgeOlderThan(DateTimeImmutable $threshold, int $limit = 1000): int;
+
+    /**
+     * Todo el historial de consumo de una organización concreta.
+     *
+     * @return list<AiUsage>
+     */
+    public function findForOrganization(Uuid $organizationId): array;
 }

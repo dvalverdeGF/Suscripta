@@ -6,17 +6,20 @@ namespace App\Tests\Unit\Mailbox\Application;
 
 use App\Mailbox\Application\DeleteEmailAccount;
 use App\Mailbox\Application\DisconnectEmailAccount;
+use App\Mailbox\Application\MailboxKnowledgeCleanerInterface;
 use App\Mailbox\Domain\Entity\EmailAccount;
 use App\Mailbox\Domain\Entity\EmailMessage;
 use App\Mailbox\Domain\Entity\EmailSyncCursor;
 use App\Mailbox\Domain\Enum\EmailAccountStatus;
 use App\Mailbox\Domain\Enum\ImapEncryption;
+use App\Mailbox\Domain\Repository\EmailSyncRunRepositoryInterface;
 use App\Shared\Application\Audit\AuditLoggerInterface;
 use App\Shared\Application\Clock;
 use App\Shared\Domain\Enum\AuditAction;
 use App\Tests\Support\Mailbox\InMemoryEmailAccountRepository;
 use App\Tests\Support\Mailbox\InMemoryEmailMessageRepository;
 use App\Tests\Support\Mailbox\InMemoryEmailSyncCursorRepository;
+use App\Tests\Support\Mailbox\InMemoryMessageProcessingEventRepository;
 use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -48,6 +51,12 @@ final class EmailAccountRemovalTest extends TestCase
 
     private InMemoryEmailSyncCursorRepository $cursors;
 
+    private InMemoryMessageProcessingEventRepository $events;
+
+    private EmailSyncRunRepositoryInterface&MockObject $runs;
+
+    private MailboxKnowledgeCleanerInterface&MockObject $knowledge;
+
     private AuditLoggerInterface&MockObject $audit;
 
     /** @var list<AuditAction> */
@@ -59,8 +68,19 @@ final class EmailAccountRemovalTest extends TestCase
         $this->accounts = new InMemoryEmailAccountRepository();
         $this->messages = new InMemoryEmailMessageRepository();
         $this->cursors = new InMemoryEmailSyncCursorRepository();
+        $this->events = new InMemoryMessageProcessingEventRepository();
+        $this->runs = $this->createMock(EmailSyncRunRepositoryInterface::class);
+        $this->knowledge = $this->createMock(MailboxKnowledgeCleanerInterface::class);
         $this->audit = $this->createMock(AuditLoggerInterface::class);
         $this->audited = [];
+
+        $this->runs
+            ->method('removeForAccount')
+            ->willReturn(0);
+
+        $this->knowledge
+            ->method('removeForAccount')
+            ->willReturn(0);
 
         $this->audit
             ->method('log')
@@ -122,6 +142,9 @@ final class EmailAccountRemovalTest extends TestCase
             accounts: $this->accounts,
             messages: $this->messages,
             cursors: $this->cursors,
+            runs: $this->runs,
+            events: $this->events,
+            knowledgeCleaner: $this->knowledge,
             auditLogger: $this->audit,
         );
     }
@@ -131,6 +154,10 @@ final class EmailAccountRemovalTest extends TestCase
         return new DeleteEmailAccount(
             accounts: $this->accounts,
             messages: $this->messages,
+            cursors: $this->cursors,
+            runs: $this->runs,
+            events: $this->events,
+            knowledgeCleaner: $this->knowledge,
             auditLogger: $this->audit,
             clock: new Clock(new MockClock(new DateTimeImmutable('2026-10-05 10:00:00'))),
         );

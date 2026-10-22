@@ -190,4 +190,31 @@ final class InvoiceRepository extends DoctrineRepository implements InvoiceRepos
     {
         parent::flush();
     }
+
+    public function removeForOrganization(Uuid $organizationId): int
+    {
+        return (int) $this->entityManager
+            ->createQueryBuilder()
+            ->delete(Invoice::class, 'i')
+            ->where('i.organizationId = :organizationId')
+            ->setParameter('organizationId', $organizationId)
+            ->getQuery()
+            ->execute();
+    }
+
+    public function findAllForOrganization(Uuid $organizationId): array
+    {
+        /** @var list<Invoice> $invoices */
+        $invoices = $this->entityManager
+            ->createQueryBuilder()
+            ->select('i')
+            ->from(Invoice::class, 'i')
+            ->where('i.organizationId = :organizationId')
+            ->setParameter('organizationId', $organizationId)
+            ->orderBy('i.issuedAt', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $invoices;
+    }
 }

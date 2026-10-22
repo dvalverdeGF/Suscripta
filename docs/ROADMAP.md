@@ -1032,7 +1032,7 @@ muestran como sugerencias, no como hechos.
 
 ## Fase 16 — Hardening de seguridad y RGPD
 
-> **Estado:** ⬜ Pendiente.
+> **Estado:** ✅ Completada.
 
 
 **Objetivo:** cumplir `SECURITY.md` de punta a punta.
@@ -1052,6 +1052,170 @@ muestran como sugerencias, no como hechos.
 **Verificación:** checklist de `SECURITY.md` §11 completo; exportar y borrar datos funciona;
 ningún secreto en logs.
 
+### Qué se entregó
+
+#### 1. Los tres puertos de privacidad
+
+La política de datos no puede vivir en el módulo que la usa: el borrado de una organización
+afecta a siete módulos y cada uno sabe cómo tirar sus propias filas. El patrón es el inverso
+del que se suele usar: **el módulo publica un puerto, el agregador lo llama**.
+
+| Puerto | Responsibility |
+|---|---|
+| `Shared/Application/Privacy/OrganizationDataProviderInterface` | Declarar qué datos exporta el módulo y cuántos hay. |
+| `Shared/Application/Privacy/OrganizationDataRemoverInterface` | Declarar cómo borra el módulo sus datos. |
+| `Shared/Application/Privacy/RetentionPurgerInterface` | Declarar cómo purga el módulo según antigüedad. |
+
+Cada módulo implementa los que le tocan (`src/*/Application/Privacy/`) y los agregadores de
+`src/Privacy/Application/` (`ExportOrganizationData`, `DeleteOrganizationData`,
+`PurgeExpiredData`) los coordinan. El agregador no sabe nada de los módulos: solo conoce
+los puertos. Añadir un módulo nuevo es añadir sus implementaciones, sin tocar la orquestación.
+
+#### 2. Exportación de datos
+
+`ExportOrganizationData` devuelve un `DataExport` con la lista de secciones y el número de
+elementos de cada una. La interfaz (`/privacy`) ofrece dos formatos:
+
+- **JSON** (`/privacy/export.json`) — un único documento con todas las secciones.
+- **CSV** (`/privacy/export/{seccion}.csv`) — una sección por fichero, con cabeceras y filas
+  aplanadas (los campos JSON se serializan en una celda).
+
+Ambos formats se generan en memoria; no hay exportación asíncrona porque el volumen de una
+organización (servicios, correos, documentos, alertas) cabe de sobra en el límite de memoria
+y la respuesta es inmediata.
+
+#### 3. Borrado de organización
+
+`DeleteOrganizationData` pide a cada módulo que borre sus filas y devuelve un `RemovalReport`
+con el detalle por módulo. El borrado es **completo y en cascada**: servicios, documentos y
+sus binarios, correos y eventos de procesamiento, conocimiento aprendido del buzón, propuestas,
+avisos, integraciones (credenciales), uso de IA y datos de identidad.
+
+> **El borrado se lleva la organización.** Es la única forma de que el borrado sea de verdad
+> completo: si la organización sobreviviera, sus credenciales, sus correos y sus documentos
+> seguirían siendo recuperables por un `organization_id` que ya no apunta a nada. Ver D-61.
+
+El hueco que dejó esa decisión se rellenó: un usuario al que se le borra la organización se
+queda **sin organización**, y el panel lo lleva a crear una nueva
+(`/organization/new`, `CreateOrganization` + `OrganizationFormType`). `ActiveOrganizationListener`
+cae al primer `memberships[0]` cuando la organización de la sesión ya no le pertenece, de modo
+que la aplicación nunca se queda en un estado imposible («tengo sesión pero no tengo
+organización»).
+
+#### 4. Purga por política de retención
+
+`config/packages/privacy.yaml` declara los plazos **por categoría de dato**, no por módulo, y
+`PrivacySettings` los interpreta. Los plazos:
+
+| Categoría | Plazo | Por qué |
+|---|---|---|
+| Correo (mensajes y eventos) | 365 días | Los metadatos solo sirven para reconstruir el origen de una propuesta. |
+| Documentos (binario) | 30 días | El borrado lógico deja el binario un mes por si el usuario se arrepiente. |
+| Propuestas ignoradas | 90 días | Ya están resueltas; se conservan por si se quiere revisar qué se descartó. |
+| Avisos resueltos | 365 días | Es el histórico de lo que avisó al usuario. |
+| Libro de auditoría | 730 días | Trazabilidad sin guardarlo para siempre. |
+| Uso de IA | 730 días | Los importes agregados sobreviven para las métricas. |
+| Conocimiento del buzón | 365 días | Si no se usa en un año, ya no identifica a nadie. |
+| Caché de extracción | 30 días | Solo sirve para no repetir trabajo. |
+
+`app:privacy:purge` ejecuta la purga (es idempotente) y `PurgeExpiredData` devuelve un
+`PurgeReport` con el detalle por categoría. La purga va **en tandas** (`purge_batch_size`),
+porque PostgreSQL no admite `LIMIT` en un `DELETE` y un borrado masivo bloquearía la tabla.
+
+#### 5. Cabeceras de seguridad
+
+`SecurityHeadersListener` añade en cada respuesta:
+
+| Cabecera | Valor |
+|---|---|
+| `Content-Security-Policy` | `default-src 'self'; script-src 'self' 'nonce-…'; frame-ancestors 'none'; object-src 'none'; form-action 'self'; base-uri 'self'` |
+| `X-Content-Type-Options` | `nosniff` |
+| `X-Frame-Options` | `DENY` |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` |
+| `Permissions-Policy` | `geolocation=(), microphone=(), camera=(), payment=()` |
+| `Cross-Origin-Opener-Policy` | `same-origin` |
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` (solo sobre HTTPS) |
+
+La CSP **no** usa `unsafe-inline`: cada respuesta lleva un **nonce** aleatorio
+(`SecurityHeadersListener::NONCE_ATTRIBUTE`) que la plantilla lee con la función Twig
+`csp_nonce()`. Sin nonce no hay script en línea; con nonce, solo el script de esa respuesta.
+
+> **Excepción conocida:** en modo `debug`, Symfony 8 **elimina la CSP de las páginas de error**
+> (`ErrorListener::removeCspHeader()` marca la petición con `_remove_csp_headers`). En
+> producción (`debug = false`) la CSP se mantiene también en los 404. El resto de cabeceras
+> sí se aplican en las páginas de error.
+
+#### 6. Rate limiting
+
+`RateLimitGuard` es la puerta de frecuencia compartida, con la clave **por organización**
+(para que una organización no pueda agotar el límite de otra). Los limitadores viven en
+`config/packages/rate_limiter.yaml`; los de prueba, en `config/packages/test/rate_limiter.yaml`
+(que replica los límites reales de producción en lugar de subirlos: un test que prueba un
+límite de 1000 no prueba nada).
+
+| Limitador | Dónde | Objetivo |
+|---|---|---|
+| `login` | Formulario de acceso | Frenar fuerza bruta. |
+| `password_reset` | Formulario de recuperación | Frenar spam y enumeración. |
+| `document_upload` | Subida de documentos | Frenar abuso de almacenamiento. |
+| `privacy_export` | Exportación de datos | Frenar scraping de los datos de la organización. |
+| `email_account` | Alta de cuentas de correo | Frenar abuso de credenciales IMAP. |
+
+#### 7. Validación de contenido de ficheros
+
+`UploadDocument` ya no confía en la extensión: valida el **tipo real** del fichero (magic
+bytes), el tamaño máximo y el tipo MIME permitido antes de guardarlo. Un `.php` renombrado a
+`.pdf` se rechaza.
+
+#### 8. Auditoría
+
+Las acciones sensibles (acceso, exportación, borrado, cambios de credenciales, envíos a
+proveedores de IA) escriben en el libro de auditoría (`AuditLog`), que es append-only y se
+pura por antigüedad, no por edición.
+
+### Correcciones relevantes de la fase
+
+1. **`IdentityDataProvider` reventaba con un 500.** Leía una clave `joinedAt` que la entidad
+   no tiene; la clave real es `createdAt`. El panel de privacidad fallaba al exportar.
+2. **`DataExport::rowCount()` lanzaba un `TypeError`.** Contaba filas sobre un array que ya
+   era un recuento.
+3. **El CSV no aplanaba los arrays.** Los campos JSON se escribían como `Array` en la celda.
+4. **`fputcsv()` sin `$escape`** — deprecación en PHP 8.5.
+5. **La purga de retención no purgaba nada.** Este era el fallo más grave y no lo delataba
+   ningún error: las purgas seleccionan los identificadores y los borran con
+   `DELETE ... WHERE id IN (:ids)`, y en **Doctrine ORM 3 `Query::getScalarResult()` devuelve
+   filas asociativas** (`['id' => '…']`), no una lista plana de escalares. Los identificadores
+   llegaban al `IN` como arrays, PHP convertía cada uno a la cadena `"Array"` y el `DELETE`
+   no borraba ninguna fila. Ocho repositorios afectados (correo, eventos, auditoría, uso de IA,
+   avisos, caché de extracción, conocimiento del buzón y descubrimientos): **la política de
+   retención entera era inocua**. La corrección es `getSingleColumnResult()`
+   (`HYDRATE_SCALAR_COLUMN`), y el helper `DoctrineRepository::scalarIds()` normaliza el
+   resultado a `list<string>`.
+6. **La CSP no llegaba a las páginas de login.** El layout de autenticación
+   (`templates/layout/auth.html.twig`) no carga el importmap, así que el nonce nunca se
+   generaba ahí. Ahora el nonce lo genera el listener y lo lee la plantilla cuando lo pide.
+7. **El CSRF se validaba por origen, no por token.** Con el gestor sin estado de Symfony 8,
+   el token **es** el nombre de la cookie, así que la comparación de tokens no dice nada: lo
+   que protege de verdad es `isValidOrigin()`. Los tests que fallaban de forma confusa se
+   arreglaron enviando `Origin`/`Referer` coherentes.
+
+### Verificación ejecutada al cerrar la fase
+
+| Comprobación | Resultado |
+|---|---|
+| `vendor/bin/phpunit` | ✅ 1349 tests, 4997 assertions |
+| `vendor/bin/phpstan analyse --no-progress` | ✅ 0 errores (nivel 8) |
+| `vendor/bin/php-cs-fixer fix --dry-run --diff` | ✅ 0 ficheros pendientes |
+| `bin/console lint:container` | ✅ |
+| `bin/console lint:twig templates/` | ✅ |
+| `bin/console doctrine:schema:validate` | ✅ |
+| Exportación JSON y CSV | ✅ verificado en `PrivacyPanelTest` |
+| Borrado de organización | ✅ verificado en `PrivacyPanelTest` y `PrivacyIsolationTest` |
+| Aislamiento entre organizaciones | ✅ `PrivacyIsolationTest` (4 tests) |
+| Cabeceras de seguridad | ✅ `SecurityHeadersTest` (8 tests) |
+| Rate limiting real | ✅ `RateLimitTest` (6 tests) |
+| Purga de retención effective | ✅ `RetentionPurgeTest` (6 tests, integración con la base de datos) |
+
 ## Fase 17 — Preparación SaaS
 
 > **Estado:** ⬜ Pendiente.
@@ -1069,6 +1233,29 @@ ningún secreto en logs.
 
 **Verificación:** los límites se aplican sin tocar el dominio; un backup se restaura en un
 entorno limpio.
+
+## Fase 18 — API pública
+
+> **Estado:** ⬜ Pendiente.
+
+
+**Objetivo:** que Suscripta sea **integrable en otros proyectos** que necesiten este servicio.
+
+- Autenticación por **API key** por organización (credencial revocable, con ámbito y fecha de
+  expiración), emitida desde el panel de integraciones.
+- Endpoints JSON versionados (`/api/v1/…`), documentados con OpenAPI.
+- Lectura de datos del producto: servicios, precios, próximos cobros, alertas, propuestas,
+  documentos, métricas y coste de IA.
+- Operaciones de escritura que aporten valor desde fuera: alta manual de servicio, carga de
+  documento, confirmación de propuesta, forzar sincronización.
+- Paginación, filtros, ordenación y códigos de error documentados.
+- Límites de frecuencia **por clave de API**, independientes de los del backoffice.
+- Webhooks de salida (opcional): avisar a otros sistemas de un cambio (cobro detectado, propuesta
+  creada, presupuesto de IA agotado).
+- Versión estable y política de deprecación.
+
+**Verificación:** la documentación de la API permite integrarse sin leer el código; la clave de
+API es revocable y auditable; los datos devueltos respetan el aislamiento por organización.
 
 ## Fuera del roadmap (explícitamente descartado)
 

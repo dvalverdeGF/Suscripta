@@ -176,4 +176,90 @@ final class DiscoveryRepository extends DoctrineRepository implements DiscoveryR
 
         return $evidence;
     }
+
+    public function removeForOrganization(Uuid $organizationId): int
+    {
+        $ids = $this->scalarIds($this->entityManager
+            ->createQueryBuilder()
+            ->select('d.id')
+            ->from(Discovery::class, 'd')
+            ->where('d.organizationId = :organizationId')
+            ->setParameter('organizationId', $organizationId)
+            ->getQuery()
+            ->getSingleColumnResult());
+
+        if ([] === $ids) {
+            return 0;
+        }
+
+        $this->removeEvidenceFor($ids);
+
+        return (int) $this->entityManager
+            ->createQueryBuilder()
+            ->delete(Discovery::class, 'd')
+            ->where('d.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->execute();
+    }
+
+    public function purgeIgnoredBefore(DateTimeImmutable $threshold, int $limit = 500): int
+    {
+        $ids = $this->scalarIds($this->entityManager
+            ->createQueryBuilder()
+            ->select('d.id')
+            ->from(Discovery::class, 'd')
+            ->where('d.status = :status')
+            ->andWhere('d.reviewedAt IS NOT NULL')
+            ->andWhere('d.reviewedAt < :threshold')
+            ->setParameter('status', DiscoveryStatus::IGNORED)
+            ->setParameter('threshold', $threshold)
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getSingleColumnResult());
+
+        if ([] === $ids) {
+            return 0;
+        }
+
+        $this->removeEvidenceFor($ids);
+
+        return (int) $this->entityManager
+            ->createQueryBuilder()
+            ->delete(Discovery::class, 'd')
+            ->where('d.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->execute();
+    }
+
+    /**
+     * @param list<string> $discoveryIds
+     */
+    private function removeEvidenceFor(array $discoveryIds): void
+    {
+        $this->entityManager
+            ->createQueryBuilder()
+            ->delete(DiscoveryEvidence::class, 'e')
+            ->where('e.discoveryId IN (:ids)')
+            ->setParameter('ids', $discoveryIds)
+            ->getQuery()
+            ->execute();
+    }
+
+    public function findAllForOrganization(Uuid $organizationId): array
+    {
+        /** @var list<Discovery> $discoveries */
+        $discoveries = $this->entityManager
+            ->createQueryBuilder()
+            ->select('d')
+            ->from(Discovery::class, 'd')
+            ->where('d.organizationId = :organizationId')
+            ->setParameter('organizationId', $organizationId)
+            ->orderBy('d.detectedAt', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $discoveries;
+    }
 }

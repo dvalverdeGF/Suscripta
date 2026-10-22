@@ -160,4 +160,44 @@ final class ServiceRepository extends DoctrineRepository implements ServiceRepos
             default => $qb->orderBy('s.name', 'ASC'),
         };
     }
+
+    public function removeForOrganization(Uuid $organizationId): int
+    {
+        $services = $this->entityManager
+            ->createQueryBuilder()
+            ->select('s')
+            ->from(Service::class, 's')
+            ->where('s.organizationId = :organizationId')
+            ->setParameter('organizationId', $organizationId)
+            ->getQuery()
+            ->getResult();
+
+        $removed = 0;
+
+        foreach ($services as $service) {
+            $this->delete($service, false);
+            ++$removed;
+        }
+
+        $this->flush();
+
+        return $removed;
+    }
+
+    public function findAllForOrganization(Uuid $organizationId): array
+    {
+        /** @var list<Service> $services */
+        $services = $this->entityManager
+            ->createQueryBuilder()
+            ->select('s', 'p', 'e')
+            ->from(Service::class, 's')
+            ->leftJoin('s.prices', 'p')
+            ->leftJoin('s.events', 'e')
+            ->where('s.organizationId = :organizationId')
+            ->setParameter('organizationId', $organizationId)
+            ->getQuery()
+            ->getResult();
+
+        return $services;
+    }
 }

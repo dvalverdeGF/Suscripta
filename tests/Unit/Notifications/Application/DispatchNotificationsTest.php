@@ -68,7 +68,7 @@ final class DispatchNotificationsTest extends TestCase
         $organization = new Organization('Acme', 'acme');
 
         $this->organizations->method('findMembers')->willReturn([
-            ['user' => $this->user, 'role' => OrganizationRole::OWNER],
+            ['user' => $this->user, 'role' => OrganizationRole::OWNER, 'joinedAt' => new DateTimeImmutable('2026-01-01')],
         ]);
     }
 

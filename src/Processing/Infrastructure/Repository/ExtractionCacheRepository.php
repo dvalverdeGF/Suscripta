@@ -73,4 +73,29 @@ final class ExtractionCacheRepository extends DoctrineRepository implements Extr
 
         return $entries;
     }
+
+    public function purgeStale(DateTimeImmutable $threshold, int $limit = 500): int
+    {
+        $ids = $this->scalarIds($this->entityManager
+            ->createQueryBuilder()
+            ->select('c.id')
+            ->from(ExtractionCache::class, 'c')
+            ->where('c.lastUsedAt < :threshold')
+            ->setParameter('threshold', $threshold)
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getSingleColumnResult());
+
+        if ([] === $ids) {
+            return 0;
+        }
+
+        return (int) $this->entityManager
+            ->createQueryBuilder()
+            ->delete(ExtractionCache::class, 'c')
+            ->where('c.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->execute();
+    }
 }

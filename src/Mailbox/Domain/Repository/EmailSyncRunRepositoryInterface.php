@@ -19,4 +19,11 @@ interface EmailSyncRunRepositoryInterface
     public function findRecentForAccount(Uuid $emailAccountId, int $limit = 10): array;
 
     public function save(EmailSyncRun $run, bool $flush = true): void;
+
+    /**
+     * Borra el historial de sincronización de una cuenta.
+     *
+     * @return int número de ejecuciones eliminadas
+     */
+    public function removeForAccount(Uuid $emailAccountId): int;
 }

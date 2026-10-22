@@ -64,4 +64,15 @@ final class EmailSyncRunRepository extends DoctrineRepository implements EmailSy
     {
         $this->persist($run, $flush);
     }
+
+    public function removeForAccount(Uuid $emailAccountId): int
+    {
+        return (int) $this->entityManager
+            ->createQueryBuilder()
+            ->delete(EmailSyncRun::class, 'r')
+            ->where('r.emailAccountId = :accountId')
+            ->setParameter('accountId', $emailAccountId)
+            ->getQuery()
+            ->execute();
+    }
 }

@@ -91,6 +91,7 @@ src/
 ├── Integrations/      # Integration, catálogo de integraciones, credenciales cifradas
 ├── Discovery/         # Discovery, ServiceMatcher, detección de recurrencia y de cambios
 ├── Notifications/     # Alert, Notification, NotificationPreference, canales
+├── Privacy/           # Exportación, borrado y purga por retención (Fase 16)
 └── Dashboard/         # Consultas de lectura agregadas (sin entidades propias)
 ```
 
@@ -107,6 +108,12 @@ Cada módulo que lo necesite usa:
 **Regla de dependencias:** `UI → Application → Domain`. `Infrastructure` implementa interfaces
 declaradas en `Domain`/`Application`. Un módulo nunca accede a las entidades de otro módulo
 directamente: usa su capa `Application` (casos de uso) o interfaces publicadas.
+
+**Excepción de los puertos de privacidad:** el módulo `Privacy` no es un cliente de los demás
+módulos sino su **coordinador**, y para eso los módulos publican interfaces en
+`Shared/Application/Privacy/`. La dependencia va al revés de la habitual (el consumidor
+declara el puerto, el proveedor lo implementa), y es lo que permite que borrar una
+organización traverse siete módulos sin que el agregador conozca ninguno de ellos (§15).
 
 ### 3.1 Modelo de lectura (`ServiceView`)
 
@@ -1989,3 +1996,86 @@ aviso sigue vivo.
 - **OCR en el contenedor.** Tesseract añade peso a la imagen y consumo de CPU. Mitigación:
   extensión opcional, transporte `ocr` con concurrencia muy baja y activación por
   configuración.
+
+## 15. Privacidad y retención (Fase 16)
+
+### 15.1 El patrón: puertos publicados por el módulo
+
+El borrado de una organización toca servicios, documentos, correos, propuestas, avisos,
+integraciones, uso de IA y datos de identidad. Si el agregador de borrado conociera los
+repositorios de cada módulo, cada módulo nuevo obligaría a tocar el agregador, y el
+agregador se convertiría en el punto donde se rompen las dependencias entre módulos.
+
+La solución es invertir el sentido: **cada módulo publica lo que sabe hacer**, y el
+agregador solo conoce puertos.
+
+```text
+src/Shared/Application/Privacy/
+├── OrganizationDataProviderInterface   # qué exporta el módulo y cuántas filas tiene
+├── OrganizationDataRemoverInterface   # cómo borra el módulo sus datos
+├── RetentionPurgerInterface           # cómo purga el módulo por antigüedad
+└── PrivacySettings                    # la política de retención, leída de config
+```
+
+```text
+src/<Módulo>/Application/Privacy/       # una implementación por módulo y por puerto
+src/Privacy/Application/                # los agregadores que coordinan los puertos
+├── ExportOrganizationData
+├── DeleteOrganizationData
+└── PurgeExpiredData
+```
+
+| Agregador | Puertos que usa | Devuelve |
+|---|---|---|
+| `ExportOrganizationData` | `OrganizationDataProviderInterface` | `DataExport` (secciones + recuentos) |
+| `DeleteOrganizationData` | `OrganizationDataRemoverInterface` | `RemovalReport` (detalle por módulo) |
+| `PurgeExpiredData` | `RetentionPurgerInterface` | `PurgeReport` (detalle por categoría) |
+
+La política de retención vive en `config/packages/privacy.yaml` y se interpreta en
+`PrivacySettings`. Los plazos son **por categoría de dato**, no por módulo: el correo es
+evidencia temporal y se purga antes; los servicios son el producto y sobreviven a la
+desconexión del buzón.
+
+### 15.2 El borrado se lleva la organización
+
+`DeleteOrganizationData` borra los datos **y** la organización. Es la única forma de que el
+borrado sea completo: si la organización sobreviviera, sus credenciales, sus correos y sus
+binarios seguirían siendo recuperables por un `organization_id` huérfano (D-61).
+
+El usuario al que se le borra la organización se queda **sin organización**, y el panel lo
+lleva a crear una nueva (`/organization/new`). `ActiveOrganizationListener` cae al primer
+`memberships[0]` cuando la organización de la sesión ya no le pertenece, de modo que la
+aplicación nunca queda en un estado imposible.
+
+### 15.3 Purga en tandas
+
+PostgreSQL no admite `LIMIT` en un `DELETE`, así que la purga selecciona los identificadores
+que cumplen el criterio de antigüedad y los borra con `DELETE ... WHERE id IN (:ids)`, en
+lotes de `purge_batch_size` (500 por defecto).
+
+> **Trampa de Doctrine ORM 3:** `Query::getScalarResult()` devuelve **filas asociativas**
+> (`['id' => '…']`), no una lista plana de escalares. Los identificadores deben obtenerse con
+> `getSingleColumnResult()` (`HYDRATE_SCALAR_COLUMN`) y normalizarse con
+> `DoctrineRepository::scalarIds()`, que devuelve `list<string>`. Con `getScalarResult()` el
+> `IN` recibe arrays, PHP los convierte a la cadena `"Array"` y el borrado no borra nada: el
+> fallo es silencioso. Hay un test de integración (`RetentionPurgeTest`) que lo cubre.
+
+### 15.4 Cabeceras de seguridad
+
+`SecurityHeadersListener` (en `src/Shared/UI/EventListener/`) añade la CSP con **nonce** y el
+resto de cabeceras en cada respuesta. La plantilla la lee con `csp_nonce()`
+(`src/Shared/UI/Twig/CspExtension.php`), de modo que no hay scripts en línea sin nonce y
+`unsafe-inline` no aparece en la política.
+
+En modo `debug`, Symfony 8 elimina la CSP de las **páginas de error**
+(`ErrorListener::removeCspHeader()`); en producción se mantiene. El resto de cabeceras
+(`X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, `COOP`) sí se aplican
+siempre.
+
+### 15.5 Rate limiting
+
+`RateLimitGuard` (`src/Shared/Application/RateLimit/`) es la puerta de frecuencia
+compartida. La clave es **por organización**, para que una organización no pueda agotar el
+límite de otra. Los limitadores se declaran en `config/packages/rate_limiter.yaml`; el
+entorno de test replica los límites reales de producción (`config/packages/test/rate_limiter.yaml`),
+porque un test que prueba un límite de 1000 no prueba nada.

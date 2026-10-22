@@ -208,23 +208,31 @@ desconexión del buzón.
 | Dato | Retención por defecto | Eliminación |
 |---|---|---|
 | Credenciales de correo | Mientras la cuenta esté conectada | Borrado inmediato al desconectar |
-| Metadatos de mensajes (`EmailMessage`) | 12 meses (configurable) | Purga programada |
+| Metadatos de mensajes (`EmailMessage`) | 365 días (configurable) | Purga programada |
 | Extracto de cuerpo (`bodyExcerpt`) | Solo mientras exista un descubrimiento pendiente | Borrado al resolver el descubrimiento |
-| Documentos | Hasta que el usuario los borre | Soft delete + purga física |
+| Documentos | Hasta que el usuario los borre | Soft delete + purga física a los 30 días |
 | Facturas | Mientras exista el servicio | Cascada al borrar el servicio |
 | Descubrimientos ignorados | 90 días | Purga programada |
-| Alertas resueltas | 12 meses | Purga programada |
-| `AuditLog` | 24 meses | Purga programada (append-only hasta entonces) |
-| `MessageProcessingEvent` | 12 meses | Purga programada |
-| `MailboxKnowledgeEntry` | Mientras la cuenta esté conectada | Borrado al desconectar la cuenta; poda por `lastUsedAt` |
-| `AiUsage` | 24 meses | Purga programada (agregado anonimizado se conserva para métricas) |
+| Alertas resueltas | 365 días | Purga programada |
+| `AuditLog` | 730 días | Purga programada (append-only hasta entonces) |
+| `MessageProcessingEvent` | 365 días | Purga programada |
+| `MailboxKnowledgeEntry` | Mientras la cuenta esté conectada | Borrado al desconectar la cuenta; poda a los 365 días por `lastUsedAt` |
+| `AiUsage` | 730 días | Purga programada (agregado anonimizado se conserva para métricas) |
+| Caché de extracción | 30 días | Purga programada |
 | `AiBudget` | Mientras exista la organización | Cascada al borrar la organización |
+
+Los plazos **no son constantes**: viven en `config/packages/privacy.yaml` y se interpretan en
+`PrivacySettings`, porque cambiarlos es una decisión de producto y de cumplimiento, no de
+código. La purga se ejecuta con `app:privacy:purge` (idempotente, por lotes).
 
 - **Desconectar una cuenta de correo** elimina credenciales, cursores y mensajes asociados. Los
   servicios ya confirmados **permanecen** (son datos del usuario, no del correo).
 - **Borrar la organización** elimina todos sus datos en cascada, incluidos documentos
-  almacenados.
-- **Exportación de datos** disponible (JSON/CSV) antes de cualquier borrado.
+  almacenados, **y la propia organización** (D-61): si la organización sobreviviera, sus
+  credenciales y sus binarios seguirían siendo recuperables por un `organization_id` huérfano.
+  El usuario queda sin organización y el panel lo lleva a crear una nueva.
+- **Exportación de datos** disponible (JSON/CSV) antes de cualquier borrado, con limitador de
+  frecuencia por organización (`privacy_export`).
 
 ## 7. Auditoría
 
@@ -258,10 +266,20 @@ secretos ni contenido de correo.
 - **SSRF:** las URLs de proveedores y de almacenamiento se validan contra una lista permitida.
 - **Subida de ficheros:** validación de MIME real (no solo extensión), límite de tamaño,
   almacenamiento fuera del árbol público, nombre de fichero saneado.
-- **Rate limiting:** en login, en el endpoint de conexión de correo y en las acciones de
-  sincronización manual.
-- **Cabeceras:** HSTS, `X-Content-Type-Options: nosniff`, `Referrer-Policy`,
-  `Content-Security-Policy` restrictiva.
+- **Rate limiting:** la puerta es `RateLimitGuard` y la clave es **por organización**, para que
+  una organización no pueda agotar el límite de otra. Limitadores: `login`, `password_reset`,
+  `document_upload`, `email_account` y `privacy_export`.
+- **Cabeceras:** las aplica `SecurityHeadersListener` en cada respuesta:
+  - `Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-…'; frame-ancestors
+    'none'; object-src 'none'; form-action 'self'; base-uri 'self'` — **sin `unsafe-inline`**:
+    cada respuesta lleva un nonce aleatorio que la plantilla lee con `csp_nonce()`.
+  - `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
+    `Referrer-Policy: strict-origin-when-cross-origin`,
+    `Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=()`,
+    `Cross-Origin-Opener-Policy: same-origin`.
+  - `Strict-Transport-Security: max-age=31536000; includeSubDomains`, solo sobre HTTPS.
+  - Excepción conocida: en modo `debug`, Symfony 8 elimina la CSP de las páginas de error
+    (`ErrorListener::removeCspHeader()`). En producción se mantiene.
 - **Dependencias:** Dependabot ya configurado en el repositorio; revisión de vulnerabilidades
   en CI.
 
@@ -312,3 +330,32 @@ Antes de considerar terminada cada fase del roadmap:
 - [ ] El conocimiento aprendido del buzón es editable y borrable por el usuario.
 - [ ] Ninguna afirmación de privacidad publicada supera lo que la implementación y los
       proveedores sostienen (D-25).
+
+### 11.1 Checklist de la Fase 16 (cerrada)
+
+- [x] No hay secretos en el repositorio ni en logs.
+- [x] Toda entidad nueva de negocio tiene `organization_id` y está cubierta por el filtro.
+- [x] Existe test de aislamiento para los nuevos accesos a datos (`PrivacyIsolationTest`).
+- [x] Las acciones sensibles nuevas escriben en `AuditLog`.
+- [x] Los datos nuevos tienen política de retención definida (`config/packages/privacy.yaml`).
+- [x] No se persiste contenido de correo más allá de lo estrictamente necesario.
+- [x] Las dependencias nuevas se revisan por vulnerabilidades y licencia.
+- [x] Toda llamada de IA escribe en `AiUsage` y pasa por el guard de `AiBudget` **antes** de
+      ejecutarse.
+- [x] Ningún camino del pipeline puede hacer llamadas de IA ilimitadas durante una
+      sincronización.
+- [x] Un reintento, una resincronización o un mensaje duplicado no vuelven a consumir IA
+      (caché por `contentHash`).
+- [x] La salida de IA pasa por validación (tipos, rangos, coherencia) antes de persistirse.
+- [x] El conocimiento aprendido del buzón es editable y borrable por el usuario.
+- [x] Ninguna afirmación de privacidad publicada supera lo que la implementación y los
+      proveedores sostienen (D-25).
+- [x] La exportación de datos funciona en JSON y CSV, y su frecuencia está limitada
+      (`privacy_export`).
+- [x] El borrado de organización arrastra credenciales, correo, documentos, propuestas, avisos,
+      uso de IA y la propia organización.
+- [x] La purga de retención **borra de verdad** (test de integración `RetentionPurgeTest`: un
+      fallo silencioso en el `IN` dejaría la política sin efecto).
+- [x] Las cabeceras de seguridad están activas y verificadas (`SecurityHeadersTest`).
+- [x] El rate limiting se prueba contra el limitador real de Symfony, no contra un doble
+      (`RateLimitTest`).

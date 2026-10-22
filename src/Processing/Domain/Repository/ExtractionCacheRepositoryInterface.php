@@ -38,4 +38,11 @@ interface ExtractionCacheRepositoryInterface
      * @return list<ExtractionCache>
      */
     public function findStaleBefore(DateTimeImmutable $threshold, int $limit = 500): array;
+
+    /**
+     * Purga las entradas de caché que ya no sirven.
+     *
+     * @return int número de entradas eliminadas
+     */
+    public function purgeStale(DateTimeImmutable $threshold, int $limit = 500): int;
 }

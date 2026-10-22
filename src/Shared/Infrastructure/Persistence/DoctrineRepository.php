@@ -41,4 +41,23 @@ abstract class DoctrineRepository
     {
         $this->entityManager->flush();
     }
+
+    /**
+     * Normaliza el resultado de una consulta de una sola columna en una lista
+     * de identificadores utilizable en cláusulas `IN (:ids)`.
+     *
+     * Doctrine devuelve los identificadores ya convertidos al tipo de la entidad
+     * (por ejemplo, instancias de `Uuid`), de ahí la normalización a texto.
+     *
+     * @param array<mixed> $rows
+     *
+     * @return list<string>
+     */
+    protected function scalarIds(array $rows): array
+    {
+        return array_values(array_map(
+            static fn (mixed $id): string => (string) $id,
+            $rows
+        ));
+    }
 }

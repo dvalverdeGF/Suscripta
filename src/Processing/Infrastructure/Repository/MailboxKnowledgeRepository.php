@@ -126,4 +126,67 @@ final class MailboxKnowledgeRepository extends DoctrineRepository implements Mai
     {
         $this->delete($entry, $flush);
     }
+
+    public function removeForAccount(Uuid $emailAccountId): int
+    {
+        return (int) $this->entityManager
+            ->createQueryBuilder()
+            ->delete(MailboxKnowledgeEntry::class, 'k')
+            ->where('k.emailAccountId = :accountId')
+            ->setParameter('accountId', $emailAccountId)
+            ->getQuery()
+            ->execute();
+    }
+
+    public function removeForOrganization(Uuid $organizationId): int
+    {
+        return (int) $this->entityManager
+            ->createQueryBuilder()
+            ->delete(MailboxKnowledgeEntry::class, 'k')
+            ->where('k.organizationId = :organizationId')
+            ->setParameter('organizationId', $organizationId)
+            ->getQuery()
+            ->execute();
+    }
+
+    public function pruneUnusedBefore(DateTimeImmutable $olderThan, int $limit = 500): int
+    {
+        $ids = $this->scalarIds($this->entityManager
+            ->createQueryBuilder()
+            ->select('k.id')
+            ->from(MailboxKnowledgeEntry::class, 'k')
+            ->where('k.lastUsedAt IS NULL OR k.lastUsedAt < :olderThan')
+            ->setParameter('olderThan', $olderThan)
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getSingleColumnResult());
+
+        if ([] === $ids) {
+            return 0;
+        }
+
+        return (int) $this->entityManager
+            ->createQueryBuilder()
+            ->delete(MailboxKnowledgeEntry::class, 'k')
+            ->where('k.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->execute();
+    }
+
+    public function findForOrganization(Uuid $organizationId): array
+    {
+        /** @var list<MailboxKnowledgeEntry> $entries */
+        $entries = $this->entityManager
+            ->createQueryBuilder()
+            ->select('k')
+            ->from(MailboxKnowledgeEntry::class, 'k')
+            ->where('k.organizationId = :organizationId')
+            ->setParameter('organizationId', $organizationId)
+            ->orderBy('k.createdAt', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $entries;
+    }
 }

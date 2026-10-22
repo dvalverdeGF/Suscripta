@@ -8,6 +8,7 @@ use App\Documents\Domain\Entity\Document;
 use App\Documents\Domain\Enum\DocumentType;
 use App\Documents\Domain\Repository\DocumentRepositoryInterface;
 use App\Shared\Infrastructure\Persistence\DoctrineRepository;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -159,5 +160,46 @@ final class DocumentRepository extends DoctrineRepository implements DocumentRep
     public function flush(): void
     {
         parent::flush();
+    }
+
+    public function findSoftDeletedBefore(DateTimeImmutable $threshold, int $limit = 500): array
+    {
+        return $this->entityManager
+            ->createQueryBuilder()
+            ->select('d')
+            ->from(Document::class, 'd')
+            ->where('d.deletedAt IS NOT NULL')
+            ->andWhere('d.deletedAt < :threshold')
+            ->setParameter('threshold', $threshold)
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function removeForOrganization(Uuid $organizationId): int
+    {
+        return (int) $this->entityManager
+            ->createQueryBuilder()
+            ->delete(Document::class, 'd')
+            ->where('d.organizationId = :organizationId')
+            ->setParameter('organizationId', $organizationId)
+            ->getQuery()
+            ->execute();
+    }
+
+    public function findAllForOrganization(Uuid $organizationId): array
+    {
+        /** @var list<Document> $documents */
+        $documents = $this->entityManager
+            ->createQueryBuilder()
+            ->select('d')
+            ->from(Document::class, 'd')
+            ->where('d.organizationId = :organizationId')
+            ->setParameter('organizationId', $organizationId)
+            ->orderBy('d.createdAt', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $documents;
     }
 }

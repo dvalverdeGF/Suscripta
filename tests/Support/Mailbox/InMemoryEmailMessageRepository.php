@@ -269,4 +269,40 @@ final class InMemoryEmailMessageRepository implements EmailMessageRepositoryInte
 
         return $removed;
     }
+
+    public function removeForOrganization(Uuid $organizationId): int
+    {
+        $removed = 0;
+
+        foreach ($this->messages as $key => $message) {
+            if (!$message->getOrganizationId()->equals($organizationId)) {
+                continue;
+            }
+
+            unset($this->messages[$key]);
+            ++$removed;
+        }
+
+        return $removed;
+    }
+
+    public function purgeOlderThan(DateTimeImmutable $threshold, int $limit = 500): int
+    {
+        $removed = 0;
+
+        foreach ($this->messages as $key => $message) {
+            if ($message->getCreatedAt() >= $threshold) {
+                continue;
+            }
+
+            unset($this->messages[$key]);
+            ++$removed;
+
+            if ($removed >= $limit) {
+                break;
+            }
+        }
+
+        return $removed;
+    }
 }

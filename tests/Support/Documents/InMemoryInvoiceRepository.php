@@ -8,6 +8,7 @@ use App\Documents\Domain\Entity\Invoice;
 use App\Documents\Domain\Enum\InvoiceStatus;
 use App\Documents\Domain\Repository\InvoiceRepositoryInterface;
 
+use function array_filter;
 use function array_values;
 use function count;
 
@@ -136,5 +137,32 @@ final class InMemoryInvoiceRepository implements InvoiceRepositoryInterface
     public function all(): array
     {
         return array_values($this->invoices);
+    }
+
+    public function removeForOrganization(Uuid $organizationId): int
+    {
+        $removed = 0;
+
+        foreach ($this->invoices as $key => $invoice) {
+            if (!$invoice->getOrganizationId()->equals($organizationId)) {
+                continue;
+            }
+
+            unset($this->invoices[$key]);
+            ++$removed;
+        }
+
+        return $removed;
+    }
+
+    /**
+     * @return list<Invoice>
+     */
+    public function findAllForOrganization(Uuid $organizationId): array
+    {
+        return array_values(array_filter(
+            $this->invoices,
+            static fn (Invoice $invoice): bool => $invoice->getOrganizationId()->equals($organizationId),
+        ));
     }
 }

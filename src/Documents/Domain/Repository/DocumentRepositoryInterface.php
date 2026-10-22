@@ -6,6 +6,7 @@ namespace App\Documents\Domain\Repository;
 
 use App\Documents\Domain\Entity\Document;
 use App\Documents\Domain\Enum\DocumentType;
+use DateTimeImmutable;
 use Symfony\Component\Uid\Uuid;
 
 interface DocumentRepositoryInterface
@@ -51,4 +52,32 @@ interface DocumentRepositoryInterface
     public function remove(Document $document, bool $flush = true): void;
 
     public function flush(): void;
+
+    /**
+     * Documentos marcados como borrados antes del umbral (porOrganization).
+     *
+     * La purga física necesita la clave de almacenamiento para borrar también
+     * el binario, así que se devuelven las entidades y no solo un recuento.
+     *
+     * @return list<Document>
+     */
+    public function findSoftDeletedBefore(DateTimeImmutable $threshold, int $limit = 500): array;
+
+    /**
+     * Borra definitivamente los documentos marcados como borrados.
+     *
+     * @return int número de documentos eliminados
+     */
+    public function removeForOrganization(Uuid $organizationId): int;
+
+    /**
+     * Todos los documentos de una organización concreta.
+     *
+     * A diferencia de `findForOrganization()`, que usa la organización activa
+     * del contexto, este método toma la organización como dato: lo necesitan
+     * la exportación de datos y la purga.
+     *
+     * @return list<Document>
+     */
+    public function findAllForOrganization(Uuid $organizationId): array;
 }

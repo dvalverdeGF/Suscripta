@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Discovery\Application;
 use App\Catalog\Domain\Entity\Provider;
 use App\Catalog\Domain\Repository\ProviderRepositoryInterface;
 use App\Discovery\Application\BatchReviewDiscoveries;
+use App\Discovery\Application\ClearSourceExcerpt;
 use App\Discovery\Application\ConfirmDiscovery;
 use App\Discovery\Application\DismissDiscovery;
 use App\Discovery\Domain\Entity\Discovery;
@@ -223,6 +224,7 @@ final class BatchReviewDiscoveriesTest extends TestCase
             $this->auditLogger,
             $clock,
             new LearnFromConfirmation($messages, $learnFromMessage),
+            new ClearSourceExcerpt($messages),
         );
 
         $dismissDiscovery = new DismissDiscovery(
@@ -231,6 +233,7 @@ final class BatchReviewDiscoveriesTest extends TestCase
             $this->auditLogger,
             $clock,
             new LearnFromDismissal($messages, new RecordSenderRejection($knowledgeEntries, $clock)),
+            new ClearSourceExcerpt($messages),
         );
 
         return new BatchReviewDiscoveries(

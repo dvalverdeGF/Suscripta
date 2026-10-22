@@ -105,6 +105,7 @@ final class OrganizationRepository extends DoctrineRepository implements Organiz
             static fn (Membership $membership): array => [
                 'user' => $membership->getUser(),
                 'role' => $membership->getRole(),
+                'joinedAt' => $membership->getCreatedAt(),
             ],
             $memberships,
         );
@@ -113,5 +114,10 @@ final class OrganizationRepository extends DoctrineRepository implements Organiz
     public function save(Organization $organization, bool $flush = true): void
     {
         $this->persist($organization, $flush);
+    }
+
+    public function remove(Organization $organization, bool $flush = true): void
+    {
+        $this->delete($organization, $flush);
     }
 }

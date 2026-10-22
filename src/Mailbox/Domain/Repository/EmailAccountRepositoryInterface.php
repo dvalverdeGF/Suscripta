@@ -41,4 +41,22 @@ interface EmailAccountRepositoryInterface
     public function save(EmailAccount $account, bool $flush = true): void;
 
     public function remove(EmailAccount $account, bool $flush = true): void;
+
+    /**
+     * Borra todas las cuentas de correo de una organización.
+     *
+     * @return int número de cuentas eliminadas
+     */
+    public function removeForOrganization(Uuid $organizationId): int;
+
+    /**
+     * Todas las cuentas de correo de una organización concreta.
+     *
+     * A diferencia de `findForOrganization()`, que usa la organización activa
+     * del contexto, este método toma la organización como dato: lo necesitan
+     * la exportación de datos y el borrado en cascada.
+     *
+     * @return list<EmailAccount>
+     */
+    public function findAllForOrganization(Uuid $organizationId): array;
 }

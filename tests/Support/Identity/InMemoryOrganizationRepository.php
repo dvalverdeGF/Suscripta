@@ -8,6 +8,7 @@ use App\Identity\Domain\Entity\Organization;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Enum\OrganizationRole;
 use App\Identity\Domain\Repository\OrganizationRepositoryInterface;
+use DateTimeImmutable;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -66,15 +67,36 @@ final class InMemoryOrganizationRepository implements OrganizationRepositoryInte
     }
 
     /**
-     * @return list<array{user: User, role: OrganizationRole}>
+     * @return list<array{user: User, role: OrganizationRole, joinedAt: DateTimeImmutable}>
      */
     public function findMembers(Uuid $organizationId): array
     {
-        return [];
+        $organization = $this->find($organizationId);
+
+        if (null === $organization) {
+            return [];
+        }
+
+        $members = [];
+
+        foreach ($organization->getMemberships() as $membership) {
+            $members[] = [
+                'user' => $membership->getUser(),
+                'role' => $membership->getRole(),
+                'joinedAt' => $membership->getCreatedAt(),
+            ];
+        }
+
+        return $members;
     }
 
     public function save(Organization $organization, bool $flush = true): void
     {
         $this->organizations[$organization->getId()->toRfc4122()] = $organization;
+    }
+
+    public function remove(Organization $organization, bool $flush = true): void
+    {
+        unset($this->organizations[$organization->getId()->toRfc4122()]);
     }
 }

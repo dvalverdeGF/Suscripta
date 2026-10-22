@@ -1827,3 +1827,120 @@ ordenada de ids) y `findByDedupKey()` busca en **cualquier** estado, así que un
 usuario descartó no vuelve a aparecer. Los umbrales que decide qué es una sospecha viven en la
 configuración (`config/packages/discovery.yaml` → `ChangeSettings`) y no en el código, porque
 cambiarlos cambia lo que el usuario ve, y eso se decide con el producto al lado.
+
+## D-61 — Borrar la organización se lleva la organización
+
+**Contexto.** El derecho de supresión del RGPD dice que los datos personales se borran cuando
+el usuario lo pide. En Suscripta hay una decisión debajo de esa: **¿se borran los datos de la
+organización o se borra la organización?**
+
+La tentación es borrar solo los datos y dejar la organización vacía. Conserva la cuenta del
+usuario, el plan, los ajustes y la facturación, y parece menos agresivo.
+
+El problema es que «los datos de la organización» incluyen cosas que **no se pueden dejar
+colgadas de un `organization_id` huérfano**: las credenciales cifradas de las cuentas de
+correo, los binarios de los documentos, los extractos de cuerpo, el conocimiento aprendido del
+buzón y los registros de uso de IA. Si la organización sobrevive al borrado, todo eso sigue ahí,
+se puede recuperar por consulta directa y el derecho de supresión no se ha cumplido: solo se
+ha hecho invisible en la interfaz.
+
+**Decisión.** `DeleteOrganizationData` borra los datos **y la organización**. El usuario se
+queda sin organización, y el panel lo lleva a crear una nueva (`/organization/new`,
+`CreateOrganization`). `ActiveOrganizationListener` cae al primer `memberships[0]` cuando la
+organización de la sesión ya no le pertenece, de modo que la aplicación nunca queda en un
+estado imposible («tengo sesión pero no tengo organización»).
+
+El borrado es **completo y en cascada**: servicios, documentos y sus binarios, correos y
+eventos de procesamiento, conocimiento del buzón, propuestas, avisos, integraciones
+(credenciales), uso de IA y datos de identidad. La exportación de datos (JSON/CSV) está
+disponible **antes** del borrado, con limitador de frecuencia por organización.
+
+**Alternativas.**
+
+- *Borrar solo los datos y dejar la organización.* Descartado: deja credenciales y binarios
+  recuperables bajo un identificador que ya no apunta a nada, y el «borrado» solo sería cierto
+  en la interfaz.
+- *Conservar los datos agregados (importes, conteos) para métricas.* Descartado: se conservan
+  los **importes agregados de uso de IA**, que no son personales y sí sirven para las métricas
+  del panel. Las filas de detalle sí se borran.
+- *Reclamar la organización si el usuario tiene otras.* Descartado: complica el modelo de
+  pertenencias sin ganar nada. Crear una organización nueva es una acción de un clic.
+
+**Consecuencias.** El borrado es irreversible y no admite «deshacer»: es lo que corresponde a
+una supresión, y el usuario tiene la exportación por delante. La creación de una organización
+pasa a ser una pantalla de primer nivel (no un caso raro), con su propio caso de uso, su
+formulario y su entrada en la navegación. La auditoría registra la supresión con su detalle
+por módulo (`RemovalReport`).
+
+## D-62 — La política de retención se configura por categoría de dato
+
+**Contexto.** Cada módulo tiene datos con sensibilidades distintas: el correo es evidencia
+temporal, los servicios son el producto, el libro de auditoría es trazabilidad, la caché de
+extracción es un simple ahorro de trabajo. Retenerlos todos igual, o borrar todos por el mismo
+plazo, es incorrecto o inútil.
+
+La otra tentación es dejar los plazos como constantes en el código de cada módulo. Entonces
+cambiar un plazo es un despliegue, y el plazo es una decisión de **producto y de cumplimiento**,
+no de implementación: hay que poder cambiarlo sin tocar código y sin auditar un diff de PHP.
+
+**Decisión.** Los plazos viven en `config/packages/privacy.yaml` y se interpretan en
+`PrivacySettings`. Se declaran **por categoría de dato**, no por módulo, porque lo que
+expira es la naturaleza del dato (evidencia temporal, producto, trazabilidad, caché), no el
+módulo donde vive.
+
+| Categoría | Plazo |
+|---|---|
+| Correo (mensajes y eventos de procesamiento) | 365 días |
+| Documentos (binario tras el borrado lógico) | 30 días |
+| Propuestas ignoradas | 90 días |
+| Avisos resueltos | 365 días |
+| Libro de auditoría | 730 días |
+| Uso de IA | 730 días |
+| Conocimiento del buzón | 365 días |
+| Caché de extracción | 30 días |
+
+**Alternativas.**
+
+- *Constantes en el código.* Descartado: cambia la política de retención exige un despliegue.
+- *Un plazo único para todo.* Descartado: o se purga antes de tiempo (se pierde trazabilidad) o
+  se conserva demasiado (no se cumple la política).
+- *Plazos por módulo.* Descartado: el mismo tipo de dato (los correos) vive en dos módulos y
+  tendría dos plazos, que divergirían.
+
+**Consecuencias.** La purga se ejecuta con `app:privacy:purge`, es idempotente y va en lotes
+(PostgreSQL no admite `LIMIT` en un `DELETE`). Cada categoría tiene su propio purger
+(`RetentionPurgerInterface`), así que añadir una categoría nueva es añadir un purger, no tocar
+la orquestación.
+
+## D-63 — Los módulos publican puertos de privacidad; el agregador no los conoce
+
+**Contexto.** Borrar una organización o exportar sus datos afecta a siete módulos. La
+implementación ingenua sería que el agregador (`src/Privacy/Application/`) importara los
+repositorios de cada módulo: sería el módulo más dependiente del sistema, y cada módulo
+nuevo obligaría a tocar el agregador.
+
+**Decisión.** Se invierte el sentido de la dependencia: **el consumidor declara el puerto y el
+proveedor lo implementa**. Los tres puertos viven en `src/Shared/Application/Privacy/`:
+
+- `OrganizationDataProviderInterface` — qué exporta el módulo y cuántas filas tiene.
+- `OrganizationDataRemoverInterface` — cómo borra el módulo sus datos.
+- `RetentionPurgerInterface` — cómo purga el módulo por antigüedad.
+
+Cada módulo implementa los que le tocan en `src/<Módulo>/Application/Privacy/`, y los
+agregadores (`ExportOrganizationData`, `DeleteOrganizationData`, `PurgeExpiredData`) solo
+conocen los puertos.
+
+**Alternativas.**
+
+- *El agregador importa los repositorios.* Descartado: crea un nodo que depende de todos los
+  módulos y que hay que tocar cada vez que se añade uno.
+- *Un evento de dominio «borrar organización» al que cada módulo se suscriba.* Descartado:
+  introduce orden de ejecución implícito y difficulta de garantizar que todos los
+  suscriptores se han ejecutado (y que han terminado) antes de responder.
+- *Un servicio de dominio gigante con un método por módulo.* Descartado: es el mismo problema
+  con otro nombre.
+
+**Consecuencias.** Añadir un módulo al sistema es añadir sus implementaciones de los puertos,
+sin tocar la orquestación. El coste es que los puertos están en `Shared`, que es el módulo
+transversal: es exactamente su papel (el kernel que todos comparten), y no introduce
+dependencias entre módulos de negocio.
