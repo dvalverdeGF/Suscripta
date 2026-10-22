@@ -1,0 +1,214 @@
+{% extends 'backoffice/base.html.twig' %}
+
+{% block title %}Conocimiento del buzón — {{ account.displayName|default(account.emailAddress) }} — Suscripta{% endblock %}
+
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">Lo que sabemos de este buzón</h1>
+            <p class="bo-page-header__subtitle">
+                {{ account.displayName|default(account.emailAddress) }} · reglas aprendidas de tus correos
+            </p>
+        </div>
+        <div class="bo-page-header__actions">
+            <a class="btn btn-outline-secondary btn-sm" href="{{ path('app_mail_accounts_show', {id: account.id.toRfc4122()}) }}">Volver al buzón</a>
+        </div>
+    </div>
+
+    <div class="bo-metrics mb-4">
+        <div class="bo-metric">
+            <span class="bo-metric__label">Reglas aprendidas</span>
+            <span class="bo-metric__value">{{ total }}</span>
+            <span class="bo-metric__hint">Solo afectan a este buzón. Nada se comparte sin que lo promotes.</span>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="card-title">Cómo funciona</h2>
+        </div>
+        <div class="card-body">
+            <p class="text-muted">
+                Cada vez que leemos un correo de este buzón, anotamos lo que hemos
+                aprendido: quién es el remitente, qué tipo de documento es y cada
+                cuánto se cobra. A partir de la segunda factura del mismo
+                proveedor, esa información ya está aquí y no hace falta pagar IA
+                para volver a entenderla.
+            </p>
+            <p class="text-muted mb-0">
+                Puedes corregir cualquier regla, borrarla o escribir una nueva. Y si
+                una regla te parece lo bastante general como para que sirva en
+                otros buzones, puedes promoverla al catálogo global.
+            </p>
+        </div>
+    </div>
+
+    {% for type in types %}
+        {% set entries = grouped[type.value]|default([]) %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h2 class="card-title">{{ type.label() }}</h2>
+            </div>
+            <div class="card-body{% if entries is not empty %} p-0{% endif %}">
+                {% if entries is empty %}
+                    <p class="text-muted mb-0">Nada aprendido todavía en este buzón.</p>
+                {% else %}
+                    <div class="table-responsive">
+                        <table class="table bo-table bo-table--stack align-middle">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Valor</th>
+                                    {% if type.carriesProvider() %}
+                                        <th scope="col">Proveedor</th>
+                                    {% endif %}
+                                    {% if type.carriesDocumentType() %}
+                                        <th scope="col">Tipo de documento</th>
+                                    {% endif %}
+                                    <th scope="col">Periodicidad</th>
+                                    <th scope="col">Confianza</th>
+                                    <th scope="col">Origen</th>
+                                    <th scope="col" class="text-end">Usos</th>
+                                    <th scope="col" class="text-end">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for entry in entries %}
+                                    {% set provider = entry.providerId ? providerNames[entry.providerId.toRfc4122()]|default(null) : null %}
+                                    <tr>
+                                        <td data-label="Valor"><code>{{ entry.value }}</code></td>
+                                        {% if type.carriesProvider() %}
+                                            <td data-label="Proveedor">
+                                                {{ provider ? provider.name : 'Sin proveedor' }}
+                                            </td>
+                                        {% endif %}
+                                        {% if type.carriesDocumentType() %}
+                                            <td data-label="Tipo de documento">
+                                                {{ entry.documentType ? entry.documentType.label() : '—' }}
+                                            </td>
+                                        {% endif %}
+                                        <td data-label="Periodicidad">
+                                            {{ entry.billingPeriod ? entry.billingPeriod.label() : '—' }}
+                                        </td>
+                                        <td data-label="Confianza">
+                                            <span class="badge text-bg-{{ entry.confidence >= 80 ? 'success' : (entry.confidence >= 60 ? 'info' : 'warning') }}">
+                                                {{ entry.confidence }}%
+                                            </span>
+                                        </td>
+                                        <td data-label="Origen">
+                                            <span class="text-muted">{{ entry.source.label() }}</span>
+                                            {% if entry.isPromoted %}
+                                                <span class="badge text-bg-primary ms-1">Global</span>
+                                            {% endif %}
+                                        </td>
+                                        <td data-label="Usos" class="text-end">{{ entry.hitCount }}</td>
+                                        <td data-label="Acciones" class="text-end">
+                                            <div class="d-flex flex-wrap justify-content-end gap-1">
+                                                {% if not type.isExclusion() and type.carriesProvider() %}
+                                                    <form method="post" action="{{ path('app_mail_knowledge_ignore', {id: account.id.toRfc4122(), entryId: entry.id.toRfc4122()}) }}"
+                                                          data-controller="confirm"
+                                                          data-confirm-message-value="Dejaremos de mirar los correos de este remitente.">
+                                                        <input type="hidden" name="_token" value="{{ csrf_token('mail_knowledge_ignore_' ~ entry.id.toRfc4122()) }}">
+                                                        <button type="submit" class="btn btn-outline-secondary btn-sm">Ignorar</button>
+                                                    </form>
+                                                {% endif %}
+
+                                                {% if not entry.isPromoted and type.carriesProvider() and provider and provider.organizationId is null %}
+                                                    <form method="post" action="{{ path('app_mail_knowledge_promote', {id: account.id.toRfc4122(), entryId: entry.id.toRfc4122()}) }}"
+                                                          data-controller="confirm"
+                                                          data-confirm-message-value="Esta regla pasará a formar parte del catálogo global y la usarán otros buzones.">
+                                                        <input type="hidden" name="_token" value="{{ csrf_token('mail_knowledge_promote_' ~ entry.id.toRfc4122()) }}">
+                                                        <button type="submit" class="btn btn-outline-secondary btn-sm">Promover</button>
+                                                    </form>
+                                                {% endif %}
+
+                                                <form method="post" action="{{ path('app_mail_knowledge_delete', {id: account.id.toRfc4122(), entryId: entry.id.toRfc4122()}) }}"
+                                                      data-controller="confirm"
+                                                      data-confirm-message-value="Se eliminará esta regla del buzón.">
+                                                    <input type="hidden" name="_token" value="{{ csrf_token('mail_knowledge_delete_' ~ entry.id.toRfc4122()) }}">
+                                                    <button type="submit" class="btn btn-outline-secondary btn-sm">
+                                                        {{ type.isExclusion() ? 'Dejar de ignorar' : 'Eliminar' }}
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    {% endfor %}
+
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Añadir una regla a mano</h2>
+        </div>
+        <div class="card-body">
+            <p class="text-muted">
+                Para lo que el sistema no puede deducir. Entra con toda la
+                confianza porque la has escrito tú.
+            </p>
+
+            <form method="post" action="{{ path('app_mail_knowledge_add', {id: account.id.toRfc4122()}) }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('mail_knowledge_add_' ~ account.id.toRfc4122()) }}">
+
+                <div class="bo-form-grid">
+                    <div>
+                        <label class="form-label" for="knowledge-type">Tipo de regla</label>
+                        <select class="form-select" id="knowledge-type" name="type">
+                            {% for type in types %}
+                                <option value="{{ type.value }}">{{ type.label() }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="form-label" for="knowledge-value">Valor</label>
+                        <input class="form-control" type="text" id="knowledge-value" name="value" required
+                               placeholder="facturas@proveedor.com">
+                        <p class="form-text">
+                            Una dirección de correo, un dominio o una plantilla
+                            con <code>{fecha}</code>, <code>{n}</code> y <code>{txt}</code>.
+                        </p>
+                    </div>
+
+                    <div>
+                        <label class="form-label" for="knowledge-provider">Proveedor</label>
+                        <select class="form-select" id="knowledge-provider" name="providerId">
+                            <option value="">— Sin proveedor —</option>
+                            {% for provider in providerNames %}
+                                <option value="{{ provider.id.toRfc4122() }}">{{ provider.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="form-label" for="knowledge-document-type">Tipo de documento</label>
+                        <select class="form-select" id="knowledge-document-type" name="documentType">
+                            <option value="">— Sin especificar —</option>
+                            {% for documentType in documentTypes %}
+                                <option value="{{ documentType.value }}">{{ documentType.label() }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="form-label" for="knowledge-period">Periodicidad</label>
+                        <select class="form-select" id="knowledge-period" name="billingPeriod">
+                            <option value="">— Sin especificar —</option>
+                            {% for period in billingPeriods %}
+                                <option value="{{ period.value }}">{{ period.label() }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="d-flex flex-wrap gap-2 mt-3">
+                    <button type="submit" class="btn btn-primary">Añadir regla</button>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endblock %}

@@ -6,6 +6,7 @@ namespace App\Discovery\Application;
 
 use App\Discovery\Domain\Entity\Discovery;
 use App\Discovery\Domain\Repository\DiscoveryRepositoryInterface;
+use App\Processing\Application\Knowledge\LearnFromDismissal;
 use App\Shared\Application\Audit\AuditLoggerInterface;
 use App\Shared\Application\Clock;
 use App\Shared\Application\TenantContext;
@@ -31,6 +32,7 @@ final readonly class DismissDiscovery
         private TenantContext $tenantContext,
         private AuditLoggerInterface $auditLogger,
         private Clock $clock,
+        private LearnFromDismissal $learnFromDismissal,
     ) {
     }
 
@@ -49,6 +51,10 @@ final readonly class DismissDiscovery
         );
 
         $this->discoveries->save($discovery);
+
+        // ── Fase 13: el buzón cuenta los descartes ─────────────────────────
+        // Un descarte no basta para ignorar al remitente: hacen falta dos.
+        ($this->learnFromDismissal)($discovery);
 
         $this->auditLogger->log(
             action: AuditAction::DISCOVERY_DISMISSED,

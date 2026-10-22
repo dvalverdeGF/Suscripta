@@ -1442,3 +1442,129 @@ del gasto— consumen DTOs. La entidad `Service` queda para el módulo que la es
 **Consecuencias.** `ServiceViewRepositoryInterface` es la frontera: los controladores que solo
 leen no dependen de Doctrine. `ServiceView` es inmutable y se construye desde la entidad, de modo
 que el read model nunca escribe.
+
+## D-51 — El conocimiento del buzón manda sobre el catálogo global
+
+**Estado:** aceptada.
+
+**Contexto.** Hay dos sitios donde puede estar la información de qué proveedor es un remitente: el
+**catálogo global** (`ProviderIdentity`, compartido por todos los buzones) y el **conocimiento del
+buzón** (`MailboxKnowledgeEntry`, privado de una cuenta de correo). Los dos existen porque
+responden a preguntas distintas: el catálogo dice «este remitente es este proveedor para todo el
+mundo», y el conocimiento del buzón dice «en *mi* correo, este remitente es *este* proveedor».
+
+El conflicto es real: un usuario puede tener un correo de `facturacion@miempresa.com` que para el
+catálogo no es nadie y que en su buzón es su proveedor deIsso. O al revés: el catálogo dice que
+`newsletter@proveedor.com` es el proveedor X, y el usuario sabe que en su buzón son newsletters
+que no quiere pagar por entender.
+
+**Decisión.** Cuando ambos dicen algo y no coinciden, **manda el conocimiento del buzón**. Es el
+conocimiento más específico (está a un solo paso del correo concreto), el más reciente y el que el
+usuario puede ver y corregir en la pantalla de conocimiento. El catálogo global sigue siendo el
+punto de partida para buzones que no han aprendido nada, y para los buzones de otros usuarios.
+
+**Alternativas.**
+
+- *El catálogo global siempre gana.* Descartado: obligaría al usuario a corregir un catálogo que
+  es de todos para resolver un problema que es suyo, y no offería ninguna forma de salir de
+  ahí.
+- *Preguntar al usuario cuando chocan.* Descartado por coste: convertir cada correo ambiguo en
+  una pregunta es exactamente lo que el producto evita. El desacuerdo se resuelve solo, a favor
+  de lo específico, y el usuario puede corregirlo cuando quiera.
+- *Fusionar los dos.* Descartado: son datos de alcances distintos. Un patrón de asunto útil en un
+  buzón no es automáticamente útil en otro, y compartirlo automáticamente filtraría información
+  de un usuario a los demás.
+
+**Consecuencias.** `ResolveMailboxKnowledge` se consulta **antes** que el catálogo para el
+proveedor, el tipo de documento y la periodicidad. La promoción al catálogo global es la única
+vía para que lo aprendido de un buzón afecte a otro, y es siempre explícita (D-54).
+
+## D-52 — La palanca que más IA ahorra es la periodicidad aprendida
+
+**Estado:** aceptada.
+
+**Contexto.** El pipeline escala a IA cuando el documento no es accionable. Un documento es
+accionable cuando tiene importe y periodicidad: sin periodicidad no se puede calcular el próximo
+cobro, y sin próximo cobro el producto no tiene nada que ofrecer. Un correo de factura sin
+palabras como «mensual» o «trimestral» en el texto es, por tanto, el caso que más IA consume.
+
+**Decisión.** La periodicidad aprendida del buzón es el dato que más IA ahorra, y por eso tiene
+prioridad en la cadena de extracción:
+
+1. el **texto del correo** manda: si la DeterministicExtractor encuentra la periodicidad, esa es;
+2. si no la encuentra, se usa la **periodicidad aprendida** del buzón (`MailboxKnowledge.billingPeriod`),
+   y solo si es recurrente;
+3. solo si tampoco hay periodicidad se escala a IA.
+
+**Alternativas.**
+
+- *Usar la IA siempre que el documento no sea accionable.* Es lo que hacía el sistema antes de
+  esta fase: correcto, pero caro. Con la periodicidad aprendida, la segunda factura del mismo
+  proveedor se resuelve sin gastar un token.
+- *Aprender la periodicidad y aplicarla siempre, aunque el texto diga otra cosa.* Descartado:
+  el texto es la fuente directa y un correo puede traer un plan distinto al habitual. Lo aprendido
+  rellena huecos, no pisa lo que el correo dice.
+- *Guardar la periodicidad como un dato del servicio y no del buzón.* Descartado: el servicio es
+  la conclusión, y la conclusión puede ser incorrecta. El buzón es donde vive la observación.
+
+**Consecuencias.** La memoria de extracción (`rawSignals`) registra `billingPeriodSource:
+mailbox_knowledge` cuando el dato viene de lo aprendido, de modo que se puede medir cuánto se
+ahorra. La confianza del documento sube cuando hay periodicidad aunque el correo no se haya
+podido clasificar.
+
+## D-53 — Descartar un remitente lo excluye al segundo descarte, no al primero
+
+**Estado:** aceptada.
+
+**Contexto.** Cuando el usuario descarta una propuesta, el sistema anota que ese remitente no es
+lo que cree. Pero un solo descarte puede ser un error —una factura que se parecía a otra cosa—
+y excluir el remitente en ese momento perdería facturas reales.
+
+**Decisión.** Cada descarte **suma 30 puntos de confianza** a la regla de remitente ignorado. El
+umbral de exclusión es **60**: el primer descarte deja el remitente en Observation (60 % de
+confianza, se sigue mirando pero con|score bajo), el segundo lo excluye. El usuario puede
+excluirlo de inmediato desde la pantalla de conocimiento, donde la confianza se fija en 100.
+
+**Alternativas.**
+
+- *Excluir al primer descarte.* Descartado: castiga el error. Un solo descarte no es evidencia
+  suficiente para dejar de leer el correo de un proveedor.
+- *Excluir siempre al primer descarte pero con la regla de los dos descartes.* Lo mismo que lo
+  anterior con más pasos.
+- *No contar los descartes.* Descartado: el usuario repetiría el gesto en cada correo del mismo
+  remitente sin que el sistema aprenda nada.
+
+**Consecuencias.** `RecordSenderRejection` es idempotente en la confianza (nunca baja sola) y
+`MailboxKnowledgeEntry::excludes()` centraliza el umbral. El descarte sigue siendo reversible:
+borrar la regla de ignorado devuelve el remitente al circuito.
+
+## D-54 — Promover al catálogo global es explícito, nunca automático
+
+**Estado:** aceptada.
+
+**Contexto.** El conocimiento del buzón es privado: describes *tus* correos. El catálogo global es
+de todos. Saltar de uno a otro automáticamente filtraría información de un usuario a los demás:
+un remitente raro, una plantilla de adjunto, un dominio de una empresa concreta.
+
+**Decisión.** La promoción ocurre **solo cuando el usuario la pide**, con un botón propio en la
+pantalla de conocimiento, y con dos restricciones:
+
+- solo hacia un proveedor **global** (nunca hacia un proveedor de la organización, que es
+  privado por definición);
+- solo desde tipos que identifican a un proveedor (`sender_mapping`, `provider_hint`).
+
+Al promover se crea una `ProviderIdentity` global de tipo `SENDER` (si el valor es una dirección)
+o `DOMAIN` (si es un dominio), con origen `USER`.
+
+**Alternativas.**
+
+- *Promover automáticamente lo que se repite.* Descartado: «se repite» no significa «vale para
+  los demás», y el coste de filtrar datos entre usuarios no se puede recuperar.
+- *Un interruptor «compartir lo que aprendo».* Descartado: es la misma promoción automática con
+  un interruptor, solo que más difícil de entender.
+- *Promover hacia el catálogo de la organización.* Descartado: no es el catálogo global, y
+  mantener dos niveles de promoción multiplicaría el modelo sin necesidad.
+
+**Consecuencias.** `PromoteMailboxKnowledge` es la única puerta y rechaza con un error explícito
+lo que no cumple las reglas. Lo promovido queda marcado (`isPromoted`) y se muestra como tal en la
+pantalla, para que el usuario vea qué de lo suyo ya afecta a otros.

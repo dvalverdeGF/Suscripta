@@ -7,6 +7,7 @@ namespace App\Discovery\Application;
 use App\Discovery\Application\Dto\DiscoveryInput;
 use App\Discovery\Domain\Entity\Discovery;
 use App\Discovery\Domain\Repository\DiscoveryRepositoryInterface;
+use App\Processing\Application\Knowledge\LearnFromConfirmation;
 use App\Services\Application\CreateService;
 use App\Services\Application\Dto\ServiceInput;
 use App\Services\Domain\Entity\Service;
@@ -50,6 +51,7 @@ final readonly class ConfirmDiscovery
         private TenantContext $tenantContext,
         private AuditLoggerInterface $auditLogger,
         private Clock $clock,
+        private LearnFromConfirmation $learnFromConfirmation,
     ) {
     }
 
@@ -71,6 +73,11 @@ final readonly class ConfirmDiscovery
         );
 
         $this->discoveries->save($discovery);
+
+        // ── Fase 13: el buzón aprende de la confirmación ───────────────────
+        // Lo que el usuario ha confirmado es la mejor información que existe
+        // sobre ese remitente: su periodicidad y su proveedor son ciertos.
+        ($this->learnFromConfirmation)($discovery, $input);
 
         $this->auditLogger->log(
             action: AuditAction::DISCOVERY_CONFIRMED,

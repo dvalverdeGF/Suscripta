@@ -11,6 +11,7 @@ use App\Mailbox\Application\Imap\ImapMessageHeader;
 use App\Mailbox\Domain\Enum\ExtractionTier;
 use App\Mailbox\Domain\Enum\MessageClassification;
 use App\Processing\Domain\Dto\ExtractedDocument;
+use App\Processing\Domain\Dto\MailboxKnowledge;
 use App\Processing\Domain\Provider\ProviderMatch;
 use App\Shared\Application\Clock;
 use App\Shared\Domain\ValueObject\BillingPeriod;
@@ -80,10 +81,15 @@ final readonly class DeterministicExtractor
     }
 
     /**
-     * @param ProviderMatch|null $provider resolución ya hecha por el nivel 4, si la hay
+     * @param ProviderMatch|null    $provider  resolución ya hecha por el nivel 4, si la hay
+     * @param MailboxKnowledge|null $knowledge lo aprendido de este buzón (Fase 13)
      */
-    public function extract(ImapMessageHeader $header, string $bodyText = '', ?ProviderMatch $provider = null): ExtractedDocument
-    {
+    public function extract(
+        ImapMessageHeader $header,
+        string $bodyText = '',
+        ?ProviderMatch $provider = null,
+        ?MailboxKnowledge $knowledge = null,
+    ): ExtractedDocument {
         $haystack = trim($header->subject."\n".$bodyText);
         $signals = [];
 
@@ -115,6 +121,19 @@ final readonly class DeterministicExtractor
             $signals['billingPeriod'] = $billingPeriod->value;
         }
 
+        // La periodicidad aprendida del buzón es el dato que más IA ahorra:
+        // sin ella el documento no es accionable y hay que escalar a la IA
+        // (D-52). El texto del correo manda; lo aprendido solo rellena el hueco.
+        if (null === $billingPeriod && null !== $knowledge?->billingPeriod) {
+            $learned = $knowledge->billingPeriod;
+
+            if ($learned->isRecurring()) {
+                $billingPeriod = $learned;
+                $signals['billingPeriod'] = $billingPeriod->value;
+                $signals['billingPeriodSource'] = 'mailbox_knowledge';
+            }
+        }
+
         $classification = $this->classify($haystack);
         $knownProvider = null === $provider
             ? $this->resolveKnownProviderName($header)
@@ -128,9 +147,18 @@ final readonly class DeterministicExtractor
 
         $signals['providerKnown'] = null !== $knownProvider ? 'yes' : 'no';
 
+        $documentType = DocumentType::fromClassification($classification);
+
+        // El tipo de documento aprendido es el último recurso: solo se usa si
+        // el texto no ha permitido clasificar el correo.
+        if (MessageClassification::UNKNOWN === $classification && null !== $knowledge?->documentType) {
+            $documentType = $knowledge->documentType;
+            $signals['documentTypeSource'] = 'mailbox_knowledge';
+        }
+
         $document = new ExtractedDocument(
             tier: ExtractionTier::DETERMINISTIC,
-            confidence: $this->confidence($amount, $billingPeriod, $knownProvider, $classification),
+            confidence: $this->confidence($amount, $billingPeriod, $knownProvider, MessageClassification::UNKNOWN !== $classification || $knowledge?->documentType !== null),
             amountMinor: $amount?->amountMinor,
             currency: ($amount->currency ?? Currency::EUR)->value,
             invoiceNumber: $invoiceNumber,
@@ -140,7 +168,7 @@ final readonly class DeterministicExtractor
             sender: $header->fromAddress,
             senderDomain: $header->senderDomain(),
             subject: $header->subject,
-            documentType: DocumentType::fromClassification($classification),
+            documentType: $documentType,
             providerName: $providerName,
             serviceName: $providerName,
             renewalDate: $renewalDate,
@@ -162,7 +190,7 @@ final readonly class DeterministicExtractor
         ?Money $amount,
         ?BillingPeriod $period,
         ?string $provider,
-        MessageClassification $classification,
+        bool $classified,
     ): float {
         $score = 0.0;
 
@@ -178,7 +206,7 @@ final readonly class DeterministicExtractor
             $score += 0.20;
         }
 
-        if (MessageClassification::UNKNOWN !== $classification) {
+        if ($classified) {
             $score += 0.15;
         }
 

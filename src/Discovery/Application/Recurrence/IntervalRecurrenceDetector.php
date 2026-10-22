@@ -28,7 +28,7 @@ use function usort;
  *  1. Se ordenan los cobros por fecha y se calculan los intervalos en días.
  *  2. Cada intervalo se mapea a una periodicidad conocida (`BillingPeriod::fromDayDistance()`).
  *  3. Si **todos** los intervalos caen en la misma periodicidad, el patrón es regular.
- *  4. Si no, el cobro es irregular: se informa de la置信 baja y **no** se propone
+ *  4. Si no, el cobro es irregular: se informa de la confianza baja y **no** se propone
  *     fecha de próximo cobro (ARCHITECTURE.md §14).
  *
  * La confianza combina tres factores: que los intervalos coincidan (consistencia),

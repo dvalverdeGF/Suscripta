@@ -13,6 +13,12 @@ use App\Discovery\Domain\Entity\Discovery;
 use App\Discovery\Domain\Enum\DiscoveryStatus;
 use App\Discovery\Domain\Enum\DiscoveryType;
 use App\Discovery\Domain\Repository\DiscoveryRepositoryInterface;
+use App\Mailbox\Domain\Repository\EmailMessageRepositoryInterface;
+use App\Processing\Application\Knowledge\LearnFromConfirmation;
+use App\Processing\Application\Knowledge\LearnFromDismissal;
+use App\Processing\Application\Knowledge\LearnFromMessage;
+use App\Processing\Application\Knowledge\RecordSenderRejection;
+use App\Processing\Domain\Repository\MailboxKnowledgeRepositoryInterface;
 use App\Services\Application\CreateService;
 use App\Services\Domain\Repository\ServiceRepositoryInterface;
 use App\Shared\Application\Audit\AuditLoggerInterface;
@@ -200,6 +206,15 @@ final class BatchReviewDiscoveriesTest extends TestCase
             $this->auditLogger,
         );
 
+        $knowledgeEntries = $this->createMock(MailboxKnowledgeRepositoryInterface::class);
+        $knowledgeEntries->method('find')->willReturn(null);
+        $knowledgeEntries->method('findByValue')->willReturn(null);
+
+        $messages = $this->createMock(EmailMessageRepositoryInterface::class);
+        $messages->method('find')->willReturn(null);
+
+        $learnFromMessage = new LearnFromMessage($knowledgeEntries, $clock);
+
         $confirmDiscovery = new ConfirmDiscovery(
             $this->discoveries,
             $this->services,
@@ -207,6 +222,7 @@ final class BatchReviewDiscoveriesTest extends TestCase
             $this->tenantContext,
             $this->auditLogger,
             $clock,
+            new LearnFromConfirmation($messages, $learnFromMessage),
         );
 
         $dismissDiscovery = new DismissDiscovery(
@@ -214,6 +230,7 @@ final class BatchReviewDiscoveriesTest extends TestCase
             $this->tenantContext,
             $this->auditLogger,
             $clock,
+            new LearnFromDismissal($messages, new RecordSenderRejection($knowledgeEntries, $clock)),
         );
 
         return new BatchReviewDiscoveries(

@@ -1530,6 +1530,56 @@ añadiría opacidad, coste y riesgo.
 La curva es el argumento económico del diseño: **el coste de IA por buzón decrece**, y el
 producto se vuelve más rentable cuanto más tiempo lleva un usuario.
 
+#### Cómo se implementó (Fase 13)
+
+El conocimiento vive en `MailboxKnowledgeEntry`, en `src/Processing/Domain/Entity/`, con una fila
+por regla y por buzón:
+
+| Columna | Para qué sirve |
+|---|---|
+| `email_account_id` | El buzón. Todo el conocimiento es **por buzón**, nunca por organización. |
+| `organization_id` | El tenant, para poder filtrar sin joins. |
+| `type` | `sender_mapping`, `provider_hint`, `subject_pattern`, `document_pattern`, `ignored_sender`. |
+| `value` | El dato: una dirección, un dominio o una **expresión regular** (patrones). |
+| `provider_id` | Proveedor del catálogo, si el tipo lo lleva. |
+| `document_type` / `billing_period` | Lo que el tipo permite ascertain. |
+| `source` | `observed`, `confirmation`, `user`, `promoted`: **de dónde** se aprendió. |
+| `confidence` | 0–100. Por encima de 60, un remitente ignorado **excluye** el mensaje. |
+| `hit_count` / `last_used_at` | Para la poda. |
+| `promoted_at` | Marca de que el usuario lo ha promovido al catálogo global. |
+
+**Las piezas:**
+
+- `ResolveMailboxKnowledge` — lee el conocimiento de un buzón y produce un `MailboxKnowledge`
+  (proveedor, tipo de documento, periodicidad, reglas de exclusión). Se consulta **antes** que el
+  catálogo global (D-51).
+- `LearnFromMessage` — observa un correo ya procesado y anota lo que ha aprendido. **Reglas de
+  guarda:** las reglas de remitente y de dominio solo se aprenden si el proveedor es conocido; las
+  plantillas de asunto y de adjunto solo si el tipo de documento no es `OTHER`; como máximo tres
+  plantillas de adjunto por correo.
+- `LearnFromConfirmation` / `LearnFromDismissal` — el aprendizaje desde la acción del usuario.
+  Confirmar es autoritativo (el dato del usuario **reemplaza** al deducido); descartar suma
+  confianza al remitente ignorado (D-53).
+- `PatternTemplate` — convierte un texto en una plantilla con los huecos `{fecha}`, `{n}` y
+  `{txt}`, anchored al principio y al final. Los tokens pegados a un guion bajo (`factura_ABC123`)
+  se sustituyen igual: los límites son miradas alrededor, no `\b`.
+- `PromoteMailboxKnowledge` — la **única** vía al catálogo global (D-54).
+- `PruneMailboxKnowledge` — borra lo que no se ha usado nunca y es viejo (90 días por defecto).
+- `MailboxKnowledgeController` — la pantalla: ver, escribir, corregir, ignorar, promover y borrar.
+
+**Dónde se engancha al pipeline.** `ProcessEmailMessage` consulta el conocimiento al empezar:
+
+1. si el remitente está excluido, el mensaje **se descarta antes de descargar el cuerpo y antes de
+   llamar a la IA**;
+2. si hay proveedor aprendido, ese proveedor es el que se resuelve (D-51);
+3. la DeterministicExtractor recibe el `MailboxKnowledge` y usa la periodicidad aprendida cuando
+   el texto no la da (D-52);
+4. al terminar, `LearnFromMessage` anota lo aprendido.
+
+**El interruptor.** `config/packages/knowledge.yaml` fija la política del almacén: `stale_days` (90,
+cuánto se recuerda una entrada que nunca se ha usado) y `max_entries_per_account` (500, un seguro
+contra el ruido: un buzón con miles de remitentes ha dejado de ser un buzón de suscripciones).
+
 ### 13.13 Control de coste de IA
 
 **Es un requisito crítico, no una optimización posterior.** Sin control de coste, un buzón

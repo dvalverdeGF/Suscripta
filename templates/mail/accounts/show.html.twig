@@ -149,6 +149,23 @@
 
     <div class="card mb-4">
         <div class="card-header">
+            <h2 class="card-title">Lo que sabemos de este buzón</h2>
+        </div>
+        <div class="card-body">
+            <p class="text-muted">
+                Cada vez que leemos un correo de este buzón aprendemos de él: quién
+                es el remitente, qué tipo de documento es y cada cuánto se cobra.
+                Con esa información, los siguientes correos del mismo proveedor se
+                resuelven sin pagar IA.
+            </p>
+            <a class="btn btn-outline-secondary" href="{{ path('app_mail_knowledge_index', {id: account.id.toRfc4122()}) }}">
+                Revisar el conocimiento aprendido
+            </a>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
             <h2 class="card-title">Últimas lecturas</h2>
         </div>
         <div class="card-body{% if runs is not empty %} p-0{% endif %}">

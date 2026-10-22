@@ -17,6 +17,7 @@ use App\Mailbox\Application\Imap\ImapClientInterface;
 use App\Mailbox\Application\Imap\ImapConnectionConfig;
 use App\Mailbox\Application\Imap\ImapMessageHeader;
 use App\Mailbox\Domain\Entity\EmailMessage;
+use App\Mailbox\Domain\Enum\ExtractionTier;
 use App\Mailbox\Domain\Enum\ImapEncryption;
 use App\Mailbox\Domain\Enum\MessageClassification;
 use App\Mailbox\Domain\Enum\MessageProcessingState;
@@ -25,13 +26,19 @@ use App\Mailbox\Domain\Exception\ImapFetchException;
 use App\Mailbox\Domain\Repository\EmailAccountRepositoryInterface;
 use App\Mailbox\Domain\Repository\EmailMessageRepositoryInterface;
 use App\Processing\Application\Extraction\DeterministicExtractor;
+use App\Processing\Application\Knowledge\Dto\KnowledgeObservation;
+use App\Processing\Application\Knowledge\LearnFromMessage;
+use App\Processing\Application\Knowledge\ResolveMailboxKnowledge;
 use App\Processing\Application\Provider\ExtractWithProviderParser;
 use App\Processing\Application\Text\ExtractDocumentText;
 use App\Processing\Domain\Billing\BillingClassifierInterface;
 use App\Processing\Domain\Dto\ExtractedDocument;
+use App\Processing\Domain\Dto\MailboxKnowledge;
 use App\Processing\Domain\Dto\ServiceMatchResult;
 use App\Processing\Domain\Entity\ExtractionCache;
+use App\Processing\Domain\Enum\MailboxKnowledgeSource;
 use App\Processing\Domain\Matching\ServiceMatcherInterface;
+use App\Processing\Domain\Provider\ProviderMatch;
 use App\Processing\Domain\Provider\ProviderResolverInterface;
 use App\Processing\Domain\Repository\ExtractionCacheRepositoryInterface;
 use App\Shared\Application\Audit\AuditLoggerInterface;
@@ -103,6 +110,8 @@ final readonly class ProcessEmailMessage
         private AuditLoggerInterface $auditLogger,
         private Clock $clock,
         private AiExtractionInterface $aiExtraction,
+        private ResolveMailboxKnowledge $knowledgeResolver,
+        private LearnFromMessage $learnFromMessage,
     ) {
     }
 
@@ -133,6 +142,25 @@ final readonly class ProcessEmailMessage
         $message->beginProcessingAttempt();
 
         $header = ImapMessageHeader::fromStoredMessage($message);
+
+        // ── Conocimiento aprendido del buzón (Fase 13) ─────────────────────
+        // Se resuelve antes de todo lo demás, y a propósito: lo aprendido de
+        // este buzón es lo único que puede hacer que el mensaje **no se
+        // procese** (remitente ignorado) o que se resuelva sin pagar IA.
+        $knowledge = ($this->knowledgeResolver)($message->getEmailAccountId(), $header);
+
+        if ($knowledge->isIgnored()) {
+            $this->stateMachine->transition(
+                $message,
+                MessageProcessingState::IGNORED,
+                'El remitente está en la lista de ignorados de este buzón.',
+                data: ['knowledge' => 'ignored_sender'],
+            );
+            $message->markProcessed($this->clock->now());
+            $this->messages->save($message);
+
+            return null;
+        }
 
         // ── Nivel 2: filtro determinista, solo con metadatos ────────────────
         $score = $this->billingScore->score($header);
@@ -176,7 +204,11 @@ final readonly class ProcessEmailMessage
         // ── Nivel 4: identificación del proveedor (solo metadatos) ──────────
         // Se resuelve antes de extraer porque el nombre del proveedor forma
         // parte del resultado y porque un proveedor conocido habilita su parser.
-        $providerMatch = $this->providerResolver->resolve($header);
+        //
+        // **El conocimiento del buzón manda sobre el catálogo global**: lo que
+        // el usuario ha corregido en *este* buzón es más cierto que lo que dice
+        // el catálogo, que es compartido por todos (D-33).
+        $providerMatch = $this->resolveProvider($header, $knowledge);
 
         // La caché se consulta antes de extraer: un reenvío, un recordatorio o
         // un reintento del mismo correo no deben pagar dos veces por el mismo
@@ -188,7 +220,7 @@ final readonly class ProcessEmailMessage
             $extractorName = self::CACHE_EXTRACTOR;
         } else {
             // ── Nivel 3: extracción determinista ────────────────────────────
-            $document = $this->extractor->extract($header, $haystack, $providerMatch);
+            $document = $this->extractor->extract($header, $haystack, $providerMatch, $knowledge);
             $extractorName = $this->extractor->name();
 
             // ── Nivel 4: parser del proveedor conocido ──────────────────────
@@ -220,6 +252,13 @@ final readonly class ProcessEmailMessage
                 $extractorName = 'ai:'.$aiDocument->tier->value;
             }
         }
+
+        // ── Fase 13: aprender del buzón ────────────────────────────────────
+        // Lo que el pipeline acaba de resolver se guarda como conocimiento del
+        // buzón, para que el próximo correo del mismo remitente se resuelva sin
+        // pagar IA. Solo se aprende de extracciones con garantías: un
+        // proveedor identificado de verdad y un tipo de documento conocido.
+        $this->learn($message, $header, $providerMatch, $document);
 
         // La caché guarda el mejor documento conocido: si la IA ha completado
         // uno que el extractor determinista dejó a medias, se guarda ese.
@@ -593,6 +632,74 @@ final readonly class ProcessEmailMessage
     private function excerpt(string $body): string
     {
         return mb_substr(trim(preg_replace('/\s+/u', ' ', $body) ?? ''), 0, self::EXCERPT_LENGTH);
+    }
+
+    /**
+     * Identifica el proveedor mezclando el conocimiento del buzón con el
+     * catálogo global.
+     *
+     * Lo aprendido en *este* buzón tiene prioridad: refleja correcciones del
+     * usuario sobre su correo real, mientras que el catálogo es compartido
+     * por todos los tenants (D-51).
+     */
+    private function resolveProvider(ImapMessageHeader $header, MailboxKnowledge $knowledge): ProviderMatch
+    {
+        if ($knowledge->hasProvider()) {
+            return new ProviderMatch(
+                provider: $knowledge->provider,
+                provisionalName: null,
+                matchedBy: 'mailbox_knowledge',
+                confidence: max(70, $knowledge->confidence()),
+            );
+        }
+
+        return $this->providerResolver->resolve($header);
+    }
+
+    /**
+     * Traduce el resultado de la extracción a una observación y la guarda.
+     *
+     * Solo se aprende de resultados con garantías (D-52):
+     *  - el proveedor está identificado de verdad (no un nombre provisional);
+     *  - el tipo de documento no es "otro";
+     *  - la extracción no fue una escalada desesperada a IA avanzada.
+     *
+     * La confianza de la observación refleja el nivel de la extracción: un
+     * parser de proveedor conocido es más fiable que una IA económica.
+     */
+    private function learn(
+        EmailMessage $message,
+        ImapMessageHeader $header,
+        ProviderMatch $providerMatch,
+        ExtractedDocument $document,
+    ): void {
+        if (!$providerMatch->isKnown()) {
+            return;
+        }
+
+        if (DocumentType::OTHER === $document->documentType) {
+            return;
+        }
+
+        if (ExtractionTier::AI_ADVANCED === $document->tier) {
+            return;
+        }
+
+        $observation = new KnowledgeObservation(
+            emailAccountId: $message->getEmailAccountId(),
+            organizationId: $message->getOrganizationId(),
+            sender: $message->getFromAddress(),
+            senderDomain: $header->senderDomain(),
+            subject: $header->subject,
+            attachmentNames: $header->attachmentNames,
+            providerId: $providerMatch->providerId(),
+            documentType: $document->documentType,
+            billingPeriod: $document->billingPeriod,
+            source: MailboxKnowledgeSource::OBSERVED,
+            confidence: ExtractionTier::AI_CHEAP === $document->tier ? 60 : 80,
+        );
+
+        ($this->learnFromMessage)($observation);
     }
 
     private function classificationOf(ExtractedDocument $document): MessageClassification

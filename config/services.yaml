@@ -130,6 +130,13 @@ services:
         arguments:
             $config: '%app.discovery%'
 
+    # Los parámetros del conocimiento aprendido del buzón (Fase 13) son
+    # política de producto: config/packages/knowledge.yaml.
+    App\Processing\Application\Knowledge\KnowledgeSettings:
+        factory: ['App\Processing\Application\Knowledge\KnowledgeSettings', 'fromArray']
+        arguments:
+            $config: '%app.knowledge%'
+
     # El pipeline depende del puerto, no de la implementación: qué merece
     # analizarse es una política de producto y debe poder sustituirse sin tocar
     # el orquestador (D-31).

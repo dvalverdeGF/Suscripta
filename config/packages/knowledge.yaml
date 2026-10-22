@@ -1,0 +1,19 @@
+# Parámetros del conocimiento aprendido del buzón (ARCHITECTURE.md §13.12, Fase 13).
+#
+# El conocimiento del buzón es un almacén que crece con el uso: cada remitente
+# nuevo deja una entrada. Si no se poda, el buzón acaba teniendo cientos de
+# filas que nadie usa. Estos valores son política de producto y viven aquí para
+# poder ajustarlos sin desplegar.
+#
+# Se declaran como un bloque plano porque Symfony no resuelve el acceso a
+# claves de un array anidado (D-43): el bloque se consume entero.
+parameters:
+    app.knowledge:
+        # Días que se recuerda una entrada que nunca se ha usado. Pasado este
+        # tiempo, la poda la elimina: lo que no ha servido en tres meses no
+        # va a servir de repente.
+        stale_days: 90
+
+        # Tope de entradas por buzón. Es un seguro contra el ruido: un buzón
+        # con miles de remitentes ha dejado de ser un buzón de suscripciones.
+        max_entries_per_account: 500

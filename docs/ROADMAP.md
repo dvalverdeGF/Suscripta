@@ -740,7 +740,7 @@ proponerlo; el flujo completo funciona sin tocar la base de datos a mano.
 
 ## Fase 13 — Aprendizaje del buzón
 
-> **Estado:** ⬜ Pendiente.
+> **Estado:** ✅ Completada.
 
 
 **Objetivo:** que el coste marginal de procesar un buzón **decrezca con el tiempo**.
@@ -759,6 +759,67 @@ proponerlo; el flujo completo funciona sin tocar la base de datos a mano.
 la primera, de forma medible; corregir un proveedor hace que el siguiente correo del mismo
 remitente se resuelva sin IA; el usuario puede ver y borrar lo aprendido; un patrón aprendido en
 un buzón no afecta a otro.
+
+### Qué se entregó
+
+- **Dominio** — `MailboxKnowledgeEntry` (`src/Processing/Domain/Entity/`): una fila por regla y
+  por buzón, con tipo, valor, proveedor, tipo de documento, periodicidad, origen, confianza,
+  contador de usos y marca de promoción. Los patrones se guardan como expresiones regulares y
+  **no** se normalizan a minúsculas; el resto de valores sí.
+- **Tipos** — `MailboxKnowledgeType` (cinco tipos con sus reglas) y `MailboxKnowledgeSource`
+  (`observed`, `confirmation`, `user`, `promoted`), cada uno con su etiqueta y su confianza por
+  defecto.
+- **Lectura** — `ResolveMailboxKnowledge` devuelve un `MailboxKnowledge` con el proveedor, el tipo
+  de documento, la periodicidad y las reglas de exclusión de un buzón. Se consulta **antes** que
+  el catálogo global (D-51).
+- **Aprendizaje** — `LearnFromMessage` observa el correo ya procesado; `LearnFromConfirmation` y
+  `LearnFromDismissal` aprenden de la acción del usuario. Un dato del usuario **reemplaza** al
+  deducido; un dato deducido solo rellena huecos y nunca baja la confianza.
+- **Plantillas** — `PatternTemplate` convierte un texto en una plantilla con los huecos `{fecha}`,
+  `{n}` y `{txt}`, y la ancla al principio y al final. Los tokens pegados a un guion bajo
+  (`factura_ABC123.pdf`) también se sustituyen: los límites son miradas alrededor, no `\b`.
+- **Exclusión** — `RecordSenderRejection` suma 30 puntos de confianza por descarte; el umbral es
+  60, así que **el segundo descarte excluye** el remitente y el primero no (D-53). El usuario
+  puede excluir de inmediato desde la pantalla.
+- **Promoción** — `PromoteMailboxKnowledge` es la **única** vía al catálogo global, y solo hacia
+  un proveedor global y desde tipos que identifican a un proveedor (D-54).
+- **Poda** — `PruneMailboxKnowledge` borra lo que nunca se ha usado y es viejo (90 días), y el
+  comando `app:knowledge:prune` lo ejecuta.
+- **Pantalla** — `MailboxKnowledgeController` y `templates/mail/accounts/knowledge.html.twig`:
+  ver lo aprendido, escribir una regla a mano, corregirla, ignorarla, promoverla y borrarla.
+  Desde la pantalla del buzón hay un enlace directo.
+- **Pipeline** — `ProcessEmailMessage` descarta el mensaje **antes de descargar el cuerpo y antes
+  de llamar a la IA** si el remitente está excluido, resuelve el proveedor aprendido por encima
+  del catálogo y, al terminar, anota lo aprendido.
+- **Extractor** — `DeterministicExtractor` usa la periodicidad aprendida cuando el texto no la da:
+  es la palanca que más IA ahorra (D-52).
+- **Parámetros** — `config/packages/knowledge.yaml`: `stale_days` (90) y
+  `max_entries_per_account` (500).
+
+### Correcciones relevantes de la fase
+
+1. **La plantilla no sustituía los tokens pegados a un guion bajo.** `{txt}` usaba límites de
+   palabra (`\b`), que en `factura_ABC123.pdf` nunca se disparan, así que la plantilla aprendida
+   no casaba con el siguiente correo del mismo proveedor — justo el caso que la fase existe para
+   resolver. Ahora los límites son miradas alrededor.
+2. **La señal de periodicidad detectada se perdió.** Al meter la periodicidad aprendida se
+   sustituyó (en lugar de complementarse) el bloque que anotaba la periodicidad detectada en el
+   texto, y `rawSignals` dejó de informar de ella. Se han recuperado las dos.
+3. **La plantilla nombraba métodos que no existen.** La pantalla llamaba a `capturesProvider()` y
+   `capturesDocumentType()`; el enum expone `carriesProvider()` y `carriesDocumentType()`. La
+   pantalla se caía con un error 500 al abrirla.
+
+**Verificación ejecutada al cerrar la fase:**
+
+| Comprobación | Resultado |
+|---|---|
+| `php bin/phpunit` | ✅ 1168 tests, 4360 assertions |
+| `vendor/bin/phpstan analyse --no-progress` | ✅ 0 errores (nivel 8) |
+| `vendor/bin/php-cs-fixer fix --dry-run --diff` | ✅ 0 ficheros pendientes |
+| `bin/console lint:container` | ✅ |
+| `bin/console lint:yaml config/ --parse-tags` | ✅ |
+| `bin/console lint:twig templates/` | ✅ |
+
 
 ## Fase 14 — Control de coste de IA y observabilidad
 

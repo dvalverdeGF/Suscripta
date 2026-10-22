@@ -11,6 +11,7 @@ use App\Catalog\Domain\Entity\ProviderIdentity;
 use App\Catalog\Domain\Enum\ProviderIdentityType;
 use App\Catalog\Domain\Repository\ProviderIdentityRepositoryInterface;
 use App\Catalog\Domain\Repository\ProviderParserRepositoryInterface;
+use App\Catalog\Domain\Repository\ProviderRepositoryInterface;
 use App\Discovery\Application\DiscoverySettings;
 use App\Discovery\Domain\Entity\Discovery;
 use App\Discovery\Domain\Entity\DiscoveryEvidence;
@@ -36,6 +37,8 @@ use App\Processing\Application\Extraction\AmountParser;
 use App\Processing\Application\Extraction\DateParser;
 use App\Processing\Application\Extraction\DeterministicExtractor;
 use App\Processing\Application\Extraction\InvoiceNumberReader;
+use App\Processing\Application\Knowledge\LearnFromMessage;
+use App\Processing\Application\Knowledge\ResolveMailboxKnowledge;
 use App\Processing\Application\Matching\ServiceMatcher;
 use App\Processing\Application\Matching\ServiceMatchWeights;
 use App\Processing\Application\MessageStateMachine;
@@ -46,6 +49,7 @@ use App\Processing\Application\Provider\ProviderResolver;
 use App\Processing\Application\Text\DocumentTextExtractorRegistry;
 use App\Processing\Application\Text\ExtractDocumentText;
 use App\Processing\Domain\Dto\ExtractedDocument;
+use App\Processing\Domain\Repository\MailboxKnowledgeRepositoryInterface;
 use App\Processing\Infrastructure\Ocr\NullOcrEngine;
 use App\Processing\Infrastructure\Text\PdfTextExtractor;
 use App\Processing\Infrastructure\Text\PlainTextExtractor;
@@ -212,7 +216,34 @@ final class ProcessEmailMessageTest extends TestCase
             auditLogger: $this->audit,
             clock: $clock,
             aiExtraction: $aiExtraction ?? new NullAiExtraction(),
+            knowledgeResolver: $this->knowledgeResolver($clock),
+            learnFromMessage: $this->learnFromMessage($clock),
         );
+    }
+
+    /**
+     * El conocimiento del buzón arranca vacío: estos tests miden el pipeline,
+     * no el aprendizaje, que tiene su propia suite.
+     */
+    private function knowledgeResolver(Clock $clock): ResolveMailboxKnowledge
+    {
+        $knowledgeEntries = $this->createMock(MailboxKnowledgeRepositoryInterface::class);
+        $knowledgeEntries->method('findForAccount')->willReturn([]);
+        $knowledgeEntries->method('findByValue')->willReturn(null);
+
+        $providerRepository = $this->createMock(ProviderRepositoryInterface::class);
+        $providerRepository->method('find')->willReturn(null);
+
+        return new ResolveMailboxKnowledge($knowledgeEntries, $providerRepository, $clock);
+    }
+
+    private function learnFromMessage(Clock $clock): LearnFromMessage
+    {
+        $knowledgeEntries = $this->createMock(MailboxKnowledgeRepositoryInterface::class);
+        $knowledgeEntries->method('findForAccount')->willReturn([]);
+        $knowledgeEntries->method('findByValue')->willReturn(null);
+
+        return new LearnFromMessage($knowledgeEntries, $clock);
     }
 
     /**
@@ -583,6 +614,8 @@ final class ProcessEmailMessageTest extends TestCase
             auditLogger: $this->audit,
             clock: $clock,
             aiExtraction: new NullAiExtraction(),
+            knowledgeResolver: $this->knowledgeResolver($clock),
+            learnFromMessage: $this->learnFromMessage($clock),
         );
 
         $orchestrator($this->message('Factura', 'facturacion@desconocido.com'));
