@@ -2193,3 +2193,123 @@ La lección general: **una etiqueta que el contenedor indexa necesita su clave d
 declararla en la clase es la única forma de que no se pueda olvidar. El mismo riesgo aplica a
 los localizadores etiquetados que se añadan en fases posteriores (webhooks, canales de
 notificación, reglas de IA): la clave va con `#[AsTaggedItem]`, no con un método.
+
+## D-71 — La API se autentica con una clave propia, con ámbitos y con HMAC
+
+**Contexto.** La fase 18 hace que Suscripta sea integrable desde otros programas. La primera
+decisión no es «qué rutas exponemos», sino **«qué credencial aceptamos»**. Las opciones reales
+eran: (a) reutilizar el login del backoffice con sesión, (b) OAuth2 de terceros (Google,
+Microsoft), (c) una clave propia emitida por la organización.
+
+(a) está descartada de entrada: la API debe ser *stateless*. Una sesión por petición significaría
+cookies, estado en el servidor, y un integrador que no es un navegador (un cron, un servicio
+en Go, un script de shell) tendría que(handle cookies, y además arrastraría la superficie de
+ataque del login con contraseñas. (b) es una integración enorme —proveedores, consentimientos,
+scopes de terceros, tokens OAuth— para resolver un problema que no tenemos: el integrador es
+*nuestro* cliente, con una relación comercial directa, no un usuario final arbitrario.
+
+**Decisión.** Una **clave de API propia**, por organización, con **ámbitos** (`read`, `write`),
+caducidad opcional y revocación. Se emite desde el panel de integraciones del backoffice, se
+muestra **una sola vez** y se entrega en `Authorization: Bearer …` o `X-Api-Key: …`.
+
+Sobre la **huella**: se usa `hash_hmac('sha256', $secreto, $pepper)` y **no** `password_hash`.
+Las dos familias resuelven problemas distintos:
+
+- `password_hash` (bcrypt/argon) está pensado para **contraseñas**: son secretos que una
+  persona teclea, que se pueden adivinar y que hay que proteger de la fuerza bruta con un
+  coste **alto y deliberado**. No se indexan: para comprobar uno hay que recorrerlos todos.
+- Una API key es un **token de.portador** que se presenta en cada petición, se busca en la base
+  de datos para autenticarla y se compara con `hash_equals`. Con 300 peticiones por minuto y
+  clave, un bcrypt en cada una sería un coste real; y sin índice, autenticar sería O(n) sobre
+  las claves de la organización.
+
+El HMAC resuelve las dos cosas: **coste constante** (autenticar es una consulta indexada) y
+**determinismo** (la huella es un valor que se puede indexar con un `UNIQUE`). A cambio, el
+**pepper** se convierte en un secreto crítico: vive fuera de la base de datos
+(`API_KEY_PEPPER`), y sin él un volcado de la tabla `api_key` no permite autenticarse. Es el
+mismo modelo que el pepper de contraseñas (D-32), aplicado a credenciales de uso masivo.
+
+**Consecuencias.**
+
+1. **El pepper no se puede rotar sin invalidar las claves.** Es un coste explícito del diseño y
+   tiene un procedimiento: emitir las claves nuevas, esperar a que los integradores migren,
+   revocar las viejas y, solo entonces, cambiar el pepper. Está documentado en `docs/api/` y en
+   `docs/operations.md`, y es la pregunta abierta nº 7 del roadmap.
+2. **El límite de frecuencia se conta por clave**, no por IP ni por organización: la clave es la
+   unidad de consumo real y la que se puede explicar («su clave `sk_a1B2…` superó 300
+   peticiones por minuto»).
+3. **Los ámbitos se comprueban antes que la propiedad del recurso**, y los errores de «no
+   existe» y «no es tuyo» son indistinguibles: un `403` por ámbito no puede usarse para
+   enumerar recursos ajenos, y un `404` no revela que el recurso existe en otra organización.
+4. **La clave caduca y se revoca sin tocar nada más**: `expires_at` y `revoked_at` bastan para
+   cortar el acceso, y la revocación es un caso de uso auditado.
+
+**Alternativas descartadas.**
+
+- *Reutilizar la contraseña del usuario con HTTP Basic.* Descartada: mezcla dos referencias
+  (usuario y organización), no se puede revocar sin cambiar la contraseña, y no soporta ámbitos.
+- *Bearer tokens firmados (JWT) sin estado.* Descartada: el beneficiario es «revocar una
+  credencial concreta», y un JWT revocado exige una lista de revocación, que es una base de
+  datos de lista negra — es decir, el estado que se quería evitar.
+- *Guardar la clave en claro y compararla.* Descartada: un volcado de la base de datos da
+  acceso a la API de todos los clientes.
+- *OAuth2 como proveedor.* Descartada por coste y por alcance (ver arriba). Si algún día hace
+  falta, la API **no** habría que rehacerla: la clave propia puede convivir con un flujo OAuth
+  como una segunda forma de autenticar.
+
+**Consecuencias para el código.** `ApiKeyFactory` (generación y huella), `ApiKeyAuthenticator`
+(autenticación stateless y fijación del tenant en el `TenantContext`), `ApiScopeVoter`
+(comprobación de ámbitos) y el panel `/api-keys`. La API reutiliza el `TenantContext` del
+backoffice: **el aislamiento entre organizaciones está implementado una sola vez** en el
+producto, y la API lo hereda.
+
+## D-72 — La API devuelve read models, no entidades
+
+**Contexto.** El backoffice lee y escribe con las entidades Doctrine, que son richly objects con
+relaciones y metadatos internos. La API, en cambio, necesita un **contrato estable**: un
+integrador escribe código contra esos campos, y ese código no se puede romper cada vez que el
+dominio cambie. Serializar entidades Doctrine directamente ataría el contrato público a la
+forma interna del dominio.
+
+La tentación rápida es usar el Serializer de Symfony sobre las entidades. Funciona… hasta la
+primera vez que se refactoriza un campo interno. Entonces el integrador recibe un `500` o, peor,
+un `200` con un campo que ya no está.
+
+**Decisión.** La API **no** toca entidades Doctrine en las lecturas. Habla con **interfaces de
+read model** que declara cada módulo (`ServiceViewRepositoryInterface`,
+`AlertViewRepositoryInterface`, `DocumentViewRepositoryInterface`,
+`DiscoveryViewRepositoryInterface`, `EmailAccountViewRepositoryInterface`), y cada módulo
+registra su implementación en `config/services.yaml`.
+
+Las **escrituras** sí van a los casos de uso del módulo correspondiente (alta de servicio,
+confirmación de propuesta, carga de documento, sincronización de buzón), que usan las entidades
+y aplican las reglas del dominio. Es deliberado: leer y escribir no tienen por qué compartir la
+misma fuente, y las escrituras necesitan las reglas, no un DTO.
+
+**Consecuencias.**
+
+1. **El contrato de la API es explícito.** El read model declara exactamente los campos que
+   vuelve, en el orden en que se serializan. Cambiar el dominio no cambia el contrato.
+2. **Los tests no necesitan base de datos** para la parte de lectura: basta un doble de la
+   interfaz.
+3. **Cada módulo es dueño de su forma de leer.** Si `Mailbox` necesita una consulta optimizada
+   para las cuentas, la implementa en su repositorio; la API no se entera.
+4. **Coste: una capa más.** Interfaces + implementaciones + bindings. Es la contrapartida de
+   que el contrato sea público, y es barata comparada con romper integraciones.
+5. **El `TenantContext` sigue siendo el mecanismo de aislamiento**, también en los read models:
+   filtrar por organización no es opcional en ninguna de las dos implementaciones.
+
+**Alternativas descartadas.**
+
+- *Serializar las entidades directamente.* Descartada: ata el contrato público al modelo interno.
+- *Un repositorio «de la API» central que consulta todas las tablas.* Descartada: convierte la
+  API en un segundo modelo de dominio, duplicaría las reglas de agregación y dejaría a los
+  módulos con dos fuentes de verdad.
+- *Reutilizar los repositorios del backoffice tal cual.* Descartada: sirven para la interfaz
+  (con relaciones eager y formatos pensados para plantillas), no para un contrato de integración.
+
+**Consecuencias para el código.** Las interfaces viven en el módulo que las publica
+(`src/<Módulo>/Domain/Repository/`), las implementaciones en su capa de infraestructura, y los
+bindings en `config/services.yaml`. La API (`src/Api/`) **no declara repositorios propios**: solo
+consume interfaces de otros módulos, que es lo que mantiene la frontera del módulo (§17.2 de
+`ARCHITECTURE.md`).

@@ -2191,3 +2191,160 @@ las migraciones están al día.
 
 El runbook completo (servicios, despliegue, copias, restauración con simulacro, vigilancia,
 incidentes, rotación de secretos y listas de comprobación) está en `docs/operations.md`.
+
+## 17. La API pública (Fase 18)
+
+### 17.1 Qué es y qué no es
+
+La API es el **contrato de integración** de Suscripta: la forma en que otro programa —un ERP,
+un panel de control, un bot, un script propio— consume los datos y las acciones del producto
+sin pasar por la interfaz web. Vive bajo `/api/v1` y es **JSON puro**, sin HTML.
+
+Lo que **no** es:
+
+- **No es una segunda interfaz del backoffice.** El backoffice es una aplicación con sesión:
+  un navegador, formularios, tokens CSRF, redirecciones. La API es sin sesión, sin cookies y
+  sin formularios. Son dos worlds distintos, con dos firewalls distintos, y no se mezclan.
+- **No expone las entidades de Doctrine.** Habla con **interfaces de read model** (§17.6), de
+  modo que el contrato puede devolver exactamente los campos que promete y nada más.
+- **No sustituye al producto.** Sigue siendo un SaaS multi-tenant con panel: la API es la
+  puerta de entrada para integraciones, no la única forma de usar Suscripta.
+
+### 17.2 Capas del módulo `Api`
+
+`src/Api/` sigue la misma estructura modular que el resto del proyecto:
+
+```
+src/Api/
+├── Domain/          ApiKey (entidad), ApiScope (enumeración)
+├── Application/     ApiKeyFactory, IssueApiKey, RevokeApiKey, ListApiKeys,
+│                    ApiCollection (envoltorio de respuesta)
+├── Infrastructure/  ApiKeyAuthenticator, ApiScopeVoter, ApiKeyRepository
+└── UI/              Controller/V1/* (8 controladores), EventListener/*,
+                     Http/Problem (RFC 9457), Controller/ApiKeyController (panel)
+```
+
+**La frontera del módulo.** `src/Api/` **no** contiene lógica de negocio de otros módulos. Las
+operaciones de escritura —alta de servicio, confirmación de propuesta, carga de documento,
+sincronización de buzón— **delegan en los casos de uso de cada módulo** (`Services`,
+`Discovery`, `Documents`, `Mailbox`), igual que hace el backoffice. La API es una **nueva
+entrada**, no una copia de las reglas. En particular, las cuotas del plan se comprueban en el
+caso de uso (`QuotaGuard::assertWithinQuota()`, D-64), no en el controlador: por eso un
+`POST /api/v1/services` con el plan gratuito devuelve `402`, igual que lo haría el panel.
+
+### 17.3 La credencial
+
+La tabla `api_key` guarda la huella HMAC-SHA-256 de la clave, sus ámbitos, su caducidad, su
+revocación y su última utilización. El detalle completo (columnas, índices, generación,
+razones de diseño) está en `docs/ROADMAP.md` §Fase 18 y en `docs/api/`.
+
+Lo esencial para la arquitectura:
+
+```
+Petición  →  ApiKeyAuthenticator  →  busca por secret_hash (índice único)
+           →  valida caducidad y revocación
+           →  fija la organización en el TenantContext
+           →  ApiScopeVoter decide según #[IsGranted('SCOPE_READ'|'SCOPE_WRITE')]
+```
+
+El **`TenantContext` es el mismo** que usa el backoffice. El aislamiento entre organizaciones no
+está implementado dos veces: está implementado una vez, y la API lo hereda. Si un día el
+`TenantContext` se sustituye por otro mecanismo, la API lo hereda sin tocar una línea.
+
+**Por qué HMAC y no bcrypt.** Una API key se presenta en cada petición y se busca en la base
+de datos para autenticarla. `password_hash` es lento a propósito (contraseñas) y no es
+determinista (no se puede indexar). El HMAC con pepper resuelve las dos cosas: búsqueda por
+índice y coste constante, a cambio de que el pepper sea irrotable sin migrar (D-71).
+
+### 17.4 El firewall
+
+`config/packages/security.yaml` define un firewall `api` para `^/api/v1`, **stateless**, con el
+`ApiKeyAuthenticator` y sin formulario de login ni CSRF. El backoffice conserva su firewall de
+sesión. `/api/doc` y `/api/doc.json` quedan fuera de ambos, por `access_control`: el
+integrador tiene que poder leer el contrato **antes** de tener una clave.
+
+La credencial se acepta en `Authorization: Bearer …` y en `X-Api-Key: …`.
+
+### 17.5 Ciclo de una petición y prioridades de eventos
+
+Este es el punto donde la API se encuentra con el núcleo de Symfony, y donde está el defecto que
+queda por corregir (Fase 18, defecto 1). Las prioridades en `KernelEvents::REQUEST`:
+
+| Prioridad | Listener | Efecto |
+|---|---|---|
+| 100 | `LocaleListener::setDefaultLocale` | Locale por defecto de la petición. |
+| **32** | `RouterListener::onKernelRequest` | Resuelve la ruta; **responde 405 si el método no existe**. |
+| 15 | `LocaleAwareListener` | Aplica el locale de la ruta. |
+| **9** | `ApiCorsListener` | Pretende responder al preflight. **Por debajo del router → nunca se ejecuta.** |
+| 8 | `Firewall::onKernelRequest` | Autenticación. |
+| -8 | `ApiRateLimitListener` | Límite de frecuencia. |
+
+`RequestEvent::setResponse()` llama a `stopPropagation()`: un listener que fija la respuesta
+corta el ciclo. Por eso un preflight CORS **debe** contestarse antes que el router (y por eso
+el arreglo es subirlo a prioridad 40): para CORS, el `OPTIONS` no es «una petición a una ruta
+que no admite ese método», es «una pregunta por CORS que hay que contestar sí o sí». Y como el
+preflight no lleva credenciales, cortar el ciclo antes del firewall es exactamente lo correcto.
+
+El orden de los listeners de la API es, por tanto, **load-bearing**: no es decorativo.
+
+### 17.6 Read models
+
+La API no consulta entidades Doctrine. Consulta interfaces:
+
+| Interfaz | Implementación | Módulo |
+|---|---|---|
+| `ServiceViewRepositoryInterface` | `ServiceViewRepository` | `Services` |
+| `AlertViewRepositoryInterface` | `AlertViewRepository` | `Notifications` |
+| `DocumentViewRepositoryInterface` | `DocumentViewRepository` | `Documents` |
+| `DiscoveryViewRepositoryInterface` | `DiscoveryViewRepository` | `Discovery` |
+| `EmailAccountViewRepositoryInterface` | `EmailAccountViewRepository` | `Mailbox` |
+
+El binding vive en `config/services.yaml` (`App\…\ViewRepositoryInterface: '@App\…\ViewRepository'`),
+así que **cada módulo declara su propia implementación** y la API no depende de cómo se
+guarden los datos. Dos beneficios: el contrato devuelve exactamente los campos que promete, y
+un test puede sustituir la implementación por un doble sin base de datos.
+
+Las **escrituras**, en cambio, van a los casos de uso de cada módulo, que sí usan las
+entidades. Es intencionado: leer y escribir no tienen por qué compartir la misma fuente.
+
+### 17.7 Formato de respuestas
+
+Dos formas, y solo dos:
+
+```jsonc
+// colección
+{ "data": [ … ], "meta": { "page": 1, "per_page": 25, "total": 3,
+                           "total_pages": 1, "has_next": false, "has_previous": false } }
+
+// recurso
+{ "data": { … } }
+```
+
+`Pagination` (`src/Shared/Application/`) es una clase **compartida** con el backoffice, no una
+clase de la API: paginar es una regla de presentación, y meterla en un módulo de infraestructura
+sería un problema de capas. `per_page` por defecto 25, máximo 100; un valor mayor se recorta en
+vez de rechazarse.
+
+### 17.8 Errores
+
+`ApiExceptionListener` traduce cualquier excepción a `application/problem+json` (RFC 9457):
+`type`, `title`, `status`, `detail` y campos extra (`violations`, `retry_after`, y los del
+`402`). Los constructores de `Problem` (`unauthorized()`, `forbidden()`, `notFound()`,
+`unprocessable()`…) llevan los textos en español.
+
+Un detalle que condiciona el diseño: en Symfony 8, `RequestPayloadValueResolver` **envuelve** la
+`ValidationFailedException` en un `HttpException` (`HttpException::fromStatusCode(422, …,
+new ValidationFailedException(…))`). Quien escuche excepciones tiene que **desempaquetar** de
+`getPrevious()`, o se pierde la información de validación. Es el defecto 2 de la fase 18.
+
+### 17.9 Límite de frecuencia
+
+300 peticiones por minuto **por clave**, con `sliding_window` (`config/packages/rate_limiter.yaml`).
+La unidad es la clave, no la IP ni la organización, porque la clave es la unidad que se puede
+explicar al cliente y porque varias claves legítimas pueden salir del mismo servidor.
+
+### 17.10 Documentación del contrato
+
+`nelmio/api-doc` con `path_patterns: ^/api/v1`: solo la API versionada. `/api/doc.json` (JSON
+OpenAPI 3) y `/api/doc` (Swagger UI). La versión del contrato vive en la URL (`/api/v1`) y en
+el campo `version` de la definición OpenAPI.

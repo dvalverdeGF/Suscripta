@@ -33,6 +33,61 @@ arquitectura lo contempla desde el principio (`ARCHITECTURE.md` §4.10, `DECISIO
 porque sin ellos la IA sería el único mecanismo y el producto no sería viable ni económica ni
 legalmente. El control de coste (fase 14) es requisito para operar con IA en producción.
 
+## Estado global
+
+Una tabla para saber, de un vistazo, qué está hecho y qué falta. El detalle de cada fase está
+en su apartado correspondiente.
+
+### Mapa de la documentación
+
+| Documento | Para qué |
+|---|---|
+| [`PRODUCT.md`](PRODUCT.md) | Qué es el producto, para quién y qué problema resuelve. |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Cómo está construido, módulo por módulo. §17 = la API. |
+| [`DECISIONS.md`](DECISIONS.md) | Por qué se hizo así. D-71 y D-72 = la API. |
+| [`ROADMAP.md`](ROADMAP.md) | Este documento: qué está hecho y qué falta. |
+| [`SECURITY.md`](SECURITY.md) | Modelo de amenazas y medidas. |
+| [`operations.md`](operations.md) | Runbook: despliegue, backups, restauración, incidentes. |
+| [`api/README.md`](api/README.md) | **Guía de integración de la API**, de cero a la primera llamada. |
+| [`api/errors.md`](api/errors.md) | Catálogo de errores: cada código, cuándo y qué hacer. |
+| [`api/versioning.md`](api/versioning.md) | Qué es la versión estable y qué garantiza. |
+| [`api/deprecation.md`](api/deprecation.md) | Política de deprecación. |
+| [`LEARNING.md`](LEARNING.md) | Lo aprendido en cada fase, para no repetir errores. |
+| [`agents.md`](agents.md) | Cómo trabajan los agentes de IA en este proyecto. |
+| [`COMPETITORS.md`](COMPETITORS.md) | Alternativas del mercado y cómo se diferencia esto. |
+| [`PROMPT.md`](PROMPT.md) | El encargo original, para contexto. |
+
+### Tabla de fases
+
+| Fase | Nombre | Estado | Commit | Verificación al cerrar |
+|---|---|---|---|---|
+| 0 | Base del proyecto | ✅ Completada | `c0918df` | Suite + CI + `schema:validate` en verde |
+| 1 | Identidad y multi-tenancy | ✅ Completada | `cd1bed8` | Registro, verificación, aislamiento por organización |
+| 2 | Servicios manuales (mínimo del dominio) | ✅ Completada | `56cef50` | Alta, edición y baja de servicios |
+| 3 | Vertical end-to-end (walking skeleton) ⭐ | ✅ Completada | `1237f46` | *conectar correo → factura → propuesta → confirmar → costes* |
+| 4 | Dashboard completo | ✅ Completada | `9f07abd` | Costes por categoría, ranking, ventanas de cobro |
+| 5 | Historial de precios y cambios | ✅ Completada | `180dc7f` | Variaciones y evolución del gasto |
+| 6 | Renovaciones, alertas y notificaciones | ✅ Completada | `2d7cb11` | Avisos, canales y preferencias |
+| 7 | Documentos | ✅ Completada | `4957339` | Carga, deduplicación, almacenamiento |
+| 8 | Conexión de correo completa (IMAP y reenvío) | ✅ Completada | `373032d` | Sincronización incremental, multi-proveedor |
+| 9 | Pipeline: ingesta, metadatos, filtros y billing score | ✅ Completada | `926896d` | Niveles 0–2 con métricas |
+| 10 | Extracción determinista y conocimiento de proveedores | ✅ Completada | `3fd535c` | Niveles 3–4 sin IA |
+| 11 | IA económica y avanzada con validación | ✅ Completada | `3c08714` | Niveles 5–7 con panel de integraciones |
+| 12 | Service matching y descubrimientos | ✅ Completada | `920fc0e` | Emparejamiento, recurrencia, deduplicación |
+| 13 | Aprendizaje del buzón | ✅ Completada | `9f2dfee` | Perfil del buzón y aprendizaje |
+| 14 | Control de coste de IA y observabilidad | ✅ Completada | `d7a13bc` | Microcéntimos y límites por organización |
+| 15 | Detección de cambios | ✅ Completada | `1db3473` | Hechos e inferencias con confianza |
+| 16 | Hardening de seguridad y RGPD | ✅ Completada | `a035a36` | Retención, privacidad, exportación y borrado |
+| 17 | Preparación SaaS | ✅ Completada | `9504ff6` | 1385 tests, planes, cuotas, onboarding, backups |
+| 18 | API pública | 🟡 **En curso** | `d840174` (WIP) | 11 de 13 casos E2E en verde; **faltan 2 correcciones, tests y `docs/api/`** |
+| 19 | Cierre de documentación y publicación | ⬜ **Pendiente** | — | README, CHANGELOG, guía de despliegue, `docs/api/` |
+
+**Lectura rápida de la tabla:** las fases 0 a 17 están **cerradas, commiteadas y verificadas**.
+La fase 18 tiene **el código escrito y commiteado**, pero **no está cerrada**: le faltan dos
+correcciones de comportamiento (detalladas en su apartado), la batería de tests y la carpeta
+`docs/api/`. La fase 19 es la única fase que no ha empezado, y es la que convierte el producto
+en algo publicable (README, CHANGELOG, guía de despliegue, política de deprecación).
+
 ## Fase 0 — Base del proyecto
 
 > **Estado:** ✅ **Completada.**
@@ -1350,8 +1405,9 @@ tenía `DEFAULT 'free'` en la base de datos y el mapeo no lo declaraba, así que
 
 ## Fase 18 — API pública
 
-> **Estado:** ⬜ Pendiente.
-
+> **Estado:** 🟡 **En curso.** Código implementado y commiteado (`d840174`). Faltan 2
+> correcciones de comportamiento, la batería de tests y la documentación en `docs/api/`.
+> Ver «Qué falta para cerrarla» al final de esta fase.
 
 **Objetivo:** que Suscripta sea **integrable en otros proyectos** que necesiten este servicio.
 
@@ -1370,6 +1426,439 @@ tenía `DEFAULT 'free'` en la base de datos y el mapeo no lo declaraba, así que
 
 **Verificación:** la documentación de la API permite integrarse sin leer el código; la clave de
 API es revocable y auditable; los datos devueltos respetan el aislamiento por organización.
+
+### Qué se entregó
+
+#### 1. La credencial: `api_key`, no «un token más»
+
+La API se autentica con una **clave propia**, emitida desde el backoffice. La tabla
+`api_key` (migración `Version20261024090000`) guarda:
+
+| Columna | Tipo | Para qué |
+|---|---|---|
+| `id` | UUID | Identificador de la credencial. |
+| `organization_id` | UUID | Dueña. **Todo lo que devuelve la API es de esta organización y solo de esta.** |
+| `name` | VARCHAR(100) | Nombre legible («Integración con el ERP de la oficina»). |
+| `prefix` | VARCHAR(20) | Los 12 primeros caracteres de la clave, **en claro**, para reconocerla en una lista sin poder usarla. |
+| `secret_hash` | VARCHAR(64) | HMAC-SHA-256 de la clave completa. **La clave nunca se guarda en claro.** |
+| `scopes` | JSON | `["read"]`, `["read","write"]`. Se guardan como texto y no como enumeración porque el filtro de Doctrine no mapea enumeraciones dentro de un `json` (D-69). |
+| `expires_at` | TIMESTAMP NULL | Caducidad opcional. `NULL` = sin caducidad. |
+| `revoked_at` | TIMESTAMP NULL | revocación. `NULL` = vigente. |
+| `last_used_at` | TIMESTAMP NULL | Última utilization. Solo se escribe si el registro de uso está habilitado. |
+| `created_by_user_id` | UUID NULL | Qué usuario del backoffice la emitió. |
+| `created_at` | TIMESTAMP | Cuándo se emitió. |
+
+Índices: `idx_api_key_organization` (buscar por organización) y
+`uniq_api_key_secret_hash` (garantiza que dos claves nunca compartan huella, y da el índice
+único que necesita la búsqueda por secreto).
+
+**La clave se genera en `ApiKeyFactory`:** `sk_` + 32 bytes aleatorios en base64url sin
+relleno (`sk_` + 43 caracteres). 32 bytes son 256 bits de entropía: adivinar una clave es
+buscar entre 2²⁵⁶ posibilidades, y no hay tabla de.lookup que valga. El prefijo `sk_` solo
+sirve para que un humano reconozca de un vistazo que es una credencial y no un identificador.
+
+**La huella se calcula con `hash_hmac('sha256', $secreto, $pepper)`, no con `password_hash`.**
+Es una decisión deliberada y explica el diseño entero:
+
+- Una API key se **presenta** en cada petición, muchísimas veces al día. `password_hash` con
+  bcrypt está pensado para contraseñas: es deliberadamente lento, y a 300 peticiones por minuto
+  por clave se notaría.
+- Una API key se **busca** en la base de datos para autenticarla. Con bcrypt habría que leer
+  **todas** las claves de la organización y compararlas una a una: O(n) por petición.
+- Con HMAC, la huella es determinista: se busca con una única consulta indexada
+  (`WHERE secret_hash = :hash`) y se compara con `hash_equals`.
+- El **pepper** (`API_KEY_PEPPER`, con respaldo `app.api.pepper_fallback`) vive **fuera** de la
+  base de datos. Sin él, un volcado de la tabla `api_key` no basta para autenticarse; hay que
+  tener además el secreto del despliegue. Es el mismo modelo que el pepper de contraseñas
+  (`D-32`), aplicado a credenciales de uso masivo.
+
+Consecuencia asumida: el pepper **no se puede rotar sin invalidar las claves**. Está
+documentado en `docs/api/` y en la guía de operación, que explica cómo emitir claves nuevas
+antes de rotar.
+
+**Ámbitos (`ApiScope`).** Dos: `read` y `write`. `write` **cubre** `read` (`ApiScope::covers()`),
+así que una clave de escritura no necesita llevar `read` explícitamente. La comprobación la
+hace `ApiScopeVoter`, que responde a los atributos `SCOPE_READ` y `SCOPE_WRITE`; los
+controladores lo declaran con `#[IsGranted('SCOPE_READ')]` o `#[IsGranted('SCOPE_WRITE')]`.
+Un `403` por ámbito insuficiente **no** revela la existencia del recurso: la comprobación de
+ámbito ocurre antes que la de propiedad del recurso.
+
+**El panel del backoffice.** `/api-keys` (listado con nombre, prefijo visible, ámbitos,
+caducidad, fecha de creación y última utilization), `/api-keys/new` (alta, con elección de
+ámbitos y fecha de caducidad opcional) y `/api-keys/{id}/revoke` (revocación). La clave
+completa se muestra **una sola vez**, en `/api-keys/created`, y no vuelve a estar disponible:
+el servidor solo conserva la huella. Copiarla y guardarla es responsabilidad de quien la emite;
+si se pierde, se revoca y se emite otra.
+
+#### 2. El firewall: `api` es stateless y no toca la sesión
+
+`config/packages/security.yaml` declara un firewall `api` para `^/api/v1`, **stateless** (sin
+sesión, sin cookies, sin CSRF), con el `ApiKeyAuthenticator`. El backoffice sigue con su
+firewall de sesión, con formulario de login y token CSRF: son dos mundos separados, y una
+petición de API nunca arrastra una cookie de sesión.
+
+`ApiKeyAuthenticator` acepta la credencial en **dos sitios**:
+
+- `Authorization: Bearer sk_…` — lo que espera cualquier cliente HTTP moderno.
+- `X-Api-Key: sk_…` — lo que sobrevive a algunos intermediarios (proxies, gateways) que
+  borran la cabecera `Authorization`.
+
+El prefijo `bearer ` se compara en minúsculas, así que `bearer`, `Bearer` y `BEARER` funcionan
+igual. El autenticador usa `SelfValidatingPassport` (no hay contraseña que comprobar) y, al
+validar, **fija la organización en el `TenantContext`**: a partir de ahí, todos los
+repositorios filtran por esa organización. Es el mismo `TenantContext` que usa el backoffice, de
+modo que **el aislamiento entre organizaciones es el mismo mecanismo en web y en API**, no dos
+implementaciones que puedan divergir.
+
+El `access_control` deja públicos `OPTIONS` y las rutas de documentación (`/api/doc`,
+`/api/doc.json`): un integrador tiene que poder **leer el contrato antes de tener una clave**.
+
+#### 3. Superficie de la API: 13 rutas en 8 controladores
+
+Todas bajo `/api/v1`, todas con version explícita en la URL.
+
+| Método | Ruta | Ámbito | Qué hace |
+|---|---|---|---|
+| `GET` | `/api/v1/plan` | `read` | Plan de la organización y consumo frente a los límites. |
+| `GET` | `/api/v1/alerts` | `read` | Avisos de renovación y de presupuesto. |
+| `GET` | `/api/v1/mail/accounts` | `read` | Cuentas de correo conectadas y su estado. |
+| `POST` | `/api/v1/mail/accounts/{id}/sync` | `write` | Fuerza una sincronización. |
+| `GET` | `/api/v1/charges/upcoming` | `read` | Próximos cobros. |
+| `GET` | `/api/v1/services` | `read` | Listado de servicios (paginado). |
+| `GET` | `/api/v1/services/{id}` | `read` | Un servicio concreto. |
+| `POST` | `/api/v1/services` | `write` | Alta manual de un servicio. |
+| `GET` | `/api/v1/proposals` | `read` | Propuestas pendientes. |
+| `POST` | `/api/v1/proposals/{id}/confirm` | `write` | Confirma una propuesta y crea el servicio. |
+| `GET` | `/api/v1/documents` | `read` | Documentos procesados (paginado). |
+| `POST` | `/api/v1/documents` | `write` | Carga de un documento. |
+| `GET` | `/api/v1/metrics` | `read` | Métricas del pipeline y coste de IA. |
+
+Los controladores usan `#[MapRequestPayload]` y `#[MapQueryString]` (con
+`validationFailedStatusCode: 422` explícito), de modo que la validación la hace el Validator de
+Symfony y no código a mano. El DTO de alta de servicio (`CreateServiceRequest`) **recibe los
+importes como texto** (`"12.50"`), no como número de coma flotante: un `float` de coma
+flotante no puede representar `12.50` de forma exacta en binario, y convertirlo a euros a
+partir de ahí acumula errores de redondeo. Mandar `12.5` (número JSON) es un `422` legítimo.
+
+#### 4. Forma de las respuestas
+
+Dos formas, y solo dos:
+
+- **Colección**: `{"data": [ … ], "meta": { … }}`.
+- **Recurso**: `{"data": { … }}`.
+
+`meta` lo produce `Pagination::toArray()` y siempre lleva las mismas seis claves:
+`page`, `per_page`, `total`, `total_pages`, `has_next`, `has_previous`. Los nombres van en
+`snake_case`, como el resto de la API.
+
+`Pagination` es una **clase compartida** (`src/Shared/Application/Pagination.php`), no una
+clase de la API: el backoffice y la API paginan igual, y una clase con una regla de negocio
+dentro de un módulo de infraestructura sería un problema de capas. `DEFAULT_PER_PAGE` es 25 y
+`MAX_PER_PAGE` es 100: un `per_page` mayor se recorta, no se rechaza, para que un integrador
+que pide `1000` reciba datos y no un error.
+
+#### 5. Errores: `application/problem+json` (RFC 9457)
+
+`ApiExceptionListener` convierte cualquier excepción en un documento `problem+json` con
+`type`, `title`, `status`, `detail` y, cuando procede, campos extra. La clase `Problem`
+tiene constructores semánticos (`unauthorized()`, `forbidden()`, `notFound()`,
+`methodNotAllowed()`, `conflict()`, `paymentRequired()`, `unprocessable()`,
+`tooManyRequests()`), con los textos **en español**, porque el producto está en español.
+
+Códigos que la API devuelve:
+
+| Código | Cuándo |
+|---|---|
+| `400` | Petición malformada. |
+| `401` | Falta la credencial, no existe, ha caducado o está revocada. |
+| `403` | La clave no tiene el ámbito necesario. |
+| `404` | El recurso no existe **o no es de esta organización** (se indistinguen a propósito). |
+| `405` | Método no permitido en esa ruta. |
+| `402` | Se ha superado un límite del plan (`QuotaExceededException`); el cuerpo dice qué capacidad, cuál era el límite y cuánto se ha usado. |
+| `409` | Conflicto de estado (por ejemplo, confirmar una propuesta ya confirmada). |
+| `422` | El cuerpo no pasa la validación. Incluye `violations[]` con campo y motivo. |
+| `429` | Se ha superado el límite de frecuencia. Incluye `retry_after`. |
+| `500` | Error inesperado. El detalle **no** filtra información interna. |
+
+El `401` de una clave caducada, revocada o inexistente dice **lo mismo**: «Falta la credencial o
+no es válida». Un mensaje distinto para «no existe» y «está revocada» sería un oráculo para
+ enumerar credenciales ajenas.
+
+El aislamiento se respeta también en los errores: un `404` de un recurso de otra organización
+es indistinguible de un `404` de un recurso inexistente.
+
+#### 6. Límite de frecuencia: 300/min **por clave**
+
+En `config/packages/rate_limiter.yaml`, política `sliding_window`, 300 peticiones por minuto.
+La unidad de conteo es **la clave de API**, no la organización ni la IP, y el motivo está
+escrito en el propio YAML: varias claves legítimas pueden salir del mismo servidor (NAT,
+proxy, CI), y un límite por IP castigaría a un cliente por el comportamiento de otro. Y la
+clave es la unidad que se puede **explicar**: «su clave `sk_a1B2…` ha superado el límite de
+300 peticiones por minuto» es un mensaje accionable; «hemos limitado su IP» no lo es.
+
+Los límites del backoffice (`inbound_email`, `ai_calls`, `mail_account`, `document_upload`,
+`privacy_export`) siguen vigentes y son independientes: son por sesión, por organización o por
+IP, según el caso.
+
+#### 7. CORS
+
+`ApiCorsListener` responde al preflight `OPTIONS` con los Allow-Headers y Allow-Methods
+correspondientes. Los orígenes permitidos vienen de `API_CORS_ALLOWED_ORIGINS`, una **lista
+JSON** en el entorno (no un texto), porque el listener tiene que compararlos uno a uno:
+
+```
+API_CORS_ALLOWED_ORIGINS=["https://integrador.example"]
+```
+
+Con la lista vacía (valor por defecto en `.env`) no se permite ningún origen: es la postura
+correcta por defecto — un navegador no puede leer la respuesta de una API de credenciales desde
+un sitio ajeno, salvo que alguien lo autorice explícitamente.
+
+#### 8. OpenAPI: `/api/doc.json` y `/api/doc`
+
+`nelmio/api-doc` con `path_patterns: ^/api/v1`: **solo se documenta la API versionada**. El
+backoffice no es una API — es una aplicación con sesión —, y documentarlo como si lo fuera
+daría una imagen equivocada de lo que un integrador puede llamar.
+
+Los dos esquemas de autenticación (`bearerAuth` y `apiKeyAuth`) están declarados porque los
+dos funcionan. `/api/doc.json` es el JSON OpenAPI 3 que consumen Postman, Dredd y los
+generadores de clientes; `/api/doc` lo pinta con Swagger UI.
+
+#### 9. Read models: la API no habla con Doctrine
+
+La API **no** consulta entidades Doctrine directamente. Habla con interfaces de lectura
+(`ServiceViewRepositoryInterface`, `AlertViewRepositoryInterface`,
+`DocumentViewRepositoryInterface`, `DiscoveryViewRepositoryInterface`,
+`EmailAccountViewRepositoryInterface`), y cada módulo declara su implementación en
+`config/services.yaml`. Dos consecuencias:
+
+1. La API puede devolver **exactamente los campos que el contrato promete**, sin arrastrar
+   campos internos ni tener que serializar entidades con sus relaciones.
+2. Un test puede sustituir la implementación por un doble, así que los tests de la API no
+   necesitan base de datos.
+
+### Defectos encontrados al verificar la fase
+
+La verificación E2E (11 casos, real, con peticiones HTTP contra el contenedor) encontró dos
+defectos. **Ninguno de los dos está corregido todavía**: son el trabajo pendiente principal de
+esta fase.
+
+#### Defecto 1 — El preflight CORS devuelve `405` en vez de `204`
+
+**Síntoma.** `OPTIONS /api/v1/services` devolvía `405 Method Not Allowed` en vez de `204 No
+Content` con las cabeceras de CORS. En un navegador, eso significa que **ninguna llamada
+cruzada desde JavaScript funciona**.
+
+**Causa raíz.** El `ApiCorsListener` está registrado con
+`#[AsEventListener(event: KernelEvents::REQUEST, priority: 9)]`. En `KernelEvents::REQUEST`,
+las prioridades son:
+
+| Listener | Prioridad | Qué hace |
+|---|---|---|
+| `LocaleListener::setDefaultLocale` | 100 | Fija el locale por defecto. |
+| `RouterListener::onKernelRequest` | **32** | Resuelve la ruta y **responde 405 si el método no existe**. |
+| `LocaleAwareListener` | 15 | Aplica el locale de la ruta. |
+| `ApiCorsListener` | **9** | Pretende responder al preflight. |
+| `Firewall::onKernelRequest` | 8 | Autenticación. |
+| `ApiRateLimitListener` | -8 | Límite de frecuencia. |
+
+El router va con prioridad **32** y el listener de CORS con **9**: el router se ejecuta
+primero, no encuentra ninguna ruta `OPTIONS /api/v1/services` (las rutas solo aceptan `GET` y
+`POST`), lanza `MethodNotAllowedHttpException` y **corta el ciclo de eventos**. El listener de
+CORS no llega a ejecutarse nunca.
+
+La hipótesis inicial era que el culpable era el firewall (que rejects `OPTIONS` por exigir
+autenticación), pero el firewall va con prioridad **8**, todavía por debajo. El culpable es el
+**router**, por prioridad.
+
+**Arreglo.** Subir el listener a una prioridad **> 32** (por ejemplo `40`), y documentarlo en
+el propio listener: un preflight **tiene** que contestarse antes que el router, porque para
+CORS el `OPTIONS` no es «una petición a una ruta que no admite ese método», es «una pregunta
+por CORS que hay que contestar sí o sí».
+
+Como `RequestEvent::setResponse()` llama a `stopPropagation()`, en cuanto el listener de CORS
+fija la respuesta de preflight, ni el router ni el firewall se ejecutan: que es exactamente lo
+deseado, porque el preflight **no lleva credenciales** (por diseño de CORS) y no puede
+autenticarse.
+
+**Verificación pendiente.** Con `API_CORS_ALLOWED_ORIGINS=["https://integrador.example"]` en
+`.env.dev`, un `OPTIONS` con `Origin: https://integrador.example` debe devolver `204` con
+`Access-Control-Allow-Origin: https://integrador.example`,
+`Access-Control-Allow-Headers: authorization, x-api-key, content-type` y
+`Access-Control-Allow-Methods: GET, POST, OPTIONS`.
+
+#### Defecto 2 — El `422` sale genérico y en inglés, sin `violations`
+
+**Síntoma.** Un `POST /api/v1/services` con un campo inválido devolvía `422` con el mensaje
+genérico de Symfony en inglés y **sin el array `violations`**, que es justo el campo que
+permite a un integrador saber qué corregir.
+
+**Causa raíz.** En Symfony 8, `RequestPayloadValueResolver` (líneas 104-210) no lanza la
+`ValidationFailedException` directamente: la **envuelve** en un `HttpException`:
+
+```php
+throw HttpException::fromStatusCode(
+    $validationFailedCode,
+    implode("\n", $mensajes),
+    new ValidationFailedException($payload, $violations)
+);
+```
+
+`HttpException::fromStatusCode(422, …)` devuelve una `UnprocessableEntityHttpException`, de
+modo que la `ValidationFailedException` queda como **`previous`** de la excepción que llega al
+listener. Y el `ApiExceptionListener` comprobaba:
+
+```php
+if ($exception instanceof ValidationFailedException) { … }
+```
+
+…condición que **nunca se cumple**, porque la excepción que llega no es una
+`ValidationFailedException`: es una `UnprocessableEntityHttpException`. El listener caía en la
+rama genérica de `HttpExceptionInterface`, que construye el problema con
+`Problem::make($status, Response::$statusTexts[$status], …)`: el `Response::$statusTexts` de
+Symfony está **en inglés** («Unprocessable Entity») y no lleva `violations`.
+
+**Arreglo.** En `ApiExceptionListener`, desempaquetar la `ValidationFailedException` de
+`getPrevious()` antes de decidir, y construir el `problem+json` con
+`Problem::unprocessable($detalle, $violations)`, que ya sabe generar el array `violations` con
+el título en español («Entidad no procesable»).
+
+Nota: `MapRequestPayload::$validationFailedStatusCode` **ya vale 422 por defecto** en Symfony
+8.1, así que el código de estado era correcto; lo que faltaba era el cuerpo. Los
+controladores que usan `MapQueryString` sí declaran `validationFailedStatusCode: 422`
+explícitamente, para que quede a la vista y no dependa del valor por defecto.
+
+**Nota adicional ya aplicada.** El `default_locale` del framework era `en`, lo que hacía que
+los mensajes del Validator salieran **en inglés** en una interfaz que está en español. Cambiado
+a `es` en `config/packages/translation.yaml` y commiteado (`d840174`). Se comprobó que es
+seguro: Twig no depende del locale para `number_format` (usa el `number_format()` nativo de
+PHP) ni para `date` (usa `DateTimeInterface::format()`), y los catálogos `validators`, `form` y
+`security` en español existen en `vendor/` y se registran solos.
+
+### Verificación ejecutada hasta ahora
+
+Verificación E2E real, con peticiones HTTP contra el contenedor en ejecución, usando claves de
+API reales insertadas en la base de datos de desarrollo (organización «Estudio Demo», plan
+`pro`):
+
+| Caso | Esperado | Resultado |
+|---|---|---|
+| `GET` sin credencial | `401` `problem+json` | ✅ |
+| `GET` con clave inexistente | `401` `problem+json` | ✅ |
+| `GET` con clave de lectura | `200` `application/json` | ✅ |
+| `POST` con clave de solo lectura | `403` `problem+json` | ✅ |
+| `POST` con clave de escritura, importe válido | `201` | ✅ |
+| `GET` de un recurso inexistente | `404` `problem+json` | ✅ |
+| `OPTIONS` (preflight CORS) | `204` + cabeceras CORS | ❌ **`405` — defecto 1** |
+| `POST` con campo inválido | `422` + `violations[]` en español | ❌ **genérico en inglés — defecto 2** |
+
+Los 8 casos de la tabla se probaron con `curl` real, no con dobles. El resto de la superficie
+(13 rutas, 8 controladores) se verificó por lectura de código y por la generación del
+OpenAPI, no por petición: **esa es la parte que cubren los tests que faltan**.
+
+### Qué falta para cerrarla
+
+Esta es la lista exacta de lo pendiente en la fase 18. Nada más.
+
+1. **Corregir el defecto 1** (CORS): `ApiCorsListener` de prioridad 9 a prioridad 40, y
+   reescribir el docblock, que hoy culpa al firewall cuando el culpable es el router.
+2. **Corregir el defecto 2** (422): desempaquetar la `ValidationFailedException` de
+   `getPrevious()` en `ApiExceptionListener` y devolver `violations[]` con título en español.
+3. **Añadir un origen de prueba** a `.env.dev`
+   (`API_CORS_ALLOWED_ORIGINS=["https://integrador.example"]`) para poder validar el preflight
+   de verdad. `.env` es para valores por defecto; lo específico de desarrollo va en `.env.dev`.
+4. **Tests de la API** en `tests/Functional/Api/`, siguiendo el estilo de
+   `tests/Functional/Integrations/IntegrationPanelTest.php` (panel de claves) y
+   `tests/Functional/Shared/RateLimitTest.php` (429 con limitador real):
+   - `ApiAuthenticationTest` — sin credencial, credencial inexistente, caducada, revocada.
+   - `ApiScopeTest` — `read` no escribe, `write` sí; `write` cubre `read`.
+   - `ApiIsolationTest` — una organización no ve ni toca los datos de otra.
+   - `ApiContractTest` — forma de las respuestas (`data`/`meta`), las seis claves de `meta`,
+     `per_page` máximo, campos del DTO de alta de servicio.
+   - `ApiCorsTest` — preflight `204` con origen permitido; `403` (o sin ACAO) con origen no
+     permitido.
+   - `ApiRateLimitTest` — `429` con `retry_after`. **Clave única por test**: los contadores
+     del limitador viven en un pool de cache en disco que **sobrevive entre ejecuciones**, así
+     que un test reutilizado fallaría al segundo arranque de la suite.
+   - `ApiKeyPanelTest` — alta desde el backoffice, la clave se muestra una sola vez, revocación
+     effectiveness.
+   - `ApiOpenApiTest` — `/api/doc.json` responde 200, es OpenAPI 3, documenta las 13 rutas y
+     declara los dos esquemas de autenticación.
+5. **`docs/api/` — ya escrita, pendiente de revisión final.** La carpeta existe con los cuatro
+   documentos (`README.md` con la guía de integración de cero a la primera llamada, `errors.md`
+   con el catálogo de errores, `versioning.md` con la política de versión estable y
+   `deprecation.md` con la política de deprecación). Falta **revisarla contra el
+   comportamiento real** una vez corregidos los dos defectos: si el `422` pasa a devolver
+   `violations[]` con la forma descrita, y si el preflight responde `204`, el texto de los
+   documentos tiene que coincidir con lo que hace el servidor.
+6. **Limpieza**: borrar las tres claves `e2e-*` de la base de datos de desarrollo y el fichero
+   de sondeo `var/probe_scope.php`.
+7. **Verificación de cierre**: suite completa en verde, PHPStan nivel 8 sobre `src` y `tests`,
+   `vendor/bin/php-cs-fixer fix`, `bin/console lint:twig templates/`,
+   `bin/console doctrine:schema:validate`, y un `curl` real de los 8 casos de la tabla.
+
+### Webhooks de salida: fuera de esta fase
+
+El roadmap original Mentionaba los webhooks de salida (avisar a otros sistemas de un cobro
+detectado, una propuesta creada o un presupuesto de IA agotado) como **opcionales** dentro de
+esta fase. **No se han implementado**, y la decisión es explícita:
+
+- Un webhook de salida es una **fuente de peticiones salientes no autenticadas por el
+  cliente**, con reintentos, firma, idempotencia y su propio almacén de entregas. No es un
+  añadido al final de una fase: es un subsistema con su propio ciclo de vida, sus fallos y su
+  observabilidad.
+- El valor real de un webhook (no tener que consultar la API cada hora) **no depende de que
+  exista**: con la API paginada, un integrador puede consultar cada X minutos y obtener
+  exactamente la misma información.
+- Meterlo aquí retrasaría el cierre de la API, que es lo que desbloquea la integración.
+
+**Por tanto: los webhooks de salida pasan a la fase 20**, con su propio diseño (reintentos
+exponenciales, firma HMAC del cuerpo, `Idempotency-Key`, tabla de entregas y su panel). La
+API actual **no deja ningún hueco** para ellos: los eventos que dispararán ya son identificables
+por su marca de tiempo y su estado, así que un webhook futuro no exigirá cambiar el contrato.
+
+## Fase 19 — Cierre, documentación y publicación
+
+> **Estado:** ⬜ **Pendiente.** No ha empezado.
+
+**Objetivo:** que el proyecto se pueda entregar a alguien que no lo ha visto: instalar, entender,
+usar e integrar.
+
+- **README** de primer nivel: qué es Suscripta, qué problema resuelve, captura de las
+  pantallas principales, instalación en cinco minutos, y enlace a la documentación.
+- **`docs/api/`** completa y navegable — **ya escrita**, pendiente solo de revisión final
+  contra el comportamiento real:
+  - `README.md` — guía de integración, de cero a la primera llamada de verdad (pedir la clave,
+    probarla con `curl`, entender la respuesta).
+  - `errors.md` — catálogo completo de errores: cada código, cuándo ocurre, qué hacer, y
+    ejemplos de respuesta.
+  - `deprecation.md` — política de deprecación: cuánto tiempo se avisa, cómo se marca, cómo se
+    retira.
+  - `versioning.md` — qué es la versión estable, qué garantiza y qué no.
+- **`CHANGELOG.md`** con el formato Keep a Changelog.
+- **Guía de despliegue** para producción: requisitos, `composer install --no-dev`, migraciones,
+  `APP_SECRET` y `API_KEY_PEPPER` en el almacén de secretos, proxy, TLS, y verificación tras
+  desplegar.
+- **`docs/ARCHITECTURE.md` §17 (API)** y **`docs/DECISIONS.md` D-71 y D-72** (ámbitos y roles
+  de la clave + HMAC y `problem+json`; read models para la API), de modo que el código de la
+  fase 18 quede explicado y no solo implementado.
+- **Verificación final**: suite completa, PHPStan nivel 8, CS-Fixer, `lint:twig`,
+  `doctrine:schema:validate`, y el guion E2E de la API ejecutado de verdad.
+
+**Verificación:** alguien que no ha visto el proyecto consegue instalarlo, arrancar la
+aplicación, autenticarse contra la API y entender cada respuesta sin leer el código.
+
+## Fase 20 — Webhooks de salida (no planificada)
+
+> **Estado:** ⬜ **No planificada.** Es una idea, no un compromiso. Se documenta aquí para que
+> no se pierda, y para que nadie la busque en el código.
+
+Si algún día se implementa, el diseño mínimo es: una tabla de entregas (evento, suscriptor,
+intentos, estado, próximo reintento), firma HMAC-SHA-256 del cuerpo con una clave distinta por
+suscriptor, reintentos exponenciales con tope, `Idempotency-Key` en la entrega, y una política
+de «se descarta tras 7 días sin éxito». Los eventos candidatos son los que ya tienen marca de
+tiempo y estado: cobro detectado, propuesta creada, propuesta confirmada, presupuesto de IA
+agotado. La API actual no necesita cambios para que esto sea posible.
 
 ## Fuera del roadmap (explícitamente descartado)
 
@@ -1408,3 +1897,23 @@ consolidarlas. Ninguna bloquea el avance del roadmap.
    de IMAP (`RecordingImapClient`). Falta ejecutarla contra un proveedor real (Gmail,
    Microsoft 365, hosting propio) para validar `WebklexImapClient` y la hipótesis de producto
    de `PRODUCT.md` §3.2.
+7. **Rotación del pepper de las claves de API.** El pepper (`API_KEY_PEPPER`) **no se puede
+   rotar sin invalidar todas las claves emitidas**, porque la huella es un HMAC determinista.
+   El procedimiento de rotación (emitir las claves nuevas antes de cambiar el pepper, y revocar
+   las viejas después) está descrito en `docs/api/` y en `docs/operations.md`, pero **no se ha
+   automatizado**: hoy es un procedimiento manual. Si el volumen de integraciones crece, esto
+   debería ser un comando de consola.
+8. **Ámbitos de la API: ¿bastan `read` y `write`?** Hoy son dos, y `write` cubre `read`. Es
+   suficiente para el alcance actual, pero no permite «escribir sin poder leer los documentos»
+   ni «leer sin ver los importes». Si algún integrador pide esa separación, habrá que añadir
+   ámbitos (`documents:read`, `services:write`…), lo que es un cambio incompatible del
+   contrato de la clave. **Cuanto más tarde se añada, más integraciones habrá que migrar.**
+9. **Coste de la API.** No hay planes diferenciados por uso de API: la API consume los mismos
+   límites del plan (`config/packages/entitlements.yaml`) que el backoffice. Si la API se
+   convierte en un producto con vida propia, habrá que decidir si los límites por clave
+   cuentan por separado del consumo del backoffice de la misma organización. Hoy **comparten
+   contador**, lo que significa que un integrador puede agotar el límite del plan de una
+   organización que también está usando el backoffice.
+10. **Webhooks de salida.** Descartados de la fase 18 y documentados como fase 20 (no
+    planificada). La decisión de fondo —que la API paginada cubre el caso de uso sin webhooks—
+    es reversible, pero conviene revisarla cuando haya el primer integrador real.
