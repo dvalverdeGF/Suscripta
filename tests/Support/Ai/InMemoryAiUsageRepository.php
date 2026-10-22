@@ -116,6 +116,71 @@ final class InMemoryAiUsageRepository implements AiUsageRepositoryInterface
         return array_slice($filtered, 0, $limit);
     }
 
+    public function averageDurationMs(Uuid $organizationId, DateRange $period): int
+    {
+        $sum = 0;
+        $calls = 0;
+
+        foreach ($this->usages as $usage) {
+            if (!$this->matches($usage, $organizationId, $period)) {
+                continue;
+            }
+
+            $sum += $usage->getDurationMs();
+            ++$calls;
+        }
+
+        if (0 === $calls) {
+            return 0;
+        }
+
+        return (int) round($sum / $calls);
+    }
+
+    public function callsByTier(Uuid $organizationId, DateRange $period): array
+    {
+        $calls = [];
+
+        foreach ($this->usages as $usage) {
+            if (!$this->matches($usage, $organizationId, $period)) {
+                continue;
+            }
+
+            $key = $usage->getTier()->value;
+            $calls[$key] = ($calls[$key] ?? 0) + 1;
+        }
+
+        return $calls;
+    }
+
+    public function durationByTier(Uuid $organizationId, DateRange $period): array
+    {
+        $durations = [];
+
+        foreach ($this->usages as $usage) {
+            if (!$this->matches($usage, $organizationId, $period)) {
+                continue;
+            }
+
+            $key = $usage->getTier()->value;
+            $durations[$key] = ($durations[$key] ?? 0) + $usage->getDurationMs();
+        }
+
+        $averages = [];
+
+        foreach ($durations as $key => $total) {
+            $calls = $this->callsByTier($organizationId, $period)[$key] ?? 0;
+
+            if (0 === $calls) {
+                continue;
+            }
+
+            $averages[$key] = (int) round($total / $calls);
+        }
+
+        return $averages;
+    }
+
     /**
      * Todos los usos guardados, para las aserciones.
      *

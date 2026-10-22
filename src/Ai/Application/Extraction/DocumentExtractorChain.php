@@ -6,6 +6,7 @@ namespace App\Ai\Application\Extraction;
 
 use App\Ai\Domain\Contract\AiProviderException;
 use App\Ai\Domain\Contract\DocumentExtractorInterface;
+use App\Ai\Domain\Enum\AiSkipReason;
 use App\Ai\Domain\ValueObject\ExtractionContext;
 use App\Mailbox\Domain\Enum\ExtractionTier;
 use App\Processing\Domain\Dto\ExtractedDocument;
@@ -56,10 +57,12 @@ final readonly class DocumentExtractorChain
     /**
      * Ejecuta la escalera sobre un contexto.
      *
-     * Devuelve `null` cuando ningún extractor interviene: no hay IA
-     * configurada, o la determinista ya resolvió el caso.
+     * Devuelve el documento conseguido o el motivo por el que no se ha
+     * conseguido ninguno. El motivo importa porque «nadie ha entrado» y «el
+     * proveedor ha fallado» son cosas distintas para quien mira el panel
+     * (Fase 14, D-57).
      */
-    public function extract(ExtractionContext $context): ?ExtractedDocument
+    public function extract(ExtractionContext $context): ChainResult
     {
         $current = $context;
 
@@ -76,7 +79,7 @@ final readonly class DocumentExtractorChain
                     'error' => $exception->getMessage(),
                 ]);
 
-                return null;
+                return ChainResult::skipped(AiSkipReason::FAILED);
             }
 
             $this->logger->info('Documento extraído con IA.', [
@@ -99,10 +102,12 @@ final readonly class DocumentExtractorChain
                 }
             }
 
-            return $document;
+            return ChainResult::extracted($document);
         }
 
-        return null;
+        // Ningún extractor ha querido entrar: no es un fallo, es que aquí la
+        // IA no tenía nada que hacer.
+        return ChainResult::skipped(AiSkipReason::NOT_NEEDED);
     }
 
     /**

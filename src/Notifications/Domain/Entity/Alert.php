@@ -275,6 +275,35 @@ class Alert implements TenantAwareInterface
         $this->resolvedAt = $at;
     }
 
+    /**
+     * Reabre un aviso que el **sistema** resolvió.
+     *
+     * Hay una diferencia entre los dos motivos por los que un aviso deja de
+     * estar abierto: que el usuario lo descartó (una decisión suya, que no se
+     * toca) y que la situación que lo motivó dejó de darse (un hecho
+     * temporal, que puede volver a darse). Solo el segundo caso se puede
+     * reabrir.
+     *
+     * Ejemplo: el aviso de presupuesto de IA salta al acercarse al tope y se
+     * resuelve al agotarse. Si luego el cliente sube el límite y vuelve a
+     * acercarse al tope, necesita un aviso nuevo: el anterior ya no describe
+     * la realidad, pero el identificador único de la clave impide crear otro.
+     *
+     * @return bool si el aviso se ha reabierto
+     */
+    public function reopen(): bool
+    {
+        if (AlertStatus::RESOLVED !== $this->status) {
+            return false;
+        }
+
+        $this->status = AlertStatus::OPEN;
+        $this->resolvedAt = null;
+        $this->resolvedByUserId = null;
+
+        return true;
+    }
+
     public function isOpen(): bool
     {
         return $this->status->isOpen();

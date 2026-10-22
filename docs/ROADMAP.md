@@ -823,7 +823,7 @@ un buzón no afecta a otro.
 
 ## Fase 14 — Control de coste de IA y observabilidad
 
-> **Estado:** ⬜ Pendiente.
+> **Estado:** ✅ Completada.
 
 
 **Objetivo:** que el coste sea **acotado, medible y predecible**. Es requisito para operar con
@@ -846,6 +846,95 @@ IA en producción, no una optimización posterior.
 presupuesto el sistema sigue procesando por reglas y deja el resto en `DEFERRED`; reprocesar un
 mensaje ya extraído cuesta cero; se puede responder con datos a *"¿cuánto cuesta procesar el
 buzón de este usuario?"* y *"¿cuánto cuesta de IA un usuario medio al mes?"*.
+
+### Qué se entregó
+
+- **Presupuesto** — `AiBudget` (`src/Ai/Domain/Entity/`): una fila por organización y periodo
+  (`YYYY-MM`) con el **tope** en céntimos y el **modo** de agotamiento. Persiste **solo la
+  política**: el gasto sale siempre del libro mayor `ai_usage` (D-55). `AiBudgetGuard` es el
+  guardián: responde a «¿puedo llamar?», «¿puedo llamar a *este* nivel?» y «¿cuánto queda?».
+- **Modos** — `AiBudgetMode`: `SOFT` degrada (sigue la IA económica, se apaga el nivel avanzado) y
+  `HARD` para (ninguna llamada; los correos que necesitaban IA quedan `DEFERRED` y se reintentan
+  otro mes). El modo lo elige la organización, por mes (D-56). Tope por defecto: 500 céntimos
+  (5,00 €), modo `SOFT`; `0` significa «sin tope».
+- **Motivo explícito** — la escalera de IA devuelve un `AiExtractionOutcome` con el documento y un
+  `AiSkipReason` (`NOT_CONFIGURED`, `NO_TEXT`, `NOT_NEEDED`, `FAILED`, `RATE_LIMITED`,
+  `BUDGET_EXHAUSTED`), en vez de un `null` pelado. Solo `BUDGET_EXHAUSTED` aplaza el correo; el
+  resto va a revisión manual, que es lo que corresponde (D-57).
+- **Aplazamiento** — `MessageProcessingState::DEFERRED`: un estado que **no** es pendiente ni
+  terminal. El correo no se marca como procesado (el tiempo medio mediría los días de espera) y
+  lleva el motivo en el evento de transición (`skip_reason`).
+- **Liberación** — `ReleaseDeferredMessages` devuelve los correos aplazados a `CANDIDATE` y los
+  reencola. Se dispara al subir el tope y también a mano desde el panel. El módulo `Ai` no sabe
+  qué es un correo aplazado: declara el puerto `AiBudgetChangeHandlerInterface` y `Processing` lo
+  implementa (D-58).
+- **Límite de peticiones** — `AiCallRateLimiter` con `RateLimiterFactory`: una ventana deslizante
+  por organización, con límite propio y configurable. Evita que un bucle de reintentos dispare una
+  factura.
+- **Libro mayor** — `AiUsageRepository` completa: agregaciones por proveedor, por necesidad y por
+  nivel; resumen de llamadas, tokens y fallos; y la media de latencia, calculada en SQL con la
+  función DQL `SECONDS_BETWEEN` (`src/Shared/Infrastructure/Doctrine/Dql/`), que devuelve siempre
+  segundos y no un intervalo.
+- **Informe de coste** — `AiCostCalculator` cruza el libro mayor con los mensajes procesados y
+  produce el `AiCostReport`: coste total, desglose por proveedor y por necesidad, llamadas y
+  latencia por nivel, porcentaje de mensajes resueltos sin IA, tasa de escalado a IA avanzada,
+  tiempo medio por mensaje y **correos aplazados**.
+- **Panel de observabilidad** — `AiCostController` (`/ai/cost`, `ROLE_USER`): la foto del mes, con
+  la barra de presupuesto, el desglose por necesidad y por nivel, la lista de correos aplazados y
+  el botón de volver a ponerlos en cola.
+- **Ajustes de presupuesto** — `AiSettingsController` (`/ai`): la pantalla de ajustes de IA
+  incluye el tope (en euros, vacío = sin tope) y el modo, y avisa por *flash* cuando se sube el
+  tope y se sueltan los correos aplazados.
+- **Avisos de coste** — `GenerateCostAlerts` genera los avisos `ai_budget_warning` y
+  `ai_budget_exceeded`, uno por mes, y **reabre** el aviso que el sistema había resuelto si la
+  situación se repite dentro del mismo mes. Vive fuera del barrido general de alertas: el
+  presupuesto lo lleva otro módulo (D-58).
+- **Estadísticas del pipeline** — `EmailMessageRepository::extractionStats()`: mensajes del
+  periodo, resueltos sin IA y resueltos con IA, que es lo que alimenta el porcentaje del panel.
+- **Migración** — `Version20261022084337` crea la tabla `ai_budget` (aplicada en `app` y `app_test`).
+
+### Correcciones relevantes de la fase
+
+1. **La pantalla de coste y la de ajustes devolvían HTTP 500.** Las dos plantillas llamaban a
+   `{{ money(x) }}` como si `money` fuera una función de Twig, cuando `MoneyExtension` la
+   registra como **filtro**. La corrección fue reescribirlas como `{{ x|money }}` y borrar el
+   «atajo» `money` que se pasaba a la plantilla, que ya no lo usaba nadie.
+2. **El panel de coste también devolvía HTTP 500.** `AiUsageRepository` indexaba el resultado de
+   sus agregaciones con `u.purpose` y `u.tier`, pero esas columnas están mapeadas con `enumType`:
+   Doctrine las hidrata como objetos enum y `Cannot access offset of type AiPurpose on array`.
+   Ahora se convierten a su valor antes de indexar.
+3. **La tasa de escalado a IA avanzada era siempre 0.** Se calculaba sobre el total de
+   extracciones del pipeline en vez de sobre las **llamadas de IA**, así que un panel con un
+   100 % de escalado mostraba 0 %. Ahora el denominador son las llamadas y el numerador las de
+   nivel avanzado.
+4. **Los avisos de coste se perdían.** Cuando la situación se repetía dentro del mismo mes, el
+   aviso que el sistema había resuelto no se reabría y el usuario se quedaba sin saber que
+   seguía cerca del tope. `GenerateCostAlerts` reabre el aviso resuelto, porque la clave de
+   deduplicación es única y no se puede crear otro.
+5. **Los correos aplazados no se podían volver a poner en cola.** `DEFERRED` **no** está entre
+   los estados pendientes, a propósito: un correo aplazado no debe reencolarse en cada
+   sincronización, porque hasta que no haya presupuesto no va a poder avanzar. Hacen falta
+   `findDeferred()` y `countByState()` en el repositorio, y un camino de liberación aparte.
+6. **La puerta de IA seguía devolviendo `?ExtractedDocument`.** El cambio a `AiExtractionOutcome`
+  (D-57) dejó la interfaz y sus dobles desalineados: la suite entera moría con un error fatal
+  al cargar `RecordingAiExtraction`.
+7. **`ChainResult::hasDocument()` miraba una variable que no existía.** Devolvía siempre `true`,
+  porque la expresión era `null !== $document` en vez de `null !== $this->document`.
+8. **La suite completa moría de agotamiento de memoria.** Con el límite de 128 MB del contenedor
+  y un pico de ~125 MB, el resultado dependía del orden de los tests. `phpunit.dist.xml` fija
+   ahora 512 MB.
+
+**Verificación ejecutada al cerrar la fase:**
+
+| Comprobación | Resultado |
+|---|---|
+| `php bin/phpunit` | ✅ 1216 tests, 4591 assertions |
+| `vendor/bin/phpstan analyse --no-progress` | ✅ 0 errores (nivel 8) |
+| `vendor/bin/php-cs-fixer fix --dry-run --diff` | ✅ 0 ficheros pendientes |
+| `bin/console lint:container` | ✅ |
+| `bin/console lint:yaml config/ --parse-tags` | ✅ |
+| `bin/console lint:twig templates/` | ✅ |
+| `bin/console doctrine:schema:validate` | ✅ |
 
 ## Fase 15 — Detección de cambios
 

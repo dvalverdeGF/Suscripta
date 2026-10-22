@@ -1606,6 +1606,48 @@ propio.
 **Medición de valor.** Como cada extracción registra su `tier` y su coste, se puede medir
 cuánto aporta realmente la IA frente a reglas y parsers, y ajustar los umbrales con datos.
 
+#### Cómo se implementó (Fase 14)
+
+**La política se guarda; el gasto se calcula.** `AiBudget` es una fila por organización y
+periodo (`YYYY-MM`) con el **tope** y el **modo**. El gasto **no** se guarda: sale de agregar
+`ai_usage`, que es el libro mayor y la única fuente de verdad. Dos verdades sobre la misma
+cifra se contradicen en cuanto una escritura falla (D-55).
+
+`AiBudgetGuard` es el guardián, y hace tres preguntas:
+
+| Método | Pregunta |
+|---|---|
+| `allowsCall()` | ¿Se puede llamar a un modelo ahora mismo? |
+| `allowsTier(tier)` | ¿Se puede llamar a un modelo **de este nivel**? |
+| `status()` | ¿Cuánto he gastado, cuánto queda, y hay aviso? |
+
+El guard se comprueba **antes** de cada llamada, en `AiExtractionService` y también en
+`AdvancedAiDocumentExtractor` (que es el que decide si se escala al nivel caro).
+
+**Degradar o parar.** El modo lo elige la organización, por mes (D-56):
+
+- `SOFT` (por defecto): se sigue usando la IA económica y **se apaga el nivel 6**, que es el
+  caro. El pipeline continúa por reglas.
+- `HARD`: no se llama a ningún modelo. El correo que **necesitaba** IA no va a revisión manual
+  —no está mal, está esperando— sino que queda en `DEFERRED` con el motivo
+  `budget_exhausted`, y se reintenta cuando hay presupuesto.
+
+**El motivo viaja con el resultado.** La escalera de IA devuelve un `AiExtractionOutcome` con el
+documento y un `AiSkipReason` (`NOT_CONFIGURED`, `NO_TEXT`, `NOT_NEEDED`, `FAILED`,
+`RATE_LIMITED`, `BUDGET_EXHAUSTED`), en vez de un `null` pelado. Solo `BUDGET_EXHAUSTED` aplaza
+el correo; los demás van a revisión manual, que es lo que corresponde (D-57).
+
+**`DEFERRED` no es un estado terminal ni pendiente.** Es un estado de espera: el correo no se
+marca como procesado (el tiempo medio mediría los días de espera en vez del trabajo hecho) y no
+se reencola en cada sincronización, porque hasta que no haya presupuesto no va a poder avanzar.
+Volver a ponerlo en cola es una operación explícita: `ReleaseDeferredMessages`, que lo
+implementa `Processing` porque el módulo de IA no sabe qué es un correo aplazado (D-58).
+
+**Límite de peticiones.** `AiCallRateLimiter` aplica una ventana deslizante por organización
+(`config/packages/rate_limiter.yaml`). Es la segunda red: el presupuesto acota el **gasto**, el
+limitador acota el **número de llamadas**, y un bucle de reintentos no puede disparar una
+factura ni aunque el presupuesto alto lo permitiera.
+
 ### 13.14 Idempotencia, reintentos y procesamiento progresivo
 
 **Idempotencia.** Todos los pasos son idempotentes y reintentables. Un reintento **no puede**:
@@ -1665,7 +1707,7 @@ proveedores utilizados no permitan sostenerlas (D-25).
 | ¿Qué extractor lo resolvió? | `EmailMessage.extractorUsed` + `extractionTier` |
 | ¿Intervino IA? | `EmailMessage.aiUsed` + `aiUsageId` en el evento |
 | ¿Cuánto costó? | `AiUsage.estimatedCostMinor` |
-| ¿Cuánto llevamos gastado este mes? | `AiBudget.currentSpendMinor` |
+| ¿Cuánto llevamos gastado este mes? | Suma de `ai_usage` del periodo (D-55) |
 | ¿Cómo va la sincronización? | `EmailSyncRun` + eventos Mercure |
 | ¿Cuántos mensajes se resuelven sin IA? | Agregado sobre `extractionTier` |
 | ¿Cuánto descarta el nivel 2? | `app:mail:stats` sobre `EmailMessageRepository::countByState()` |
@@ -1679,6 +1721,46 @@ muestra como `—` y no como `0,0 %`: un cero fingiría una medición que no exi
 **Métricas de producto derivadas** (ver `PRODUCT.md` §12): porcentaje de mensajes resueltos
 sin IA, coste de IA por usuario y mes, tasa de confirmación de descubrimientos, tiempo medio
 de procesamiento por mensaje.
+
+#### El panel de coste (Fase 14)
+
+**`/ai/cost`** es la respuesta a «¿cuánto cuesta procesar el buzón de este usuario?». Es una
+pantalla de backoffice (`ROLE_USER`) y la calcula `AiCostCalculator`, no la plantilla: el
+informe cruza el libro mayor de IA con los mensajes procesados, que están en dos tablas
+distintas, y hacer eso en Twig es hacer una consulta por celda.
+
+La foto del mes:
+
+| Dato | De dónde sale |
+|---|---|
+| Coste total, llamadas, tokens, fallos | `ai_usage` del mes natural |
+| Coste por proveedor y por necesidad | `AiUsageRepository::costByProvider()` / `costByPurpose()` |
+| Llamadas y latencia media por nivel | `callsByTier()` / `durationByTier()` |
+| Presupuesto: tope, gastado, restante, modo | `AiBudgetGuard::status()` |
+| Mensajes resueltos sin IA | `EmailMessageRepository::extractionStats()` |
+| Tasa de escalado a IA avanzada | Llamadas de nivel avanzado ÷ llamadas totales |
+| Correos aplazados esperando presupuesto | `countByState()['deferred']` |
+
+El periodo es el **mes natural**, el mismo que usa el presupuesto: las facturas de los
+proveedores de IA van por mes natural, así que el mes de Suscripta y el mes de la factura se
+comparan sin traducción.
+
+Los porcentajes se calculan en PHP y **no** se dejan en Twig. Cuando no hay llamadas, el
+porcentaje es `0` y no `null`: un panel que dice «—» obliga al operador a decidir si es un dato
+que falta o un cero.
+
+La pantalla también ofrece **volver a poner en cola los correos aplazados**, que es la vía
+manual de `ReleaseDeferredMessages`. Es un no-op si el presupuesto sigue agotado, y el mensaje
+de la pantalla lo dice: «No hay correos aplazados, o el presupuesto sigue agotado».
+
+**`/ai`** (ajustes de IA) incluye el tope —en euros, vacío significa «sin tope»— y el modo.
+Al subir el tope se sueltan los correos aplazados y se avisa por *flash* con cuántos han sido.
+
+**Avisos de coste.** `GenerateCostAlerts` genera `ai_budget_warning` y `ai_budget_exceeded`, uno
+por mes (la clave de deduplicación incluye el último día del mes). No vive en el barrido general
+de alertas: el presupuesto lo lleva el módulo de IA, y meterlo en `AlertRules::generatedTypes()`
+obligaría al generador general a resolver avisos de coste en cada pasada. Lo que sí se comprueba
+es que **entre los dos generadores cubran todos los tipos**: `AlertRules::allGeneratedTypes()`.
 
 ### 13.17 Interfaces y responsabilidades
 
@@ -1727,6 +1809,11 @@ interface AiBudgetGuardInterface
     public function record(AiUsage $usage): void;
 }
 
+interface AiBudgetChangeHandlerInterface
+{
+    public function onBudgetRaised(): int;
+}
+
 interface ServiceMatcherInterface
 {
     public function match(ExtractedDocument $document, Organization $organization): MatchResult;
@@ -1744,13 +1831,22 @@ interface MailboxKnowledgeRepositoryInterface
 documentan aquí para que las implementaciones no inventen firmas distintas, pero todavía no
 existen en el código.
 
+**El presupuesto no usa esa interfaz.** `AiBudgetGuardInterface` era el contrato previsto, pero
+la Fase 14 lo implementó de otra forma: `AiBudgetGuard` es una **clase concreta** de la capa
+`Application`, no una interfaz con una implementación de infraestructura. La razón es que el
+guard no guarda nada: **lee** el libro mayor, **agrega** el gasto y **decide**. No hay una
+variante de infraestructura que sea distinta de otra, y una interfaz sin dos implementaciones
+es ruido.
+El puerto que sí hace falta es el otro: `AiBudgetChangeHandlerInterface`, que el módulo de `Ai`
+**declara** y `Processing` **implementa** (D-58).
+
 **Responsabilidades por módulo:**
 
 | Módulo | Responsabilidad en el pipeline | Lo que **no** hace |
 |---|---|---|
 | `Mailbox` | Ingesta (IMAP, reenvío), identidad del mensaje, cursores, `EmailSyncRun` | No interpreta el contenido |
-| `Processing` | Clasificación, extracción, validación, máquina de estados, conocimiento del buzón | No conoce proveedores de IA concretos |
-| `Ai` | Adaptadores de proveedor, `AiUsage`, `AiBudget`, guard de presupuesto | No conoce el dominio |
+| `Processing` | Clasificación, extracción, validación, máquina de estados, conocimiento del buzón, liberación de aplazados | No conoce proveedores de IA concretos |
+| `Ai` | Adaptadores de proveedor, `AiUsage`, `AiBudget`, guard de presupuesto, informe de coste | No conoce el dominio ni los estados del pipeline |
 | `Catalog` | `Provider`, `ProviderIdentity`, `ProviderParser`: reconocimiento y parsers | No decide asociaciones |
 | `Documents` | `Document`, `Invoice`: persistencia del resultado | No extrae |
 | `Discovery` | `ServiceMatcher`, `Discovery`, recurrencia, cambios | No descarga correo |
@@ -1759,6 +1855,12 @@ existen en el código.
 **Regla de dependencia:** `Processing` puede depender de `Mailbox`, `Documents`, `Catalog` y
 `Ai`; **`Services` (dominio) no depende de ninguno de ellos** (§4.10). El dominio solo ve el
 resultado de la extracción, nunca cómo se obtuvo.
+
+**La dependencia va en un solo sentido.** La Fase 14 introdujo un ciclo: `Ai` necesita
+avisar de que el presupuesto ha cambiado, y `Processing` es quien sabe qué hacer con un correo
+aplazado. Se rompe con `AiBudgetChangeHandlerInterface`: `Ai` **declara** el puerto y
+`Processing` lo **implementa** (D-58). La regla es general, no un caso concreto: un puerto lo
+declara quien **necesita** algo, y lo implementa quien **sabe** hacerlo.
 
 ## 14. Riesgos arquitectónicos abiertos
 

@@ -23,6 +23,8 @@ enum AlertType: string
     case PRICE_INCREASE = 'price_increase';
     case DISCOVERY_PENDING = 'discovery_pending';
     case NEW_SERVICE_DETECTED = 'new_service_detected';
+    case AI_BUDGET_WARNING = 'ai_budget_warning';
+    case AI_BUDGET_EXCEEDED = 'ai_budget_exceeded';
 
     public function label(): string
     {
@@ -35,6 +37,8 @@ enum AlertType: string
             self::PRICE_INCREASE => 'Ha subido de precio',
             self::DISCOVERY_PENDING => 'Hay algo que revisar',
             self::NEW_SERVICE_DETECTED => 'Servicio nuevo detectado',
+            self::AI_BUDGET_WARNING => 'El presupuesto de IA se está agotando',
+            self::AI_BUDGET_EXCEEDED => 'Se ha agotado el presupuesto de IA',
         };
     }
 
@@ -49,6 +53,8 @@ enum AlertType: string
             self::PRICE_INCREASE => 'Un servicio ha subido de precio.',
             self::DISCOVERY_PENDING => 'Hemos encontrado algo en tu correo y esperamos tu confirmación.',
             self::NEW_SERVICE_DETECTED => 'Hemos encontrado un servicio que no tienes registrado y esperamos tu confirmación.',
+            self::AI_BUDGET_WARNING => 'Vas por camino de agotar el presupuesto mensual de IA.',
+            self::AI_BUDGET_EXCEEDED => 'Se ha agotado el presupuesto mensual de IA.',
         };
     }
 

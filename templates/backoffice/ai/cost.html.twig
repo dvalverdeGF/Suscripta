@@ -1,0 +1,312 @@
+{% extends 'backoffice/base.html.twig' %}
+
+{#
+    Panel de coste y rendimiento de la IA (Fase 14).
+
+    Tres preguntas, en este orden:
+
+    1. ¿Cuánto he gastado y cuánto queda? — las metricas de arriba.
+    2. ¿En qué se va el dinero? — el desglose por proveedor y por necesidad.
+    3. ¿Cuánta IA hace falta? — los porcentajes de resolucion y escalado.
+
+    El desglose va **despues** de las metricas y no antes: primero el operador
+    quiere saber si tiene un problema, y solo si lo tiene quiere saber donde
+    esta. Un panel que empieza por el desglose obliga a sumar mentalmente
+    para saber si lo que ve es grave.
+#}
+{% block title %}Coste de IA — Suscripta{% endblock %}
+
+{% block breadcrumb %}
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{{ path('app_dashboard') }}">Panel</a></li>
+        <li class="breadcrumb-item"><a href="{{ path('app_ai_settings') }}">Inteligencia artificial</a></li>
+        <li class="breadcrumb-item active">Coste</li>
+    </ol>
+{% endblock %}
+
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">Coste de la inteligencia artificial</h1>
+            <p class="bo-page-header__subtitle">Lo que ha costado este mes la IA, en qué se ha gastado y cuánta se ha ahorrado.</p>
+        </div>
+        <div class="bo-page-header__actions">
+            <a class="btn btn-outline-secondary" href="{{ path('app_ai_settings') }}">
+                <i class="fa-solid fa-sliders me-1"></i> Configurar
+            </a>
+        </div>
+    </div>
+
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="alert alert-{{ label }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+            </div>
+        {% endfor %}
+    {% endfor %}
+
+    {# ── Presupuesto ─────────────────────────────────────────────── #}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="card-title">Presupuesto de este mes</h2>
+        </div>
+        <div class="card-body">
+            {% if budget.isUnlimited %}
+                <div class="bo-empty">
+                    <p class="bo-empty__title">No hay tope de gasto</p>
+                    <p class="bo-empty__text">
+                        La IA gastará lo que necesite. Si prefieres poner un límite,
+                        se configura en
+                        <a href="{{ path('app_ai_settings') }}">Inteligencia artificial</a>.
+                    </p>
+                </div>
+            {% else %}
+                <div class="bo-metrics">
+                    <div class="bo-metric">
+                        <span class="bo-metric__label">Gastado</span>
+                        <span class="bo-metric__value">{{ budget.spentMinor|money }}</span>
+                        <span class="bo-metric__hint">de {{ budget.limitMinor|money }}</span>
+                    </div>
+                    <div class="bo-metric">
+                        <span class="bo-metric__label">Queda</span>
+                        <span class="bo-metric__value">{{ budget.remainingMinor|money }}</span>
+                        <span class="bo-metric__hint">hasta el final del mes</span>
+                    </div>
+                    <div class="bo-metric">
+                        <span class="bo-metric__label">Uso</span>
+                        <span class="bo-metric__value">{{ budget.usedPercent }} %</span>
+                        <span class="bo-metric__hint">
+                            {% if budget.exhausted %}
+                                <span class="text-danger">Presupuesto agotado</span>
+                            {% elseif budget.warning %}
+                                <span class="text-warning-emphasis">Cerca del tope</span>
+                            {% else %}
+                                Dentro del presupuesto
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="bo-metric">
+                        <span class="bo-metric__label">Al agotarse</span>
+                        <span class="bo-metric__value">{{ budget.mode.label }}</span>
+                        <span class="bo-metric__hint">{{ budget.mode.description }}</span>
+                    </div>
+                </div>
+
+                {% if budget.exhausted %}
+                    <div class="alert alert-danger mt-3 mb-0" role="alert">
+                        <i class="fa-solid fa-circle-exclamation me-1"></i>
+                        Se ha agotado el presupuesto de IA. En modo <strong>parar</strong> los correos
+                        que necesiten IA quedan aplazados hasta que empiece el mes siguiente o
+                        subas el tope.
+                    </div>
+                {% endif %}
+            {% endif %}
+
+            {% if report.deferredMessages > 0 %}
+                <div class="alert alert-warning mt-3 mb-0" role="alert">
+                    <i class="fa-solid fa-pause me-1"></i>
+                    Hay <strong>{{ report.deferredMessages }}</strong> correos aplazados esperando
+                    presupuesto de IA. Vuelven al pipeline en cuanto haya presupuesto.
+                    <form method="post" action="{{ path('app_ai_cost') }}" class="mt-2">
+                        <input type="hidden" name="_token" value="{{ csrf_token('release_deferred_messages') }}">
+                        <button type="submit" class="btn btn-outline-light btn-sm">
+                            <i class="fa-solid fa-play me-1"></i> Reintentar los correos aplazados
+                        </button>
+                    </form>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# ── Gasto ──────────────────────────────────────────────────── #}
+    <div class="bo-metrics mb-4">
+        <div class="bo-metric">
+            <span class="bo-metric__label">Coste total</span>
+            <span class="bo-metric__value">{{ report.totalCostMinor|money }}</span>
+            <span class="bo-metric__hint">{{ report.calls }} {{ report.calls == 1 ? 'llamada' : 'llamadas' }} este mes</span>
+        </div>
+        <div class="bo-metric">
+            <span class="bo-metric__label">Coste por llamada</span>
+            <span class="bo-metric__value">{{ report.averageCostPerCallMinor|money }}</span>
+            <span class="bo-metric__hint">media de {{ report.calls }} llamadas</span>
+        </div>
+        <div class="bo-metric">
+            <span class="bo-metric__label">Resueltos sin IA</span>
+            <span class="bo-metric__value">{{ report.resolvedWithoutAiPercent() }} %</span>
+            <span class="bo-metric__hint">{{ report.messagesTotal }} correos procesados</span>
+        </div>
+        <div class="bo-metric">
+            <span class="bo-metric__label">Escalados a IA avanzada</span>
+            <span class="bo-metric__value">{{ report.escalationRatePercent() }} %</span>
+            <span class="bo-metric__hint">{{ report.failureRatePercent() }} % de llamadas fallidas</span>
+        </div>
+    </div>
+
+    {% if report.isEmpty %}
+        <div class="card">
+            <div class="card-body">
+                <div class="bo-empty">
+                    <p class="bo-empty__title">Todavía no hay uso de IA</p>
+                    <p class="bo-empty__text">
+                        Cuando se procesen correos que necesiten un modelo, aquí verás el
+                        desglose del gasto. Si la IA está desactivada para tu organización,
+                        todo se resuelve con las reglas deterministas y no se gasta nada.
+                    </p>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        {# ── Desglose ────────────────────────────────────────────── #}
+        <div class="row g-3 mb-4">
+            <div class="col-12 col-lg-6">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h2 class="card-title">Por proveedor</h2>
+                    </div>
+                    <div class="card-body p-0">
+                        {% if report.costByProvider is empty %}
+                            <div class="card-body">
+                                <p class="text-muted mb-0">Sin llamadas registradas.</p>
+                            </div>
+                        {% else %}
+                            <div class="table-responsive">
+                                <table class="table bo-table bo-table--stack align-middle mb-0">
+                                    <caption class="visually-hidden">Coste de la IA por proveedor</caption>
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">Proveedor</th>
+                                            <th scope="col" class="text-end">Coste</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for key, cost in report.costByProvider %}
+                                            <tr>
+                                                <td data-label="Proveedor">
+                                                    {{ providers[key]|default(key) }}
+                                                </td>
+                                                <td data-label="Coste" class="text-end">{{ cost|money }}</td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-lg-6">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h2 class="card-title">Por necesidad</h2>
+                    </div>
+                    <div class="card-body p-0">
+                        {% if report.costByPurpose is empty %}
+                            <div class="card-body">
+                                <p class="text-muted mb-0">Sin llamadas registradas.</p>
+                            </div>
+                        {% else %}
+                            <div class="table-responsive">
+                                <table class="table bo-table bo-table--stack align-middle mb-0">
+                                    <caption class="visually-hidden">Coste de la IA por necesidad</caption>
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">Necesidad</th>
+                                            <th scope="col" class="text-end">Coste</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for key, cost in report.costByPurpose %}
+                                            <tr>
+                                                <td data-label="Necesidad">{{ purposes[key]|default(key) }}</td>
+                                                <td data-label="Coste" class="text-end">{{ cost|money }}</td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# ── Rendimiento ──────────────────────────────────────────── #}
+        <div class="row g-3">
+            <div class="col-12 col-lg-6">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h2 class="card-title">Niveles de extracción</h2>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table bo-table bo-table--stack align-middle mb-0">
+                                <caption class="visually-hidden">Correos resueltos por nivel de extracción</caption>
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Nivel</th>
+                                        <th scope="col" class="text-end">Correos</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for tier, total in report.messagesByTier %}
+                                        <tr>
+                                            <td data-label="Nivel">{{ tiers[tier]|default(tier) }}</td>
+                                            <td data-label="Correos" class="text-end">{{ total }}</td>
+                                        </tr>
+                                    {% else %}
+                                        <tr>
+                                            <td colspan="2" class="text-muted">Sin correos procesados este mes.</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-lg-6">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h2 class="card-title">Volumen y tiempo</h2>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table bo-table bo-table--stack align-middle mb-0">
+                                <caption class="visually-hidden">Volumen de uso y tiempos medios</caption>
+                                <tbody>
+                                    <tr>
+                                        <td data-label="Concepto">Llamadas a modelos</td>
+                                        <td data-label="Valor" class="text-end">{{ report.calls }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td data-label="Concepto">Tokens de entrada</td>
+                                        <td data-label="Valor" class="text-end">{{ report.promptTokens }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td data-label="Concepto">Tokens de salida</td>
+                                        <td data-label="Valor" class="text-end">{{ report.completionTokens }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td data-label="Concepto">Llamadas fallidas</td>
+                                        <td data-label="Valor" class="text-end">{{ report.failures }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td data-label="Concepto">Tiempo medio de una llamada</td>
+                                        <td data-label="Valor" class="text-end">{{ report.averageDurationMs }} ms</td>
+                                    </tr>
+                                    <tr>
+                                        <td data-label="Concepto">Tiempo medio de un correo</td>
+                                        <td data-label="Valor" class="text-end">{{ report.averageProcessingMs }} ms</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Ai\Application\Extraction;
 
+use App\Ai\Application\AiBudgetGuard;
 use App\Ai\Application\AiUsageRecorder;
 use App\Ai\Application\ExtractionValidator;
 use App\Ai\Domain\Contract\AiProviderException;
@@ -64,6 +65,7 @@ final class AdvancedAiDocumentExtractor extends AbstractAiDocumentExtractor
         ExtractionValidator $extractionValidator,
         LoggerInterface $logger,
         AiUsageRecorder $usageRecorder,
+        private readonly AiBudgetGuard $budget,
         private readonly float $confidenceThreshold = 0.3,
         private readonly int $maxTextLength = 8000,
     ) {
@@ -73,6 +75,15 @@ final class AdvancedAiDocumentExtractor extends AbstractAiDocumentExtractor
     public function supports(ExtractionContext $context): bool
     {
         if ('' === trim($context->text)) {
+            return false;
+        }
+
+        // El presupuesto manda antes que nada (Fase 14, D-56).
+        //
+        // En modo `SOFT` agotado el nivel 6 **no entra**: es el nivel caro,
+        // y degradar significa dejar de pagar por él. En modo `HARD` no entra
+        // ningún nivel, y a esta pregunta ya ni siquiera se ha llegado.
+        if (!$this->budget->allowsTier(ExtractionTier::AI_ADVANCED)) {
             return false;
         }
 
@@ -95,7 +106,7 @@ final class AdvancedAiDocumentExtractor extends AbstractAiDocumentExtractor
             return false;
         }
 
-        // Solo se escala desde el nivel 5: si no se ha triedo antes, este no es
+        // Solo se escala desde el nivel 5: si no se ha usado antes, este no es
         // el peldaño siguiente.
         if (ExtractionTier::AI_CHEAP !== $context->currentTier) {
             return false;

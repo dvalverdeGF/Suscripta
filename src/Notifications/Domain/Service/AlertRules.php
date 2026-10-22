@@ -8,6 +8,7 @@ use App\Notifications\Domain\Enum\AlertSeverity;
 use App\Notifications\Domain\Enum\AlertType;
 use App\Notifications\Domain\Enum\NotificationChannel;
 
+use function array_merge;
 use function max;
 
 /**
@@ -129,5 +130,39 @@ final class AlertRules
             AlertType::DISCOVERY_PENDING,
             AlertType::NEW_SERVICE_DETECTED,
         ];
+    }
+
+    /**
+     * Tipos de aviso que genera el servicio de coste, no el barrido general.
+     *
+     * El estado del presupuesto de IA lo lleva el módulo de IA, que el
+     * generador general no debe conocer (Fase 14). Por eso estos avisos
+     * tienen su propio servicio, `GenerateCostAlerts`, y su propio ciclo de
+     * resolución: mezclarlos en el barrido obligaría a resolver avisos de
+     * coste en cada pasada, y a que `AlertRules` supiera qué es un
+     * presupuesto de IA.
+     *
+     * @return list<AlertType>
+     */
+    public static function costTypes(): array
+    {
+        return [
+            AlertType::AI_BUDGET_WARNING,
+            AlertType::AI_BUDGET_EXCEEDED,
+        ];
+    }
+
+    /**
+     * Todos los tipos de aviso, los genere quien los genere.
+     *
+     * La unión de los dos generadores tiene que cubrir el enum entero: si
+     * alguien añade un tipo y no lo engancha a ningún generador, el aviso no
+     * existiría nunca y nadie se enteraría.
+     *
+     * @return list<AlertType>
+     */
+    public static function allGeneratedTypes(): array
+    {
+        return array_merge(self::generatedTypes(), self::costTypes());
     }
 }

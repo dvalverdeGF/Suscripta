@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace App\Ai\Application;
 
+use App\Ai\Application\Dto\AiExtractionOutcome;
 use App\Ai\Application\Extraction\DocumentExtractorChain;
+use App\Ai\Domain\Contract\AiProviderSelectorInterface;
+use App\Ai\Domain\Enum\AiPurpose;
+use App\Ai\Domain\Enum\AiSkipReason;
 use App\Ai\Domain\ValueObject\ExtractionContext;
 use App\Mailbox\Application\Imap\ImapMessageHeader;
 use App\Processing\Domain\Dto\ExtractedDocument;
@@ -25,7 +29,7 @@ use function trim;
  * `ExtractionContext`, ni que hay que redactar antes de llamar, ni que existe
  * un presupuesto. Eso son políticas de IA, no política de procesamiento. Este
  * servicio las reúne en un sitio y le da al pipeline una respuesta simple:
- * *un documento mejor, o ninguno*.
+ * *un documento mejor, o el motivo por el que no lo hay*.
  *
  * ## El presupuesto se comprueba **antes** de llamar
  *
@@ -33,6 +37,17 @@ use function trim;
  * es un informe. Aquí se comprueba antes, y si se ha agotado, el pipeline se
  * queda con lo que tenía, que es el mismo camino que se recorre cuando no hay
  * IA configurada.
+ *
+ * ## TresGuardias, tres motivos distintos
+ *
+ * | Guardia | Motivo | Qué hace el pipeline |
+ * |---|---|---|
+ * | Presupuesto | `BUDGET_EXHAUSTED` | Aplaza el correo (`DEFERRED`) |
+ * | Límite de peticiones | `RATE_LIMITED` | Revisión manual, se reintenta luego |
+ * | Texto vacío | `NO_TEXT` | Revisión manual |
+ *
+ * El presupuesto es el único que **aplaza**: los otros dos casos son fallos
+ * o decisiones, no esperas (D-57).
  *
  * ## Lo que se manda al modelo
  *
@@ -45,7 +60,9 @@ final readonly class AiExtractionService implements AiExtractionInterface
     public function __construct(
         private DocumentExtractorChain $chain,
         private RedactContent $redactor,
-        private AiBudget $budget,
+        private AiBudgetGuard $budget,
+        private AiCallRateLimiter $rateLimiter,
+        private AiProviderSelectorInterface $selector,
         private LoggerInterface $logger,
     ) {
     }
@@ -53,23 +70,34 @@ final readonly class AiExtractionService implements AiExtractionInterface
     /**
      * Intenta mejorar el documento con IA.
      *
-     * Devuelve `null` cuando no hay nada que mejorar, cuando la IA está
-     * desactivada, cuando el presupuesto se ha agotado o cuando el modelo ha
-     * fallado. El pipeline trata todos esos casos igual: sigue con el
-     * documento determinista.
+     * Devuelve el documento mejorado, o el motivo por el que no se ha
+     * mejorado. El pipeline decide qué hacer con cada motivo.
      */
     public function enrich(
         ExtractedDocument $deterministic,
         string $haystack,
         ImapMessageHeader $header,
-    ): ?ExtractedDocument {
+    ): AiExtractionOutcome {
+        // 1. Presupuesto. En modo `SOFT` agotado la IA económica sigue
+        //    entrando: lo que se apaga es el nivel avanzado, y eso lo decide
+        //    el propio extractor avanzado, no esta puerta.
         if (!$this->budget->allowsCall()) {
             $this->logger->info('Se omite la extracción con IA: el presupuesto está agotado.', [
                 'spent_minor' => $this->budget->spentMinor(),
                 'limit_minor' => $this->budget->limitMinor(),
+                'mode' => $this->budget->mode()->value,
             ]);
 
-            return null;
+            return AiExtractionOutcome::skipped(AiSkipReason::BUDGET_EXHAUSTED);
+        }
+
+        // 2. Límite de peticiones. Se consume el hueco **después** de
+        //    comprobar el presupuesto: si el presupuesto está agotado no tiene
+        //    sentido gastar un hueco de peticiones que no se va a usar.
+        if (!$this->rateLimiter->acquire()) {
+            $this->logger->info('Se omite la extracción con IA: límite de peticiones alcanzado.');
+
+            return AiExtractionOutcome::skipped(AiSkipReason::RATE_LIMITED);
         }
 
         $context = $this->redactor->redact(
@@ -77,10 +105,23 @@ final readonly class AiExtractionService implements AiExtractionInterface
         );
 
         if ('' === trim($context->text)) {
-            return null;
+            return AiExtractionOutcome::skipped(AiSkipReason::NO_TEXT);
         }
 
-        return $this->chain->extract($context);
+        // 3. ¿Hay proveedor? Sin proveedor elegido para la extracción no se
+        //    llama a nadie, y conviene decirlo con su propio motivo: no es un
+        //    fallo, es que la organización no ha configurado la IA.
+        if (!$this->selector->has(AiPurpose::EXTRACTION)) {
+            return AiExtractionOutcome::skipped(AiSkipReason::NOT_CONFIGURED);
+        }
+
+        $result = $this->chain->extract($context);
+
+        if (null === $result->document) {
+            return AiExtractionOutcome::skipped($result->reason);
+        }
+
+        return AiExtractionOutcome::extracted($result->document);
     }
 
     /**

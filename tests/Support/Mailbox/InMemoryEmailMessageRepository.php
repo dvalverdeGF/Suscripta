@@ -7,12 +7,19 @@ namespace App\Tests\Support\Mailbox;
 use App\Mailbox\Domain\Entity\EmailMessage;
 use App\Mailbox\Domain\Enum\MessageProcessingState;
 use App\Mailbox\Domain\Repository\EmailMessageRepositoryInterface;
+use App\Shared\Domain\ValueObject\DateRange;
 
 use function array_slice;
 use function array_values;
 use function count;
 
+use DateTimeImmutable;
+
+use function round;
+
 use Symfony\Component\Uid\Uuid;
+
+use function usort;
 
 /**
  * Repositorio de mensajes en memoria con almacenamiento real.
@@ -120,6 +127,82 @@ final class InMemoryEmailMessageRepository implements EmailMessageRepositoryInte
         }
 
         return $counts;
+    }
+
+    public function findDeferred(int $limit = 200): array
+    {
+        /** @var list<array{message: EmailMessage, receivedAt: DateTimeImmutable}> $candidates */
+        $candidates = [];
+
+        foreach ($this->messages as $message) {
+            if (MessageProcessingState::DEFERRED !== $message->getProcessingState()) {
+                continue;
+            }
+
+            $receivedAt = $message->getReceivedAt();
+
+            if (null === $receivedAt) {
+                continue;
+            }
+
+            $candidates[] = ['message' => $message, 'receivedAt' => $receivedAt];
+        }
+
+        usort(
+            $candidates,
+            static fn (array $a, array $b): int => $a['receivedAt'] <=> $b['receivedAt'],
+        );
+
+        $found = [];
+
+        foreach (array_slice($candidates, 0, $limit) as $candidate) {
+            $found[] = $candidate['message'];
+        }
+
+        return $found;
+    }
+
+    public function extractionStats(Uuid $organizationId, DateRange $period): array
+    {
+        $byTier = [];
+        $total = 0;
+        $durationSum = 0;
+        $durationCount = 0;
+
+        foreach ($this->messages as $message) {
+            if (!$message->getOrganizationId()->equals($organizationId)) {
+                continue;
+            }
+
+            $receivedAt = $message->getReceivedAt();
+
+            if (null === $receivedAt || !$period->contains($receivedAt)) {
+                continue;
+            }
+
+            $tier = $message->getExtractionTier();
+
+            if (null === $tier) {
+                continue;
+            }
+
+            $key = $tier->value;
+            $byTier[$key] = ($byTier[$key] ?? 0) + 1;
+            ++$total;
+
+            $processedAt = $message->getProcessedAt();
+
+            if (null !== $processedAt) {
+                $durationSum += ($processedAt->getTimestamp() - $receivedAt->getTimestamp()) * 1000;
+                ++$durationCount;
+            }
+        }
+
+        return [
+            'total' => $total,
+            'byTier' => $byTier,
+            'averageDurationMs' => 0 === $durationCount ? 0 : (int) round($durationSum / $durationCount),
+        ];
     }
 
     public function countForOrganization(): int

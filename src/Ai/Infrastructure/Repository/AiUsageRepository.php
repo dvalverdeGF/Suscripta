@@ -8,6 +8,7 @@ use App\Ai\Domain\Entity\AiUsage;
 use App\Ai\Domain\Repository\AiUsageRepositoryInterface;
 use App\Shared\Domain\ValueObject\DateRange;
 use App\Shared\Infrastructure\Persistence\DoctrineRepository;
+use BackedEnum;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
 use Symfony\Component\Uid\Uuid;
@@ -74,7 +75,7 @@ final class AiUsageRepository extends DoctrineRepository implements AiUsageRepos
         $costs = [];
 
         foreach ($rows as $row) {
-            $costs[$row['purpose']] = (int) $row['total'];
+            $costs[$this->enumValue($row['purpose'])] = (int) $row['total'];
         }
 
         return $costs;
@@ -116,6 +117,82 @@ final class AiUsageRepository extends DoctrineRepository implements AiUsageRepos
             ->getResult();
 
         return $usages;
+    }
+
+    /**
+     * Duración media de las llamadas, en milisegundos.
+     */
+    public function averageDurationMs(Uuid $organizationId, DateRange $period): int
+    {
+        $result = $this->sumQuery($organizationId, $period)
+            ->select('COALESCE(AVG(u.durationMs), 0)')
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return (int) round((float) $result);
+    }
+
+    /**
+     * Número de llamadas por nivel de IA.
+     *
+     * @return array<string, int>
+     */
+    public function callsByTier(Uuid $organizationId, DateRange $period): array
+    {
+        /** @var list<array{tier: string, total: int|string}> $rows */
+        $rows = $this->sumQuery($organizationId, $period)
+            ->select('u.tier AS tier', 'COUNT(u.id) AS total')
+            ->groupBy('u.tier')
+            ->getQuery()
+            ->getResult();
+
+        $calls = [];
+
+        foreach ($rows as $row) {
+            $calls[$this->enumValue($row['tier'])] = (int) $row['total'];
+        }
+
+        return $calls;
+    }
+
+    /**
+     * Duración media de las llamadas por nivel de IA.
+     *
+     * @return array<string, int>
+     */
+    public function durationByTier(Uuid $organizationId, DateRange $period): array
+    {
+        /** @var list<array{tier: string, total: int|string}> $rows */
+        $rows = $this->sumQuery($organizationId, $period)
+            ->select('u.tier AS tier', 'COALESCE(AVG(u.durationMs), 0) AS total')
+            ->groupBy('u.tier')
+            ->getQuery()
+            ->getResult();
+
+        $durations = [];
+
+        foreach ($rows as $row) {
+            $durations[$this->enumValue($row['tier'])] = (int) round((float) $row['total']);
+        }
+
+        return $durations;
+    }
+
+    /**
+     * Normaliza una columna mapeada como enum a su valor de texto.
+     *
+     * Las columnas `purpose` y `tier` están mapeadas con `enumType`, así que
+     * Doctrine devuelve el **objeto enum** en las consultas de agregación, no
+     * su valor. Indexar el array por el objeto es imposible (no es un string)
+     * y, además, la vista busca las claves por valor (`extraction`, `cheap`).
+     */
+    private function enumValue(mixed $value): string
+    {
+        if ($value instanceof BackedEnum) {
+            return (string) $value->value;
+        }
+
+        return (string) $value;
     }
 
     /**

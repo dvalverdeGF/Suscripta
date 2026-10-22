@@ -8,3 +8,19 @@ framework:
             policy: 'sliding_window'
             limit: 120
             interval: '1 hour'
+
+        # Límite de llamadas de IA por organización y minuto (Fase 14).
+        #
+        # El presupuesto protege el bolsillo; esto protege la operación. Un
+        # proveedor que devuelve errores en bucle genera llamadas que no
+        # cuestan dinero pero sí consumen cuota, ralentizan la sincronización
+        # y llenan la traza. Un buzón con un mailing que rebota puede pedir
+        # la misma extracción cientos de veces en una sola sincronización.
+        #
+        # Cuenta **mensajes enviados a la escalera de IA**, no llamadas al
+        # proveedor: un mensaje puede llegar a hacer dos (nivel 5 y nivel 6),
+        # así que el tope real de llamadas es el doble.
+        ai_calls:
+            policy: 'sliding_window'
+            limit: 60
+            interval: '1 minute'

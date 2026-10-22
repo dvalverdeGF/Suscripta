@@ -7,3 +7,11 @@ framework:
             policy: 'sliding_window'
             limit: 1000
             interval: '1 hour'
+
+        # En los tests el límite de IA se sube por el mismo motivo: una prueba
+        # que procesa varios correos seguidos no debe chocar con él. El límite
+        # real se prueba aparte, con su propio test.
+        ai_calls:
+            policy: 'sliding_window'
+            limit: 10000
+            interval: '1 minute'

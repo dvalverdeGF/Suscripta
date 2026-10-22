@@ -51,4 +51,23 @@ interface AiUsageRepositoryInterface
      * @return list<AiUsage>
      */
     public function recent(Uuid $organizationId, int $limit = 50): array;
+
+    /**
+     * Duración media de las llamadas, en milisegundos.
+     */
+    public function averageDurationMs(Uuid $organizationId, DateRange $period): int;
+
+    /**
+     * Número de llamadas por nivel de IA.
+     *
+     * @return array<string, int> valor del nivel => número de llamadas
+     */
+    public function callsByTier(Uuid $organizationId, DateRange $period): array;
+
+    /**
+     * Duración media de las llamadas por nivel de IA, en milisegundos.
+     *
+     * @return array<string, int> valor del nivel => duración media
+     */
+    public function durationByTier(Uuid $organizationId, DateRange $period): array;
 }

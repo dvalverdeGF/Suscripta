@@ -116,9 +116,12 @@ final class AlertRulesTest extends TestCase
         }
     }
 
-    public function testGeneratedTypesCoverEveryType(): void
+    public function testEveryTypeIsGeneratedBySomeGenerator(): void
     {
-        $generated = AlertRules::generatedTypes();
+        // No todos los avisos salen del barrido general: los del presupuesto
+        // de IA los lleva su propio servicio (Fase 14). Lo que no puede pasar
+        // es que un tipo no lo genere nadie, porque su aviso no existiría.
+        $generated = AlertRules::allGeneratedTypes();
 
         self::assertCount(count(AlertType::cases()), $generated);
 
@@ -129,6 +132,20 @@ final class AlertRulesTest extends TestCase
         sort($values);
 
         self::assertSame($expected, $values);
+    }
+
+    public function testTheCostAlertsDoNotGoThroughTheGeneralGenerator(): void
+    {
+        // Si el barrido general los generara, resolvería avisos de coste en
+        // cada pasada, y `AlertRules` tendría que saber qué es un presupuesto.
+        $general = array_map(
+            static fn (AlertType $type): string => $type->value,
+            AlertRules::generatedTypes(),
+        );
+
+        foreach (AlertRules::costTypes() as $type) {
+            self::assertNotContains($type->value, $general);
+        }
     }
 
     public function testOnlyUpcomingChargeIsNotSilenceable(): void

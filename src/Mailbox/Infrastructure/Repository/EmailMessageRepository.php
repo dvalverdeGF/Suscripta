@@ -7,6 +7,7 @@ namespace App\Mailbox\Infrastructure\Repository;
 use App\Mailbox\Domain\Entity\EmailMessage;
 use App\Mailbox\Domain\Enum\MessageProcessingState;
 use App\Mailbox\Domain\Repository\EmailMessageRepositoryInterface;
+use App\Shared\Domain\ValueObject\DateRange;
 use App\Shared\Infrastructure\Persistence\DoctrineRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
@@ -114,6 +115,27 @@ final class EmailMessageRepository extends DoctrineRepository implements EmailMe
         return $messages;
     }
 
+    /**
+     * Mensajes aplazados esperando presupuesto de IA (Fase 14).
+     */
+    public function findDeferred(int $limit = 200): array
+    {
+        /** @var list<EmailMessage> $messages */
+        $messages = $this->entityManager
+            ->createQueryBuilder()
+            ->select('m')
+            ->from(EmailMessage::class, 'm')
+            ->where('m.processingState = :state')
+            ->andWhere('m.receivedAt IS NOT NULL')
+            ->setParameter('state', MessageProcessingState::DEFERRED)
+            ->orderBy('m.receivedAt', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+
+        return $messages;
+    }
+
     public function countByState(): array
     {
         /** @var list<array{state: MessageProcessingState, total: int|string}> $rows */
@@ -132,6 +154,75 @@ final class EmailMessageRepository extends DoctrineRepository implements EmailMe
         }
 
         return $counts;
+    }
+
+    /**
+     * Cómo se han resuelto los mensajes de la organización en un periodo.
+     *
+     * @return array{total: int, byTier: array<string, int>, averageDurationMs: int}
+     */
+    public function extractionStats(Uuid $organizationId, DateRange $period): array
+    {
+        /** @var list<array{tier: string, total: int|string}> $rows */
+        $rows = $this->entityManager
+            ->createQueryBuilder()
+            ->select('m.extractionTier AS tier', 'COUNT(m.id) AS total')
+            ->from(EmailMessage::class, 'm')
+            ->where('m.organizationId = :organizationId')
+            ->andWhere('m.receivedAt >= :from')
+            ->setParameter('organizationId', $organizationId)
+            ->setParameter('from', $period->from)
+            ->groupBy('m.extractionTier')
+            ->getQuery()
+            ->getResult();
+
+        $byTier = [];
+        $total = 0;
+
+        foreach ($rows as $row) {
+            $tier = $row['tier'];
+
+            if (null === $tier) {
+                continue;
+            }
+
+            $count = (int) $row['total'];
+            $byTier[$tier] = $count;
+            $total += $count;
+        }
+
+        return [
+            'total' => $total,
+            'byTier' => $byTier,
+            'averageDurationMs' => $this->averageProcessingMs($organizationId, $period),
+        ];
+    }
+
+    /**
+     * Tiempo medio que tarda un correo en procesarse, de la recepción al
+     * finish.
+     *
+     * Se mide en SQL con la función `SECONDS_BETWEEN`, que devuelve segundos
+     * en cualquier motor. Los mensajes sin `processedAt` (los que aún no se
+     * han tocado) quedan fuera: medirlos sería medir el tiempo que el
+     * usuario ha tardado en conectar el buzón.
+     */
+    private function averageProcessingMs(Uuid $organizationId, DateRange $period): int
+    {
+        $seconds = $this->entityManager
+            ->createQueryBuilder()
+            ->select('COALESCE(AVG(SECONDS_BETWEEN(m.receivedAt, m.processedAt)), 0)')
+            ->from(EmailMessage::class, 'm')
+            ->where('m.organizationId = :organizationId')
+            ->andWhere('m.receivedAt >= :from')
+            ->andWhere('m.receivedAt IS NOT NULL')
+            ->andWhere('m.processedAt IS NOT NULL')
+            ->setParameter('organizationId', $organizationId)
+            ->setParameter('from', $period->from)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return (int) round((float) $seconds * 1000);
     }
 
     public function countForOrganization(): int

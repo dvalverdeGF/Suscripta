@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Ai\Application;
 
+use App\Ai\Application\Dto\AiExtractionOutcome;
 use App\Mailbox\Application\Imap\ImapMessageHeader;
 use App\Processing\Domain\Dto\ExtractedDocument;
 
@@ -22,14 +23,15 @@ interface AiExtractionInterface
     /**
      * Intenta mejorar el documento con IA.
      *
-     * Devuelve `null` cuando no hay nada que mejorar, cuando la IA está
-     * desactivada, cuando el presupuesto se ha agotado o cuando el modelo ha
-     * fallado. El pipeline trata todos esos casos igual: sigue con el
-     * documento determinista.
+     * Devuelve el documento mejorado o un `AiExtractionOutcome` **con el
+     * motivo** de por qué no se ha mejorado (Fase 14, D-57). El motivo es lo
+     * que permite distinguir un correo que está esperando presupuesto
+     * (`DEFERRED`) de uno que se ha revisado y no va a mejorar
+     * (`REQUIRES_REVIEW`).
      */
     public function enrich(
         ExtractedDocument $deterministic,
         string $haystack,
         ImapMessageHeader $header,
-    ): ?ExtractedDocument;
+    ): AiExtractionOutcome;
 }

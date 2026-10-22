@@ -23,7 +23,15 @@
 
 {% block content %}
     <div class="bo-page-header">
-        <h1 class="bo-page-header__title">Configuración de IA</h1>
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">Configuración de IA</h1>
+            <p class="bo-page-header__subtitle">Qué proveedor se usa para cada necesidad y cuánto se puede gastar este mes.</p>
+        </div>
+        <div class="bo-page-header__actions">
+            <a class="btn btn-outline-secondary" href="{{ path('app_ai_cost') }}">
+                <i class="fa-solid fa-chart-pie me-1"></i> Ver el coste
+            </a>
+        </div>
     </div>
 
     <p class="text-muted">
@@ -59,10 +67,78 @@
                             correos se procesan con las reglas deterministas y los que
                             no se entienden quedan para revisión manual. Al activarla,
                             los documentos que las reglas no consiguen leer se
-                            envían al proveedor que elijas abajo, y **se cobra por
-                            cada llamada**.
+                            envían al proveedor que elijas abajo, y se cobra por
+                            cada llamada.
                         </span>
                     </label>
+                </div>
+            </div>
+        </div>
+
+        {#
+            El presupuesto va **antes** que la elección de proveedor, y por un
+            motivo concreto: es la decisión que acota las otras dos. Saber
+            cuánto se puede gastar antes de elegir con qué modelo se gasta es
+            más útil al revés.
+
+            El campo del tope se escribe en euros y se deja vacío para decir
+            «sin tope». Un límite de cero euros no significaría «no gastar»,
+            sino lo mismo que no ponerlo, así que el vacío es la forma
+            explícita de no limitar nada.
+        #}
+        <div class="card mb-3">
+            <div class="card-body">
+                <h2 class="bo-summary__title">
+                    <i class="fa-solid fa-scale-balanced me-1"></i> Presupuesto del mes
+                </h2>
+
+                <p class="text-muted">
+                    El tope se aplica al mes natural en curso. El gasto se lleva la
+                    cuenta de las llamadas que se han hecho de verdad, no una
+                    estimación.
+                </p>
+
+                <div class="row g-3 align-items-end">
+                    <div class="col-12 col-md-5">
+                        <label class="form-label" for="budget_limit">Tope mensual</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="budget_limit" name="budget_limit"
+                                   inputmode="decimal" value="{{ budget_limit }}"
+                                   placeholder="Sin tope">
+                            <span class="input-group-text">€</span>
+                        </div>
+                        <div class="form-text">Déjalo vacío para no poner ningún tope.</div>
+                    </div>
+
+                    <div class="col-12 col-md-7">
+                        <label class="form-label" for="budget_mode">Qué pasa al agotarlo</label>
+                        <select class="form-select" id="budget_mode" name="budget_mode"
+                                aria-label="Comportamiento al agotar el presupuesto">
+                            {% for mode in budget_modes %}
+                                <option value="{{ mode.value }}" {{ budget.mode == mode ? 'selected' : '' }}>
+                                    {{ mode.label }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">{{ budget.mode.description }}</div>
+                    </div>
+                </div>
+
+                <div class="mt-3 d-flex flex-wrap gap-3 small text-muted">
+                    <span>
+                        Gastado este mes:
+                        <strong>{{ budget.spentMinor|money }}</strong>
+                        {% if budget.isUnlimited %}
+                            (sin tope)
+                        {% else %}
+                            de {{ budget.limitMinor|money }} ({{ budget.usedPercent }} %)
+                        {% endif %}
+                    </span>
+                    {% if budget.exhausted %}
+                        <span class="text-danger">
+                            <i class="fa-solid fa-circle-exclamation me-1"></i>Presupuesto agotado
+                        </span>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -72,7 +148,6 @@
                 <h2 class="bo-summary__title">
                     <i class="fa-solid fa-diagram-project me-1"></i> Proveedor por necesidad
                 </h2>
-
                 <p class="text-muted">
                     Un proveedor solo es seleccionable si tiene las credenciales
                     configuradas y está activado. Configúralas en

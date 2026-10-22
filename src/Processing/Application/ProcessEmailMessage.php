@@ -245,11 +245,33 @@ final readonly class ProcessEmailMessage
         // caché tampoco se reinterpreta: el contenido ya se analysó una vez y
         // volver a llamaría a la IA sería pagar dos veces por lo mismo (D-37).
         if (null === $cached && !$document->isActionable()) {
-            $aiDocument = $this->aiExtraction->enrich($document, $haystack, $header);
+            $outcome = $this->aiExtraction->enrich($document, $haystack, $header);
 
-            if (null !== $aiDocument && $aiDocument->isActionable()) {
-                $document = $aiDocument;
-                $extractorName = 'ai:'.$aiDocument->tier->value;
+            // El presupuesto se ha agotado y el modo es `HARD`: no se puede
+            // llamar a ningún modelo. El correo **no está mal**, está
+            // esperando, así que se aplaza en vez de mandarlo a revisión
+            // manual (D-56, D-57). Volverá al pipeline cuando haya
+            // presupuesto.
+            if ($outcome->defersMessage()) {
+                $this->stateMachine->transition(
+                    $message,
+                    MessageProcessingState::DEFERRED,
+                    'Se aplaza el análisis: el presupuesto de IA está agotado.',
+                    data: ['skip_reason' => $outcome->reason->value],
+                );
+
+                // No se marca como procesado: el correo no ha terminado, solo
+                // está en espera. Si se marcara, el tiempo medio de
+                // procesamiento mediría los días que ha estado esperando
+                // presupuesto en vez del trabajo que ha hecho (Fase 14).
+                $this->messages->save($message);
+
+                return null;
+            }
+
+            if (null !== $outcome->document && $outcome->document->isActionable()) {
+                $document = $outcome->document;
+                $extractorName = 'ai:'.$document->tier->value;
             }
         }
 

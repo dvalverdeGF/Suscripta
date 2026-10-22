@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Ai\Application\Extraction;
 
+use App\Ai\Application\AiBudgetGuard;
 use App\Ai\Application\AiPriceCatalog;
 use App\Ai\Application\AiUsageRecorder;
 use App\Ai\Application\Extraction\AdvancedAiDocumentExtractor;
@@ -12,6 +13,7 @@ use App\Ai\Application\ExtractionValidator;
 use App\Ai\Domain\Contract\AiProviderException;
 use App\Ai\Domain\Contract\AiProviderInterface;
 use App\Ai\Domain\Contract\AiProviderSelectorInterface;
+use App\Ai\Domain\Enum\AiBudgetMode;
 use App\Ai\Domain\Enum\AiPurpose;
 use App\Ai\Domain\Enum\AiTier;
 use App\Ai\Domain\ValueObject\AiResponse;
@@ -22,6 +24,7 @@ use App\Mailbox\Domain\Enum\ExtractionTier;
 use App\Shared\Application\Clock;
 use App\Shared\Application\TenantContext;
 use App\Tests\Support\Ai\FakeAiProvider;
+use App\Tests\Support\Ai\InMemoryAiBudgetRepository;
 use App\Tests\Support\Ai\InMemoryAiUsageRepository;
 use App\Tests\Support\BuildsValidator;
 use App\Tests\Support\Integrations\InMemoryIntegrationRepository;
@@ -52,12 +55,15 @@ final class AiExtractionTest extends TestCase
     private const NOW = '2026-10-20 09:00:00';
 
     private InMemoryAiUsageRepository $usages;
+    private InMemoryAiBudgetRepository $budgets;
     private ValidatorInterface $validator;
     private AiUsageRecorder $recorder;
+    private TenantContext $tenantContext;
 
     protected function setUp(): void
     {
         $this->usages = new InMemoryAiUsageRepository();
+        $this->budgets = new InMemoryAiBudgetRepository();
         $this->validator = $this->buildValidator();
 
         $integrations = new InMemoryIntegrationRepository();
@@ -80,6 +86,7 @@ final class AiExtractionTest extends TestCase
 
         $tenantContext = new TenantContext();
         $tenantContext->setOrganizationId(Uuid::v7());
+        $this->tenantContext = $tenantContext;
 
         $this->recorder = new AiUsageRecorder(
             usageRepository: $this->usages,
@@ -487,8 +494,25 @@ final class AiExtractionTest extends TestCase
             extractionValidator: new ExtractionValidator(),
             logger: new NullLogger(),
             usageRecorder: $this->recorder,
+            budget: $this->budgetGuard(),
             confidenceThreshold: 0.3,
             maxTextLength: 8000,
+        );
+    }
+
+    /**
+     * El guardián del presupuesto, sin tope: por defecto el nivel 6 entra
+     * siempre, y la prueba va midiendo otra cosa.
+     */
+    private function budgetGuard(int $limitMinor = 0, AiBudgetMode $mode = AiBudgetMode::SOFT): AiBudgetGuard
+    {
+        return new AiBudgetGuard(
+            budgets: $this->budgets,
+            usage: $this->usages,
+            tenantContext: $this->tenantContext,
+            clock: new Clock(new MockClock(new DateTimeImmutable(self::NOW))),
+            defaultLimitMinor: $limitMinor,
+            defaultMode: $mode,
         );
     }
 

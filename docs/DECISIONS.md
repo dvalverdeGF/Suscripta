@@ -1568,3 +1568,169 @@ o `DOMAIN` (si es un dominio), con origen `USER`.
 **Consecuencias.** `PromoteMailboxKnowledge` es la única puerta y rechaza con un error explícito
 lo que no cumple las reglas. Lo promovido queda marcado (`isPromoted`) y se muestra como tal en la
 pantalla, para que el usuario vea qué de lo suyo ya afecta a otros.
+
+## D-55 — El presupuesto guarda la política, no el gasto
+
+**Estado:** aceptada.
+
+**Contexto.** La primera versión de `AiBudget` llevaba dos cosas: el tope y un contador de lo
+gastado. El contador se incrementaba al registrar cada llamada, y el tope se comparaba con él
+antes de permitir la siguiente.
+
+Eso son **dos verdades** sobre la misma cifra. Si una escritura fallara —una caída entre el
+incremento y el guardado, una transacción deshecha, un reintento del worker— el contador y la
+suma real de las filas de `ai_usage` dejarían de coincidir. Y la que manda, la suma real, solo
+se podía calcular agregando miles de filas.
+
+**Decisión.** `AiBudget` persiste **solo la política**: el tope mensual y el modo de agotamiento.
+El gasto sale siempre del **libro mayor** (`ai_usage`), que es la fuente de verdad: cada llamada
+deja una fila con su coste real, y el gasto del mes es la suma de esas filas.
+
+La fila de presupuesto es una por organización y periodo (`YYYY-MM`), con índice único. El
+presupuesto de marzo y el de abril son dos filas, no una fila con dos columnas.
+
+**Alternativas.**
+
+- *Guardar el gasto en la fila de presupuesto.* Descartado: es una segunda verdad, y además
+  obliga a actualizar una fila por cada llamada, que es justo lo que hace que se desincronice.
+- *Calcular el gasto contando filas sin agregar.* Descartado: es O(n) por llamada de IA, y el
+  número de llamadas crece con el uso.
+- *No guardar nada y calcular el presupuesto al vuelo.* Descartado: el tope es una **decisión**,
+  no un dato deducible. Sin fila, no hay política que guardar.
+
+**Consecuencias.** El guard de presupuesto lee dos cosas: la política (una fila) y el gasto (una
+agregación). `AiUsageRepository::totalCostMinor()` es la única fuente del gasto. Si algún día
+querría un histórico de tops de presupuesto, la serie se reconstruye desde el libro mayor, que ya
+guarda cada llamada.
+
+## D-56 — Agotar el presupuesto degrada o para, y el modo lo decide el usuario
+
+**Estado:** aceptada.
+
+**Contexto.** «Se ha acabado el presupuesto de IA» admite dos respuestas razonables, y ninguna
+es universalmente correcta:
+
+- **Degradar**: seguir usando el modelo barato, apagar el caro, y que el pipeline continúe por
+  reglas. Se procesa más correo y se gasta algo.
+- **Parar**: no llamar a ningún modelo. Se gasta cero, y el correo que necesita IA espera.
+
+La primera es mejor para el usuario que quiere que sus facturas se detecten; la segunda es mejor
+para quien tiene el coste bajo control absoluto.
+
+**Decisión.** El modo lo elige la organización, por mes, en la pantalla de ajustes de IA:
+
+- **`SOFT`** (por defecto): el pipeline sigue funcionando. Se permite el nivel 5 (IA económica)
+  y **se apaga el nivel 6** (IA avanzada), que es el caro. El correo que se puede resolver con
+  reglas o con el modelo barato se resuelve; el que no, va a revisión manual.
+- **`HARD`**: no se llama a ningún modelo. El correo que **necesitaba** IA no va a revisión
+  manual —que sería mentir, porque no está mal, está esperando— sino que queda en `DEFERRED`, con
+  el motivo `budget_exhausted`, y se reintenta cuando hay presupuesto.
+
+El guard se comprueba **antes** de cada llamada, nunca después: un `SOFT` agotado no puede
+«colarse» una llamada cara.
+
+**Alternativas.**
+
+- *Un solo comportamiento (parar siempre).* Descartado: una organización con un tope bajo
+  dejaría de detectar facturas, que es justo lo que ha pagado.
+- *Degradar siempre.* Descartado: quien fija un tope de 0 € quiere que no se gaste, y el
+  sistema no puede inferir esa intención.
+- *Un tope único con el modo implícito en el importe.* Descartado: el importe no dice qué
+  hacer; un tope de 5 € y uno de 500 € pueden significar cosas distintas según la organización.
+
+**Consecuencias.** `AiBudgetMode` es parte de la política guardada. `AiBudgetGuard::allowsCall()`
+responde a «¿puedo llamar?» y `allowsTier()` a «¿puedo llamar a *este* nivel?», que es la
+pregunta que hace el nivel 6. El tope por defecto es 500 céntimos (5,00 €) en modo `SOFT`, y
+`0` significa «sin tope».
+
+## D-57 — La escalera de IA devuelve un motivo, no un `null`
+
+**Estado:** aceptada.
+
+**Contexto.** La puerta de IA devolvía `?ExtractedDocument`: un documento o nada. El `null`
+significaba cuatro cosas distintas —la IA está apagada, no hay proveedor elegido, se agotó el
+presupuesto, el proveedor falló— y el pipeline las mandaba **todas** a revisión manual.
+
+Eso está bien para tres de las cuatro y está **muy mal** para la cuarta. Un correo aplazado por
+presupuesto no está mal: está esperando. Mandarlo a revisión manual gasta el trabajo de una
+persona en algo que se va a resolver solo en cuanto se reponga el presupuesto, y lo esconde en
+la misma pila que los casos que sí necesitan criterio humano.
+
+**Decisión.** La escalera de IA devuelve un `AiExtractionOutcome` con el documento (o no) y un
+`AiSkipReason` explícito:
+
+| Motivo | Significado | Qué hace el pipeline |
+|---|---|---|
+| `NONE` | Hay documento | Se usa |
+| `NOT_CONFIGURED` | No hay IA activada o no hay proveedor | Revisión manual |
+| `NO_TEXT` | El correo no tiene texto que analizar | Revisión manual |
+| `NOT_NEEDED` | La escalera no tenía nada que hacer | Revisión manual |
+| `FAILED` | Se llamó al proveedor y falló | Revisión manual |
+| `RATE_LIMITED` | Se pasó el límite de peticiones | Revisión manual (se reintentará) |
+| `BUDGET_EXHAUSTED` | No hay presupuesto | **`DEFERRED`** |
+
+Solo `BUDGET_EXHAUSTED` aplaza el correo. Los demás van a revisión manual, que es lo que
+corresponde: son casos que necesitan una decisión.
+
+**Alternativas.**
+
+- *Devolver `null` y que el pipeline pregunte por separado si el presupuesto está agotado.*
+  Descartado: el pipeline tendría que consultar el guard, es decir, el módulo de IA, para
+  distinguir dos `null` que significan cosas distintas. La razón tiene que viajar con el
+  resultado.
+- *Añadir un estado `REQUIRES_REVIEW` con submotivo.* Descartado: el estado de la máquina dice
+  **dónde** está el correo, no **por qué**. Mezclarlos obliga a duplicar estados.
+- *Un estado nuevo `AWAITING_BUDGET`.* Descartado: `DEFERRED` ya dice exactamente eso, y el
+  motivo va en el evento de transición, que es donde se consulta cualquier historial.
+
+**Consecuencias.** `AiExtractionInterface::enrich()` devuelve `AiExtractionOutcome`, y
+`AiExtractionOutcome::defersMessage()` es la única puerta al estado `DEFERRED`. El motivo
+viaja en el evento de transición (`skip_reason`), de modo que se puede responder «¿por qué este
+correo está esperando?» sin volver a mirar el presupuesto.
+
+## D-58 — El módulo de IA no sabe qué quedó a medias en el pipeline
+
+**Estado:** aceptada.
+
+**Contexto.** Al subir el tope del presupuesto hay que **reactivar** los correos que quedaron
+aplazados: en el mes nuevo, con presupuesto, tienen que volver a la cola.
+
+El guard de presupuesto vive en el módulo `Ai`, y los correos aplazados viven en `Mailbox` y en
+`Processing`. La Tentación es que `Ai` busque los correos `DEFERRED` y los devuelva al pipeline.
+Eso rompe la regla de dependencias (§3 de `ARCHITECTURE.md`): un módulo no toca las entidades
+de otro.
+
+El otro extremo tampoco vale: que `Processing` esté pendiente del guard de presupuesto para
+preguntar cada vez si el presupuesto ha cambiado mezcla dos cosas que no tienen relación —la
+política de IA y el estado del pipeline— y obliga a que la comprobación sea un sondeo.
+
+**Decisión.** El módulo `Ai` **declara un puerto** y no lo implementa:
+
+```php
+interface AiBudgetChangeHandlerInterface
+{
+    public function onBudgetRaised(): int;
+}
+```
+
+`Processing` lo implementa (`ReleaseDeferredMessages`) y sabe qué hacer con un correo
+aplazado: pasarlo de `DEFERRED` a `CANDIDATE` y reencolarlo. `Ai` solo llama al puerto.
+
+La dependencia va **en un solo sentido**: `Processing → Ai`. `Ai` no depende de `Processing`, y
+el ciclo que aparezca en el mapa de módulos se rompe con esta interfaz.
+
+**Alternativas.**
+
+- *Que `Ai` consulte el repositorio de mensajes.* Descartado: viola la regla de dependencias y
+  además hace que el módulo de IA sepa qué es un estado de procesamiento.
+- *Que un comando de la aplicación sea el que avise a los dos.* Descartado: el aviso dejaría de
+  ser fiable (depende de que alguien ejecute el comando) y además seguiría haciendo falta una
+  dependencia en algún sitio para preguntar «¿ha cambiado el presupuesto?».
+- *Un evento de Messenger (`BudgetRaised`).* Descartado por ahora: el evento es asíncrono y la
+  liberación manual del panel necesita una respuesta inmediata («cuántos correos he puesto en
+  cola»). Una llamada directa con puerto es más simple y predecible. Si más adelante hace falta
+  desacoplar, el puerto ya es el sitio natural donde cambiar.
+
+**Consecuencias.** `Ai` declara lo que espera del exterior; `Processing` decide qué hacer con
+ello. La pantalla de coste puede ofrecer un botón de «poner en cola los correos aplazados»
+porque la operación existe y es idempotente.

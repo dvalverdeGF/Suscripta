@@ -13,6 +13,12 @@ doctrine:
         identity_generation_preferences:
             Doctrine\DBAL\Platforms\PostgreSQLPlatform: identity
         auto_mapping: true
+        dql:
+            # Función propia para medir el tiempo entre dos marcas de tiempo.
+            # `DATE_DIFF` devuelve un intervalo en PostgreSQL, y el panel de
+            # observabilidad necesita un número (Fase 14, ARCHITECTURE.md §13.13).
+            datetime_functions:
+                SECONDS_BETWEEN: App\Shared\Infrastructure\Doctrine\Dql\SecondsBetween
         filters:
             # Aislamiento multi-tenant. Ver ARCHITECTURE.md §8 y DECISIONS.md D-11.
             # Se activa en tiempo de petición desde TenantFilterListener.

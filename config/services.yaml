@@ -28,9 +28,33 @@ parameters:
     #
     # El presupuesto es lo que convierte «IA activada» en algo responsable:
     # sin tope, un correo mal formado en bucle puede vaciar la cuenta del
-    # cliente. Al superarlo, el pipeline degrada a revisión manual en vez de
-    # seguir gastando.
+    # cliente. Al superarlo, el pipeline degrada (modo blando) o se para
+    # (modo duro) en vez de seguir gastando (D-55, D-56).
     app.ai.budget.monthly_minor: 500
+
+    # Qué pasa al agotarse el presupuesto cuando la organización no ha elegido
+    # nada: `SOFT` degrada (sigue la IA económica) y `HARD` para (aplaza los
+    # correos). Degradar es el valor por defecto porque para el trabajo es
+    # menos dañino que pararse.
+    #
+    # Se declara con `!php/enum` para que el contenedor entregue el
+    # enumerado y no un texto: la clase pide el tipo, y convertirlo a mano en
+    # cada sitio es justo el error que el tipado evita.
+    app.ai.budget.default_mode: !php/enum App\Ai\Domain\Enum\AiBudgetMode::SOFT
+
+    # Porcentaje de uso del presupuesto a partir del cual se avisa al
+    # usuario. Es un porcentaje y no un importe porque el aviso tiene que
+    # llegar antes de que el dinero se acabe, y eso depende del tamaño del
+    # presupuesto, no de una cantidad fija.
+    app.ai.budget.warning_percent: 80
+
+    # Correos por minuto y organización que pueden entrar en la escalera de
+    # IA (Fase 14).
+    #
+    # El presupuesto protege el bolsillo; esto protege la operación. Un
+    # proveedor que devuelve errores en bucle genera llamadas que no cuestan
+    # dinero pero sí consumen cuota y ralentizan la sincronización.
+    app.ai.rate_limit.calls_per_minute: 60
 
 services:
     # default configuration for services in *this* file
@@ -220,12 +244,27 @@ services:
     # El presupuesto se comprueba **antes** de cada llamada, así que su tope
     # es un parámetro de la aplicación y no una constante del código: es una
     # decisión comercial (lo que se está dispuesto a gastar por organización
-    # y mes) y tiene que poder cambiar sin tocar PHP.
-    App\Ai\Application\AiBudget:
+    # y mes) y tiene que poder cambiar sin tocar PHP (D-55).
+    App\Ai\Application\AiBudgetGuard:
         arguments:
-            $monthlyMinor: '%app.ai.budget.monthly_minor%'
+            $defaultLimitMinor: '%app.ai.budget.monthly_minor%'
+            $defaultMode: '%app.ai.budget.default_mode%'
+            $warningPercent: '%app.ai.budget.warning_percent%'
+
+    # El limitador de llamadas de IA se declara en
+    # `config/packages/rate_limiter.yaml`; aquí solo se le dice a la clase
+    # cuál de los limitadores registrados le corresponde.
+    App\Ai\Application\AiCallRateLimiter:
+        arguments:
+            $limiter: '@limiter.ai_calls'
 
     # El pipeline depende de la puerta, no de la implementación: qué se manda
     # a un modelo y con qué presupuesto es política del módulo de IA, y el
     # pipeline no debe saber de eso (D-08).
     App\Ai\Application\AiExtractionInterface: '@App\Ai\Application\AiExtractionService'
+
+    # El módulo de IA no conoce lo que quedó a medias en el pipeline, así que
+    # declara lo que espera (un puerto) y el módulo de `Processing` lo
+    # implementa (un adaptador). La dependencia va en un solo sentido:
+    # `Processing → Ai` (Fase 14, D-56).
+    App\Ai\Application\AiBudgetChangeHandlerInterface: '@App\Processing\Application\ReleaseDeferredMessages'

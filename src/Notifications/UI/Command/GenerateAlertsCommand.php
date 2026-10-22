@@ -8,6 +8,7 @@ use App\Identity\Domain\Entity\Organization;
 use App\Identity\Domain\Repository\OrganizationRepositoryInterface;
 use App\Notifications\Application\DispatchNotifications;
 use App\Notifications\Application\GenerateAlerts;
+use App\Notifications\Application\GenerateCostAlerts;
 use App\Shared\Application\TenantContext;
 
 use function is_string;
@@ -41,6 +42,7 @@ final class GenerateAlertsCommand extends Command
     public function __construct(
         private readonly OrganizationRepositoryInterface $organizations,
         private readonly GenerateAlerts $generateAlerts,
+        private readonly GenerateCostAlerts $generateCostAlerts,
         private readonly DispatchNotifications $dispatchNotifications,
         private readonly TenantContext $tenantContext,
     ) {
@@ -86,6 +88,20 @@ final class GenerateAlertsCommand extends Command
                         $result->unchanged,
                         $result->open,
                     ));
+
+                    // Los avisos de presupuesto de IA los genera su propio
+                    // servicio: su estado lo lleva el módulo de IA y no el de
+                    // avisos, y meterlo aquí dentro haría que las reglas de
+                    // negocio tuvieran que saber qué es un presupuesto (Fase 14).
+                    $cost = ($this->generateCostAlerts)();
+
+                    if (!$cost->isQuiet()) {
+                        $io->text(sprintf(
+                            'Avisos de presupuesto de IA: %d nuevos, %d resueltos.',
+                            $cost->created,
+                            $cost->resolved,
+                        ));
+                    }
 
                     if (!$notify) {
                         return;

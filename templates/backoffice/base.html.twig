@@ -158,6 +158,19 @@
                 </a>
             </li>
 
+            {#
+                El panel de coste va **al lado** de la configuracion de IA y no
+                dentro de ella: configurar y vigilar son dos acciones distintas y
+                tienen ritmos distintos. Se configura una vez y se mira cada
+                semana.
+            #}
+            <li class="bo-menu__item {{ app.request.attributes.get('_route') starts with 'app_ai_cost' ? 'bo-menu__item--active' : '' }}">
+                <a href="{{ path('app_ai_cost') }}" class="bo-menu__link">
+                    <i class="fa-solid fa-chart-pie bo-menu__icon"></i>
+                    <span>Coste de IA</span>
+                </a>
+            </li>
+
             <li class="bo-menu__item {{ app.request.attributes.get('_route') starts with 'app_settings' ? 'bo-menu__item--active' : '' }}">
                 <a href="{{ path('app_settings_profile') }}" class="bo-menu__link">
                     <i class="fa-solid fa-user-gear bo-menu__icon"></i>
