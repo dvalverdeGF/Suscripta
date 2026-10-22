@@ -20,6 +20,7 @@ use App\Ai\Domain\Enum\AiBudgetMode;
 use App\Ai\Domain\Enum\AiPurpose;
 use App\Ai\Domain\Enum\AiSkipReason;
 use App\Ai\Domain\Enum\AiTier;
+use App\Ai\Domain\ValueObject\AiCost;
 use App\Ai\Domain\ValueObject\AiResponse;
 use App\Integrations\Application\IntegrationConfigReader;
 use App\Integrations\Application\IntegrationRegistry;
@@ -34,6 +35,7 @@ use App\Tests\Support\Ai\FakeAiProviderSelector;
 use App\Tests\Support\Ai\InMemoryAiBudgetRepository;
 use App\Tests\Support\Ai\InMemoryAiUsageRepository;
 use App\Tests\Support\BuildsValidator;
+use App\Tests\Support\Entitlements\InMemoryEntitlementChecker;
 use App\Tests\Support\Integrations\InMemoryIntegrationRepository;
 use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -327,6 +329,7 @@ final class AiExtractionServiceTest extends TestCase
                 usage: $this->usages,
                 tenantContext: $this->tenantContext,
                 clock: $clock,
+                entitlements: InMemoryEntitlementChecker::allowingEverything(),
                 defaultLimitMinor: $budgetMinor,
                 defaultMode: $mode,
             ),
@@ -383,7 +386,7 @@ final class AiExtractionServiceTest extends TestCase
             providerKey: 'groq',
             purpose: AiPurpose::EXTRACTION,
             tier: AiTier::CHEAP,
-            costMinor: $costMinor,
+            costMicro: AiCost::toMicro($costMinor),
             createdAt: new DateTimeImmutable(self::NOW),
         ));
     }

@@ -9,6 +9,7 @@ use App\Ai\Domain\Entity\AiUsage;
 use App\Ai\Domain\Enum\AiBudgetMode;
 use App\Ai\Domain\Enum\AiPurpose;
 use App\Ai\Domain\Enum\AiTier;
+use App\Ai\Domain\ValueObject\AiCost;
 use App\Mailbox\Domain\Entity\EmailMessage;
 use App\Mailbox\Domain\Enum\MessageProcessingState;
 use App\Processing\Application\MessageStateMachine;
@@ -17,6 +18,7 @@ use App\Shared\Application\Clock;
 use App\Shared\Application\TenantContext;
 use App\Tests\Support\Ai\InMemoryAiBudgetRepository;
 use App\Tests\Support\Ai\InMemoryAiUsageRepository;
+use App\Tests\Support\Entitlements\InMemoryEntitlementChecker;
 use App\Tests\Support\Mailbox\InMemoryEmailMessageRepository;
 use App\Tests\Support\Mailbox\InMemoryMessageProcessingEventRepository;
 use DateTimeImmutable;
@@ -209,6 +211,7 @@ final class ReleaseDeferredMessagesTest extends TestCase
             usage: $this->usages,
             tenantContext: $tenantContext,
             clock: new Clock($this->clock),
+            entitlements: InMemoryEntitlementChecker::allowingEverything(),
             defaultLimitMinor: $limitMinor,
             defaultMode: $mode,
         );
@@ -221,7 +224,7 @@ final class ReleaseDeferredMessagesTest extends TestCase
             providerKey: 'groq',
             purpose: AiPurpose::EXTRACTION,
             tier: AiTier::CHEAP,
-            costMinor: $costMinor,
+            costMicro: AiCost::toMicro($costMinor),
             createdAt: $this->clock->now(),
         ));
     }

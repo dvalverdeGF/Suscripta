@@ -34,9 +34,14 @@ final class RegistrationTest extends WebTestCase
 
         self::assertResponseRedirects('/');
 
+        // Recién registrado, el usuario aterriza en la guía de bienvenida: es el
+        // primer paso de la Fase 17 y el panel no se muestra hasta terminarla.
+        $this->client->followRedirect();
+        self::assertResponseRedirects('/onboarding');
+
         $this->client->followRedirect();
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('h1', 'Panel');
+        self::assertSelectorTextContains('h1', 'Empieza por aquí');
 
         $users = self::getContainer()->get(UserRepositoryInterface::class);
         $user = $users->findByEmail('ada@example.com');

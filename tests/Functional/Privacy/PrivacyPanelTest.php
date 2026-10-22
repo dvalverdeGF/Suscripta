@@ -17,6 +17,7 @@ use App\Shared\Application\TenantContext;
 use App\Shared\Domain\ValueObject\BillingPeriod;
 use App\Shared\Domain\ValueObject\Currency;
 use App\Shared\Domain\ValueObject\Money;
+use App\Tests\Support\Identity\CompletesOnboarding;
 use DateTimeImmutable;
 
 use const JSON_THROW_ON_ERROR;
@@ -34,6 +35,8 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  */
 final class PrivacyPanelTest extends WebTestCase
 {
+    use CompletesOnboarding;
+
     private KernelBrowser $client;
 
     private User $user;
@@ -47,6 +50,7 @@ final class PrivacyPanelTest extends WebTestCase
 
         $registerUser = self::getContainer()->get(RegisterUser::class);
         $this->user = $registerUser('ada@example.com', 'Sup3rSecret!2026', 'Ada Lovelace');
+        $this->completeOnboarding($this->user);
         $this->client->loginUser($this->user);
 
         $membership = $this->user->getMemberships()->first();
@@ -197,6 +201,7 @@ final class PrivacyPanelTest extends WebTestCase
     {
         $registerUser = self::getContainer()->get(RegisterUser::class);
         $member = $registerUser('grace@example.com', 'Sup3rSecret!2026', 'Grace Hopper');
+        $this->completeOnboarding($member);
 
         $organizations = self::getContainer()->get(OrganizationRepositoryInterface::class);
 

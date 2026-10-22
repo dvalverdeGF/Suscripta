@@ -144,7 +144,7 @@ trait DeferralScenario
                 providerKey: 'groq',
                 purpose: AiPurpose::EXTRACTION,
                 tier: AiTier::CHEAP,
-                costMinor: 500,
+                costMicro: 5_000_000,
                 createdAt: new DateTimeImmutable(),
             ));
         });

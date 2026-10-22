@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Domain\Entity;
 
+use App\Identity\Domain\Enum\OrganizationPlan;
 use App\Identity\Domain\Enum\OrganizationRole;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -36,6 +37,20 @@ class Organization
 
     #[ORM\Column(name: 'is_personal', type: Types::BOOLEAN)]
     private bool $personal = false;
+
+    /**
+     * Plan contratado (Fase 17).
+     *
+     * El plan decide los límites de la organización: cuántos servicios, buzones
+     * y documentos puede tener y si puede usar inteligencia artificial. Los
+     * números de cada plan viven en `config/packages/entitlements.yaml`, no
+     * aquí: aquí solo se guarda **qué** plan es (D-64).
+     */
+    // El valor por defecto de la columna es «free» en la base de datos: se
+    // declara aquí para que el esquema y el mapeo no diverjan (si divergen,
+    // cada `migrations:diff` propone un `ALTER TABLE` que no aporta nada).
+    #[ORM\Column(name: 'plan', type: Types::STRING, length: 20, enumType: OrganizationPlan::class, options: ['default' => OrganizationPlan::FREE->value])]
+    private OrganizationPlan $plan = OrganizationPlan::FREE;
 
     /** @var array<string, mixed> */
     #[ORM\Column(type: Types::JSON)]
@@ -86,6 +101,27 @@ class Organization
     public function isPersonal(): bool
     {
         return $this->personal;
+    }
+
+    /**
+     * Plan contratado por la organización.
+     */
+    public function getPlan(): OrganizationPlan
+    {
+        return $this->plan;
+    }
+
+    /**
+     * Cambia el plan de la organización.
+     *
+     * El cambio se hace desde el backoffice por una persona con permiso
+     * (D-65): es la operación que hace que una organización pase de un plan a
+     * otro, y por eso queda registrada en el libro de auditoría.
+     */
+    public function changePlan(OrganizationPlan $plan): void
+    {
+        $this->plan = $plan;
+        $this->touch();
     }
 
     /** @return array<string, mixed> */

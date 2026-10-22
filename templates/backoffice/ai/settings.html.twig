@@ -39,15 +39,21 @@
         <strong>de tu organización</strong> y no afecta a ningún otro cliente.
     </p>
 
-    {% for label, messages in app.flashes %}
-        {% for message in messages %}
-            <div class="alert alert-{{ label }} alert-dismissible fade show" role="alert">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
-            </div>
-        {% endfor %}
-    {% endfor %}
-
+    {#
+        Cuando el plan no incluye IA, la pantalla no es un formulario vacío:
+        es la explicación de por qué no lo es (Fase 17). Enseñar un formulario
+        que no se puede usar es peor que no enseñar nada.
+    #}
+    {% if not_in_plan %}
+        <div class="alert alert-warning" role="alert">
+            <i class="fa-solid fa-circle-exclamation me-2"></i>
+            <strong>Tu plan no incluye inteligencia artificial.</strong>
+            Con ella, Suscripta entiende facturas en PDF y correos en cualquier
+            idioma, y detecta las renovaciones sin que nadie revise el correo a
+            mano. Para activarla, cambia el plan de la organización
+            (puedes ver los límites en <a href="{{ path('app_plan_index') }}">Plan</a>).
+        </div>
+    {% else %}
     <form method="post" action="{{ path('app_ai_settings') }}" id="ai-settings-form">
         <input type="hidden" name="_token" value="{{ csrf_token('save_ai_settings') }}">
 
@@ -107,7 +113,13 @@
                                    placeholder="Sin tope">
                             <span class="input-group-text">€</span>
                         </div>
-                        <div class="form-text">Déjalo vacío para no poner ningún tope.</div>
+                        <div class="form-text">
+                            Déjalo vacío para no poner ningún tope.
+                            {% if budget.planLimitMicro is not null and budget.planLimitMicro > 0 %}
+                                Tu plan no deja pasar de
+                                <strong>{{ budget.planLimitMicro|micro_money }}</strong> al mes.
+                            {% endif %}
+                        </div>
                     </div>
 
                     <div class="col-12 col-md-7">
@@ -127,7 +139,7 @@
                 <div class="mt-3 d-flex flex-wrap gap-3 small text-muted">
                     <span>
                         Gastado este mes:
-                        <strong>{{ budget.spentMinor|money }}</strong>
+                        <strong>{{ budget.spentMicro|micro_money }}</strong>
                         {% if budget.isUnlimited %}
                             (sin tope)
                         {% else %}
@@ -137,6 +149,11 @@
                     {% if budget.exhausted %}
                         <span class="text-danger">
                             <i class="fa-solid fa-circle-exclamation me-1"></i>Presupuesto agotado
+                        </span>
+                    {% endif %}
+                    {% if budget.isLimitedByPlan %}
+                        <span>
+                            <i class="fa-solid fa-layer-group me-1"></i>Tope del plan
                         </span>
                     {% endif %}
                 </div>
@@ -204,11 +221,14 @@
             </div>
         </div>
     </form>
+    {% endif %}
 {% endblock %}
 
 {% block page_actions %}
-    {{ include('backoffice/_form_actions.html.twig', {
-        form_id: 'ai-settings-form',
-        back_path: path('app_integrations_index'),
-    }) }}
+    {% if not not_in_plan %}
+        {{ include('backoffice/_form_actions.html.twig', {
+            form_id: 'ai-settings-form',
+            back_path: path('app_integrations_index'),
+        }) }}
+    {% endif %}
 {% endblock %}

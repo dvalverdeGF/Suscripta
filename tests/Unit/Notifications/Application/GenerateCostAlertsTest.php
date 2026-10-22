@@ -9,6 +9,7 @@ use App\Ai\Domain\Entity\AiUsage;
 use App\Ai\Domain\Enum\AiBudgetMode;
 use App\Ai\Domain\Enum\AiPurpose;
 use App\Ai\Domain\Enum\AiTier;
+use App\Ai\Domain\ValueObject\AiCost;
 use App\Notifications\Application\Dto\CostAlertResult;
 use App\Notifications\Application\GenerateCostAlerts;
 use App\Notifications\Domain\Entity\Alert;
@@ -19,6 +20,7 @@ use App\Shared\Application\Clock;
 use App\Shared\Application\TenantContext;
 use App\Tests\Support\Ai\InMemoryAiBudgetRepository;
 use App\Tests\Support\Ai\InMemoryAiUsageRepository;
+use App\Tests\Support\Entitlements\InMemoryEntitlementChecker;
 use App\Tests\Support\Notifications\InMemoryAlertRepository;
 use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -251,6 +253,7 @@ final class GenerateCostAlertsTest extends TestCase
             usage: $this->usages,
             tenantContext: $this->tenantContext,
             clock: new Clock($this->clock),
+            entitlements: InMemoryEntitlementChecker::allowingEverything(),
             defaultLimitMinor: $limitMinor ?? 500,
             defaultMode: AiBudgetMode::SOFT,
         );
@@ -263,7 +266,7 @@ final class GenerateCostAlertsTest extends TestCase
             providerKey: 'groq',
             purpose: AiPurpose::EXTRACTION,
             tier: AiTier::CHEAP,
-            costMinor: $costMinor,
+            costMicro: AiCost::toMicro($costMinor),
             createdAt: $this->clock->now(),
         ));
     }

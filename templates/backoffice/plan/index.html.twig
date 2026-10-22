@@ -1,0 +1,161 @@
+{% extends 'backoffice/base.html.twig' %}
+
+{#
+    Plan y consumo (Fase 17).
+
+    La pantalla tiene una sola pregunta: **¿hasta donde puedo llegar con lo
+    que tengo?**
+
+    Se responde con dos cosas: lo que se ha usado de cada capacidad y el
+    techo que impone el plan. Y con la matriz de planes, porque saber cuanto
+    queda no sirve de nada si no se sabe que existe algo mejor.
+
+    Los numeros se muestran tal cual son: un limite de "sin tope" se dice con
+    palabras, porque "null" en pantalla no es una respuesta.
+#}
+{% block title %}Plan{% endblock %}
+
+{% block breadcrumb %}
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{{ path('app_dashboard') }}">Panel</a></li>
+        <li class="breadcrumb-item active">Plan</li>
+    </ol>
+{% endblock %}
+
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">Plan y consumo</h1>
+            <p class="bo-page-header__subtitle">
+                Los límites de <strong>{{ organization.name }}</strong> y lo que queda de cada uno.
+            </p>
+        </div>
+        <div class="bo-page-header__actions">
+            <span class="badge {{ plan.value == 'pro' ? 'bg-primary' : 'bg-secondary' }} fs-6">
+                {{ plan_label }}
+            </span>
+        </div>
+    </div>
+
+    {# ── Consumo actual ──────────────────────────────────────────────── #}
+    <div class="bo-list mb-4">
+        <div class="bo-summary__title">
+            <i class="fa-solid fa-gauge"></i>Lo que has usado
+        </div>
+
+        <div class="table-responsive">
+            <table class="table bo-table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Qué</th>
+                        <th class="text-end">Uso</th>
+                        <th class="text-end">Límite</th>
+                        <th style="min-width: 12rem;">Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for status in statuses %}
+                        <tr>
+                            <td>{{ status.label }}</td>
+                            <td class="text-end">
+                                {% if status.capability == 'ai_budget_minor' %}
+                                    {{ status.usage|money }}
+                                {% elseif status.capability == 'ai' %}
+                                    —
+                                {% else %}
+                                    {{ status.usage }}
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                {% if status.isBlocked() %}
+                                    <span class="text-muted">No incluido</span>
+                                {% elseif status.isUnlimited() %}
+                                    <span class="text-muted">Sin tope</span>
+                                {% elseif status.capability == 'ai_budget_minor' %}
+                                    {{ status.limit|money }}
+                                {% else %}
+                                    {{ status.limit }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if status.isBlocked() %}
+                                    <span class="badge bg-secondary">No disponible en este plan</span>
+                                {% elseif status.isUnlimited() %}
+                                    <span class="badge bg-success">Sin límite</span>
+                                {% elseif status.isExhausted() %}
+                                    <span class="badge bg-danger">Agotado</span>
+                                {% else %}
+                                    <div class="progress" role="progressbar" aria-label="{{ status.label }}" aria-valuenow="{{ status.usedPercent() }}" aria-valuemin="0" aria-valuemax="100" style="height: .5rem;">
+                                        <div class="progress-bar bg-success" style="width: {{ status.usedPercent() }}%"></div>
+                                    </div>
+                                    <small class="text-muted">Quedan {{ status.remaining() }}</small>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if not ai_available %}
+            <p class="text-muted small mb-0 mt-3">
+                <i class="fa-solid fa-circle-info me-1"></i>
+                La inteligencia artificial no está incluida en el plan {{ plan_label }}. Con ella, el
+                pipeline entiende facturas en PDF y correos en cualquier idioma, y detecta las
+                renovaciones sin que nadie tenga que revisar el correo a mano.
+            </p>
+        {% endif %}
+    </div>
+
+    {# ── Comparativa de planes ───────────────────────────────────────── #}
+    <div class="bo-list mb-4">
+        <div class="bo-summary__title">
+            <i class="fa-solid fa-layer-group"></i>Planes disponibles
+        </div>
+
+        <div class="table-responsive">
+            <table class="table bo-table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Qué</th>
+                        {% for row in plans %}
+                            <th class="text-end">
+                                {{ row.label }}
+                                {% if row.value == plan.value %}<span class="badge bg-primary ms-1">Tu plan</span>{% endif %}
+                            </th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for status in statuses %}
+                        <tr>
+                            <td>{{ status.label }}</td>
+                            {% for row in plans %}
+                                {% set value = row.limits[status.capability] %}
+                                <td class="text-end">
+                                    {% if value is same as(true) %}
+                                        <i class="fa-solid fa-check text-success" title="Incluido"></i>
+                                    {% elseif value is same as(false) %}
+                                        <i class="fa-solid fa-minus text-muted" title="No incluido"></i>
+                                    {% elseif value is null %}
+                                        <span class="text-muted">Sin tope</span>
+                                    {% elseif status.capability == 'ai_budget_minor' %}
+                                        {{ value|money }}
+                                    {% else %}
+                                        {{ value }}
+                                    {% endif %}
+                                </td>
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <p class="text-muted small mb-0 mt-3">
+            El cambio de plan lo hace el administrador de la instalación
+            (<code>app:plan:set</code>). No hay cobro en la aplicación: es
+            una decisión comercial, no un botón.
+        </p>
+    </div>
+{% endblock %}

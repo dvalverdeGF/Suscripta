@@ -36,13 +36,13 @@ final class InMemoryAiUsageRepository implements AiUsageRepositoryInterface
         $this->usages[] = $usage;
     }
 
-    public function totalCostMinor(Uuid $organizationId, DateRange $period): int
+    public function totalCostMicro(Uuid $organizationId, DateRange $period): int
     {
         $total = 0;
 
         foreach ($this->usages as $usage) {
             if ($this->matches($usage, $organizationId, $period)) {
-                $total += $usage->getCostMinor();
+                $total += $usage->getCostMicro();
             }
         }
 
@@ -59,7 +59,7 @@ final class InMemoryAiUsageRepository implements AiUsageRepositoryInterface
             }
 
             $key = $usage->getProviderKey();
-            $costs[$key] = ($costs[$key] ?? 0) + $usage->getCostMinor();
+            $costs[$key] = ($costs[$key] ?? 0) + $usage->getCostMicro();
         }
 
         return $costs;
@@ -75,7 +75,7 @@ final class InMemoryAiUsageRepository implements AiUsageRepositoryInterface
             }
 
             $key = $usage->getPurpose()->value;
-            $costs[$key] = ($costs[$key] ?? 0) + $usage->getCostMinor();
+            $costs[$key] = ($costs[$key] ?? 0) + $usage->getCostMicro();
         }
 
         return $costs;

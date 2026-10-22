@@ -93,6 +93,19 @@
             </li>
 
             {#
+                La guía de bienvenida entra en el primer grupo, junto al panel,
+                porque es de donde se llega: se salta con un clic y siempre se
+                puede volver desde aquí. Es el plan de puesta en marcha, que
+                es lo primero que necesita ver alguien que acaba de entrar.
+            #}
+            <li class="bo-menu__item {{ app.request.attributes.get('_route') starts with 'app_onboarding' ? 'bo-menu__item--active' : '' }}">
+                <a href="{{ path('app_onboarding_index') }}" class="bo-menu__link">
+                    <i class="fa-solid fa-list-check bo-menu__icon"></i>
+                    <span>Guía de bienvenida</span>
+                </a>
+            </li>
+
+            {#
                 El menu se agrupa por **a que plano pertenece cada cosa**: la
                 operacion del cliente (depende de la organizacion activa) frente a
                 la configuracion (es global).
@@ -184,6 +197,13 @@
                 </a>
             </li>
 
+            <li class="bo-menu__item {{ app.request.attributes.get('_route') starts with 'app_plan' ? 'bo-menu__item--active' : '' }}">
+                <a href="{{ path('app_plan_index') }}" class="bo-menu__link">
+                    <i class="fa-solid fa-crown bo-menu__icon"></i>
+                    <span>Plan</span>
+                </a>
+            </li>
+
             {#
                 Privacidad va al final de "Configuracion" a proposito: es donde
                 se consulta la retencion, se descargan los datos y se pide el
@@ -195,6 +215,21 @@
                 <a href="{{ path('app_privacy_index') }}" class="bo-menu__link">
                     <i class="fa-solid fa-shield-halved bo-menu__icon"></i>
                     <span>Privacidad</span>
+                </a>
+            </li>
+
+            {#
+                "Sistema" es un grupo propio porque lo que hay dentro no es ni
+                operacion del cliente ni configuracion: es la vista de como
+                esta trabajando el pipeline (Fase 17). Va al final porque se
+                consulta cuando algo va mal, no a diario.
+            #}
+            <li class="bo-menu__heading">Sistema</li>
+
+            <li class="bo-menu__item {{ app.request.attributes.get('_route') starts with 'app_observability' ? 'bo-menu__item--active' : '' }}">
+                <a href="{{ path('app_observability') }}" class="bo-menu__link">
+                    <i class="fa-solid fa-activity bo-menu__icon"></i>
+                    <span>Observabilidad</span>
                 </a>
             </li>
         </ul>

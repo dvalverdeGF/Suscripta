@@ -13,6 +13,19 @@
         </div>
     {% endif %}
 
+    {% set demo = demo_account() %}
+    {% if demo %}
+        <div class="alert alert-info d-flex align-items-center justify-content-between gap-2" role="status">
+            <div>
+                <strong class="d-block">{{ demo.label }}</strong>
+                <span class="small"><code>{{ demo.email }}</code> / <code>{{ demo.password }}</code></span>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="bo-demo-fill">
+                Rellenar
+            </button>
+        </div>
+    {% endif %}
+
     <form method="post" novalidate>
         <div class="mb-3">
             <label class="form-label" for="email">Correo electrónico</label>
@@ -41,4 +54,32 @@
         ¿Todavía no tienes cuenta?
         <a href="{{ path('app_register') }}">Crear una cuenta</a>
     </p>
+
+    {% if demo %}
+        <script nonce="{{ csp_nonce() }}">
+            (function () {
+                var button = document.getElementByById('bo-demo-fill');
+                if (!button) {
+                    return;
+                }
+
+                button.addEventListener('click', function () {
+                    var email = document.getElementById('email');
+                    var password = document.getElementById('password');
+
+                    if (email) {
+                        email.value = '{{ demo.email|e('js') }}';
+                    }
+
+                    if (password) {
+                        password.value = '{{ demo.password|e('js') }}';
+                    }
+
+                    if (email) {
+                        email.focus();
+                    }
+                });
+            })();
+        </script>
+    {% endif %}
 {% endblock %}

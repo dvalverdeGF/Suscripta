@@ -27,6 +27,7 @@ use App\Tests\Support\Ai\FakeAiProvider;
 use App\Tests\Support\Ai\InMemoryAiBudgetRepository;
 use App\Tests\Support\Ai\InMemoryAiUsageRepository;
 use App\Tests\Support\BuildsValidator;
+use App\Tests\Support\Entitlements\InMemoryEntitlementChecker;
 use App\Tests\Support\Integrations\InMemoryIntegrationRepository;
 use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -511,6 +512,7 @@ final class AiExtractionTest extends TestCase
             usage: $this->usages,
             tenantContext: $this->tenantContext,
             clock: new Clock(new MockClock(new DateTimeImmutable(self::NOW))),
+            entitlements: InMemoryEntitlementChecker::allowingEverything(),
             defaultLimitMinor: $limitMinor,
             defaultMode: $mode,
         );

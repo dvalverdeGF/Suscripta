@@ -25,7 +25,7 @@ final class AiPriceCatalogTest extends TestCase
     {
         $catalog = new AiPriceCatalog();
 
-        self::assertSame(0, $catalog->for('proveedor-inexistente')->costMinor(1_000_000, 1_000_000));
+        self::assertSame(0, $catalog->for('proveedor-inexistente')->costMicro(1_000_000, 1_000_000));
     }
 
     public function testTheDefaultPriceIsUsedWhenThereIsNoOverride(): void
@@ -61,17 +61,31 @@ final class AiPriceCatalogTest extends TestCase
     {
         $catalog = new AiPriceCatalog();
 
-        self::assertSame(0, $catalog->for('ollama')->costMinor(1_000_000, 1_000_000));
+        self::assertSame(0, $catalog->for('ollama')->costMicro(1_000_000, 1_000_000));
     }
 
-    public function testTheCostIsComputedInCentsAtTheMomentOfTheCall(): void
+    public function testTheCostIsComputedInMicrocentsAtTheMomentOfTheCall(): void
     {
         $price = new AiPrice(promptPerMillion: 0.59, completionPerMillion: 0.79);
 
-        // 1.000 tokens de entrada + 1.000 de salida ≈ 0,00138 € → 0 céntimos.
-        self::assertSame(0, $price->costMinor(1_000, 1_000));
+        // 1.000 tokens de entrada + 1.000 de salida ≈ 0,00138 € → 1.380
+        // microcéntimos. En céntimos sería 0, y el gasto se perdería (D-68).
+        self::assertSame(1_380, $price->costMicro(1_000, 1_000));
 
-        // 1.000.000 de entrada + 1.000.000 de salida = 1,38 € → 138 céntimos.
-        self::assertSame(138, $price->costMinor(1_000_000, 1_000_000));
+        // 1.000.000 de entrada + 1.000.000 de salida = 1,38 € → 1.380.000
+        // microcéntimos (138 céntimos).
+        self::assertSame(1_380_000, $price->costMicro(1_000_000, 1_000_000));
+    }
+
+    public function testACheapCallKeepsItsCostInsteadOfRoundingItAway(): void
+    {
+        $price = new AiPrice(promptPerMillion: 0.59, completionPerMillion: 0.79);
+
+        // Una llamada pequeña vale unas centésimas de céntimo: redondeada a
+        // céntimos sería 0 y el panel enseñaría un gasto inexistente.
+        $micro = $price->costMicro(200, 50);
+
+        self::assertGreaterThan(0, $micro);
+        self::assertSame(0, (int) round($micro / 10_000));
     }
 }

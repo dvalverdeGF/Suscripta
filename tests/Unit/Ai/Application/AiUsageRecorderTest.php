@@ -100,8 +100,8 @@ final class AiUsageRecorderTest extends TestCase
         self::assertSame('llama-3.3-70b-versatile', $usage->getModel());
         self::assertSame(1_000_000, $usage->getPromptTokens());
         self::assertSame(1_000_000, $usage->getCompletionTokens());
-        // 0,59 + 0,79 = 1,38 € → 138 céntimos.
-        self::assertSame(138, $usage->getCostMinor());
+        // 0,59 + 0,79 = 1,38 € → 138 céntimos → 1.380.000 microcéntimos.
+        self::assertSame(1_380_000, $usage->getCostMicro());
         self::assertSame($response->model, $usage->getModel());
     }
 
@@ -130,7 +130,7 @@ final class AiUsageRecorderTest extends TestCase
         $usage = $this->usages->all()[0];
 
         self::assertFalse($usage->isSuccessful());
-        self::assertSame(0, $usage->getCostMinor());
+        self::assertSame(0, $usage->getCostMicro());
         self::assertSame(0, $usage->getPromptTokens());
     }
 
@@ -166,8 +166,8 @@ final class AiUsageRecorderTest extends TestCase
             new \App\Ai\Domain\ValueObject\AiRequest('sistema', 'usuario'),
         ));
 
-        // 1,00 + 2,00 = 3,00 € → 300 céntimos.
-        self::assertSame(300, $this->usages->all()[0]->getCostMinor());
+        // 1,00 + 2,00 = 3,00 € → 300 céntimos → 3.000.000 microcéntimos.
+        self::assertSame(3_000_000, $this->usages->all()[0]->getCostMicro());
     }
 
     public function testTheEntityThatMotivatedTheCallIsRecorded(): void

@@ -37,22 +37,28 @@
         </div>
     </div>
 
-    {% for label, messages in app.flashes %}
-        {% for message in messages %}
-            <div class="alert alert-{{ label }} alert-dismissible fade show" role="alert">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
-            </div>
-        {% endfor %}
-    {% endfor %}
-
     {# ── Presupuesto ─────────────────────────────────────────────── #}
     <div class="card mb-4">
         <div class="card-header">
             <h2 class="card-title">Presupuesto de este mes</h2>
         </div>
         <div class="card-body">
-            {% if budget.isUnlimited %}
+            {% if not budget.available %}
+                {#
+                    Sin IA en el plan no hay presupuesto que mirar (Fase 17).
+                    Decir «no hay tope» sería verdad pero engañoso: lo que hay
+                    es que no se puede gastar en IA.
+                #}
+                <div class="bo-empty">
+                    <p class="bo-empty__title">Tu plan no incluye inteligencia artificial</p>
+                    <p class="bo-empty__text">
+                        No hay gasto que mirar porque no se puede gastar: el
+                        pipeline funciona con las reglas deterministas. Los
+                        límites de cada plan están en
+                        <a href="{{ path('app_plan_index') }}">Plan</a>.
+                    </p>
+                </div>
+            {% elseif budget.isUnlimited %}
                 <div class="bo-empty">
                     <p class="bo-empty__title">No hay tope de gasto</p>
                     <p class="bo-empty__text">
@@ -65,12 +71,12 @@
                 <div class="bo-metrics">
                     <div class="bo-metric">
                         <span class="bo-metric__label">Gastado</span>
-                        <span class="bo-metric__value">{{ budget.spentMinor|money }}</span>
+                        <span class="bo-metric__value">{{ budget.spentMicro|micro_money }}</span>
                         <span class="bo-metric__hint">de {{ budget.limitMinor|money }}</span>
                     </div>
                     <div class="bo-metric">
                         <span class="bo-metric__label">Queda</span>
-                        <span class="bo-metric__value">{{ budget.remainingMinor|money }}</span>
+                        <span class="bo-metric__value">{{ budget.remainingMicro|micro_money }}</span>
                         <span class="bo-metric__hint">hasta el final del mes</span>
                     </div>
                     <div class="bo-metric">
@@ -92,6 +98,15 @@
                         <span class="bo-metric__hint">{{ budget.mode.description }}</span>
                     </div>
                 </div>
+
+                {% if budget.isLimitedByPlan %}
+                    <p class="small text-muted mt-3 mb-0">
+                        <i class="fa-solid fa-layer-group me-1"></i>
+                        {{ budget.limitMinor|money }} al mes es el máximo que permite tu
+                        plan. Puedes bajar el tuyo cuando quieras desde
+                        <a href="{{ path('app_ai_settings') }}">Configuración de IA</a>.
+                    </p>
+                {% endif %}
 
                 {% if budget.exhausted %}
                     <div class="alert alert-danger mt-3 mb-0" role="alert">
@@ -123,12 +138,12 @@
     <div class="bo-metrics mb-4">
         <div class="bo-metric">
             <span class="bo-metric__label">Coste total</span>
-            <span class="bo-metric__value">{{ report.totalCostMinor|money }}</span>
+            <span class="bo-metric__value">{{ report.totalCostMicro|micro_money }}</span>
             <span class="bo-metric__hint">{{ report.calls }} {{ report.calls == 1 ? 'llamada' : 'llamadas' }} este mes</span>
         </div>
         <div class="bo-metric">
             <span class="bo-metric__label">Coste por llamada</span>
-            <span class="bo-metric__value">{{ report.averageCostPerCallMinor|money }}</span>
+            <span class="bo-metric__value">{{ report.averageCostPerCallMicro|micro_money }}</span>
             <span class="bo-metric__hint">media de {{ report.calls }} llamadas</span>
         </div>
         <div class="bo-metric">
@@ -185,7 +200,7 @@
                                                 <td data-label="Proveedor">
                                                     {{ providers[key]|default(key) }}
                                                 </td>
-                                                <td data-label="Coste" class="text-end">{{ cost|money }}</td>
+                                                <td data-label="Coste" class="text-end">{{ cost|micro_money }}</td>
                                             </tr>
                                         {% endfor %}
                                     </tbody>
@@ -220,7 +235,7 @@
                                         {% for key, cost in report.costByPurpose %}
                                             <tr>
                                                 <td data-label="Necesidad">{{ purposes[key]|default(key) }}</td>
-                                                <td data-label="Coste" class="text-end">{{ cost|money }}</td>
+                                                <td data-label="Coste" class="text-end">{{ cost|micro_money }}</td>
                                             </tr>
                                         {% endfor %}
                                     </tbody>

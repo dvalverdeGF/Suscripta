@@ -21,6 +21,10 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Entity]
 #[ORM\Table(name: 'email_sync_run')]
 #[ORM\Index(name: 'idx_email_sync_run_account', columns: ['email_account_id', 'started_at'])]
+// Las estadísticas del panel de observabilidad filtran por organización y
+// ventana temporal; este índice evita recorrer las pasadas de todos los
+// clientes (ver ARCHITECTURE.md §16).
+#[ORM\Index(name: 'idx_email_sync_run_organization_started', columns: ['organization_id', 'started_at'])]
 class EmailSyncRun implements TenantAwareInterface
 {
     #[ORM\Id]

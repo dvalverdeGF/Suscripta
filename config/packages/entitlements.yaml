@@ -1,0 +1,78 @@
+# Límites por plan (Fase 17, D-64).
+#
+# Un plan no es una etiqueta comercial: es el techo de lo que una
+# organización puede hacer. Estos números son la **única** fuente de la
+# verdad, y se cambian aquí y no en el código: subir el precio o dar margen a
+# un cliente no puede exigir un despliegue.
+#
+# El bloque es autodescriptivo: cada capacidad declara su tipo.
+#
+#   - `limit`: un número. `null` = sin techo. `0` = la capacidad no está
+#     disponible en ese plan.
+#   - `flag`: un interruptor. Para lo que no se cuenta sino que se tiene o no
+#     se tiene (por ejemplo, la inteligencia artificial).
+#
+# La comprobación de que **todos los planes declaran todas las capacidades**
+# la hace `EntitlementSettings` al construirse: si alguien añade una
+# capacidad al código y olvida meterla aquí, el contenedor no arranca. Es un
+# error de despliegue, visible el primer día, y no un límite que desaparece
+# en silencio.
+#
+# El bloque se consume entero (D-43): Symfony no resuelve el acceso a claves
+# de un array anidado.
+parameters:
+    app.entitlements:
+        capabilities:
+            services:
+                label: 'Servicios'
+                type: limit
+                unit: 'servicios'
+            email_accounts:
+                label: 'Cuentas de correo'
+                type: limit
+                unit: 'buzones'
+            documents:
+                label: 'Documentos'
+                type: limit
+                unit: 'documentos'
+            ai:
+                label: 'Inteligencia artificial'
+                type: flag
+            ai_budget_minor:
+                label: 'Presupuesto mensual de IA'
+                type: limit
+                unit: 'céntimos'
+
+        plans:
+            free:
+                label: 'Gratis'
+                limits:
+                    # Tres servicios es lo justo para probar el producto sin
+                    # quedarse a medias: un servicio por una suscripción real.
+                    services: 3
+                    # Un buzón: el caso de uso de Suscripta es el correo
+                    # entrante de una sola cuenta.
+                    email_accounts: 1
+                    # Veinte documentos: suficiente para las facturas de un
+                    # trimestre, insuficiente para un archivo infinito.
+                    documents: 20
+                    # Sin IA: es la parte que cuesta dinero por cada llamada.
+                    ai: false
+                    # 0 = sin presupuesto de IA, porque el plan no la ofrece.
+                    ai_budget_minor: 0
+
+            pro:
+                label: 'Profesional'
+                limits:
+                    # Sin techo de servicios: el producto es el inventario
+                    # completo, y un tope obligaría a borrar datos del
+                    # cliente para seguir trabajando.
+                    services: null
+                    email_accounts: 5
+                    documents: 500
+                    ai: true
+                    # 100 € al mes de presupuesto de IA. Es un tope, no un
+                    # cobro extra: si se gasta, la IA se degrada o se para,
+                    # pero nunca se pasa de aquí. La organización puede bajar
+                    # ese tope cuando quiera, pero no subirlo.
+                    ai_budget_minor: 10000

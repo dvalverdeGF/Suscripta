@@ -10,10 +10,12 @@ use App\Ai\Domain\Enum\AiBudgetMode;
 use App\Ai\Domain\Enum\AiPurpose;
 use App\Ai\Domain\Enum\AiTier;
 use App\Ai\Domain\Repository\AiUsageRepositoryInterface;
+use App\Ai\Domain\ValueObject\AiCost;
 use App\Identity\Application\RegisterUser;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\OrganizationRepositoryInterface;
 use App\Shared\Application\TenantContext;
+use App\Tests\Support\Identity\SwitchesPlan;
 use App\Tests\Support\Processing\DeferralScenario;
 use DateTimeImmutable;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -35,6 +37,7 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 final class AiCostPanelTest extends WebTestCase
 {
     use DeferralScenario;
+    use SwitchesPlan;
 
     private KernelBrowser $client;
     private User $user;
@@ -49,6 +52,9 @@ final class AiCostPanelTest extends WebTestCase
         $memberships = self::getContainer()->get(OrganizationRepositoryInterface::class)->findForUser($this->user);
         self::assertNotEmpty($memberships);
         $this->organizationId = $memberships[0]['organization']->getId();
+
+        // La IA solo existe en el plan PRO (Fase 17).
+        $this->switchPlanOfFirstMembership($this->user);
 
         $this->client->loginUser($this->user);
     }
@@ -99,15 +105,42 @@ final class AiCostPanelTest extends WebTestCase
         self::assertSelectorTextContains('.bo-main', '5,00');
     }
 
-    public function testWithoutALimitThePanelSaysThereIsNoLimit(): void
+    public function testWithoutAnOwnLimitThePanelShowsTheLimitOfThePlan(): void
     {
-        // Un tope de `0` significa «sin tope»: la IA gastará lo que necesite.
+        // Un tope de `0` significa «sin tope propio»: lo que manda es el del
+        // plan (Fase 17). El panel lo dice, para que nadie crea que ese tope
+        // se lo ha puesto él.
         $this->configureBudget(0, AiBudgetMode::SOFT);
 
         $this->client->request('GET', '/ai/cost');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.bo-main', 'No hay tope de gasto');
+        self::assertSelectorTextContains('.bo-main', 'es el máximo que permite tu plan');
+    }
+
+    public function testThePlanDoesNotAllowToSpendMoreThanItsCeiling(): void
+    {
+        // Un tope dentro del plan se guarda…
+        $this->configureBudget(5000, AiBudgetMode::SOFT);
+
+        // …pero uno por encima del techo del plan se rechaza y no cambia nada.
+        $this->client->request('GET', '/ai');
+
+        $this->client->submit($this->client->getCrawler()->selectButton('Guardar')->form([
+            'budget_limit' => '5000,00',
+            'budget_mode' => AiBudgetMode::HARD->value,
+        ]));
+
+        $this->client->followRedirect();
+        self::assertSelectorTextContains('.flash-region', 'El plan permite un presupuesto de IA de 10000 céntimos como máximo.');
+
+        $tenantContext = self::getContainer()->get(TenantContext::class);
+        $guard = self::getContainer()->get(AiBudgetGuard::class);
+
+        $status = $tenantContext->runAs($this->organizationId, static fn (): mixed => $guard->status());
+
+        self::assertSame(5000, $status->limitMinor(), 'El tope anterior se conserva.');
+        self::assertSame(AiBudgetMode::SOFT, $status->mode, 'El modo anterior se conserva.');
     }
 
     public function testTheBudgetCanBeSavedFromTheSettingsScreen(): void
@@ -128,7 +161,7 @@ final class AiCostPanelTest extends WebTestCase
 
         $status = $tenantContext->runAs($this->organizationId, static fn (): mixed => $guard->status());
 
-        self::assertSame(2500, $status->limitMinor);
+        self::assertSame(2500, $status->limitMinor());
         self::assertSame(AiBudgetMode::HARD, $status->mode);
     }
 
@@ -151,7 +184,7 @@ final class AiCostPanelTest extends WebTestCase
 
         $status = $tenantContext->runAs($this->organizationId, static fn (): mixed => $guard->status());
 
-        self::assertSame(1000, $status->limitMinor);
+        self::assertSame(1000, $status->limitMinor());
         self::assertSame(AiBudgetMode::SOFT, $status->mode);
     }
 
@@ -227,7 +260,7 @@ final class AiCostPanelTest extends WebTestCase
                 model: 'modelo-de-prueba',
                 promptTokens: 1200,
                 completionTokens: 300,
-                costMinor: $costMinor,
+                costMicro: AiCost::toMicro($costMinor),
                 createdAt: new DateTimeImmutable(),
             ));
         });

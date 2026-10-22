@@ -25,6 +25,7 @@ use App\Services\Domain\Repository\ServiceRepositoryInterface;
 use App\Shared\Application\Audit\AuditLoggerInterface;
 use App\Shared\Application\Clock;
 use App\Shared\Application\TenantContext;
+use App\Tests\Support\Entitlements\InMemoryQuotaChecker;
 use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -205,6 +206,7 @@ final class BatchReviewDiscoveriesTest extends TestCase
             $this->services,
             $this->tenantContext,
             $this->auditLogger,
+            InMemoryQuotaChecker::allowingEverything(),
         );
 
         $knowledgeEntries = $this->createMock(MailboxKnowledgeRepositoryInterface::class);

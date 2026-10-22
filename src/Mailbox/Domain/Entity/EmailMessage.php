@@ -38,6 +38,10 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Index(name: 'idx_email_message_account_message_id', columns: ['email_account_id', 'message_id'])]
 #[ORM\Index(name: 'idx_email_message_content_hash', columns: ['content_hash'])]
 #[ORM\Index(name: 'idx_email_message_organization_state', columns: ['organization_id', 'processing_state'])]
+// El panel de observabilidad agrega por nivel de extracción sobre una ventana
+// temporal; sin este índice esa agregación recorre todos los mensajes de la
+// organización (ver ARCHITECTURE.md §16).
+#[ORM\Index(name: 'idx_email_message_organization_received', columns: ['organization_id', 'received_at'])]
 class EmailMessage implements TenantAwareInterface
 {
     #[ORM\Id]
@@ -146,8 +150,8 @@ class EmailMessage implements TenantAwareInterface
     #[ORM\Column(name: 'ai_used', type: Types::BOOLEAN)]
     private bool $aiUsed = false;
 
-    #[ORM\Column(name: 'ai_cost_minor', type: Types::INTEGER)]
-    private int $aiCostMinor = 0;
+    #[ORM\Column(name: 'ai_cost_micro', type: Types::BIGINT)]
+    private int $aiCostMicro = 0;
 
     #[ORM\Column(type: Types::SMALLINT)]
     private int $attempts = 0;
@@ -339,9 +343,9 @@ class EmailMessage implements TenantAwareInterface
         return $this->aiUsed;
     }
 
-    public function getAiCostMinor(): int
+    public function getAiCostMicro(): int
     {
-        return $this->aiCostMinor;
+        return $this->aiCostMicro;
     }
 
     public function getAttempts(): int
@@ -431,12 +435,12 @@ class EmailMessage implements TenantAwareInterface
         $this->classificationConfidence = max(0, min(100, $confidence));
     }
 
-    public function recordExtraction(ExtractionTier $tier, string $extractorUsed, bool $aiUsed = false, int $aiCostMinor = 0): void
+    public function recordExtraction(ExtractionTier $tier, string $extractorUsed, bool $aiUsed = false, int $aiCostMicro = 0): void
     {
         $this->extractionTier = $tier;
         $this->extractorUsed = mb_substr($extractorUsed, 0, 80);
         $this->aiUsed = $aiUsed;
-        $this->aiCostMinor += $aiCostMinor;
+        $this->aiCostMicro += $aiCostMicro;
     }
 
     /**

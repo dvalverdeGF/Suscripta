@@ -56,6 +56,16 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(name: 'last_login_at', type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?DateTimeImmutable $lastLoginAt = null;
 
+    /**
+     * Cuándo terminó la guía de bienvenida (Fase 17).
+     *
+     * `null` = todavía no la ha terminado. Es el estado que hace que el
+     * panel mande a la guía: la primera vez que alguien entra, lo primero que
+     * ve es cómo se usa el producto, no una lista de números vacíos.
+     */
+    #[ORM\Column(name: 'onboarding_completed_at', type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?DateTimeImmutable $onboardingCompletedAt = null;
+
     /** @var Collection<int, Membership> */
     #[ORM\OneToMany(targetEntity: Membership::class, mappedBy: 'user', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $memberships;
@@ -196,6 +206,31 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function recordLogin(DateTimeImmutable $at): void
     {
         $this->lastLoginAt = $at;
+        $this->touch();
+    }
+
+    /**
+     * ¿Ha terminado la guía de bienvenida?
+     */
+    public function isOnboardingCompleted(): bool
+    {
+        return null !== $this->onboardingCompletedAt;
+    }
+
+    public function getOnboardingCompletedAt(): ?DateTimeImmutable
+    {
+        return $this->onboardingCompletedAt;
+    }
+
+    /**
+     * Marca la guía de bienvenida como terminada.
+     *
+     * No se deshace: terminar la guía es un hecho, no un estado que se pueda
+     * volver a poner en «pendiente» por accidente.
+     */
+    public function markOnboardingCompleted(DateTimeImmutable $at): void
+    {
+        $this->onboardingCompletedAt = $at;
         $this->touch();
     }
 

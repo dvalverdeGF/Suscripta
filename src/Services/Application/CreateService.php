@@ -9,6 +9,8 @@ use App\Services\Domain\Entity\Service;
 use App\Services\Domain\Enum\ServiceEventType;
 use App\Services\Domain\Repository\ServiceRepositoryInterface;
 use App\Shared\Application\Audit\AuditLoggerInterface;
+use App\Shared\Application\Entitlements\Capability;
+use App\Shared\Application\Entitlements\QuotaCheckerInterface;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Enum\AuditAction;
 use App\Shared\Domain\Exception\InvalidArgumentException;
@@ -20,6 +22,10 @@ use Symfony\Component\Uid\Uuid;
  *
  * El precio inicial, si lo hay, entra como primera fila del historial: nunca se
  * escribe un importe en la entidad `Service` (D-13).
+ *
+ * El plan se comprueba **antes** de hacer nada: si la organización ya tiene
+ * los servicios que su plan permite, no tiene sentido crear el servicio y
+ * avisar después (Fase 17).
  */
 final readonly class CreateService
 {
@@ -27,6 +33,7 @@ final readonly class CreateService
         private ServiceRepositoryInterface $services,
         private TenantContext $tenantContext,
         private AuditLoggerInterface $auditLogger,
+        private QuotaCheckerInterface $quotas,
     ) {
     }
 
@@ -74,6 +81,12 @@ final readonly class CreateService
             'name' => $service->getName(),
             'source' => $service->getSource()->value,
         ]);
+
+        // El plan se comprueba **después** de validar la entrada: un error de
+        // forma (un intervalo de facturación imposible) es más específico y
+        // más útil que «tu plan no da para más servicios», y no se resolve
+        // subiendo de plan (Fase 17).
+        $this->quotas->assertWithinQuota(Capability::SERVICES);
 
         $this->services->save($service);
 

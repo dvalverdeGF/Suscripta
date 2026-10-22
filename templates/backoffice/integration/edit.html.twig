@@ -31,15 +31,6 @@
     <p class="text-muted">{{ definition.help }}</p>
 
     {# El resultado de guardar se dice **en la ficha**, que es donde el operador sigue. #}
-    {% for label, messages in app.flashes %}
-        {% for message in messages %}
-            <div class="alert alert-{{ label }} alert-dismissible fade show" role="alert">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
-            </div>
-        {% endfor %}
-    {% endfor %}
-
     {% if integration is not null and integration.lastError is not null %}
         {#
             Último fallo observado. Se enseña **con su fecha**: un error sin fecha

@@ -112,13 +112,13 @@ final readonly class AiUsageRecorder
             $model = '';
             $promptTokens = 0;
             $completionTokens = 0;
-            $costMinor = 0;
+            $costMicro = 0;
 
             if (null !== $response) {
                 $model = $response->model;
                 $promptTokens = $response->promptTokens;
                 $completionTokens = $response->completionTokens;
-                $costMinor = $price->costMinor($promptTokens, $completionTokens);
+                $costMicro = $price->costMicro($promptTokens, $completionTokens);
             }
 
             $this->usageRepository->save(new AiUsage(
@@ -129,7 +129,7 @@ final readonly class AiUsageRecorder
                 model: $model,
                 promptTokens: $promptTokens,
                 completionTokens: $completionTokens,
-                costMinor: $costMinor,
+                costMicro: $costMicro,
                 successful: $successful,
                 durationMs: $durationMs,
                 entityType: $entityType,

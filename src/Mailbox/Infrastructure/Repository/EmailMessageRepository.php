@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Mailbox\Infrastructure\Repository;
 
 use App\Mailbox\Domain\Entity\EmailMessage;
+use App\Mailbox\Domain\Enum\ExtractionTier;
 use App\Mailbox\Domain\Enum\MessageProcessingState;
 use App\Mailbox\Domain\Repository\EmailMessageRepositoryInterface;
 use App\Shared\Domain\ValueObject\DateRange;
@@ -164,8 +165,7 @@ final class EmailMessageRepository extends DoctrineRepository implements EmailMe
      */
     public function extractionStats(Uuid $organizationId, DateRange $period): array
     {
-        /** @var list<array{tier: string, total: int|string}> $rows */
-        $rows = $this->entityManager
+        $qb = $this->entityManager
             ->createQueryBuilder()
             ->select('m.extractionTier AS tier', 'COUNT(m.id) AS total')
             ->from(EmailMessage::class, 'm')
@@ -173,9 +173,14 @@ final class EmailMessageRepository extends DoctrineRepository implements EmailMe
             ->andWhere('m.receivedAt >= :from')
             ->setParameter('organizationId', $organizationId)
             ->setParameter('from', $period->from)
-            ->groupBy('m.extractionTier')
-            ->getQuery()
-            ->getResult();
+            ->groupBy('m.extractionTier');
+
+        if (null !== $period->to) {
+            $qb->andWhere('m.receivedAt < :to')->setParameter('to', $period->to);
+        }
+
+        /** @var list<array{tier: string, total: int|string}> $rows */
+        $rows = $qb->getQuery()->getResult();
 
         $byTier = [];
         $total = 0;
@@ -188,7 +193,12 @@ final class EmailMessageRepository extends DoctrineRepository implements EmailMe
             }
 
             $count = (int) $row['total'];
-            $byTier[$tier] = $count;
+
+            // La columna está mapeada con `enumType`, así que Doctrine
+            // devuelve el objeto enum y no su valor. Indexar el array por el
+            // objeto es imposible (un enum no puede ser clave de array) y la
+            // vista busca las claves por valor (`deterministic`, `ai_cheap`).
+            $byTier[$tier instanceof ExtractionTier ? $tier->value : (string) $tier] = $count;
             $total += $count;
         }
 
@@ -210,7 +220,7 @@ final class EmailMessageRepository extends DoctrineRepository implements EmailMe
      */
     private function averageProcessingMs(Uuid $organizationId, DateRange $period): int
     {
-        $seconds = $this->entityManager
+        $qb = $this->entityManager
             ->createQueryBuilder()
             ->select('COALESCE(AVG(SECONDS_BETWEEN(m.receivedAt, m.processedAt)), 0)')
             ->from(EmailMessage::class, 'm')
@@ -219,9 +229,13 @@ final class EmailMessageRepository extends DoctrineRepository implements EmailMe
             ->andWhere('m.receivedAt IS NOT NULL')
             ->andWhere('m.processedAt IS NOT NULL')
             ->setParameter('organizationId', $organizationId)
-            ->setParameter('from', $period->from)
-            ->getQuery()
-            ->getSingleScalarResult();
+            ->setParameter('from', $period->from);
+
+        if (null !== $period->to) {
+            $qb->andWhere('m.receivedAt < :to')->setParameter('to', $period->to);
+        }
+
+        $seconds = $qb->getQuery()->getSingleScalarResult();
 
         return (int) round((float) $seconds * 1000);
     }

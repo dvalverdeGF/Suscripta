@@ -6,6 +6,7 @@ namespace App\Tests\Functional\Shared;
 
 use App\Identity\Application\RegisterUser;
 use App\Identity\Domain\Entity\User;
+use App\Tests\Support\Identity\CompletesOnboarding;
 
 use function sprintf;
 
@@ -26,6 +27,8 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  */
 final class SecurityHeadersTest extends WebTestCase
 {
+    use CompletesOnboarding;
+
     public function testEveryResponseCarriesTheSecurityHeaders(): void
     {
         $client = self::createClient();
@@ -157,6 +160,7 @@ final class SecurityHeadersTest extends WebTestCase
         $registerUser = self::getContainer()->get(RegisterUser::class);
         $user = $registerUser('ada@example.com', 'Sup3rSecret!2026', 'Ada Lovelace');
         self::assertInstanceOf(User::class, $user);
+        $this->completeOnboarding($user);
         $client->loginUser($user);
 
         return $client;

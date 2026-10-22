@@ -21,21 +21,25 @@ interface AiUsageRepositoryInterface
     public function save(AiUsage $usage, bool $flush = true): void;
 
     /**
-     * Coste total en céntimos en un rango, para una organización.
+     * Coste total en **microcéntimos** en un rango, para una organización.
+     *
+     * Las agregaciones se hacen en microcéntimos (D-68) para que la suma sea
+     * exacta: redondeando a céntimos se perdería el gasto de las llamadas
+     * baratas, que es la mayor parte.
      */
-    public function totalCostMinor(Uuid $organizationId, DateRange $period): int;
+    public function totalCostMicro(Uuid $organizationId, DateRange $period): int;
 
     /**
-     * Coste desglosado por proveedor.
+     * Coste desglosado por proveedor, en microcéntimos.
      *
-     * @return array<string, int> clave de proveedor => coste en céntimos
+     * @return array<string, int> clave de proveedor => coste en microcéntimos
      */
     public function costByProvider(Uuid $organizationId, DateRange $period): array;
 
     /**
-     * Coste desglosado por necesidad.
+     * Coste desglosado por necesidad, en microcéntimos.
      *
-     * @return array<string, int> valor de la necesidad => coste en céntimos
+     * @return array<string, int> valor de la necesidad => coste en microcéntimos
      */
     public function costByPurpose(Uuid $organizationId, DateRange $period): array;
 

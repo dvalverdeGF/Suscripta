@@ -152,8 +152,8 @@ final readonly class GenerateCostAlerts
     {
         return [
             'period' => $this->budget->currentPeriodKey(),
-            'limit_minor' => $status->limitMinor,
-            'spent_minor' => $status->spentMinor,
+            'limit_minor' => $status->limitMinor(),
+            'spent_minor' => $status->spentMinor(),
             'used_percent' => $status->usedPercent,
             'mode' => $status->mode->value,
         ];
@@ -164,6 +164,12 @@ final readonly class GenerateCostAlerts
      */
     private function typeFor(AiBudgetStatus $status): ?AlertType
     {
+        // Sin IA en el plan no hay presupuesto que se pueda agotar: avisar de
+        // que se ha agotado sería ruido (Fase 17).
+        if (!$status->available) {
+            return null;
+        }
+
         if ($status->exhausted) {
             return AlertType::AI_BUDGET_EXCEEDED;
         }
@@ -192,8 +198,8 @@ final readonly class GenerateCostAlerts
      */
     private function messageFor(AlertType $type, AiBudgetStatus $status): string
     {
-        $spent = $this->format($status->spentMinor);
-        $limit = $this->format($status->limitMinor);
+        $spent = $this->format($status->spentMinor());
+        $limit = $this->format($status->limitMinor());
 
         if (AlertType::AI_BUDGET_EXCEEDED === $type) {
             return sprintf(

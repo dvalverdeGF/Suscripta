@@ -1,0 +1,309 @@
+{% extends 'backoffice/base.html.twig' %}
+
+{#
+    Panel de observabilidad de producto (Fase 17).
+
+    Responde a cuatro preguntas, en el orden en que se depura un problema:
+
+    1. ¿Entra el correo? — sincronización.
+    2. ¿Se procesa? — extracción.
+    3. ¿Cuánto cuesta procesarlo? — inteligencia artificial.
+    4. ¿Hay algo que Requiere mi atención? — avisos.
+
+    El periodo va en la URL (24 h / 7 días / 30 días) porque son preguntas
+    distintas con horizontes distintos: «he enviado la factura y no sale» se
+    mira en 24 horas; «¿el sistema está trabajando bien?» se mira en 7 días.
+
+    El estado de la organización va en la URL con `period`: el enlace se puede
+    mandar tal cual a un compañero sin que tenga que reconfigurar nada.
+#}
+{% block title %}Observabilidad — Suscripta{% endblock %}
+
+{% block breadcrumb %}
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{{ path('app_dashboard') }}">Panel</a></li>
+        <li class="breadcrumb-item active">Observabilidad</li>
+    </ol>
+{% endblock %}
+
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">Observabilidad</h1>
+            <p class="bo-page-header__subtitle">
+                Si el correo entra, si se procesa y cuánto cuesta. Todo de la organización activa.
+            </p>
+        </div>
+        <div class="bo-page-header__actions">
+            <div class="btn-group" role="group" aria-label="Periodo">
+                {% for key, label in periods %}
+                    <a class="btn btn-sm {{ key == period ? 'btn-primary' : 'btn-outline-secondary' }}"
+                       href="{{ path('app_observability', { period: key }) }}">{{ label }}</a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    {# ── Estado general ──────────────────────────────────────────── #}
+    {% if report.hasProblems %}
+        <div class="alert alert-warning d-flex align-items-start" role="status">
+            <i class="fa-solid fa-triangle-exclamation mt-1 me-2"></i>
+            <div class="flex-grow-1">
+                <strong>Hay algo que revisar.</strong>
+                {% if report.sync.failed > 0 %}
+                    {{ report.sync.failed }} sincronización{{ report.sync.failed == 1 ? '' : 'es' }} fallida{{ report.sync.failed == 1 ? '' : 's' }}.
+                {% endif %}
+                {% if report.ai.failures > 0 %}
+                    {{ report.ai.failures }} llamada{{ report.ai.failures == 1 ? '' : 's' }} a la IA fallida{{ report.ai.failures == 1 ? '' : 's' }}.
+                {% endif %}
+                {% if report.ai.budget.exhausted %}
+                    El presupuesto de IA está agotado.
+                {% endif %}
+                {% if report.alerts.open > 0 %}
+                    {{ report.alerts.open }} aviso{{ report.alerts.open == 1 ? '' : 's' }} abierto{{ report.alerts.open == 1 ? '' : 's' }}.
+                {% endif %}
+            </div>
+        </div>
+    {% elseif report.sync.hasActivity %}
+        <div class="alert alert-success d-flex align-items-start" role="status">
+            <i class="fa-solid fa-circle-check mt-1 me-2"></i>
+            <div class="flex-grow-1">
+                <strong>Todo en orden.</strong>
+                El pipeline está funcionando: el correo entra, se procesa y el coste está dentro del presupuesto.
+            </div>
+        </div>
+    {% endif %}
+
+    {# ── Sincronización ──────────────────────────────────────────── #}
+    <div class="bo-metrics mb-4">
+        <div class="bo-metric">
+            <span class="bo-metric__label">Sincronizaciones</span>
+            <span class="bo-metric__value">{{ report.sync.runs }}</span>
+            <span class="bo-metric__hint">
+                {% if report.sync.failed > 0 %}
+                    <span class="text-danger">{{ report.sync.failed }} fallida{{ report.sync.failed == 1 ? '' : 's' }}</span>
+                {% else %}
+                    sin errores
+                {% endif %}
+            </span>
+        </div>
+        <div class="bo-metric">
+            <span class="bo-metric__label">Correos vistos</span>
+            <span class="bo-metric__value">{{ report.sync.seen }}</span>
+            <span class="bo-metric__hint">{{ report.sync.processed }} procesados</span>
+        </div>
+        <div class="bo-metric">
+            <span class="bo-metric__label">Descubrimientos</span>
+            <span class="bo-metric__value">{{ report.sync.discoveries }}</span>
+            <span class="bo-metric__hint">
+                {{ (report.sync.discoveryRate() * 100)|number_format(1, ',', '.') }} % de los correos vistos
+            </span>
+        </div>
+        <div class="bo-metric">
+            <span class="bo-metric__label">Duración media</span>
+            <span class="bo-metric__value">{{ report.sync.averageDurationMs }} ms</span>
+            <span class="bo-metric__hint">por pasada de sincronización</span>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        {# ── Detalle de sincronización ───────────────────────────── #}
+        <div class="col-12 col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h2 class="card-title">Sincronización</h2>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table bo-table bo-table--stack align-middle mb-0">
+                            <caption class="visually-hidden">Actividad de sincronización de los buzones</caption>
+                            <tbody>
+                                <tr>
+                                    <td data-label="Concepto">Pasadas de sincronización</td>
+                                    <td data-label="Valor" class="text-end">{{ report.sync.runs }}</td>
+                                </tr>
+                                <tr>
+                                    <td data-label="Concepto">Pasadas fallidas</td>
+                                    <td data-label="Valor" class="text-end">
+                                        {% if report.sync.failed > 0 %}
+                                            <span class="text-danger">{{ report.sync.failed }}</span>
+                                        {% else %}
+                                            0
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td data-label="Concepto">Correos vistos</td>
+                                    <td data-label="Valor" class="text-end">{{ report.sync.seen }}</td>
+                                </tr>
+                                <tr>
+                                    <td data-label="Concepto">Correos procesados</td>
+                                    <td data-label="Valor" class="text-end">{{ report.sync.processed }}</td>
+                                </tr>
+                                <tr>
+                                    <td data-label="Concepto">Descartados por el filtro</td>
+                                    <td data-label="Valor" class="text-end">{{ report.sync.skipped }}</td>
+                                </tr>
+                                <tr>
+                                    <td data-label="Concepto">Recuperados del histórico</td>
+                                    <td data-label="Valor" class="text-end">{{ report.sync.backfilled }}</td>
+                                </tr>
+                                <tr>
+                                    <td data-label="Concepto">Descubrimientos creados</td>
+                                    <td data-label="Valor" class="text-end">{{ report.sync.discoveries }}</td>
+                                </tr>
+                                <tr>
+                                    <td data-label="Concepto">Duración media</td>
+                                    <td data-label="Valor" class="text-end">{{ report.sync.averageDurationMs }} ms</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# ── Extracción ──────────────────────────────────────────── #}
+        <div class="col-12 col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h2 class="card-title">Extracción</h2>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table bo-table bo-table--stack align-middle mb-0">
+                            <caption class="visually-hidden">Correos resueltos por nivel de extracción</caption>
+                            <thead>
+                                <tr>
+                                    <th scope="col">Nivel</th>
+                                    <th scope="col" class="text-end">Correos</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for tier, total in report.extraction.byTier %}
+                                    <tr>
+                                        <td data-label="Nivel">{{ tierLabels[tier]|default(tier) }}</td>
+                                        <td data-label="Correos" class="text-end">{{ total }}</td>
+                                    </tr>
+                                {% else %}
+                                    <tr>
+                                        <td colspan="2" class="text-muted">Sin correos procesados en este periodo.</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                            {% if report.extraction.byTier is not empty %}
+                                <tfoot>
+                                    <tr>
+                                        <td data-label="Concepto">Resueltos sin IA</td>
+                                        <td data-label="Valor" class="text-end">
+                                            {{ report.extraction.withoutAi() }} de {{ report.extraction.messagesTotal }}
+                                            ({{ (report.extraction.deterministicRatio() * 100)|number_format(0, ',', '.') }} %)
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td data-label="Concepto">Tiempo medio de un correo</td>
+                                        <td data-label="Valor" class="text-end">{{ report.extraction.averageDurationMs }} ms</td>
+                                    </tr>
+                                </tfoot>
+                            {% endif %}
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        {# ── IA ──────────────────────────────────────────────────── #}
+        <div class="col-12 col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h2 class="card-title">Inteligencia artificial</h2>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table bo-table bo-table--stack align-middle mb-0">
+                            <caption class="visually-hidden">Uso de la inteligencia artificial en el periodo</caption>
+                            <tbody>
+                                <tr>
+                                    <td data-label="Concepto">Llamadas a modelos</td>
+                                    <td data-label="Valor" class="text-end">{{ report.ai.calls }}</td>
+                                </tr>
+                                <tr>
+                                    <td data-label="Concepto">Llamadas fallidas</td>
+                                    <td data-label="Valor" class="text-end">
+                                        {% if report.ai.failures > 0 %}
+                                            <span class="text-danger">{{ report.ai.failures }}</span>
+                                        {% else %}
+                                            0
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td data-label="Concepto">Coste del periodo</td>
+                                    <td data-label="Valor" class="text-end">{{ report.ai.totalCostMicro|micro_money }}</td>
+                                </tr>
+                                <tr>
+                                    <td data-label="Concepto">Coste por llamada</td>
+                                    <td data-label="Valor" class="text-end">{{ report.ai.averageCostPerCallMicro|micro_money }}</td>
+                                </tr>
+                                <tr>
+                                    <td data-label="Concepto">Tiempo medio de una llamada</td>
+                                    <td data-label="Valor" class="text-end">{{ report.ai.averageDurationMs }} ms</td>
+                                </tr>
+                                <tr>
+                                    <td data-label="Concepto">Correos aplazados</td>
+                                    <td data-label="Valor" class="text-end">{{ report.extraction.deferred }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="card-body pt-0">
+                        <a class="btn btn-outline-secondary btn-sm" href="{{ path('app_ai_cost') }}">
+                            <i class="fa-solid fa-chart-pie me-1"></i> Ver el detalle del coste
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# ── Avisos ──────────────────────────────────────────────── #}
+        <div class="col-12 col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h2 class="card-title">Avisos</h2>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table bo-table bo-table--stack align-middle mb-0">
+                            <caption class="visually-hidden">Avisos abiertos por tipo</caption>
+                            <thead>
+                                <tr>
+                                    <th scope="col">Tipo</th>
+                                    <th scope="col" class="text-end">Abiertos</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for type, total in report.alerts.openByType %}
+                                    <tr>
+                                        <td data-label="Tipo">{{ alertTypeLabels[type]|default(type) }}</td>
+                                        <td data-label="Abiertos" class="text-end">{{ total }}</td>
+                                    </tr>
+                                {% else %}
+                                    <tr>
+                                        <td colspan="2" class="text-muted">No hay avisos abiertos.</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="card-body pt-0">
+                        <a class="btn btn-outline-secondary btn-sm" href="{{ path('app_alerts_index') }}">
+                            <i class="fa-solid fa-bell me-1"></i> Ir a los avisos
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

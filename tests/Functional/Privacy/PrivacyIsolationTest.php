@@ -16,6 +16,7 @@ use App\Shared\Application\TenantContext;
 use App\Shared\Domain\ValueObject\BillingPeriod;
 use App\Shared\Domain\ValueObject\Currency;
 use App\Shared\Domain\ValueObject\Money;
+use App\Tests\Support\Identity\CompletesOnboarding;
 use DateTimeImmutable;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -34,6 +35,8 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  */
 final class PrivacyIsolationTest extends WebTestCase
 {
+    use CompletesOnboarding;
+
     private KernelBrowser $client;
 
     private User $ada;
@@ -48,6 +51,7 @@ final class PrivacyIsolationTest extends WebTestCase
         $registerUser = self::getContainer()->get(RegisterUser::class);
 
         $this->ada = $registerUser('ada@example.com', 'Sup3rSecret!2026', 'Ada Lovelace');
+        $this->completeOnboarding($this->ada);
         $this->client->loginUser($this->ada);
 
         $membership = $this->ada->getMemberships()->first();
@@ -61,6 +65,8 @@ final class PrivacyIsolationTest extends WebTestCase
 
         $registerUser = self::getContainer()->get(RegisterUser::class);
         $grace = $registerUser('grace@example.com', 'Sup3rSecret!2026', 'Grace Hopper');
+        $this->completeOnboarding($grace);
+        $this->completeOnboarding($grace);
         $graceMembership = $grace->getMemberships()->first();
         self::assertInstanceOf(Membership::class, $graceMembership);
         $this->createService($graceMembership->getOrganization(), 'Spotify');
@@ -81,6 +87,7 @@ final class PrivacyIsolationTest extends WebTestCase
 
         $registerUser = self::getContainer()->get(RegisterUser::class);
         $grace = $registerUser('grace@example.com', 'Sup3rSecret!2026', 'Grace Hopper');
+        $this->completeOnboarding($grace);
         $graceMembership = $grace->getMemberships()->first();
         self::assertInstanceOf(Membership::class, $graceMembership);
         $this->createService($graceMembership->getOrganization(), 'Spotify');
@@ -101,6 +108,7 @@ final class PrivacyIsolationTest extends WebTestCase
 
         $registerUser = self::getContainer()->get(RegisterUser::class);
         $grace = $registerUser('grace@example.com', 'Sup3rSecret!2026', 'Grace Hopper');
+        $this->completeOnboarding($grace);
         $graceMembership = $grace->getMemberships()->first();
         self::assertInstanceOf(Membership::class, $graceMembership);
         $graceOrganization = $graceMembership->getOrganization();
@@ -123,6 +131,7 @@ final class PrivacyIsolationTest extends WebTestCase
 
         $registerUser = self::getContainer()->get(RegisterUser::class);
         $grace = $registerUser('grace@example.com', 'Sup3rSecret!2026', 'Grace Hopper');
+        $this->completeOnboarding($grace);
 
         // Grace entra en la organización de Ada como miembro: es un dato
         // compartido, no una fuga. Lo que no puede es ver la exportación de

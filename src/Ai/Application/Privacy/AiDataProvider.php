@@ -6,6 +6,7 @@ namespace App\Ai\Application\Privacy;
 
 use App\Ai\Domain\Repository\AiBudgetRepositoryInterface;
 use App\Ai\Domain\Repository\AiUsageRepositoryInterface;
+use App\Ai\Domain\ValueObject\AiCost;
 use App\Shared\Application\Privacy\OrganizationDataProviderInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -43,7 +44,7 @@ final readonly class AiDataProvider implements OrganizationDataProviderInterface
 
         foreach ($usages as $usage) {
             $month = $usage->getCreatedAt()->format('Y-m');
-            $cost = $usage->getCostMinor();
+            $cost = $usage->getCostMicro();
 
             $rows[] = [
                 'id' => $usage->getId()->toRfc4122(),
@@ -53,7 +54,8 @@ final readonly class AiDataProvider implements OrganizationDataProviderInterface
                 'model' => $usage->getModel(),
                 'promptTokens' => $usage->getPromptTokens(),
                 'completionTokens' => $usage->getCompletionTokens(),
-                'costMinor' => $cost,
+                'costMicro' => $cost,
+                'costMinor' => AiCost::toMinor($cost),
                 'durationMs' => $usage->getDurationMs(),
                 'entityType' => $usage->getEntityType(),
                 'entityId' => $usage->getEntityId()?->toRfc4122(),
@@ -81,7 +83,8 @@ final readonly class AiDataProvider implements OrganizationDataProviderInterface
         return [
             'meta' => [
                 'calls' => $totalCalls,
-                'totalCostMinor' => $totalCost,
+                'totalCostMicro' => $totalCost,
+                'totalCostMinor' => AiCost::toMinor($totalCost),
                 'costByMonth' => $byMonth,
                 'budgets' => $budgetRows,
             ],

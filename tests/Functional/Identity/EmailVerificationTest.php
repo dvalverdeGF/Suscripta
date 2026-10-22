@@ -8,6 +8,7 @@ use App\Identity\Application\RegisterUser;
 use App\Identity\Application\SendVerificationEmail;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
+use App\Tests\Support\Identity\CompletesOnboarding;
 use DateInterval;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -18,6 +19,8 @@ use Symfony\Component\Routing\RouterInterface;
 
 final class EmailVerificationTest extends WebTestCase
 {
+    use CompletesOnboarding;
+
     private KernelBrowser $client;
 
     protected function setUp(): void
@@ -149,8 +152,10 @@ final class EmailVerificationTest extends WebTestCase
     private function createUser(string $email): User
     {
         $registerUser = self::getContainer()->get(RegisterUser::class);
+        $user = $registerUser($email, 'Sup3rSecret!2026', 'Ada Lovelace');
+        $this->completeOnboarding($user);
 
-        return $registerUser($email, 'Sup3rSecret!2026', 'Ada Lovelace');
+        return $user;
     }
 
     private function verificationUrl(User $user): string

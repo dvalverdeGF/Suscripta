@@ -43,16 +43,21 @@ final readonly class AiPrice
     }
 
     /**
-     * Coste en céntimos de una llamada concreta.
+     * Coste en **microcéntimos** de una llamada concreta.
+     *
+     * Se guarda en microcéntimos (D-68) porque una llamada a un modelo
+     * económico cuesta céntimas: redondeando a céntimos, casi todas las
+     * llamadas se registrarían como coste cero y el panel de gasto
+     * subestimaría lo que se está pagando.
      *
      * @param int $promptTokens     tokens de entrada
      * @param int $completionTokens tokens de salida
      */
-    public function costMinor(int $promptTokens, int $completionTokens): int
+    public function costMicro(int $promptTokens, int $completionTokens): int
     {
         $euros = ($promptTokens * $this->promptPerMillion
             + $completionTokens * $this->completionPerMillion) / 1_000_000;
 
-        return (int) round($euros * 100);
+        return (int) round($euros * AiCost::MICRO_PER_EURO);
     }
 }

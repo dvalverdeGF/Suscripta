@@ -24,9 +24,11 @@ enum AuditAction: string
     case USER_PASSWORD_RESET_REQUESTED = 'user.password_reset_requested';
     case USER_EMAIL_VERIFIED = 'user.email_verified';
     case USER_EMAIL_VERIFICATION_SENT = 'user.email_verification_sent';
+    case USER_ONBOARDING_COMPLETED = 'user.onboarding_completed';
     case ORGANIZATION_SWITCHED = 'organization.switched';
     case ORGANIZATION_CREATED = 'organization.created';
     case ORGANIZATION_UPDATED = 'organization.updated';
+    case ORGANIZATION_PLAN_CHANGED = 'organization.plan_changed';
 
     // Buzones de correo
     case EMAIL_ACCOUNT_CONNECTED = 'email_account.connected';
@@ -87,9 +89,11 @@ enum AuditAction: string
             self::USER_PASSWORD_RESET_REQUESTED => 'Solicitud de restablecimiento de contraseña',
             self::USER_EMAIL_VERIFIED => 'Correo verificado',
             self::USER_EMAIL_VERIFICATION_SENT => 'Correo de verificación enviado',
+            self::USER_ONBOARDING_COMPLETED => 'Guía de bienvenida terminada',
             self::ORGANIZATION_SWITCHED => 'Cambio de organización activa',
             self::ORGANIZATION_CREATED => 'Organización creada',
             self::ORGANIZATION_UPDATED => 'Organización actualizada',
+            self::ORGANIZATION_PLAN_CHANGED => 'Plan de la organización cambiado',
             self::EMAIL_ACCOUNT_CONNECTED => 'Cuenta de correo conectada',
             self::EMAIL_ACCOUNT_CONNECTION_FAILED => 'Fallo al conectar la cuenta de correo',
             self::EMAIL_ACCOUNT_DISCONNECTED => 'Cuenta de correo desconectada',

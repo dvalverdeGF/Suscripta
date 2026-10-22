@@ -1,0 +1,121 @@
+{% extends 'backoffice/base.html.twig' %}
+
+{#
+    Guía de bienvenida (Fase 17).
+
+    La pantalla es una lista de pasos, no un tutorial. Cada paso dice qué hay
+    que hacer, si ya está hecho y, si no, el botón que lo hace.
+
+    Los pasos se calculan en vivo: si el usuario conecta el buzón desde la
+    pantalla de buzones y vuelve aquí, lo verá marcado. Por eso no hay un
+    "paso 2 de 3" guardado en ningún sitio.
+#}
+{% block title %}Empezar{% endblock %}
+
+{% block breadcrumb %}
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{{ path('app_dashboard') }}">Panel</a></li>
+        <li class="breadcrumb-item active">Empezar</li>
+    </ol>
+{% endblock %}
+
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">Empieza por aquí</h1>
+            <p class="bo-page-header__subtitle">
+                {% if pending > 0 %}
+                    Te faltan {{ pending }} {{ pending == 1 ? 'cosa' : 'cosas' }} para que Suscripta
+                    empiece a trabajar por ti.
+                {% else %}
+                    Lo tienes todo listo. Suscripta ya está mirando por ti.
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    {#
+        Los avisos los pinta el armazón (`backoffice/base.html.twig`), que ya
+        recorre `app.flashes` una vez. Repetirlo aquí los consumiría dos
+        veces y el segundo bucle no vería nada.
+    #}
+
+    <div class="bo-list mb-4">
+        <div class="bo-summary__title">
+            <i class="fa-solid fa-list-check"></i>Lo que hay que poner en marcha
+        </div>
+
+        <div class="table-responsive">
+            <table class="table bo-table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 3rem;">&nbsp;</th>
+                        <th>Qué</th>
+                        <th style="min-width: 12rem;">&nbsp;</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for step in steps %}
+                        <tr>
+                            <td>
+                                {% if step.done %}
+                                    <i class="fa-solid fa-circle-check text-success" title="Hecho"></i>
+                                    <span class="visually-hidden">Hecho</span>
+                                {% else %}
+                                    <i class="fa-regular fa-circle" title="Pendiente"></i>
+                                    <span class="visually-hidden">Pendiente</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <strong>{{ step.title }}</strong>
+                                <div class="small text-muted">{{ step.description }}</div>
+                            </td>
+                            <td class="text-end">
+                                {% if step.done %}
+                                    <span class="badge bg-success">Hecho</span>
+                                {% elseif step.path %}
+                                    <a class="btn btn-sm btn-outline-primary" href="{{ path(step.path) }}">
+                                        {{ step.action }}
+                                    </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {#
+        Los dos botones son POST con token CSRF, y no enlaces, porque los dos
+        cambian el estado de la cuenta. Con un enlace, el navegador lo puede
+        seguir un tercero desde otra página.
+
+        «Ahora no» marca la guía como vista igual que «hecho»: si no, la
+        siguiente vez que se entra se vuelve a esta pantalla, y el usuario
+        que solo quería ver el panel se queda en un bucle. La diferencia es
+        que la lista de pasos sigue a medias, así que al abrirla desde el menú
+        vuelve a decir lo que falta.
+    #}
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+        <form method="post" action="{{ path('app_onboarding_finish') }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('finish_onboarding') }}">
+            <button type="submit" class="btn btn-primary">
+                <i class="fa-solid fa-flag-checkered me-1"></i>Hecho, llévame al panel
+            </button>
+        </form>
+
+        <form method="post" action="{{ path('app_onboarding_skip') }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('skip_onboarding') }}">
+            <button type="submit" class="btn btn-link">
+                Ahora no, quiero ver el panel
+            </button>
+        </form>
+    </div>
+
+    <p class="text-muted small mt-3">
+        <i class="fa-solid fa-circle-info me-1"></i>
+        Puedes volver a esta guía cuando quieras desde
+        <a href="{{ path('app_onboarding_index') }}">el menú lateral</a>: no se pierde nada por dejarla a medias.
+    </p>
+{% endblock %}

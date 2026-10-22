@@ -67,7 +67,7 @@ final readonly class AiCostCalculator
 
         return new AiCostReport(
             budget: $budget,
-            totalCostMinor: $this->usage->totalCostMinor($organizationId, $period),
+            totalCostMicro: $this->usage->totalCostMicro($organizationId, $period),
             calls: $summary['calls'],
             promptTokens: $summary['promptTokens'],
             completionTokens: $summary['completionTokens'],
@@ -122,7 +122,7 @@ final readonly class AiCostCalculator
     {
         return new AiCostReport(
             budget: $budget,
-            totalCostMinor: 0,
+            totalCostMicro: 0,
             calls: 0,
             promptTokens: 0,
             completionTokens: 0,

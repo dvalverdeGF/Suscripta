@@ -130,3 +130,14 @@ alerts: ## Recalcula los avisos de cobros, renovaciones y plazos
 .PHONY: stats
 stats: ## Muestra el embudo del pipeline de correo por organización
 	$(EXEC) bin/console app:mail:stats
+
+# ---------------------------------------------------------------- Copias de seguridad
+
+.PHONY: backup
+backup: ## Crea una copia de seguridad (base de datos + documentos)
+	./bin/backup.sh
+
+.PHONY: restore
+restore: ## Restaura una copia en un entorno limpio: make restore PREFIJO=...
+	@test -n "$(PREFIJO)" || (echo "Falta PREFIJO= suscripta-AAAAMMDD-HHMMSS" && exit 1)
+	./bin/restore.sh $(PREFIJO) --limpio

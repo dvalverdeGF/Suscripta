@@ -2079,3 +2079,115 @@ compartida. La clave es **por organización**, para que una organización no pue
 límite de otra. Los limitadores se declaran en `config/packages/rate_limiter.yaml`; el
 entorno de test replica los límites reales de producción (`config/packages/test/rate_limiter.yaml`),
 porque un test que prueba un límite de 1000 no prueba nada.
+
+## 16. Planes, cuotas y preparación SaaS (Fase 17)
+
+### 16.1 El plan es un techo, no una etiqueta
+
+Un plan no dice «qué ha comprado el cliente»: dice **hasta dónde puede llegar la
+organización**. `OrganizationPlan` (enum) declara qué planes existen; los números viven en
+`config/packages/entitlements.yaml` (D-64). La pantalla `/plan` enseña el consumo real de la
+organización contra ese techo.
+
+| Capacidad | Tipo | Gratis | Profesional |
+|---|---|---|---|
+| `services` | límite | 3 | sin techo |
+| `email_accounts` | límite | 1 | 5 |
+| `documents` | límite | 20 | 500 |
+| `ai` | interruptor | no | sí |
+| `ai_budget_minor` | límite | 0 | 10 000 céntimos |
+
+### 16.2 Límite y uso son dos cosas distintas
+
+El **límite** lo dice la configuración; el **uso** lo sabe el módulo que tiene los datos
+(cuántos servicios, cuántos buzones, cuántos documentos). Ninguno de los dos sabe lo
+suficiente por sí solo, así que se cruzan en un sitio:
+
+```text
+src/Shared/Application/Entitlements/
+├── Capability                        # los nombres de las capacidades
+├── EntitlementCheckerInterface       # ¿qué permite el plan?  (límite)
+├── EntitlementUsageProviderInterface  # ¿cuánto se usa?        (uso)
+├── EntitlementSettings               # lee la configuración y la valida
+├── QuotaGuard                        # cruza límite y uso
+├── QuotaCheckerInterface
+└── QuotaStatus                       # la foto que se pinta
+```
+
+Cada módulo publica su uso **con una etiqueta de servicio**, para que el módulo transversal
+no importe repositorios de negocio:
+
+```text
+src/Services/Application/Entitlements/ServiceUsageProvider.php
+src/Mailbox/Application/Entitlements/EmailAccountUsageProvider.php
+src/Documents/Application/Entitlements/DocumentUsageProvider.php
+src/Ai/Application/Entitlements/AiBudgetUsageProvider.php
+```
+
+Cada proveedor declara **su propia clave** con el atributo `#[AsTaggedItem]`:
+
+```php
+#[AsTaggedItem(Capability::SERVICES)]
+final readonly class ServiceUsageProvider implements EntitlementUsageProviderInterface
+```
+
+No es un detalle menor: sin el atributo, el contenedor indexa el proveedor por el **nombre de
+su clase**, el guard no encuentra el contador y **ningún límite se aplica** (D-70). La clave va
+junto a la clase que la mide, y no en un YAML que habría que recordar actualizar.
+
+### 16.3 La cuota se comprueba en el caso de uso, no en el controlador
+
+`QuotaGuard::assertWithinQuota()` se llama desde el **caso de uso** (`CreateService`,
+`ConnectEmailAccount`, `UploadDocument`), nunca desde el controlador. La razón es la Fase 18:
+una escritura hecha por la API no pasa por un controlador, y si el límite viviera allí la
+API podría saltarse el plan sin querer.
+
+Cuando el límite se agota, el caso de uso lanza `QuotaExceededException`, que **no es un
+error HTTP**: quien la recibe decide cómo presentarla. En la web, `QuotaExceededListener`
+la convierte en un aviso y vuelve a la pantalla del módulo que pidió la operación; en la API
+será un `402 Payment Required` (Fase 18).
+
+### 16.4 La guía de bienvenida
+
+`BuildOnboardingChecklist` calcula los pasos **en vivo** a partir del estado del producto
+(D-66). Lo único guardado es «la guía está terminada» (`User.onboardingCompleted`). La guía
+no bloquea la aplicación: `OnboardingRedirectListener` solo redirige desde el panel.
+
+### 16.5 Observabilidad de producto
+
+`src/Observability/` responde a cuatro preguntas en el orden en que se depura un problema
+real: **sincronización** (¿entra el correo?), **extracción** (¿cómo se resolvió cada correo?),
+**IA** (llamadas, fallos, presupuesto y coste) y **avisos** (¿qué me está pidiendo el
+sistema?). El periodo (`24h`, `7d`, `30d`) va en la URL, no en la sesión: `/observability?period=30d`
+es un enlace que se puede mandar tal cual.
+
+> **Trampa de Doctrine ORM 3:** un enum mapeado con `enumType` vuelve de una agregación DQL
+> como **objeto**, y no puede usarse como clave de array (`TypeError`). Hay que convertirlo
+> explícitamente (D-69).
+
+> **Trampa de coste de IA:** el coste se guarda en microcéntimos (`AiCost`, columna
+> `cost_micro`), no en céntimos. Un redondeo a céntimos borraría el gasto real (D-68).
+
+### 16.6 El módulo `Demo` es un compositor
+
+`src/Demo/` es la **excepción declarada** a la regla de módulos (§3): escribe entidades de
+otros módulos (`Services`, `Documents`, `Mailbox`, `Ai`) para sembrar un tenant de
+demostración. Se justifica porque los casos de uso de esos módulos hablarían con un
+servidor IMAP de verdad o cobrarían de verdad, y una demostración no puede depender de eso.
+
+Reglas que lo acotan:
+
+- Solo escribe; nunca borra nada del producto.
+- Solo en desarrollo (`app:demo:seed` exige `--force` fuera de `dev`).
+- Es idempotente: repetir la siembra no duplica servicios, avisos ni consumo.
+
+### 16.7 Copias de seguridad y operación
+
+`bin/backup.sh` y `bin/restore.sh` cubren el ciclo completo: volcado de la base de datos
+(`pg_dump`, formato custom comprimido), copia de los documentos (`var/storage`), manifiesto
+JSON con sumas SHA-256, revisión de código y poda por número de copias; la restauración
+verifica la suma, puede tirar la base de datos entera (`--limpio`) y termina comprobando que
+las migraciones están al día.
+
+El runbook completo (servicios, despliegue, copias, restauración con simulacro, vigilancia,
+incidentes, rotación de secretos y listas de comprobación) está en `docs/operations.md`.

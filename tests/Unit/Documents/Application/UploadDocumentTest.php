@@ -20,6 +20,7 @@ use App\Shared\Domain\ValueObject\BillingPeriod;
 use App\Shared\Domain\ValueObject\Currency;
 use App\Tests\Support\Documents\InMemoryDocumentRepository;
 use App\Tests\Support\Documents\InMemoryDocumentStorage;
+use App\Tests\Support\Entitlements\InMemoryQuotaChecker;
 use App\Tests\Support\Services\ServiceEventAssertions;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -255,6 +256,7 @@ final class UploadDocumentTest extends TestCase
             $this->services,
             $this->tenantContext,
             $this->auditLogger,
+            InMemoryQuotaChecker::allowingEverything(),
         );
 
         return $useCase(new DocumentUpload(

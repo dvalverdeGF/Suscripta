@@ -1218,7 +1218,7 @@ pura por antigüedad, no por edición.
 
 ## Fase 17 — Preparación SaaS
 
-> **Estado:** ⬜ Pendiente.
+> **Estado:** ✅ Completada.
 
 
 **Objetivo:** dejar el producto listo para planes y crecimiento.
@@ -1233,6 +1233,120 @@ pura por antigüedad, no por edición.
 
 **Verificación:** los límites se aplican sin tocar el dominio; un backup se restaura en un
 entorno limpio.
+
+### Qué se entregó
+
+#### 1. Planes y límites (D-64, D-65)
+
+El plan es un **techo**, no una etiqueta. `OrganizationPlan` declara qué planes existen
+(`free`, `pro`) y los límites viven en `config/packages/entitlements.yaml`, de modo que
+cambiar un precio no exige un despliegue.
+
+| Capacidad | Tipo | Gratis | Profesional |
+|---|---|---|---|
+| Servicios | límite | 3 | sin techo |
+| Cuentas de correo | límite | 1 | 5 |
+| Documentos | límite | 20 | 500 |
+| Inteligencia artificial | interruptor | no | sí |
+| Presupuesto de IA | límite (céntimos) | 0 | 10 000 |
+
+`EntitlementSettings` **valida en el arranque** que todos los planes declaren todas las
+capacidades: si alguien añade una capacidad al código y olvida la configuración, el
+contenedor no arranca. Es un error de despliegue visible el primer día, no un límite que
+desaparece en silencio.
+
+La comprobación vive en el **caso de uso** (`QuotaGuard::assertWithinQuota()`), no en el
+controlador, porque en la Fase 18 la API escribirá sin pasar por un controlador. Al agotarse
+un límite se lanza `QuotaExceededException`, que en la web se convierte en un aviso con
+redirección al módulo correspondiente y en la API será un `402 Payment Required`.
+
+El cambio de plan es un caso de uso auditado (`ChangeOrganizationPlan`) y **no borra nada**:
+bajar de plan deja intactos los servicios y los documentos; la organización simplemente no
+puede añadir más. En esta versión el cambio lo hace el operador con `app:plan:set`; la
+pantalla `/plan` informa del consumo.
+
+#### 2. Guía de bienvenida (D-66)
+
+`BuildOnboardingChecklist` calcula los pasos **en vivo** (¿hay buzón? ¿hay servicios? ¿el plan
+ofrece IA?). Lo único guardado es «la guía está terminada». La guía no bloquea la
+aplicación: solo redirige desde el panel, para que un cliente con datos ya cargados pueda
+consultar una factura sin pasar por la explicación.
+
+#### 3. Observabilidad de producto
+
+`/observability` con cuatro bloques en el orden en que se depura un problema real:
+sincronización, extracción, IA y avisos. El periodo (`24h`, `7d`, `30d`) va en la URL, para
+que el enlace se pueda mandar a un compañero tal cual. Es un panel **operativo**, distinto
+del panel de coste de IA (Fase 14), que es una pregunta **financiera** con otro periodo.
+
+#### 4. Copias de seguridad y operación
+
+`bin/backup.sh` (volcado `pg_dump` + documentos + manifiesto con sumas SHA-256 y poda) y
+`bin/restore.sh` (verificación de suma, `--limpio` para rehacer la base de datos entera,
+restauración de documentos, `cache:clear` y comprobación de migraciones). El runbook
+completo está en `docs/operations.md`, con `make backup` y `make restore` como atajos.
+
+#### 5. Rendimiento y esquema
+
+Los 35 índices declarados en las entidades existen en la base de datos. Los que faltaban
+para las consultas nuevas del panel se añadieron (`email_sync_run (organization_id,
+started_at)` y `email_message (organization_id, received_at)`, migración
+`Version20261023140000`). Se corrigió además una **deriva de esquema**: `organization.plan`
+tenía `DEFAULT 'free'` en la base de datos y el mapeo no lo declaraba, así que cada
+`migrations:diff` proponía un `ALTER TABLE` inútil. `doctrine:schema:validate` queda en OK.
+
+### Defectos encontrados y corregidos al cerrar la fase
+
+1. **`SyncActivity::failureRate()` tenía `this->runs` sin `$`.** PHPStan lo detectó como
+   «Constant this not found»: el método habría petado en cuanto se le llamara. Es un bug
+   real que ningún test cubría porque la plantilla no usaba esa tasa.
+2. **El coste de IA se guardaba en céntimos y se redondeaba a 0** (D-68). Con 42 llamadas de
+   IA el panel enseñaba «0,00 €». Ahora se guarda en **microcéntimos** (`AiCost`,
+   `cost_micro` BIGINT) y el panel enseña 0,03 €.
+3. **La demostración sembraba duraciones irreales** (275 111 ms por pasada, 85 500 ms por
+   correo). Ahora son segundos verosímiles (12–39 s por sincronización, 2–8 s por correo).
+4. **La demo no tenía ningún correo en estado fallido**, aunque su propia documentación
+   prometía el camino «fallido». Con la tasa de fallos siempre a cero, el panel de
+   observabilidad no enseñaba cómo se ve un error. Ahora hay un mensaje en `failed`.
+5. **`demoMailbox()` devolvía `?EmailAccount` sin poder devolver `null`**, con una rama
+   muerta en el llamante.
+6. **Los porcentajes se pintaban como «8.3 %»** (`default_locale: en` con la interfaz en
+   español). Ahora se formatean con `number_format(1, ',', '.')`.
+7. **`doctrine:migrations:diff` usaba la fecha del contenedor** (2026-10-22), anterior a la
+   de migraciones ya aplicadas. La migración de índices se renombró a mano a una fecha
+   posterior.
+8. **Doble descompresión gzip** en `restore.sh` (`gunzip -c | tar -xzf -`): «not in gzip
+   format». Corregido a `tar -xf -`.
+9. **`restore.sh` no encontraba la copia por prefijo corto**: ahora busca en `var/backups/`.
+10. **`doctrine:migrations:status` mostraba «Available 17»** (artefacto cosmético por
+    versiones con namespace). El script usa `migrations:migrate --dry-run`.
+11. **Los límites del plan no se aplicaban** (D-70). El localizador de contadores de uso
+    estaba indexado por el **nombre de la clase** del proveedor, no por la capacidad, así que
+    el guard no encontraba ningún contador, el uso se leía como `0` y
+    `assertWithinQuota()` **no lanzaba nada**: el plan gratuito habría permitido servicios,
+    buzones y documentos ilimitados. El defecto era silencioso (la pantalla de consumo
+    enseñaba «0 de 3» sin estar contando nada) y ningún test lo cubría. Corregido declarando
+    la clave de cada proveedor con `#[AsTaggedItem(Capability::…)]`, y fijado con dos pruebas
+    nuevas: `PlanTest` (funcional, de punta a punta) y `QuotaGuardTest` (unitario, con la
+    tabla de decisiones).
+
+### Verificación ejecutada al cerrar la fase
+
+| Comprobación | Resultado |
+|---|---|
+| `vendor/bin/phpunit` | ✅ 1385 tests, 5175 assertions |
+| `vendor/bin/phpstan analyse --no-progress` | ✅ 0 errores (nivel 8) |
+| `vendor/bin/php-cs-fixer fix --dry-run --diff` | ✅ 0 ficheros pendientes |
+| `bin/console lint:twig templates/` | ✅ 49 plantillas |
+| `bin/console doctrine:schema:validate` | ✅ esquema sincronizado con el mapeo |
+| Límites del plan aplicados en el caso de uso | ✅ `PlanTest` (9 tests), `QuotaGuardTest` (7 tests) |
+| El plan bloquea un buzón que no cabe | ✅ `EmailAccountTest::testThePlanDoesNotAllowASecondMailbox` |
+| Bajar de plan no borra datos | ✅ `PlanTest::testChangingThePlanDoesNotDeleteWhatAlreadyExists` |
+| Guía de bienvenida calculada en vivo | ✅ `OnboardingTest` (5 tests) |
+| Panel de observabilidad | ✅ `ObservabilityPanelTest` (6 tests) |
+| Copia de seguridad y restauración en entorno limpio | ✅ probado de verdad: 4 organizaciones, 3 usuarios, 12 mensajes, 9 sincronizaciones, 18 servicios y el documento recuperado con su propietario |
+| Semilla de demostración | ✅ `DemoSeedTest` (6 tests) |
+| Aislamiento entre organizaciones | ✅ `PrivacyIsolationTest` (4 tests) |
 
 ## Fase 18 — API pública
 

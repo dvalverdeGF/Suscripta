@@ -9,11 +9,13 @@ use App\Ai\Domain\Entity\AiUsage;
 use App\Ai\Domain\Enum\AiBudgetMode;
 use App\Ai\Domain\Enum\AiPurpose;
 use App\Ai\Domain\Enum\AiTier;
+use App\Ai\Domain\ValueObject\AiCost;
 use App\Mailbox\Domain\Enum\ExtractionTier;
 use App\Shared\Application\Clock;
 use App\Shared\Application\TenantContext;
 use App\Tests\Support\Ai\InMemoryAiBudgetRepository;
 use App\Tests\Support\Ai\InMemoryAiUsageRepository;
+use App\Tests\Support\Entitlements\InMemoryEntitlementChecker;
 use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
@@ -159,9 +161,9 @@ final class AiBudgetGuardTest extends TestCase
         $guard = $this->guard(500, AiBudgetMode::SOFT);
         $status = $guard->status();
 
-        self::assertSame(500, $status->limitMinor);
-        self::assertSame(400, $status->spentMinor);
-        self::assertSame(100, $status->remainingMinor);
+        self::assertSame(500, $status->limitMinor());
+        self::assertSame(400, $status->spentMinor());
+        self::assertSame(100, $status->remainingMinor());
         self::assertSame(80, $status->usedPercent);
         self::assertTrue($status->warning);
         self::assertFalse($status->exhausted);
@@ -195,6 +197,7 @@ final class AiBudgetGuardTest extends TestCase
             usage: $this->usages,
             tenantContext: $this->tenantContext,
             clock: new Clock(new MockClock(new DateTimeImmutable(self::NOW))),
+            entitlements: InMemoryEntitlementChecker::allowingEverything(),
             defaultLimitMinor: $limitMinor,
             defaultMode: $mode,
         );
@@ -207,7 +210,7 @@ final class AiBudgetGuardTest extends TestCase
             providerKey: 'groq',
             purpose: AiPurpose::EXTRACTION,
             tier: AiTier::CHEAP,
-            costMinor: $costMinor,
+            costMicro: AiCost::toMicro($costMinor),
             createdAt: new DateTimeImmutable(self::NOW),
         ));
     }

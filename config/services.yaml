@@ -56,6 +56,25 @@ parameters:
     # dinero pero sí consumen cuota y ralentizan la sincronización.
     app.ai.rate_limit.calls_per_minute: 60
 
+    # ── Cuenta de demostración (D-67) ────────────────────────────────────
+    # Credenciales de la cuenta de ejemplo. Vienen del entorno y no de
+    # constantes, para que la contraseña real viva en `.env.local` y el
+    # repositorio solo lleve un valor de relleno.
+    #
+    # Los valores de reserva son los mismos que trae `.env`: si alguien borra
+    # la variable del entorno, la demostración sigue funcionando con la
+    # cuenta de relleno en lugar de romper la aplicación al arrancar.
+    #
+    # La contraseña solo se muestra en la pantalla de login del entorno de
+    # desarrollo; en cualquier otro, la función de Twig devuelve `null` y no
+    # se pinta nada.
+    app.demo.email: '%env(default:app.demo.email.fallback:DEMO_ACCOUNT_EMAIL)%'
+    app.demo.email.fallback: 'demo@suscripta.local'
+    app.demo.password: '%env(default:app.demo.password.fallback:DEMO_ACCOUNT_PASSWORD)%'
+    app.demo.password.fallback: 'demo1234'
+    app.demo.label: '%env(default:app.demo.label.fallback:DEMO_ACCOUNT_LABEL)%'
+    app.demo.label.fallback: 'Cuenta de demostración'
+
 services:
     # default configuration for services in *this* file
     _defaults:
@@ -92,6 +111,13 @@ services:
             tags: ['app.privacy_remove']
         App\Shared\Application\Privacy\RetentionPurgerInterface:
             tags: ['app.privacy_purger']
+        # Los contadores de uso de cada capacidad se recogen por etiqueta
+        # (Fase 17). Cada módulo publica el suyo —cuántos servicios, buzones
+        # o documentos tiene la organización— y el guard de cuotas los cruza
+        # con el límite del plan. Añadir un límite nuevo es escribir una
+        # clase, no tocar el núcleo (ARCHITECTURE.md §16).
+        App\Shared\Application\Entitlements\EntitlementUsageProviderInterface:
+            tags: ['app.entitlement_usage']
 
     # makes classes in src/ available to be used as services
     # this creates a service per class whose id is the fully-qualified class name
@@ -328,3 +354,32 @@ services:
     # buzón (lo necesita al desconectar) y lo implementa el de procesamiento
     # (es quien sabe qué es). La dependencia va en un solo sentido.
     App\Mailbox\Application\MailboxKnowledgeCleanerInterface: '@App\Processing\Application\Knowledge\ClearMailboxKnowledge'
+
+    # ── Fase 17: preparación SaaS (ARCHITECTURE.md §16) ─────────────────
+
+    # Los límites de cada plan son configuración, no código: subirlos es
+    # tocar el YAML, no desplegar (D-64). El bloque se consume entero porque
+    # Symfony no resuelve el acceso a claves de un array anidado (D-43).
+    App\Shared\Application\Entitlements\EntitlementSettings:
+        factory: ['App\Shared\Application\Entitlements\EntitlementSettings', 'fromArray']
+        arguments:
+            $config: '%app.entitlements%'
+
+    # El checker se declara como alias explícito para que el núcleo hable con
+    # la interfaz y no con la implementación: los límites de un plan se
+    # podrían resolver de otra forma (una pasarela de pago, un contrato) sin
+    # tocar a quien los consume.
+    App\Shared\Application\Entitlements\EntitlementCheckerInterface: '@App\Shared\Infrastructure\Entitlements\PlanEntitlementChecker'
+
+    # El guard cruza el límite del plan con el uso real. Los contadores los
+    # publica cada módulo con su propia etiqueta: el guard no conoce ningún
+    # módulo de negocio, solo sabe preguntar «cuánto se usa» por capacidad.
+    App\Shared\Application\Entitlements\QuotaGuard:
+        arguments:
+            $usageProviders: !tagged_locator { tag: 'app.entitlement_usage', index_by: 'capability' }
+
+    # Los casos de uso hablan con el puerto, no con la implementación: así no
+    # necesitan la configuración de planes para poder probarse, y el límite
+    # se podría resolver de otra forma (una pasarela de pago) sin tocar a
+    # quien lo consume.
+    App\Shared\Application\Entitlements\QuotaCheckerInterface: '@App\Shared\Application\Entitlements\QuotaGuard'

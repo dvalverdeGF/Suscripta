@@ -19,6 +19,7 @@ use App\Shared\Domain\ValueObject\BillingPeriod;
 use App\Shared\Domain\ValueObject\Currency;
 use App\Shared\Domain\ValueObject\Money;
 use App\Tests\Support\FreezesClock;
+use App\Tests\Support\Identity\CompletesOnboarding;
 use DateTimeImmutable;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -32,6 +33,7 @@ use Symfony\Component\Uid\Uuid;
  */
 final class DashboardTest extends WebTestCase
 {
+    use CompletesOnboarding;
     use FreezesClock;
 
     private KernelBrowser $client;
@@ -47,6 +49,7 @@ final class DashboardTest extends WebTestCase
         $this->freezeClock();
 
         $this->user = self::getContainer()->get(RegisterUser::class)('ada@example.com', 'Sup3rSecret!2026', 'Ada Lovelace');
+        $this->completeOnboarding($this->user);
         $this->client->loginUser($this->user);
     }
 

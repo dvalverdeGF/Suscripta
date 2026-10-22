@@ -12,6 +12,7 @@ use App\Identity\Domain\Repository\OrganizationRepositoryInterface;
 use App\Integrations\Application\IntegrationConfigWriter;
 use App\Integrations\Application\IntegrationRegistry;
 use App\Shared\Application\TenantContext;
+use App\Tests\Support\Identity\SwitchesPlan;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Field\ChoiceFormField;
@@ -32,6 +33,8 @@ use Symfony\Component\Uid\Uuid;
  */
 final class AiSettingsTest extends WebTestCase
 {
+    use SwitchesPlan;
+
     private KernelBrowser $client;
     private User $user;
     private Uuid $organizationId;
@@ -46,6 +49,10 @@ final class AiSettingsTest extends WebTestCase
         $memberships = self::getContainer()->get(OrganizationRepositoryInterface::class)->findForUser($this->user);
         self::assertNotEmpty($memberships);
         $this->organizationId = $memberships[0]['organization']->getId();
+
+        // La IA solo existe en el plan PRO (Fase 17): sin esto, estas pruebas
+        // estarían probando el plan FREE, que es justo lo que no hacen.
+        $this->switchPlanOfFirstMembership($this->user);
 
         $this->client->loginUser($this->user);
     }

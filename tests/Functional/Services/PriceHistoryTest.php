@@ -10,6 +10,7 @@ use App\Services\Domain\Entity\Service;
 use App\Services\Domain\Repository\ServiceFilters;
 use App\Services\Domain\Repository\ServiceRepositoryInterface;
 use App\Shared\Domain\ValueObject\BillingPeriod;
+use App\Tests\Support\Identity\CompletesOnboarding;
 
 use function sprintf;
 
@@ -23,6 +24,8 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  */
 final class PriceHistoryTest extends WebTestCase
 {
+    use CompletesOnboarding;
+
     private KernelBrowser $client;
     private User $user;
 
@@ -32,6 +35,7 @@ final class PriceHistoryTest extends WebTestCase
         $this->client->setServerParameter('HTTP_ORIGIN', 'https://localhost');
 
         $this->user = self::getContainer()->get(RegisterUser::class)('ada@example.com', 'Sup3rSecret!2026', 'Ada Lovelace');
+        $this->completeOnboarding($this->user);
         $this->client->loginUser($this->user);
     }
 

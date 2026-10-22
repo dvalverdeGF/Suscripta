@@ -11,6 +11,8 @@ use App\Documents\Domain\Service\DocumentStorageInterface;
 use App\Services\Domain\Enum\ServiceEventType;
 use App\Services\Domain\Repository\ServiceRepositoryInterface;
 use App\Shared\Application\Audit\AuditLoggerInterface;
+use App\Shared\Application\Entitlements\Capability;
+use App\Shared\Application\Entitlements\QuotaCheckerInterface;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Enum\AuditAction;
 use App\Shared\Domain\Exception\InvalidArgumentException;
@@ -45,6 +47,9 @@ use Symfony\Component\Uid\Uuid;
  * 2. **Nada se sirve por URL directa.** El binario se escribe en el
  *    almacenamiento y solo se lee a través de un caso de uso que comprueba
  *    permisos (SECURITY.md §1).
+ *
+ * El plan se comprueba **después** de la deduplicación: un fichero que ya
+ * estaba no consume hueco del plan, porque no se guarda dos veces (Fase 17).
  */
 final readonly class UploadDocument
 {
@@ -114,6 +119,7 @@ final readonly class UploadDocument
         private ServiceRepositoryInterface $services,
         private TenantContext $tenantContext,
         private AuditLoggerInterface $auditLogger,
+        private QuotaCheckerInterface $quotas,
     ) {
     }
 
@@ -135,6 +141,8 @@ final readonly class UploadDocument
             // propósito. Se devuelve para que quien llama decida qué hacer.
             return ['document' => $existing, 'created' => false];
         }
+
+        $this->quotas->assertWithinQuota(Capability::DOCUMENTS);
 
         $key = $this->buildStorageKey($organizationId, $checksum, $upload->originalFilename);
 

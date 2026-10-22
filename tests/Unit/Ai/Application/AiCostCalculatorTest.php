@@ -11,6 +11,7 @@ use App\Ai\Domain\Entity\AiUsage;
 use App\Ai\Domain\Enum\AiBudgetMode;
 use App\Ai\Domain\Enum\AiPurpose;
 use App\Ai\Domain\Enum\AiTier;
+use App\Ai\Domain\ValueObject\AiCost;
 use App\Mailbox\Domain\Entity\EmailMessage;
 use App\Mailbox\Domain\Enum\ExtractionTier;
 use App\Mailbox\Domain\Enum\MessageProcessingState;
@@ -18,6 +19,7 @@ use App\Shared\Application\Clock;
 use App\Shared\Application\TenantContext;
 use App\Tests\Support\Ai\InMemoryAiBudgetRepository;
 use App\Tests\Support\Ai\InMemoryAiUsageRepository;
+use App\Tests\Support\Entitlements\InMemoryEntitlementChecker;
 use App\Tests\Support\Mailbox\InMemoryEmailMessageRepository;
 use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -81,14 +83,17 @@ final class AiCostCalculatorTest extends TestCase
 
         $report = $this->calculator()->currentMonth();
 
-        self::assertSame(120, $report->totalCostMinor);
+        self::assertSame(120, $report->totalCostMinor());
         self::assertSame(3, $report->calls);
         self::assertSame(4, $report->messagesTotal);
         self::assertSame(4000, $report->averageProcessingMs);
-        self::assertSame(['groq' => 100, 'openai' => 20], $report->costByProvider);
         self::assertSame([
-            AiPurpose::EXTRACTION->value => 100,
-            AiPurpose::SUMMARIZATION->value => 20,
+            'groq' => AiCost::toMicro(100),
+            'openai' => AiCost::toMicro(20),
+        ], $report->costByProvider);
+        self::assertSame([
+            AiPurpose::EXTRACTION->value => AiCost::toMicro(100),
+            AiPurpose::SUMMARIZATION->value => AiCost::toMicro(20),
         ], $report->costByPurpose);
     }
 
@@ -184,7 +189,7 @@ final class AiCostCalculatorTest extends TestCase
 
         $report = $calculator->currentMonth();
 
-        self::assertSame(0, $report->totalCostMinor);
+        self::assertSame(0, $report->totalCostMinor());
         self::assertSame(0, $report->calls);
         self::assertTrue($report->isEmpty());
     }
@@ -195,8 +200,8 @@ final class AiCostCalculatorTest extends TestCase
 
         $report = $this->calculator(limitMinor: 500)->currentMonth();
 
-        self::assertSame(500, $report->budget->limitMinor);
-        self::assertSame(400, $report->budget->spentMinor);
+        self::assertSame(500, $report->budget->limitMinor());
+        self::assertSame(400, $report->budget->spentMinor());
         self::assertTrue($report->budget->warning);
         self::assertFalse($report->budget->exhausted);
     }
@@ -227,6 +232,7 @@ final class AiCostCalculatorTest extends TestCase
             usage: $this->usages,
             tenantContext: $this->tenantContext,
             clock: new Clock(new MockClock(new DateTimeImmutable(self::NOW))),
+            entitlements: InMemoryEntitlementChecker::allowingEverything(),
             defaultLimitMinor: $limitMinor,
             defaultMode: AiBudgetMode::SOFT,
         );
@@ -244,7 +250,7 @@ final class AiCostCalculatorTest extends TestCase
             providerKey: $provider,
             purpose: $purpose,
             tier: $tier,
-            costMinor: $cost,
+            costMicro: AiCost::toMicro($cost),
             successful: $successful,
             durationMs: 100,
             createdAt: new DateTimeImmutable(self::NOW),

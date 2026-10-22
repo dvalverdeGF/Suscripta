@@ -10,7 +10,9 @@ use App\Ai\Application\AiPurposeSelector;
 use App\Ai\Domain\Enum\AiBudgetMode;
 use App\Ai\Domain\Enum\AiPurpose;
 use App\Ai\Domain\Enum\AiTier;
+use App\Ai\Domain\ValueObject\AiCost;
 use App\Integrations\Application\IntegrationRegistry;
+use App\Shared\Domain\Exception\InvalidArgumentException;
 use App\Shared\Domain\ValueObject\Currency;
 use App\Shared\Domain\ValueObject\Money;
 
@@ -56,6 +58,26 @@ final class AiSettingsController extends AbstractController
     #[Route('', name: 'settings', methods: ['GET', 'POST'])]
     public function settings(Request $request): Response
     {
+        // El plan manda sobre la pantalla (Fase 17): sin IA en el plan no hay
+        // nada que configurar, y aceptarlo sería prometer algo que no existe.
+        if (!$this->budget->isAiAvailable()) {
+            if ($request->isMethod('POST')) {
+                $this->addFlash('error', 'Tu plan no incluye inteligencia artificial.');
+            }
+
+            return $this->render('backoffice/ai/settings.html.twig', [
+                'purposes' => [],
+                'providers' => [],
+                'choices' => [],
+                'enabled' => false,
+                'tiers' => [],
+                'budget' => $this->budget->status(),
+                'budget_modes' => [],
+                'budget_limit' => '',
+                'not_in_plan' => true,
+            ]);
+        }
+
         if ($request->isMethod('POST')) {
             if (!$this->isCsrfTokenValid('save_ai_settings', (string) $request->request->get('_token'))) {
                 throw $this->createAccessDeniedException('Token CSRF no válido.');
@@ -82,7 +104,13 @@ final class AiSettingsController extends AbstractController
             'tiers' => AiTier::cases(),
             'budget' => $status,
             'budget_modes' => AiBudgetMode::cases(),
-            'budget_limit' => $status->isUnlimited() ? '' : Money::of($status->limitMinor, Currency::EUR)->format(false),
+            // El campo enseña **el tope propio**, no el efectivo: si el
+            // Effective viene del plan, escribirlo en el campo haría creer al
+            // usuario que ese es el tope que ha elegido él.
+            'budget_limit' => null !== $status->ownLimitMicro && $status->ownLimitMicro > 0
+                ? Money::of(AiCost::toMinor($status->ownLimitMicro), Currency::EUR)->format(false)
+                : '',
+            'not_in_plan' => false,
         ]);
     }
 
@@ -105,7 +133,14 @@ final class AiSettingsController extends AbstractController
         }
 
         $before = $this->budget->limitMinor();
-        $this->budget->configure($limit, $mode);
+
+        try {
+            $this->budget->configure($limit, $mode);
+        } catch (InvalidArgumentException $exception) {
+            $this->addFlash('error', $exception->getMessage());
+
+            return;
+        }
 
         if ($limit > $before) {
             $released = $this->budgetChange->onBudgetRaised();

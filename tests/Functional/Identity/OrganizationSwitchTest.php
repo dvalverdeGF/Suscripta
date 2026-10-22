@@ -16,6 +16,7 @@ use App\Shared\Application\TenantContext;
 use App\Shared\Domain\ValueObject\BillingPeriod;
 use App\Shared\Domain\ValueObject\Currency;
 use App\Shared\Domain\ValueObject\Money;
+use App\Tests\Support\Identity\CompletesOnboarding;
 use DateTimeImmutable;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -28,6 +29,8 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  */
 final class OrganizationSwitchTest extends WebTestCase
 {
+    use CompletesOnboarding;
+
     private KernelBrowser $client;
 
     protected function setUp(): void
@@ -145,6 +148,7 @@ final class OrganizationSwitchTest extends WebTestCase
     {
         $registerUser = self::getContainer()->get(RegisterUser::class);
         $user = $registerUser($email, 'Sup3rSecret!2026', 'Ada Lovelace');
+        $this->completeOnboarding($user);
 
         $this->client->loginUser($user);
 

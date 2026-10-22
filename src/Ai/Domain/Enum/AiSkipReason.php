@@ -56,6 +56,17 @@ enum AiSkipReason: string
     case RATE_LIMITED = 'rate_limited';
 
     /**
+     * El plan de la organización no incluye inteligencia artificial (Fase 17).
+     *
+     * Es un motivo aparte del presupuesto agotado a propósito: con el
+     * presupuesto agotado el correo **está esperando** y vuelve cuando hay
+     * margen; sin IA en el plan el correo no va a mejorar nunca, así que se
+     * manda a revisión manual. Aplazarlo sería dejarlo en una cola que no
+     * se vacía sola.
+     */
+    case NOT_IN_PLAN = 'not_in_plan';
+
+    /**
      * La IA no puede mejorar este documento.
      *
      * No es un fallo: es que la escalera no tiene nada que hacer aquí. Por
@@ -79,6 +90,7 @@ enum AiSkipReason: string
             self::NO_TEXT => 'Sin texto que analizar',
             self::BUDGET_EXHAUSTED => 'Presupuesto de IA agotado',
             self::RATE_LIMITED => 'Límite de peticiones alcanzado',
+            self::NOT_IN_PLAN => 'La IA no está incluida en el plan',
             self::NOT_NEEDED => 'La IA no puede mejorar este documento',
             self::FAILED => 'El proveedor de IA ha fallado',
         };

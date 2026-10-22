@@ -11,6 +11,8 @@ use App\Mailbox\Domain\Entity\EmailAccount;
 use App\Mailbox\Domain\Exception\ImapConnectionException;
 use App\Mailbox\Domain\Repository\EmailAccountRepositoryInterface;
 use App\Shared\Application\Audit\AuditLoggerInterface;
+use App\Shared\Application\Entitlements\Capability;
+use App\Shared\Application\Entitlements\QuotaCheckerInterface;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Enum\AuditAction;
 use App\Shared\Domain\Exception\InvalidArgumentException;
@@ -23,6 +25,13 @@ use Symfony\Component\Uid\Uuid;
  * guarda**. Un buzón que no responde no debe quedar en la base de datos con
  * credenciales cifradas que no sirven para nada, y el usuario debe recibir el
  * error mientras tiene la contraseña delante (ARCHITECTURE.md §4.5).
+ *
+ * Antes van las comprobaciones **específicas** y después las **de política**:
+ * un buzón que ya está conectado se rechaza con su propio mensaje (aunque el
+ * plan esté lleno), y solo si el buzón es nuevo se mira el límite del plan
+ * (Fase 17). Al revés, el usuario vería «tu plan no da para más buzones»
+ * cuando lo que tiene es un duplicado, que es un error que él sí puede
+ * corregir.
  */
 final readonly class ConnectEmailAccount
 {
@@ -32,6 +41,7 @@ final readonly class ConnectEmailAccount
         private CredentialCipherInterface $cipher,
         private TenantContext $tenantContext,
         private AuditLoggerInterface $auditLogger,
+        private QuotaCheckerInterface $quotas,
     ) {
     }
 
@@ -47,6 +57,8 @@ final readonly class ConnectEmailAccount
         if (null !== $existing && !$existing->isDeleted()) {
             throw new InvalidArgumentException('Ese buzón ya está conectado en esta organización.');
         }
+
+        $this->quotas->assertWithinQuota(Capability::EMAIL_ACCOUNTS);
 
         $account = new EmailAccount(
             organizationId: $organizationId,

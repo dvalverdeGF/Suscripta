@@ -53,8 +53,8 @@ class AiUsage implements TenantAwareInterface
     #[ORM\Column(name: 'completion_tokens', type: Types::INTEGER)]
     private int $completionTokens = 0;
 
-    #[ORM\Column(name: 'cost_minor', type: Types::INTEGER)]
-    private int $costMinor = 0;
+    #[ORM\Column(name: 'cost_micro', type: Types::BIGINT)]
+    private int $costMicro = 0;
 
     #[ORM\Column(type: Types::BOOLEAN)]
     private bool $successful = true;
@@ -79,7 +79,7 @@ class AiUsage implements TenantAwareInterface
         string $model = '',
         int $promptTokens = 0,
         int $completionTokens = 0,
-        int $costMinor = 0,
+        int $costMicro = 0,
         bool $successful = true,
         int $durationMs = 0,
         ?string $entityType = null,
@@ -94,7 +94,7 @@ class AiUsage implements TenantAwareInterface
         $this->model = $model;
         $this->promptTokens = $promptTokens;
         $this->completionTokens = $completionTokens;
-        $this->costMinor = $costMinor;
+        $this->costMicro = $costMicro;
         $this->successful = $successful;
         $this->durationMs = $durationMs;
         $this->entityType = $entityType;
@@ -147,9 +147,12 @@ class AiUsage implements TenantAwareInterface
         return $this->completionTokens;
     }
 
-    public function getCostMinor(): int
+    /**
+     * Coste de la llamada, en microcéntimos (D-68).
+     */
+    public function getCostMicro(): int
     {
-        return $this->costMinor;
+        return $this->costMicro;
     }
 
     public function isSuccessful(): bool

@@ -81,6 +81,12 @@ final readonly class AiExtractionService implements AiExtractionInterface
         // 1. Presupuesto. En modo `SOFT` agotado la IA económica sigue
         //    entrando: lo que se apaga es el nivel avanzado, y eso lo decide
         //    el propio extractor avanzado, no esta puerta.
+        if (!$this->budget->isAiAvailable()) {
+            $this->logger->info('Se omite la extracción con IA: el plan no incluye IA.');
+
+            return AiExtractionOutcome::skipped(AiSkipReason::NOT_IN_PLAN);
+        }
+
         if (!$this->budget->allowsCall()) {
             $this->logger->info('Se omite la extracción con IA: el presupuesto está agotado.', [
                 'spent_minor' => $this->budget->spentMinor(),

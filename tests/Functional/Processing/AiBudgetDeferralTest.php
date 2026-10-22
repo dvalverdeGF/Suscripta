@@ -12,6 +12,7 @@ use App\Mailbox\Domain\Entity\EmailMessage;
 use App\Mailbox\Domain\Enum\MessageProcessingState;
 use App\Mailbox\Domain\Repository\MessageProcessingEventRepositoryInterface;
 use App\Shared\Application\TenantContext;
+use App\Tests\Support\Identity\SwitchesPlan;
 use App\Tests\Support\Processing\DeferralScenario;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -38,6 +39,7 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 final class AiBudgetDeferralTest extends WebTestCase
 {
     use DeferralScenario;
+    use SwitchesPlan;
 
     private KernelBrowser $client;
     private User $user;
@@ -54,6 +56,10 @@ final class AiBudgetDeferralTest extends WebTestCase
         self::assertNotEmpty($memberships);
 
         $this->organizationId = $memberships[0]['organization']->getId();
+
+        // El aplazamiento por presupuesto solo tiene sentido con IA en el plan
+        // (Fase 17): en el plan FREE no hay presupuesto que agotar.
+        $this->switchPlanOfFirstMembership($this->user);
     }
 
     public function testAMessageThatNeedsAiIsDeferredWhenTheBudgetIsExhausted(): void

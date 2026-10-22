@@ -218,7 +218,7 @@ final class DeterministicExtractionTest extends WebTestCase
 
         self::assertSame(ExtractionTier::DETERMINISTIC, $stored->getExtractionTier());
         self::assertFalse($stored->isAiUsed(), 'Ninguna capa temprana puede gastar IA.');
-        self::assertSame(0, $stored->getAiCostMinor());
+        self::assertSame(0, $stored->getAiCostMicro());
         self::assertSame(MessageProcessingState::DISCOVERY, $stored->getProcessingState());
     }
 
@@ -345,7 +345,7 @@ final class DeterministicExtractionTest extends WebTestCase
         $stored = $this->reload($message);
 
         self::assertFalse($stored->isAiUsed());
-        self::assertSame(0, $stored->getAiCostMinor());
+        self::assertSame(0, $stored->getAiCostMicro());
 
         // El registro de transiciones deja constancia de con qué se extrajo:
         // es la prueba de que el nivel 3 resolvió el mensaje por sí solo.

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Ai\Application\Dto;
 
 use App\Ai\Domain\Enum\AiTier;
+use App\Ai\Domain\ValueObject\AiCost;
 use App\Mailbox\Domain\Enum\ExtractionTier;
 
 /**
@@ -29,19 +30,26 @@ use App\Mailbox\Domain\Enum\ExtractionTier;
  *
  * Cuando no hay llamadas, los porcentajes son `0` y no `null`: un panel que
  * dice «—» obliga al operador a decidir si es un dato que falta o un cero.
+ *
+ * ## Los importes van en microcéntimos
+ *
+ * Los costes se guardan y se suman en microcéntimos (D-68) y se redondean a
+ * céntimos **al pintar**. Si se redondearan al guardar, el panel enseñaría
+ * «0,00 €» para un gasto real de céntimas, que es el caso normal cuando se
+ * usan modelos económicos.
  */
 final readonly class AiCostReport
 {
     /**
-     * @param array<string, int> $costByProvider
-     * @param array<string, int> $costByPurpose
+     * @param array<string, int> $costByProvider coste en microcéntimos
+     * @param array<string, int> $costByPurpose  coste en microcéntimos
      * @param array<string, int> $callsByTier    valor de `AiTier` => llamadas
      * @param array<string, int> $durationByTier valor de `AiTier` => duración media
      * @param array<string, int> $messagesByTier valor de `ExtractionTier` => correos
      */
     public function __construct(
         public AiBudgetStatus $budget,
-        public int $totalCostMinor,
+        public int $totalCostMicro,
         public int $calls,
         public int $promptTokens,
         public int $completionTokens,
@@ -64,6 +72,14 @@ final readonly class AiCostReport
          */
         public int $deferredMessages = 0,
     ) {
+    }
+
+    /**
+     * Coste total, en céntimos.
+     */
+    public function totalCostMinor(): int
+    {
+        return AiCost::toMinor($this->totalCostMicro);
     }
 
     /**
@@ -109,15 +125,26 @@ final readonly class AiCostReport
     }
 
     /**
-     * Coste medio por llamada, en céntimos.
+     * Coste medio por llamada, en microcéntimos.
+     *
+     * Se calcula sobre el total en microcéntimos: redondeando el total
+     * primero, el medio saldría «0,00 €» para un gasto que sí existe.
      */
-    public function averageCostPerCallMinor(): int
+    public function averageCostPerCallMicro(): int
     {
         if ($this->calls <= 0) {
             return 0;
         }
 
-        return (int) round($this->totalCostMinor / $this->calls);
+        return (int) round($this->totalCostMicro / $this->calls);
+    }
+
+    /**
+     * Coste medio por llamada, en céntimos.
+     */
+    public function averageCostPerCallMinor(): int
+    {
+        return AiCost::toMinor($this->averageCostPerCallMicro());
     }
 
     /**

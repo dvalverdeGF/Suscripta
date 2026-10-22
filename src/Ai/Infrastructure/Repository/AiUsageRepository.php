@@ -34,10 +34,10 @@ final class AiUsageRepository extends DoctrineRepository implements AiUsageRepos
         $this->persist($usage, $flush);
     }
 
-    public function totalCostMinor(Uuid $organizationId, DateRange $period): int
+    public function totalCostMicro(Uuid $organizationId, DateRange $period): int
     {
         $result = $this->sumQuery($organizationId, $period)
-            ->select('COALESCE(SUM(u.costMinor), 0)')
+            ->select('COALESCE(SUM(u.costMicro), 0)')
             ->getQuery()
             ->getSingleScalarResult();
 
@@ -48,7 +48,7 @@ final class AiUsageRepository extends DoctrineRepository implements AiUsageRepos
     {
         /** @var list<array{providerKey: string, total: int|string}> $rows */
         $rows = $this->sumQuery($organizationId, $period)
-            ->select('u.providerKey AS providerKey', 'SUM(u.costMinor) AS total')
+            ->select('u.providerKey AS providerKey', 'SUM(u.costMicro) AS total')
             ->groupBy('u.providerKey')
             ->orderBy('total', 'DESC')
             ->getQuery()
@@ -67,7 +67,7 @@ final class AiUsageRepository extends DoctrineRepository implements AiUsageRepos
     {
         /** @var list<array{purpose: string, total: int|string}> $rows */
         $rows = $this->sumQuery($organizationId, $period)
-            ->select('u.purpose AS purpose', 'SUM(u.costMinor) AS total')
+            ->select('u.purpose AS purpose', 'SUM(u.costMicro) AS total')
             ->groupBy('u.purpose')
             ->orderBy('total', 'DESC')
             ->getQuery()

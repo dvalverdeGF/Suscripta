@@ -9,10 +9,17 @@ use App\Ai\Domain\Entity\AiBudget;
 use App\Ai\Domain\Enum\AiBudgetMode;
 use App\Ai\Domain\Repository\AiBudgetRepositoryInterface;
 use App\Ai\Domain\Repository\AiUsageRepositoryInterface;
+use App\Ai\Domain\ValueObject\AiCost;
 use App\Mailbox\Domain\Enum\ExtractionTier;
 use App\Shared\Application\Clock;
+use App\Shared\Application\Entitlements\Capability;
+use App\Shared\Application\Entitlements\EntitlementCheckerInterface;
 use App\Shared\Application\TenantContext;
+use App\Shared\Domain\Exception\InvalidArgumentException;
 use App\Shared\Domain\ValueObject\DateRange;
+
+use function sprintf;
+
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -54,6 +61,12 @@ final readonly class AiBudgetGuard
         private TenantContext $tenantContext,
         private Clock $clock,
         /**
+         * Techo que impone el plan (Fase 17). Va antes que los parámetros
+         * opcionales porque un parámetro con valor por defecto no puede
+         * preceder a uno obligatorio.
+         */
+        private EntitlementCheckerInterface $entitlements,
+        /**
          * Tope mensual por defecto, en céntimos, para las organizaciones que
          * no hayan configurado uno. `0` significa «sin tope».
          */
@@ -85,11 +98,90 @@ final readonly class AiBudgetGuard
     }
 
     /**
-     * Tope mensual en céntimos (`0` = sin tope).
+     * El tope que la organización ha puesto para este mes, en céntimos.
+     *
+     * `null` = no ha configurado ninguno (manda el del plan). `0` = ha dicho
+     * explícitamente «sin tope».
+     */
+    public function ownLimitMinor(): ?int
+    {
+        return $this->budget()?->getLimitMinor();
+    }
+
+    /**
+     * Tope mensual efectivo en céntimos (`0` = sin tope o sin IA en el plan).
+     *
+     * Es el **menor** de los dos topes que existen: el que la organización ha
+     * configurado y el que impone su plan (Fase 17). El plan manda siempre:
+     * un plan no puede waive su propio techo porque el usuario haya puesto
+     * un presupuesto mayor.
      */
     public function limitMinor(): int
     {
-        return $this->budget()?->getLimitMinor() ?? $this->defaultLimitMinor;
+        $planLimit = $this->planLimitMinor();
+
+        // El plan no ofrece IA: no hay presupuesto que valga.
+        if (null !== $planLimit && $planLimit <= 0) {
+            return 0;
+        }
+
+        $own = $this->ownLimitMinor();
+
+        // La organización no ha configurado ningún tope: manda el del plan y,
+        // si el plan no pone ninguno, el tope por defecto de la aplicación.
+        if (null === $own) {
+            return $planLimit ?? $this->defaultLimitMinor;
+        }
+
+        // La organización ha dicho explícitamente «sin tope» (0). El plan puede
+        // acotarlo, pero no se lo quitan.
+        if ($own <= 0) {
+            return $planLimit ?? 0;
+        }
+
+        if (null === $planLimit) {
+            return $own;
+        }
+
+        return min($own, $planLimit);
+    }
+
+    /**
+     * Techo que impone el plan para la IA, en céntimos.
+     *
+     * `null` = el plan no pone techo (manda el presupuesto propio).
+     * `0` = el plan no ofrece IA.
+     */
+    public function planLimitMinor(): ?int
+    {
+        return $this->entitlements->limit(Capability::AI_BUDGET_MINOR);
+    }
+
+    /**
+     * ¿El plan ofrece inteligencia artificial?
+     */
+    public function planAllowsAi(): bool
+    {
+        return $this->entitlements->allows(Capability::AI);
+    }
+
+    /**
+     * ¿Se puede usar IA con este plan?
+     *
+     * Son dos cosas: que el plan la ofrezca y que le dé presupuesto. Un plan
+     * que ofrece IA pero no le da presupuesto no puede llamar a ningún
+     * modelo, y decirlo así evita el caso raro de «tiene IA pero no puede
+     * usarla».
+     */
+    public function isAiAvailable(): bool
+    {
+        if (!$this->planAllowsAi()) {
+            return false;
+        }
+
+        $planLimit = $this->planLimitMinor();
+
+        return null === $planLimit || $planLimit > 0;
     }
 
     /**
@@ -101,9 +193,13 @@ final readonly class AiBudgetGuard
     }
 
     /**
-     * Gasto del mes en curso, en céntimos.
+     * Gasto del mes en curso, en **microcéntimos** (D-68).
+     *
+     * El gasto se compara con el tope en microcéntimos: el tope es una
+     * cantidad redonda, pero el gasto es la suma exacta de miles de
+     * llamadas, y compararla redondeada dejaría gastar de más.
      */
-    public function spentMinor(): int
+    public function spentMicro(): int
     {
         $organizationId = $this->tenantContext->getOrganizationId();
 
@@ -111,7 +207,37 @@ final readonly class AiBudgetGuard
             return 0;
         }
 
-        return $this->usage->totalCostMinor($organizationId, $this->currentPeriod());
+        return $this->usage->totalCostMicro($organizationId, $this->currentPeriod());
+    }
+
+    /**
+     * Gasto del mes en curso, en céntimos.
+     */
+    public function spentMinor(): int
+    {
+        return AiCost::toMinor($this->spentMicro());
+    }
+
+    /**
+     * Tope efectivo en microcéntimos (`0` = sin tope o sin IA en el plan).
+     */
+    public function limitMicro(): int
+    {
+        return AiCost::toMicro($this->limitMinor());
+    }
+
+    /**
+     * Lo que queda de presupuesto, en microcéntimos. Nunca es negativo.
+     */
+    public function remainingMicro(): int
+    {
+        $limit = $this->limitMicro();
+
+        if ($limit <= 0) {
+            return 0;
+        }
+
+        return max(0, $limit - $this->spentMicro());
     }
 
     /**
@@ -119,13 +245,7 @@ final readonly class AiBudgetGuard
      */
     public function remainingMinor(): int
     {
-        $limit = $this->limitMinor();
-
-        if ($limit <= 0) {
-            return 0;
-        }
-
-        return max(0, $limit - $this->spentMinor());
+        return AiCost::toMinor($this->remainingMicro());
     }
 
     /**
@@ -133,13 +253,13 @@ final readonly class AiBudgetGuard
      */
     public function isExhausted(): bool
     {
-        $limit = $this->limitMinor();
+        $limit = $this->limitMicro();
 
         if ($limit <= 0) {
             return false;
         }
 
-        return $this->spentMinor() >= $limit;
+        return $this->spentMicro() >= $limit;
     }
 
     /**
@@ -150,6 +270,10 @@ final readonly class AiBudgetGuard
      */
     public function allowsCall(): bool
     {
+        if (!$this->isAiAvailable()) {
+            return false;
+        }
+
         if (!$this->isExhausted()) {
             return true;
         }
@@ -164,6 +288,10 @@ final readonly class AiBudgetGuard
     {
         if (!$tier->usedAi()) {
             return true;
+        }
+
+        if (!$this->isAiAvailable()) {
+            return false;
         }
 
         if (!$this->isExhausted()) {
@@ -184,8 +312,8 @@ final readonly class AiBudgetGuard
      */
     public function status(): AiBudgetStatus
     {
-        $limit = $this->limitMinor();
-        $spent = $this->spentMinor();
+        $limit = $this->limitMicro();
+        $spent = $this->spentMicro();
 
         $usedPercent = 0;
 
@@ -193,14 +321,20 @@ final readonly class AiBudgetGuard
             $usedPercent = (int) round(($spent / $limit) * 100);
         }
 
+        $ownLimit = $this->ownLimitMinor();
+        $planLimit = $this->planLimitMinor();
+
         return new AiBudgetStatus(
-            limitMinor: $limit,
-            spentMinor: $spent,
-            remainingMinor: $this->remainingMinor(),
+            limitMicro: $limit,
+            spentMicro: $spent,
+            remainingMicro: $this->remainingMicro(),
             mode: $this->mode(),
             exhausted: $this->isExhausted(),
             usedPercent: $usedPercent,
             warning: $limit > 0 && $usedPercent >= $this->warningPercent,
+            available: $this->isAiAvailable(),
+            ownLimitMicro: null === $ownLimit ? null : AiCost::toMicro($ownLimit),
+            planLimitMicro: null === $planLimit ? null : AiCost::toMicro($planLimit),
         );
     }
 
@@ -212,6 +346,8 @@ final readonly class AiBudgetGuard
      */
     public function configure(int $limitMinor, AiBudgetMode $mode): AiBudget
     {
+        $this->assertWithinPlan($limitMinor);
+
         $organizationId = $this->tenantContext->requireOrganizationId();
         $period = $this->currentPeriodKey();
         $now = $this->clock->now();
@@ -234,6 +370,28 @@ final readonly class AiBudgetGuard
         $this->budgets->save($budget);
 
         return $budget;
+    }
+
+    /**
+     * El presupuesto que se quiere guardar tiene que caber en el plan.
+     *
+     * No se recorta en silencio: si alguien pide más de lo que su plan
+     * permite, se lo dice, porque un presupuesto recortado en silencio
+     * dejaría al usuario creyendo que tiene más margen del que tiene.
+     */
+    private function assertWithinPlan(int $limitMinor): void
+    {
+        if (!$this->isAiAvailable()) {
+            throw new InvalidArgumentException('El plan de la organización no incluye inteligencia artificial.');
+        }
+
+        $planLimit = $this->planLimitMinor();
+
+        if (null === $planLimit || $limitMinor <= $planLimit) {
+            return;
+        }
+
+        throw new InvalidArgumentException(sprintf('El plan permite un presupuesto de IA de %d céntimos como máximo.', $planLimit));
     }
 
     /**

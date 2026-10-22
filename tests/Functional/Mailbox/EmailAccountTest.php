@@ -171,6 +171,32 @@ final class EmailAccountTest extends WebTestCase
         self::assertCount(0, $this->imap->testConnectionCalls, 'Un buzón duplicado se rechaza antes de tocar la red.');
     }
 
+    public function testThePlanDoesNotAllowASecondMailbox(): void
+    {
+        // El plan gratuito da para un buzón. Al conectar el segundo, el
+        // rechazo es del plan —no de la conexión— y el usuario lo ve sin
+        // llegar a tocar la red (Fase 17, D-70).
+        $this->connect();
+
+        $this->imap->reset();
+
+        $this->client->request('GET', '/mail/accounts/new');
+        $this->client->submitForm('Conectar buzón', [
+            'email_account_form[emailAddress]' => 'segundo@miempresa.com',
+            'email_account_form[imapHost]' => 'imap.miempresa.com',
+            'email_account_form[imapPort]' => '993',
+            'email_account_form[imapEncryption]' => ImapEncryption::SSL->value,
+            'email_account_form[password]' => 'otra',
+            'email_account_form[imapFolder]' => 'INBOX',
+            'email_account_form[provider]' => 'imap',
+        ]);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorTextContains('.alert-danger', 'Gratis');
+        self::assertCount(0, $this->imap->testConnectionCalls, 'El límite del plan se comprueba antes de tocar la red.');
+        self::assertNull($this->accounts()->findByAddress('segundo@miempresa.com'));
+    }
+
     public function testTheDetailShowsTheConnectionStateAndTheReadOnlyPromise(): void
     {
         $account = $this->connect();

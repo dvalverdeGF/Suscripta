@@ -1944,3 +1944,252 @@ conocen los puertos.
 sin tocar la orquestación. El coste es que los puertos están en `Shared`, que es el módulo
 transversal: es exactamente su papel (el kernel que todos comparten), y no introduce
 dependencias entre módulos de negocio.
+
+---
+
+## D-64 — El plan es un conjunto de límites en configuración, no una etiqueta comercial
+
+**Contexto.** La Fase 17 introduce los planes (gratis / profesional). La tentación es
+modelar el plan como un enum de PHP con los números metidos dentro (`case FREE => 3
+servicios`), porque es lo habitual. Pero un número de producto cambia: subir el precio de un
+plan o dar margen a un cliente no debería exigir un despliegue.
+
+**Decisión.** El plan es un **enum de nombres** (`OrganizationPlan::FREE`, `::PRO`) que dice
+*qué planes existen*, y los **límites viven en configuración**
+(`config/packages/entitlements.yaml`). Cada capacidad se declara con su tipo:
+
+- `limit`: un número. `null` = sin techo; `0` = la capacidad no está disponible.
+- `flag`: un interruptor (hoy, la disponibilidad de la inteligencia artificial).
+
+La comprobación de que **todos los planes declaran todas las capacidades** la hace
+`EntitlementSettings` al construirse: si alguien añade una capacidad al código y olvida
+meterla en la configuración, el contenedor no arranca. Es un error de despliegue, visible el
+primer día, y no un límite que desaparece en silencio.
+
+**Alternativas.**
+
+- *Los números en el enum de PHP.* Descartado: cambiar un precio exigiría un despliegue, y
+  el enum quedaría mezclando dos cosas que cambian por motivos distintos (el catálogo de
+  planes y sus precios).
+- *Los números en la base de datos.* Descartado por ahora: haría falta una tabla de planes
+  editable en caliente, y no hay quien la edite. Cuando los planes se vendan en autoservicio,
+  esta decisión se revisará (ver D-65).
+- *Sin planes, solo cuotas por organización.* Descartado: no permite distinguir «gratis» de
+  «pago» y obliga a codificar la lógica comercial en cada módulo.
+
+**Consecuencias.** Los límites se cambian sin desplegar. La configuración es la única fuente
+de la verdad, y `PlanEntitlementChecker` no guarda estado: dos peticiones concurrentes nunca
+ven valores distintos. El enum sigue siendo la garantía de que un plan desconocido es un
+error al leer la fila y no un comportamiento silencioso.
+
+---
+
+## D-65 — Cambiar de plan es un caso de uso auditado, y no borra nada
+
+**Contexto.** Alguien contrata un plan: hay que cambiar el `plan` de la organización. La
+forma rápida es un `UPDATE organization SET plan = 'pro'`. Pero el plan decide si hay
+inteligencia artificial, cuántos servicios caben y cuántos buzones, y eso es una decisión de
+negocio con consecuencias.
+
+**Decisión.** El cambio pasa por el caso de uso `ChangeOrganizationPlan`, que:
+
+1. Comprueba que el plan de destino **existe** en la configuración de límites. Un plan que no
+   está en `entitlements.yaml` no es un plan: es una errata, y aceptarla dejaría a la
+   organización sin límites definidos.
+2. Deja constancia en el libro de auditoría (`ORGANIZATION_PLAN_CHANGED`) con el plan
+   anterior y el nuevo.
+
+Y, sobre todo, **no borra nada**: bajar de plan deja intactos los servicios, los documentos y
+los avisos; la organización simplemente no puede añadir más hasta que vuelva a caber.
+
+**Alternativas.**
+
+- *Borrar lo que no cabe al bajar de plan.* Descartado: es una sorpresa muy desagradable
+  (el cliente pierde datos por un cambio comercial que él no pidió) y sería irreversible sin
+  un botón de «deshacer» que no existe.
+- *Dejar el plan editable desde el panel.* Descartado **por ahora**: en esta versión no hay
+  cobro, así que un botón «cambiar a profesional» sería regalar el plan de pago. El cambio lo
+  hace el operador de la instalación con `app:plan:set`, y la pantalla `/plan` solo informa.
+  Cuando exista el cobro, esta decisión se revisa.
+- *Guardar el historial de planes en una tabla aparte.* Descartado: el libro de auditoría ya
+  guarda el antes y el después, con actor y fecha.
+
+**Consecuencias.** El cambio de plan es auditable y no destructivo. En la interfaz web se ve
+que el límite se ha alcanzado, con un aviso que explica qué hacer; el operador lo resuelve
+por consola. La Fase 18 (API pública) usará el mismo caso de uso, de modo que un cliente
+integrado tampoco puede saltarse el plan.
+
+---
+
+## D-66 — La guía de bienvenida se calcula en vivo; solo se guarda el final
+
+**Contexto.** Una organización nueva entra en el producto y no sabe qué hacer. La guía de
+bienvenida puede guardar «paso 2 de 3» en la base de datos, o puede deducirlo del estado real
+del producto.
+
+**Decisión.** Los pasos se **calculan en vivo** a partir del estado del producto (¿hay buzón?
+¿hay servicios? ¿el plan ofrece IA?). Lo único que se guarda es «la guía se ha terminado»,
+que es un hecho del pasado y no un estado del presente.
+
+La guía **no bloquea** la aplicación: `OnboardingRedirectListener` solo redirige a la guía
+desde el panel (`app_dashboard`). El resto de pantallas siguen accesibles.
+
+**Alternativas.**
+
+- *Guardar el paso actual en la base de datos.* Descartado: mentiría en cuanto el usuario
+  conecta el buzón desde otra pantalla (o desde la API en el futuro). Un «paso 2 de 3» guardado
+  es un dato que se queda viejo solo.
+- *Bloquear la aplicación hasta terminar la guía.* Descartado: un cliente que ya tiene sus
+  datos cargados y solo quiere consultar una factura no podría ni mirar su factura. El
+  objetivo de la guía es que el primer impacto sea una explicación, no un muro.
+- *Guardar los pasos en configuración.* Descartado: el contenido de la guía cambia con el
+  producto (por ejemplo, el paso de la IA desaparece si el plan no la ofrece), y una lista
+  configurable se desincroniza del código en cuanto se añade una capacidad.
+
+**Consecuencias.** La guía nunca miente. El paso de la inteligencia artificial **no aparece**
+en los planes que no la ofrecen: no hay nada que hacer y ofrecerlo sería una promesa que el
+producto no puede cumplir.
+
+---
+
+## D-67 — La demostración se siembra con el módulo `Demo`, y solo en desarrollo
+
+**Contexto.** Para enseñar el producto hace falta una cuenta con datos: servicios, precios,
+propuestas, avisos, correo, propuestas de cambio. Escribirlos a mano cada vez es una pérdida
+de tiempo, y dejarlos en la base de datos de desarrollo es una forma de tener datos falsos
+sin explicación.
+
+**Decisión.** El módulo `src/Demo/` siembra la cuenta de demostración. Sus credenciales
+vienen de la configuración (`DEMO_ACCOUNT_EMAIL`, `DEMO_ACCOUNT_PASSWORD`), no de constantes
+en el código. El comando `app:demo:seed` está **prohibido fuera de desarrollo** salvo
+`--force`, y la credencial se muestra en la pantalla de login **solo en `dev`**: la
+comprobación es del entorno, no de un flag, para que no quepa el error de dejar el flag
+puesto en producción.
+
+La siembra del buzón se hace **con las entidades**, no con los casos de uso de correo: los
+casos de uso hablarían con un servidor IMAP de verdad, y la demostración no puede depender de
+que haya un servidor de correo de mentira.
+
+**Alternativas.**
+
+- *Un fixture de Doctrine.* Descartado: los fixtures no son idempotentes de forma útil (crean
+  duplicados si se repiten) y no participan del aislamiento por organización, que en este
+  producto no es opcional.
+- *Un script SQL.* Descartado: se desincroniza del esquema en cuanto cambia una entidad.
+- *Dejar la cuenta de demo en la base de datos de desarrollo.* Descartado: nadie sabe qué
+  datos son reales y cuáles son de mentira.
+
+**Consecuencias.** `bin/console app:demo:seed` deja la aplicación en un estado que se puede
+enseñar en un minuto. Es idempotente: repetirla no duplica nada. La excepción a la regla de
+módulos (`src/Demo` es un módulo compositor que escribe entidades de otros módulos) queda
+documentada en `ARCHITECTURE.md` §16.6.
+
+---
+
+## D-68 — El coste de IA se guarda en microcéntimos
+
+**Contexto.** El coste de una llamada de IA es de milésimas de céntimo. Guardarlo en céntimos
+—como el resto de los importes del producto— obliga a redondear a 0 y a perder el dato: el
+panel de coste enseñaría «0,00 €» para un gasto real de 0,03 €, que es exactamente el gasto
+que un usuario de un plan gratis quiere ver.
+
+**Decisión.** El coste de IA se persiste en **microcéntimos** (1 € = 1 000 000 microcéntimos)
+en un entero de 64 bits: `AiUsage.cost_micro` (BIGINT) y el value object `AiCost`, que sabe
+convertirse a céntimos, a euros y a texto. El filtro de Twig `micro_money` presenta el
+resultado con la coma decimal española.
+
+**Alternativas.**
+
+- *Céntimos con decimales (NUMERIC).* Descartado: el producto guarda los importes en enteros
+  de céntimos por decisión anterior; tener dos representaciones del dinero en la misma base de
+  datos es una fuente de errores de redondeo.
+- *Guardar el coste en la moneda del proveedor y convertir al presentar.* Descartado: los
+  proveedores cobran en varias monedas y el tipo de cambio cambia; el gasto registrado debe
+  ser inmutable.
+- *Redondear a céntimos.* Descartado: pierde el dato justo en el rango que importa.
+
+**Consecuencias.** El panel de coste de IA y el de observabilidad enseñan el gasto real. La
+migración `Version20261023090000` convierte la columna y reescribe los importes existentes.
+
+---
+
+## D-69 — Un enum mapeado por Doctrine no puede ser clave de array
+
+**Contexto.** Al construir el panel de observabilidad, las agregaciones DQL devolvieron los
+enums de `ExtractionTier` como **objetos**, no como cadenas. Al usarlos como claves de array
+(`$counts[$tier->value]`), PHP lanza un `TypeError`: «Illegal offset type».
+
+**Decisión.** Cuando un enum viene de una agregación DQL, se convierte explícitamente antes de
+usarlo como clave: `$tier instanceof ExtractionTier ? $tier->value : (string) $tier`. El
+patrón se repite en `EmailMessageRepository` y en `BuildObservabilityReport`.
+
+**Alternativas.**
+
+- *Marcar la columna como `enumType` y esperar que DQL devuelva cadenas.* Descartado: es
+  exactamente lo que no hace; Doctrine devuelve la instancia del enum.
+- *Usar `->value` a ciegas.* Descartado: falla con el mismo `TypeError` cuando el valor llega
+  como string, que es lo que ocurre en algunos caminos.
+- *Forzar el tipo en la consulta con un `CASE`.* Descartado: ensucia el DQL y esconde el
+  problema en todas las consultas, no en una.
+
+**Consecuencias.** Es una trampa de Doctrine ORM 3, no un error del modelo de dominio, pero
+es de las que salen en un agregador y rompen la pantalla entera. Queda anotado aquí porque
+volverá a aparecer en la Fase 18, donde la API devolverá enums en JSON.
+
+---
+
+## D-70 — Un localizador etiquetado se indexa por atributo, no por el valor de un método
+
+**Contexto.** El guard de cuotas (Fase 17) recibe sus contadores de uso con
+`!tagged_locator { tag: 'app.entitlement_usage', index_by: 'capability' }`, esperando encontrar
+cada proveedor **por el nombre de su capacidad** (`services`, `documents`…). La interfaz
+`EntitlementUsageProviderInterface` declara un método `capability()` que devuelve ese nombre, y
+el guard hacía `usageProviders->get('services')`.
+
+El localizador, sin embargo, se construía indexado por el **nombre de la clase** del proveedor
+(`App\Services\Application\Entitlements\ServiceUsageProvider`). En Symfony 8.1, `index_by` es
+el nombre de un **atributo de la etiqueta** —o, con el atributo `#[AsTaggedItem]`, el índice que
+el propio servicio declara—, y **no** el nombre de un método que haya que invocar. Invocar un
+método para obtener el índice está **deprecado desde Symfony 8.1** y, cuando el método no existe
+(tu caso: `capability()` es de instancia, no estático), el contenedor recurría al identificador
+del servicio sin avisar.
+
+**Consecuencia.** `has('services')` devolvía `false` para todas las capacidades. `status()`
+trataba el uso como `0` cuando no encontraba proveedor, y `assertWithinQuota()` **no lanzaba
+nada**: ningún límite del plan se aplicaba. El plan gratuito habría permitido servicios,
+buzones y documentos ilimitados, y la Fase 17 habría sido una fachada. El defecto era
+**silencioso**: la pantalla de consumo enseñaba «0 de 3» cuando en realidad no se estaba
+contando nada, y ningún test lo cubría porque el caso de uso consultaba el límite a través de
+otro camino.
+
+**Decisión.** Cada proveedor declara su propia clave con el atributo
+`#[AsTaggedItem(Capability::SERVICES)]`, y el `index_by: 'capability'` del YAML se queda como el
+nombre del atributo de la etiqueta donde se guarda ese índice. La clave queda **junto a la
+clase que la mide**, no en un YAML que habría que recordar actualizar.
+
+```php
+#[AsTaggedItem(Capability::SERVICES)]
+final readonly class ServiceUsageProvider implements EntitlementUsageProviderInterface
+```
+
+**Alternativas.**
+
+- *Buscar el proveedor iterando el localizador y comparando `capability()`.* Descartado:
+  convierte una búsqueda O(1) en un recorrido y, sobre todo, deja el contrato débil: el
+  localizador tendría que contener algo que no cumple lo que promete.
+- *Declarar el localizador con claves fijas en el YAML* (`services: '@…ServiceUsageProvider'`).
+  Descartado: obliga a tocar el núcleo cada vez que un módulo publica un contador, que es
+  justo lo que la etiqueta evita.
+- *Un método estático `getDefaultCapabilityName()` por proveedor.* Descartado: es la vía
+  **deprecada** en Symfony 8.1 y obliga a duplicar el nombre de la capacidad en dos sitios
+  (el método estático y `capability()`).
+
+**Consecuencias.** Los límites del plan se aplican de verdad, y el test funcional
+`tests/Functional/Identity/PlanTest.php` lo fija de punta a punta (crear el cuarto servicio
+falla con `QuotaExceededException`). El test unitario `QuotaGuardTest` fija la tabla de
+decisiones con dobles, así que un fallo de cableado y uno de lógica se distinguen.
+
+La lección general: **una etiqueta que el contenedor indexa necesita su clave declarada**, y
+declararla en la clase es la única forma de que no se pueda olvidar. El mismo riesgo aplica a
+los localizadores etiquetados que se añadan en fases posteriores (webhooks, canales de
+notificación, reglas de IA): la clave va con `#[AsTaggedItem]`, no con un método.

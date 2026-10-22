@@ -47,7 +47,9 @@ final class RetentionPurgeTest extends KernelTestCase
     {
         self::bootKernel();
 
-        $this->entityManager = self::getContainer()->get('doctrine')->getManager();
+        $entityManager = self::getContainer()->get('doctrine')->getManager();
+        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
+        $this->entityManager = $entityManager;
         $this->organizationId = Uuid::v7();
     }
 
