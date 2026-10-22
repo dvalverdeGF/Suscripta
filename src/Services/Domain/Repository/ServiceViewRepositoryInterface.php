@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Domain\Repository;
 
 use App\Services\Domain\Dto\ServiceView;
+use App\Shared\Application\Page;
 use DateTimeImmutable;
 use Symfony\Component\Uid\Uuid;
 
@@ -32,6 +33,16 @@ interface ServiceViewRepositoryInterface
     public function findOne(Uuid $id): ?ServiceView;
 
     /**
+     * Página de servicios con los filtros indicados.
+     *
+     * Es la vía que usa la API pública: `findAll()` carga el inventario entero
+     * y no sirve cuando la organización tiene cientos de servicios.
+     *
+     * @return Page<ServiceView>
+     */
+    public function findPage(ServiceFilters $filters, int $page = 1, int $perPage = 25): Page;
+
+    /**
      * Servicios cuyo próximo cobro cae dentro de la ventana indicada.
      *
      * La vista ya trae `nextChargeAt`; este método existe para que quien
@@ -40,6 +51,16 @@ interface ServiceViewRepositoryInterface
      * @return list<ServiceView>
      */
     public function findUpcomingCharges(DateTimeImmutable $until, int $limit = 10): array;
+
+    /**
+     * Página de servicios cuyo próximo cobro cae dentro de la ventana.
+     *
+     * Es la vía de la API pública: `findUpcomingCharges()` corta por número de
+     * resultados y no permite saber cuántos hay en total.
+     *
+     * @return Page<ServiceView>
+     */
+    public function findUpcomingChargesPage(DateTimeImmutable $until, int $page = 1, int $perPage = 25): Page;
 
     /**
      * @return list<ServiceView>

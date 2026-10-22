@@ -1,0 +1,76 @@
+{% extends 'backoffice/base.html.twig' %}
+
+{#
+    Alta de una clave de API.
+
+    El aviso de «la clave solo se muestra una vez» va **encima** del
+    formulario, no en la pantalla de después: es la consecuencia de lo que se
+    está haciendo y tiene que estar presente mientras se decide.
+#}
+{% block title %}Nueva clave de API — Suscripta{% endblock %}
+
+{% block breadcrumb %}
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{{ path('app_dashboard') }}">Panel</a></li>
+        <li class="breadcrumb-item"><a href="{{ path('app_api_keys_index') }}">Claves de API</a></li>
+        <li class="breadcrumb-item active">Nueva clave</li>
+    </ol>
+{% endblock %}
+
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">Crear una clave de API</h1>
+            <p class="bo-page-header__subtitle">
+                La clave da acceso a los datos de esta organización, y solo a ellos.
+            </p>
+        </div>
+    </div>
+
+    <div class="alert alert-warning d-flex align-items-start" role="status">
+        <i class="fa-solid fa-eye mt-1 me-2"></i>
+        <div>
+            <strong>La clave se muestra una sola vez.</strong>
+            <div class="small">
+                Cópiala en el momento en que la crees. Después no se puede volver
+                a leer: si se pierde, se crea otra y se revoca la perdida.
+            </div>
+        </div>
+    </div>
+
+    {{ form_start(form, {attr: {id: 'api-key-form', class: 'form'}}) }}
+        {{ form_errors(form) }}
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h2 class="card-title">Qué es esta clave</h2>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    {{ form_row(form.name) }}
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h2 class="card-title">Qué puede hacer</h2>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    {{ form_row(form.scopes) }}
+                    {{ form_row(form.expiresInDays) }}
+                </div>
+            </div>
+        </div>
+    {{ form_end(form) }}
+{% endblock %}
+
+{% block page_actions %}
+    {{ include('backoffice/_form_actions.html.twig', {
+        form_id: 'api-key-form',
+        submit_label: 'Crear clave',
+        submit_icon: 'fa-key',
+        back_path: path('app_api_keys_index'),
+    }) }}
+{% endblock %}

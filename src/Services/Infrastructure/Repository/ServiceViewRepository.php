@@ -9,6 +9,8 @@ use App\Services\Domain\Entity\Service;
 use App\Services\Domain\Enum\ServiceStatus;
 use App\Services\Domain\Repository\ServiceFilters;
 use App\Services\Domain\Repository\ServiceViewRepositoryInterface;
+use App\Shared\Application\Page;
+use App\Shared\Application\Pagination;
 use App\Shared\Infrastructure\Persistence\DoctrineRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -30,6 +32,45 @@ final class ServiceViewRepository extends DoctrineRepository implements ServiceV
     }
 
     public function findAll(ServiceFilters $filters = new ServiceFilters()): array
+    {
+        $qb = $this->createFilteredQueryBuilder($filters);
+
+        $this->applySort($qb, $filters->sort);
+
+        /** @var list<Service> $services */
+        $services = $qb->getQuery()->getResult();
+
+        return $this->toViews($services);
+    }
+
+    public function findPage(ServiceFilters $filters, int $page = 1, int $perPage = 25): Page
+    {
+        $pagination = Pagination::fromRequest($page, $perPage);
+
+        $qb = $this->createFilteredQueryBuilder($filters);
+
+        // `COUNT(DISTINCT s.id)`: las uniones con precios y eventos multiplican
+        // las filas, y contar sin `DISTINCT` contaría servicios repetidos.
+        $countQb = clone $qb;
+        $countQb->resetDQLPart('orderBy')
+            ->setFirstResult(null)
+            ->setMaxResults(null)
+            ->select('COUNT(DISTINCT s.id)');
+
+        $total = (int) $countQb->getQuery()->getSingleScalarResult();
+
+        $this->applySort($qb, $filters->sort);
+
+        $qb->setFirstResult($pagination->getOffset())
+            ->setMaxResults($pagination->perPage);
+
+        /** @var list<Service> $services */
+        $services = $qb->getQuery()->getResult();
+
+        return Page::of($this->toViews($services), $pagination->withTotal($total));
+    }
+
+    private function createFilteredQueryBuilder(ServiceFilters $filters): QueryBuilder
     {
         $qb = $this->entityManager
             ->createQueryBuilder()
@@ -55,7 +96,29 @@ final class ServiceViewRepository extends DoctrineRepository implements ServiceV
                 ->setParameter('search', '%'.mb_strtolower(trim($filters->search)).'%');
         }
 
-        $this->applySort($qb, $filters->sort);
+        return $qb;
+    }
+
+    public function findOne(Uuid $id): ?ServiceView
+    {
+        // Consulta DQL y no `EntityManager::find()`: los filtros SQL de
+        // Doctrine solo se aplican a las consultas DQL, y un `find()` traería
+        // un servicio de otra organización si se conoce su identificador.
+        $service = $this->entityManager
+            ->createQueryBuilder()
+            ->select('s')
+            ->from(Service::class, 's')
+            ->where('s.id = :id')
+            ->setParameter('id', $id)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return $service instanceof Service ? ServiceView::fromService($service) : null;
+    }
+
+    public function findUpcomingCharges(DateTimeImmutable $until, int $limit = 10): array
+    {
+        $qb = $this->createUpcomingChargesQueryBuilder($until)->setMaxResults($limit);
 
         /** @var list<Service> $services */
         $services = $qb->getQuery()->getResult();
@@ -63,16 +126,32 @@ final class ServiceViewRepository extends DoctrineRepository implements ServiceV
         return $this->toViews($services);
     }
 
-    public function findOne(Uuid $id): ?ServiceView
+    public function findUpcomingChargesPage(DateTimeImmutable $until, int $page = 1, int $perPage = 25): Page
     {
-        $service = $this->entityManager->find(Service::class, $id);
+        $pagination = Pagination::fromRequest($page, $perPage);
 
-        return null === $service ? null : ServiceView::fromService($service);
+        $qb = $this->createUpcomingChargesQueryBuilder($until);
+
+        $countQb = clone $qb;
+        $countQb->resetDQLPart('orderBy')
+            ->setFirstResult(null)
+            ->setMaxResults(null)
+            ->select('COUNT(DISTINCT s.id)');
+
+        $total = (int) $countQb->getQuery()->getSingleScalarResult();
+
+        $qb->setFirstResult($pagination->getOffset())
+            ->setMaxResults($pagination->perPage);
+
+        /** @var list<Service> $services */
+        $services = $qb->getQuery()->getResult();
+
+        return Page::of($this->toViews($services), $pagination->withTotal($total));
     }
 
-    public function findUpcomingCharges(DateTimeImmutable $until, int $limit = 10): array
+    private function createUpcomingChargesQueryBuilder(DateTimeImmutable $until): QueryBuilder
     {
-        $qb = $this->entityManager
+        return $this->entityManager
             ->createQueryBuilder()
             ->select('s', 'p')
             ->from(Service::class, 's')
@@ -82,13 +161,7 @@ final class ServiceViewRepository extends DoctrineRepository implements ServiceV
             ->andWhere('s.nextChargeAt <= :until')
             ->setParameter('status', ServiceStatus::ACTIVE)
             ->setParameter('until', $until)
-            ->orderBy('s.nextChargeAt', 'ASC')
-            ->setMaxResults($limit);
-
-        /** @var list<Service> $services */
-        $services = $qb->getQuery()->getResult();
-
-        return $this->toViews($services);
+            ->orderBy('s.nextChargeAt', 'ASC');
     }
 
     public function findUpcomingRenewals(DateTimeImmutable $until, int $limit = 10): array

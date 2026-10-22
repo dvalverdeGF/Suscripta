@@ -170,6 +170,20 @@
                 </a>
             </li>
 
+            {#
+                Las claves de API van con las integraciones: las dos cosas son
+                "como se conecta Suscripta con el resto del mundo". Van
+                despues de Integraciones porque la integracion es lo que
+                consumes; la clave es lo que te permite consumirlo desde tu
+                propio codigo.
+            #}
+            <li class="bo-menu__item {{ app.request.attributes.get('_route') starts with 'app_api_keys' ? 'bo-menu__item--active' : '' }}">
+                <a href="{{ path('app_api_keys_index') }}" class="bo-menu__link">
+                    <i class="fa-solid fa-key bo-menu__icon"></i>
+                    <span>Claves de API</span>
+                </a>
+            </li>
+
             <li class="bo-menu__item {{ app.request.attributes.get('_route') starts with 'app_ai' ? 'bo-menu__item--active' : '' }}">
                 <a href="{{ path('app_ai_settings') }}" class="bo-menu__link">
                     <i class="fa-solid fa-robot bo-menu__icon"></i>

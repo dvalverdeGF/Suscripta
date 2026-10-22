@@ -10,6 +10,16 @@ parameters:
     # Dominio de las direcciones de ingesta por reenvío (D-21).
     app.mail.forwarding_domain: '%env(MAIL_FORWARDING_DOMAIN)%'
 
+    # ── API publica (Fase 18) ────────────────────────────────────────────
+    # Secreto de reserva para firmar las claves de API. Si se define
+    # `API_KEY_PEPPER` en el entorno, manda ese valor.
+    app.api.pepper_fallback: '%kernel.secret%'
+
+    # Orígenes de navegador permitidos a llamar a la API (CORS). Es una lista
+    # porque la comparación es exacta: un origen no listado no recibe la
+    # cabecera `Access-Control-Allow-Origin` y el navegador lo bloquea.
+    app.api.cors_allowed_origins: '%env(json:API_CORS_ALLOWED_ORIGINS)%'
+
     # ── IA (ARCHITECTURE.md §13.8, §13.9) ────────────────────────────────
     # Longitud máxima del texto que se manda a un modelo tras el redactado.
     # Es un límite de coste: el texto que se recorta es texto que no se
@@ -383,3 +393,31 @@ services:
     # se podría resolver de otra forma (una pasarela de pago) sin tocar a
     # quien lo consume.
     App\Shared\Application\Entitlements\QuotaCheckerInterface: '@App\Shared\Application\Entitlements\QuotaGuard'
+
+    # ── Fase 18: API publica (ARCHITECTURE.md §17) ───────────────────────
+
+    # La huella de una clave de API se firma con un secreto del servidor.
+    #
+    # Si nadie define `API_KEY_PEPPER`, se usa el `APP_SECRET` de la
+    # aplicación. Es un valor razonable como reserva (el proyecto ya lo
+    # necesita para otras cosas), pero conviene fijar una variable propia en
+    # producción: cambiar el `APP_SECRET` invalidaría todas las claves de API
+    # ya emitidas, y con ellas las integraciones de los clientes.
+    App\Api\Application\ApiKeyFactory:
+        arguments:
+            $pepper: '%env(default:app.api.pepper_fallback:API_KEY_PEPPER)%'
+
+    # Los orígenes de CORS son una lista, no un texto: el listener de CORS
+    # necesita compararlos uno a uno. Vienen del entorno en JSON para que
+    # añadirlos sea cambiar una variable, sin tocar el YAML.
+    App\Api\UI\EventListener\ApiCorsListener:
+        arguments:
+            $allowedOrigins: '%app.api.cors_allowed_origins%'
+
+    # Los read models de la API hablan con interfaces, igual que el
+    # backoffice. Cada módulo declara su implementación: así la API no
+    # depende de cómo se guardan los datos, y un test puede sustituirlos.
+    App\Notifications\Domain\Repository\AlertViewRepositoryInterface: '@App\Notifications\Infrastructure\Repository\AlertViewRepository'
+    App\Documents\Domain\Repository\DocumentViewRepositoryInterface: '@App\Documents\Infrastructure\Repository\DocumentViewRepository'
+    App\Discovery\Domain\Repository\DiscoveryViewRepositoryInterface: '@App\Discovery\Infrastructure\Repository\DiscoveryViewRepository'
+    App\Mailbox\Domain\Repository\EmailAccountViewRepositoryInterface: '@App\Mailbox\Infrastructure\Repository\EmailAccountViewRepository'

@@ -1,0 +1,22 @@
+# Documentación de la API pública (Fase 18).
+#
+# ## Por qué vive bajo `/api/doc`
+#
+# La API real está bajo `/api/v1/…` y exige clave. La documentación NO la
+# exige: un integrador tiene que poder leer el contrato antes de tener una
+# clave, y la documentación no devuelve datos de ningún cliente, solo
+# describe qué se puede llamar y con qué forma de respuesta. Por eso estas
+# rutas quedan fuera del firewall `api` (ver `config/packages/security.yaml`).
+#
+# `app.swagger` produce el JSON OpenAPI 3 (el que consumen Postman, Dredd,
+# generadores de clientes o `openapi-generator`); `app.swagger_ui` lo pinta
+# con Swagger UI para poder echarle un ojo desde el navegador.
+app.swagger:
+    path: /api/doc.json
+    methods: GET
+    defaults: { _controller: nelmio_api_doc.controller.swagger }
+
+app.swagger_ui:
+    path: /api/doc
+    methods: GET
+    defaults: { _controller: nelmio_api_doc.controller.swagger_ui }

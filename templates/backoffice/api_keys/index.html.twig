@@ -1,0 +1,142 @@
+{% extends 'backoffice/base.html.twig' %}
+
+{#
+    Listado de claves de API.
+
+    Cada fila dice **si la clave sirve**, cuándo se usó por última vez y qué
+    puede hacer. El estado se calcula a partir de tres datos (revocación,
+    caducidad y último uso) porque son cosas distintas: una clave revocada
+    está muerta aunque no haya caducado, y una clave que nunca se ha usado
+    desde hace un mes probablemente está olvidada y conviene revocarla.
+#}
+{% block title %}Claves de API — Suscripta{% endblock %}
+
+{% block breadcrumb %}
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{{ path('app_dashboard') }}">Panel</a></li>
+        <li class="breadcrumb-item active">Claves de API</li>
+    </ol>
+{% endblock %}
+
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">Claves de API</h1>
+            <p class="bo-page-header__subtitle">
+                Credenciales para conectar Suscripta con otros sistemas.
+            </p>
+        </div>
+        <div class="bo-page-header__actions">
+            <a class="btn btn-primary" href="{{ path('app_api_keys_new') }}">
+                <i class="fa-solid fa-plus me-1" aria-hidden="true"></i> Crear clave
+            </a>
+        </div>
+    </div>
+
+    {#
+        La documentación de la API es pública y va antes que el listado: quien
+        llega aquí a integrar algo necesita el contrato antes que las claves.
+    #}
+    <div class="alert alert-info d-flex align-items-start" role="status">
+        <i class="fa-solid fa-book mt-1 me-2"></i>
+        <div>
+            <strong>La API está en <code>/api/v1</code>.</strong>
+            <div class="small">
+                La <a href="/api/doc" target="_blank" rel="noopener">documentación interactiva</a>
+                y el <a href="/api/doc.json" target="_blank" rel="noopener">OpenAPI en JSON</a>
+                son públicos: puedes ver cómo se llama antes de tener una clave.
+            </div>
+        </div>
+    </div>
+
+    {% if keys is empty %}
+        <div class="bo-list">
+            <div class="text-center py-5">
+                <i class="fa-solid fa-key fs-1 text-muted mb-3" aria-hidden="true"></i>
+                <p class="mb-1 fw-semibold">Todavía no hay ninguna clave.</p>
+                <p class="text-muted mb-3">
+                    Crea una para conectar tu ERP, tu panel de control de costes
+                    o cualquier otro sistema que consuma la API.
+                </p>
+                <a class="btn btn-outline-primary" href="{{ path('app_api_keys_new') }}">
+                    <i class="fa-solid fa-plus me-1" aria-hidden="true"></i> Crear la primera clave
+                </a>
+            </div>
+        </div>
+    {% else %}
+        <div class="bo-list">
+            <div class="table-responsive">
+                <table class="table bo-table bo-table--stack align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Clave</th>
+                            <th>Permisos</th>
+                            <th>Estado</th>
+                            <th>Último uso</th>
+                            <th>Caduca</th>
+                            <th class="text-end">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for key in keys %}
+                            {% set revoked = key.revokedAt is not null %}
+                            {% set expired = key.expiresAt is not null and key.expiresAt <= now %}
+                            <tr>
+                                <td data-label="Clave">
+                                    <span class="fw-semibold">{{ key.name }}</span>
+                                    <div><code class="small text-muted">{{ key.prefix }}…</code></div>
+                                </td>
+                                <td data-label="Permisos">
+                                    {% for scope in key.scopes %}
+                                        <span class="badge text-bg-{{ scope.value == 'write' ? 'info' : 'light' }} border">
+                                            {{ scope.label }}
+                                        </span>
+                                    {% endfor %}
+                                </td>
+                                <td data-label="Estado">
+                                    {% if revoked %}
+                                        <span class="badge text-bg-danger">Revocada</span>
+                                    {% elseif expired %}
+                                        <span class="badge text-bg-warning">Caducada</span>
+                                    {% else %}
+                                        <span class="badge text-bg-success">Activa</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Último uso">
+                                    {% if key.lastUsedAt is not null %}
+                                        <span class="small">{{ key.lastUsedAt|date('d/m/Y H:i') }}</span>
+                                    {% else %}
+                                        <span class="text-muted small">Nunca</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Caduca">
+                                    {% if key.expiresAt is not null %}
+                                        <span class="small">{{ key.expiresAt|date('d/m/Y') }}</span>
+                                    {% else %}
+                                        <span class="text-muted small">Nunca</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end" data-label="Acciones">
+                                    {% if not revoked and not expired %}
+                                        <form method="post"
+                                              action="{{ path('app_api_keys_revoke', { id: key.id }) }}"
+                                              class="d-inline"
+                                              data-controller="confirm"
+                                              data-confirm-message-value="Al revocar «{{ key.name }}» la clave dejará de funcionar. Si algún sistema la está usando, se quedará sin acceso.">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('revoke_api_key') }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" data-action="confirm#submit">
+                                                <i class="fa-solid fa-ban me-1" aria-hidden="true"></i> Revocar
+                                            </button>
+                                        </form>
+                                    {% else %}
+                                        <span class="text-muted small">—</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}

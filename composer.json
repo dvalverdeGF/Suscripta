@@ -16,6 +16,7 @@
         "doctrine/doctrine-bundle": "^3.3",
         "doctrine/doctrine-migrations-bundle": "^4.0",
         "doctrine/orm": "^3.7",
+        "nelmio/api-doc-bundle": "^5.13",
         "smalot/pdfparser": "^2.12",
         "symfony/asset": "8.1.*",
         "symfony/asset-mapper": "8.1.*",

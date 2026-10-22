@@ -12,6 +12,22 @@ security:
         dev:
             pattern: ^/(_profiler|_wdt|assets|build)/
             security: false
+        # La API publica (Fase 18) va **antes** del firewall principal.
+        #
+        # Es sin estado: no hay sesion, no hay cookie y no hay CSRF. La
+        # credencial viaja en la cabecera y se comprueba en cada peticion, que
+        # es lo que necesita un integrador que llama desde su propio
+        # servidor.
+        #
+        # `stateless: true` es importante: sin el, Symfony intentaria guardar
+        # la sesion del token en la cookie y una peticion sin cookie recibiria
+        # un 302 en lugar de un 401. Una API que redirige no es una API.
+        api:
+            pattern: ^/api/v1
+            stateless: true
+            custom_authenticators:
+                - App\Api\Infrastructure\Security\ApiKeyAuthenticator
+            entry_point: App\Api\UI\Security\ApiAuthenticationEntryPoint
         main:
             lazy: true
             provider: app_user_provider
@@ -44,6 +60,23 @@ security:
         # autenticación es la propia dirección dedicada más la lista de
         # remitentes autorizados (SECURITY.md §2.4).
         - { path: ^/mail/inbound$, roles: PUBLIC_ACCESS }
+        # La API publica (Fase 18) exige una clave valida en TODAS sus rutas.
+        #
+        # El `OPTIONS` queda abierto porque es el *preflight* de CORS: el
+        # navegador lo envia sin credenciales (no puede mandarlas en un
+        # preflight) y, si el servidor lo rechazara, la peticion real nunca
+        # llegaria a salir. El preflight no devuelve datos ni cambia nada, asi
+        # que no necesita autenticacion.
+        # La documentacion de la API es publica (Fase 18).
+        #
+        # Un integrador tiene que poder LEER como se usa la API antes de
+        # tener una clave. Si la documentacion exigiera una clave, el primer
+        # paso del integrador seria imposible: Tendria que pedir una clave
+        # para poder preguntar como se pide una clave. La documentacion no
+        # devuelve datos de ningun cliente, solo describe el contrato.
+        - { path: ^/api/doc, roles: PUBLIC_ACCESS }
+        - { path: ^/api/v1, methods: [OPTIONS], roles: PUBLIC_ACCESS }
+        - { path: ^/api/v1, roles: IS_AUTHENTICATED_FULLY }
         - { path: ^/, roles: ROLE_USER }
 
 when@test:

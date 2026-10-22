@@ -1,5 +1,17 @@
 framework:
-    default_locale: en
+    # El idioma por defecto de la aplicación es el español, no el inglés.
+    #
+    # No es una decisión estética: los mensajes de validación del Validador y
+    # los de autenticación de Security salen del catálogo de traducciones
+    # usando el idioma de la petición. Con `en` la API respondía un `422`
+    # con los mensajes en inglés («This value should not be blank»), mientras
+    # que el resto del producto está en español. Un integrador español
+    # recibía un error en otro idioma sin motivo.
+    #
+    # Los catálogos de `validators`, `form` y `security` los registra el
+    # framework solo (traen su versión en español en `vendor/`), así que no
+    # hay que mantener traducciones propias para que esto funcione.
+    default_locale: es
     translator:
         default_path: '%kernel.project_dir%/translations'
         providers:

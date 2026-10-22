@@ -8,6 +8,7 @@ use LogicException;
 
 use function sprintf;
 
+use Symfony\Component\RateLimiter\RateLimit;
 use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Contracts\Service\ServiceProviderInterface;
 
@@ -52,10 +53,23 @@ final readonly class RateLimitGuard
      */
     public function acquire(string $limiter, string $key, int $tokens = 1): bool
     {
+        return $this->consume($limiter, $key, $tokens)->isAccepted();
+    }
+
+    /**
+     * Consume un hueco del limite y devuelve el detalle del contador.
+     *
+     * Lo que devuelve `acquire()` es un si o un no, y para responder a un
+     * cliente que ha superado el limite hace falta mas: cuanto queda, cuando
+     * se repone, cual era el tope. Por eso existe este metodo, que es el que
+     * usan los que deben informar (la API, con sus cabeceras `X-RateLimit`).
+     */
+    public function consume(string $limiter, string $key, int $tokens = 1): RateLimit
+    {
         if (!$this->limiters->has($limiter)) {
             throw new LogicException(sprintf('El limitador "%s" no esta configurado.', $limiter));
         }
 
-        return $this->limiters->get($limiter)->create($key)->consume($tokens)->isAccepted();
+        return $this->limiters->get($limiter)->create($key)->consume($tokens);
     }
 }

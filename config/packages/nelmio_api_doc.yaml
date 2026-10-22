@@ -1,0 +1,48 @@
+# Documentación OpenAPI de la API pública (Fase 18).
+#
+# ## Qué se documenta
+#
+# Solo las rutas de la API versionada (`/api/v1/…`). El backoffice no es una
+# API: es una aplicación con sesión, y documentarlo como si lo fuera daría
+# una imagen equivocada de lo que un integrador puede llamar.
+#
+# ## Los dos esquemas de autenticación
+#
+# La API acepta la clave en dos sitios: la cabecera `Authorization: Bearer …`
+# (lo que espera cualquier cliente HTTP moderno) y la cabecera `X-Api-Key`
+# (lo que sobrevive a algunos intermediarios que borran `Authorization`). Los
+# dos están documentados porque los dos funcionan.
+nelmio_api_doc:
+    documentation:
+        info:
+            title: 'Suscripta API'
+            description: |
+                API pública de Suscripta: control de suscripciones, costes, renovaciones y alertas.
+
+                Todas las rutas viven bajo `/api/v1` y devuelven JSON. La
+                autenticación es con **clave de API**, que se pide en el
+                panel de integraciones y se manda en la cabecera
+                `Authorization: Bearer sk_…` (o en `X-Api-Key`).
+
+                Las respuestas de listado devuelven `data` con los elementos y
+                `meta` con la paginación. Los errores usan `application/problem+json`
+                (RFC 9457), con `type`, `title`, `status` y `detail`.
+            version: '1.0.0'
+        servers:
+            - url: /
+              description: 'Servidor de la instalación'
+
+    areas:
+        default:
+            path_patterns:
+                - ^/api/v1
+            security:
+                bearerAuth:
+                    type: http
+                    scheme: bearer
+                    description: 'Clave de API en la cabecera `Authorization: Bearer sk_…`.'
+                apiKeyAuth:
+                    type: apiKey
+                    in: header
+                    name: X-Api-Key
+                    description: 'Clave de API en la cabecera `X-Api-Key`. Alternativa a `Authorization`.'

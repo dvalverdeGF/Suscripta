@@ -1,0 +1,89 @@
+{% extends 'backoffice/base.html.twig' %}
+
+{#
+    La clave en claro, una única vez.
+
+    ## Por qué es una pantalla aparte
+
+    Si la clave apareciera en un aviso flotante sobre el listado, el operador
+    podría no verla y marcharse pensando que la creación había funcionado. Aquí
+    la clave está **en el centro de la pantalla**, con un botón para copiarla y
+    una instrucción explícita de copiarla ya.
+
+    ## Por qué hay un botón de copiar
+
+    Copiar a mano una clave de 43 caracteres es casi garantía de un error
+    tipográfico, y una clave mal copiada da un `401` que no explica nada. El
+    botón usa el portapapeles del navegador, que no equivoca.
+#}
+{% block title %}Clave creada — Suscripta{% endblock %}
+
+{% block breadcrumb %}
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{{ path('app_dashboard') }}">Panel</a></li>
+        <li class="breadcrumb-item"><a href="{{ path('app_api_keys_index') }}">Claves de API</a></li>
+        <li class="breadcrumb-item active">Clave creada</li>
+    </ol>
+{% endblock %}
+
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">Tu clave está lista</h1>
+            <p class="bo-page-header__subtitle">
+                «{{ name }}» ya da acceso a la API.
+            </p>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="card-title">Cópiala ahora</h2>
+        </div>
+        <div class="card-body">
+            <div class="input-group mb-3">
+                <input type="text"
+                       class="form-control font-monospace"
+                       id="api-key-secret"
+                       value="{{ secret }}"
+                       readonly
+                       aria-label="Clave de API">
+                <button class="btn btn-outline-secondary" type="button"
+                        data-controller="copy"
+                        data-copy-target-value="#api-key-secret"
+                        data-action="copy#copy">
+                    <span data-copy-label><i class="fa-solid fa-copy me-1" aria-hidden="true"></i> Copiar</span>
+                </button>
+            </div>
+
+            <p class="form-text mb-0">
+                Esta es la única vez que se muestra. Si se pierde, crea otra clave
+                y revoca esta.
+            </p>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="card-title">Cómo se usa</h2>
+        </div>
+        <div class="card-body">
+            <p class="small text-muted mb-2">Mándala en la cabecera <code>Authorization</code>:</p>
+            <pre class="small bg-light p-3 rounded mb-3"><code>curl -H "Authorization: Bearer {{ secret }}" \
+     {{ url('/api/v1/services') }}</code></pre>
+
+            <p class="small text-muted mb-2">O en la cabecera <code>X-Api-Key</code>:</p>
+            <pre class="small bg-light p-3 rounded mb-3"><code>curl -H "X-Api-Key: {{ secret }}" \
+     {{ url('/api/v1/services') }}</code></pre>
+
+            <p class="small text-muted mb-0">
+                La <a href="/api/doc" target="_blank" rel="noopener">documentación de la API</a>
+                tiene el detalle de cada endpoint.
+            </p>
+        </div>
+    </div>
+
+    <a class="btn btn-primary" href="{{ path('app_api_keys_index') }}">
+        <i class="fa-solid fa-list me-1" aria-hidden="true"></i> Volver a las claves
+    </a>
+{% endblock %}

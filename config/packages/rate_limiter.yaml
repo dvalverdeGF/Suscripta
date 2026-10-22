@@ -56,3 +56,16 @@ framework:
             policy: 'sliding_window'
             limit: 5
             interval: '1 minute'
+
+        # API publica (Fase 18).
+        #
+        # El limite es **por clave de API**, no por organizacion ni por IP: la
+        # clave es la unidad real de consumo y la que se puede explicar ("su
+        # clave sk_a1B2... ha superado el limite de 300 peticiones por
+        # minuto"). Varias claves pueden salir del mismo servidor (NAT, proxy,
+        # CI), asi que un limite por IP castigaria a un cliente por el
+        # comportamiento de otro.
+        api:
+            policy: 'sliding_window'
+            limit: 300
+            interval: '1 minute'
