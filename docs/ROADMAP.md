@@ -2148,7 +2148,7 @@ durante algo menos de dos días antes de abandonarse.
 
 ## Fase 21 — `Subscription` como entidad propia
 
-> **Estado:** ✅ **Completada.**
+> **Estado:** ✅ **Completada.** Commit de cierre: `4c71499`.
 
 **Objetivo:** separar «servicio contratado» de «suscripción» sin romper lo que ya funciona.
 

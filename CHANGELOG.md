@@ -23,8 +23,7 @@ cerrada, verificada y commiteada. El detalle de lo que queda pendiente está en
 
 ## [Fase 21] — 2026-10-28 — `Subscription` como entidad propia
 
-El producto ya distingue lo que se paga del contrato que lo sostiene. Commit de cierre: pendiente
-de anotar.
+El producto ya distingue lo que se paga del contrato que lo sostiene. Commit de cierre: `4c71499`.
 
 ### Añadido
 
