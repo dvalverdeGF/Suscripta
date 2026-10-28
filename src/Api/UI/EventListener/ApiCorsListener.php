@@ -29,15 +29,41 @@ use function trim;
  * cabeceras `Access-Control-*`, la respuesta llega al código pero el
  * navegador la bloquea.
  *
- * ## El preflight va antes del firewall
+ * ## El preflight va antes del router (y del firewall)
  *
  * El preflight (`OPTIONS`) lo manda el navegador **sin credenciales**: no
  * puede mandarlas en un preflight, porque la petición preflight no es la
- * petición real. Si el firewall exigiera la clave en el preflight, el
- * navegador recibiría un `401` y la petición real nunca saldría del
- * navegador. Por eso este listener se ejecuta antes que el firewall
- * (prioridad 9 frente a la 8 del firewall) y responde al `OPTIONS` con un
- * `204` sin más.
+ * petición real. Si exigiera la clave, el navegador recibiría un `401` y la
+ * petición real nunca saldría del navegador. Por eso este listener se
+ * ejecuta **antes que el firewall** y responde al `OPTIONS` con un `204` sin
+ * más.
+ *
+ * ## Por qué la prioridad es 40 y no 9
+ *
+ * El culpable del `405` en el preflight **no era el firewall**, sino el
+ * **router**. En `KernelEvents::REQUEST` las prioridades son:
+ *
+ * | Listener         | Prioridad |
+ * |------------------|-----------|
+ * | `RouterListener` | 32        |
+ * | `Firewall`       | 8         |
+ *
+ * El router va con prioridad 32, así que resolvía la ruta **antes** que este
+ * listener (que iba con 9). Como las rutas de la API solo aceptan `GET` y
+ * `POST`, el router no encontraba ninguna ruta `OPTIONS` y lanzaba
+ * `MethodNotAllowedHttpException` con un `405`: el preflight se moría antes
+ * de llegar aquí. El firewall (prioridad 8) iba todavía más abajo y nunca
+ * fue el culpable.
+ *
+ * Por eso este listener va con prioridad **40**: por encima del router. Un
+ * `OPTIONS` **tiene** que contestarse antes que el router, porque para CORS
+ * no es «una petición a una ruta que no admite ese método», es «una
+ * pregunta por CORS que hay que contestar sí o sí».
+ *
+ * Y como `RequestEvent::setResponse()` llama a `stopPropagation()`, en
+ * cuanto aquí se fija la respuesta, ni el router ni el firewall se ejecutan.
+ * Que es exactamente lo que se busca: el preflight no lleva credenciales, y
+ * no puede autenticarse.
  *
  * ## Los orígenes se configuran, no se permite cualquiera
  *
@@ -54,7 +80,7 @@ use function trim;
  * mande cookies a un servidor público: no hace falta y abre una puerta
  * innecesaria.
  */
-#[AsEventListener(event: KernelEvents::REQUEST, priority: 9)]
+#[AsEventListener(event: KernelEvents::REQUEST, priority: 40)]
 #[AsEventListener(event: KernelEvents::RESPONSE, priority: -10)]
 final class ApiCorsListener
 {

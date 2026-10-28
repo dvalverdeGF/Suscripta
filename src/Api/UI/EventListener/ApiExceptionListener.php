@@ -124,11 +124,13 @@ final readonly class ApiExceptionListener
             );
         }
 
-        if ($exception instanceof ValidationFailedException) {
+        $validation = $this->validationFailure($exception);
+
+        if (null !== $validation) {
             return $this->problem(
                 Problem::unprocessable(
                     'Los datos enviados no son válidos.',
-                    $this->violations($exception),
+                    $this->violations($validation),
                 ),
                 $request,
             );
@@ -177,6 +179,53 @@ final readonly class ApiExceptionListener
     }
 
     /**
+     * La excepción de validación, si la hay.
+     *
+     * ## Por qué hay que buscar en la cadena de `previous`
+     *
+     * En Symfony 8, el resolutor de argumentos de petición (`RequestPayloadValueResolver`)
+     * **no** lanza la `ValidationFailedException` directamente: la envuelve en
+     * un `HttpException` para darle un código de estado:
+     *
+     * ```php
+     * throw HttpException::fromStatusCode(
+     *     422,
+     *     implode("\n", $mensajes),
+     *     new ValidationFailedException($payload, $violations)
+     * );
+     * ```
+     *
+     * `HttpException::fromStatusCode(422, …)` devuelve una
+     * `UnprocessableEntityHttpException`, así que la excepción que llega
+     * hasta este listener **no** es una `ValidationFailedException`: es una
+     * `UnprocessableEntityHttpException` que la tiene como `previous`.
+     *
+     * Comprobar solo `instanceof ValidationFailedException` nunca se cumplía,
+     * y el error caía en la rama genérica de `HttpExceptionInterface`, que
+     * construye el problema con `Response::$statusTexts` — **en inglés** — y
+     * sin el array `violations`, que es justo el campo que le dice al
+     * integrador qué corregir.
+     *
+     * @see \Symfony\Component\HttpKernel\Controller\ArgumentResolver\RequestPayloadValueResolver
+     */
+    private function validationFailure(\Throwable $exception): ?ValidationFailedException
+    {
+        $current = $exception;
+
+        // La cadena de `previous` es corta (el caso normal tiene un nivel),
+        // pero el tope evita que un ciclo hypothético hangue el proceso.
+        for ($i = 0; null !== $current && $i < 5; ++$i) {
+            if ($current instanceof ValidationFailedException) {
+                return $current;
+            }
+
+            $current = $current->getPrevious();
+        }
+
+        return null;
+    }
+
+    /**
      * Si la petición va con una identidad ya establecida.
      *
      * El firewall de la API es sin estado: no hay sesión de la que fiarse, así
@@ -193,7 +242,7 @@ final readonly class ApiExceptionListener
      *
      * La alternativa es el helper `Security`, que es público y autowirable.
      * Y no basta con «hay un usuario»: lo que distingue un `401` de un `403` es
-     * que la identidad sea **una clave de API**. Si arrive una persona del
+     * que la identidad sea **una clave de API**. Si llega una persona del
      * panel, no es una llamada de integrador y hay que pedirle credenciales
      * (`401`), no negarle el permiso (`403`).
      */
