@@ -89,7 +89,7 @@ en su apartado correspondiente.
 | 19 | Cierre de documentación y publicación | ✅ Completada | `5821de0` | README de producto, CHANGELOG por fase, guía de despliegue, 1 420 tests |
 | 20 | Webhooks de salida | ✅ Completada | `bd646a8` | 29 tests nuevos; firma HMAC, 8 envíos, panel con prueba |
 | 21 | `Subscription` como entidad propia | ✅ Completada | `4c71499` | Servicios y suscripciones como listas distintas |
-| 22 | Catálogo comercial en el backoffice | ✅ Completada | `PENDIENTE_SHA` | Un plan con dos precios publicado sin desplegar |
+| 22 | Catálogo comercial en el backoffice | ✅ Completada | `5e983b0` | Un plan con dos precios publicado sin desplegar |
 | 23 | Web corporativa (11 páginas) | ⬜ Planificada | — | `/` pública sin sesión, precios desde el catálogo |
 | 24 | Checkout con Stripe | ⬜ Planificada | — | Alta, cobro en modo test, webhook y estado reflejado |
 | 25 | CSRF unificado con el gestor de sesión | ⬜ Planificada | — | Ningún `POST` con token sin estado |
@@ -2219,7 +2219,7 @@ sin haberlos tocado.
 
 ## Fase 22 — Catálogo comercial en el backoffice
 
-> **Estado:** ✅ **Completada.** Commit de cierre: `PENDIENTE_SHA`.
+> **Estado:** ✅ **Completada.** Commit de cierre: `5e983b0`.
 
 **Objetivo:** que un operador pueda definir qué se vende —planes, precios, ciclos,
 características— sin tocar código, y que la web corporativa de la fase 23 lo lea de ahí.

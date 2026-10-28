@@ -22,7 +22,7 @@ cerrada, verificada y commiteada. El detalle de lo que queda pendiente está en
 ## [Fase 22] — 2026-10-28 — Catálogo comercial en el backoffice
 
 Lo que se vende deja de estar en el código: planes, precios con historial y características se
-gestionan desde el backoffice. Commit de cierre: `PENDIENTE_SHA`.
+gestionan desde el backoffice. Commit de cierre: `5e983b0`.
 
 ### Añadido
 
