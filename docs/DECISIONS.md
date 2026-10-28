@@ -2203,13 +2203,13 @@ Microsoft), (c) una clave propia emitida por la organización.
 
 (a) está descartada de entrada: la API debe ser *stateless*. Una sesión por petición significaría
 cookies, estado en el servidor, y un integrador que no es un navegador (un cron, un servicio
-en Go, un script de shell) tendría que(handle cookies, y además arrastraría la superficie de
+en Go, un script de shell) tendría que gestionar cookies, y además arrastraría la superficie de
 ataque del login con contraseñas. (b) es una integración enorme —proveedores, consentimientos,
 scopes de terceros, tokens OAuth— para resolver un problema que no tenemos: el integrador es
 *nuestro* cliente, con una relación comercial directa, no un usuario final arbitrario.
 
 **Decisión.** Una **clave de API propia**, por organización, con **ámbitos** (`read`, `write`),
-caducidad opcional y revocación. Se emite desde el panel de integraciones del backoffice, se
+caducidad opcional y revocación. Se emite desde el panel de claves de API del backoffice (`/api-keys`), se
 muestra **una sola vez** y se entrega en `Authorization: Bearer …` o `X-Api-Key: …`.
 
 Sobre la **huella**: se usa `hash_hmac('sha256', $secreto, $pepper)` y **no** `password_hash`.

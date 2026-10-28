@@ -58,7 +58,7 @@
     {% if demo %}
         <script nonce="{{ csp_nonce() }}">
             (function () {
-                var button = document.getElementByById('bo-demo-fill');
+                var button = document.getElementById('bo-demo-fill');
                 if (!button) {
                     return;
                 }

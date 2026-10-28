@@ -1,8 +1,8 @@
 # Roadmap
 
-> Estado: **fases 0 a 18 cerradas** (1 419 tests, PHPStan nivel 8 limpio). Queda la fase 19
-> (cierre de documentación y publicación). Fases pequeñas y verificables: cada fase termina con
-> algo demostrable y con criterios de aceptación explícitos.
+> Estado: **fases 0 a 19 cerradas** (1 420 tests, PHPStan nivel 8 limpio). No queda ninguna fase
+> comprometida; la fase 20 es una idea documentada, no un compromiso. Fases pequeñas y
+> verificables: cada fase termina con algo demostrable y con criterios de aceptación explícitos.
 
 ## Criterios de ordenación
 
@@ -48,6 +48,9 @@ en su apartado correspondiente.
 | [`DECISIONS.md`](DECISIONS.md) | Por qué se hizo así. D-71 y D-72 = la API. |
 | [`ROADMAP.md`](ROADMAP.md) | Este documento: qué está hecho y qué falta. |
 | [`SECURITY.md`](SECURITY.md) | Modelo de amenazas y medidas. |
+| [`operations.md`](operations.md) | Runbook del día a día: desplegar, copiar, restaurar, vigilar. |
+| [`deployment.md`](deployment.md) | El **primer** despliegue en producción, paso a paso. |
+| [`../CHANGELOG.md`](../CHANGELOG.md) | Qué cambió en cada fase (Keep a Changelog). |
 | [`operations.md`](operations.md) | Runbook: despliegue, backups, restauración, incidentes. |
 | [`api/README.md`](api/README.md) | **Guía de integración de la API**, de cero a la primera llamada. |
 | [`api/errors.md`](api/errors.md) | Catálogo de errores: cada código, cuándo y qué hacer. |
@@ -81,16 +84,20 @@ en su apartado correspondiente.
 | 16 | Hardening de seguridad y RGPD | ✅ Completada | `a035a36` | Retención, privacidad, exportación y borrado |
 | 17 | Preparación SaaS | ✅ Completada | `9504ff6` | 1385 tests, planes, cuotas, onboarding, backups |
 | 18 | API pública | ✅ Completada | `d840174` + `ffa7127` | 15 casos E2E y **35 tests** de API en verde; 6 defectos corregidos |
-| 19 | Cierre de documentación y publicación | ⬜ **Pendiente** | — | README, CHANGELOG, guía de despliegue |
+| 19 | Cierre de documentación y publicación | ✅ Completada | `PENDIENTE_SHA` | README de producto, CHANGELOG por fase, guía de despliegue, 1 420 tests |
 | 20 | Webhooks de salida | ⬜ **No planificada** | — | Diseño propio: reintentos, firma, idempotencia |
 
-**Lectura rápida de la tabla:** las fases 0 a 18 están **cerradas, commiteadas y verificadas**.
+**Lectura rápida de la tabla:** las fases 0 a 19 están **cerradas, commiteadas y verificadas**.
 La fase 18 se cerró corrigiendo los seis defectos que aparecieron al verificarla —dos de
 comportamiento en la API, uno de arranque en el entorno, uno de contrato y dos que impedían
-usar el panel de claves—, todos con test. **La fase 19 es la única que queda por empezar**, y es
-la que convierte el producto en algo publicable: README de primer nivel, CHANGELOG y guía de
-despliegue. La fase 20 (webhooks de salida) no está planificada y no bloquea nada: la API
-paginada ya permite integrarse sin ella.
+usar el panel de claves—, todos con test. La fase 19 cerró la documentación de entrega: el
+README de producto, el CHANGELOG por fase y la guía del primer despliegue.
+
+**No queda ninguna fase comprometida por hacer.** La fase 20 (webhooks de salida) es una idea
+documentada, no un compromiso, y no bloquea nada: la API paginada ya permite integrarse sin
+ella. Lo único diferido conscientemente de la fase 19 son las **capturas de pantalla** del
+README: no se ha añadido ningún binario al repositorio y se prefiere que envejezcan mal fuera
+de él antes que versionar imágenes que se quedan obsoletas a la primera fase.
 
 ## Fase 0 — Base del proyecto
 
@@ -1935,34 +1942,74 @@ por su marca de tiempo y su estado, así que un webhook futuro no exigirá cambi
 
 ## Fase 19 — Cierre, documentación y publicación
 
-> **Estado:** ⬜ **Pendiente.** No ha empezado.
+> **Estado:** ✅ **Completada.** Commit `PENDIENTE_SHA`.
 
 **Objetivo:** que el proyecto se pueda entregar a alguien que no lo ha visto: instalar, entender,
 usar e integrar.
 
-- **README** de primer nivel: qué es Suscripta, qué problema resuelve, captura de las
-  pantallas principales, instalación en cinco minutos, y enlace a la documentación.
-- **`docs/api/`** completa y navegable — **ya escrita**, pendiente solo de revisión final
-  contra el comportamiento real:
-  - `README.md` — guía de integración, de cero a la primera llamada de verdad (pedir la clave,
-    probarla con `curl`, entender la respuesta).
-  - `errors.md` — catálogo completo de errores: cada código, cuándo ocurre, qué hacer, y
-    ejemplos de respuesta.
-  - `deprecation.md` — política de deprecación: cuánto tiempo se avisa, cómo se marca, cómo se
-    retira.
-  - `versioning.md` — qué es la versión estable, qué garantiza y qué no.
-- **`CHANGELOG.md`** con el formato Keep a Changelog.
-- **Guía de despliegue** para producción: requisitos, `composer install --no-dev`, migraciones,
-  `APP_SECRET` y `API_KEY_PEPPER` en el almacén de secretos, proxy, TLS, y verificación tras
-  desplegar.
-- **`docs/ARCHITECTURE.md` §17 (API)** y **`docs/DECISIONS.md` D-71 y D-72** (ámbitos y roles
-  de la clave + HMAC y `problem+json`; read models para la API), de modo que el código de la
-  fase 18 quede explicado y no solo implementado.
-- **Verificación final**: suite completa, PHPStan nivel 8, CS-Fixer, `lint:twig`,
-  `doctrine:schema:validate`, y el guion E2E de la API ejecutado de verdad.
+**Lo que había antes de esta fase.** El código estaba terminado y documentado por dentro —1 900
+líneas de roadmap, arquitectura, decisiones y seguridad—, pero **la puerta de entrada mentía**.
+El `README.md` de la raíz empezaba describiendo Suscripta y a la línea 29 se convertía en el
+README de `symfony-docker`, con sus insignias, su «Getting Started» y su licencia MIT. Y en medio
+de esa mezcla afirmaba: *«Estado actual: documentación y arquitectura. No hay todavía código de
+producto»*. Era falso desde hacía dieciocho fases: había 1 420 tests, 13 rutas de API y una
+aplicación que funciona. Quien llegara al repositorio por primera vez leía, en el único
+documento que iba a leer, que el proyecto no existía.
 
-**Verificación:** alguien que no ha visto el proyecto consegue instalarlo, arrancar la
-aplicación, autenticarse contra la API y entender cada respuesta sin leer el código.
+### Entregado
+
+| Fichero | Qué es |
+|---|---|
+| `README.md` | Reescrito entero. Qué es Suscripta y qué problema resuelve, estado real (fases 0–19, 1 420 tests, PHPStan 8), arranque en cinco minutos con `make up` + `make migrate`, tabla de órdenes, cómo integrar la API con `curl`, índice de los doce documentos e índice del propio README. El contenido de `symfony-docker` queda al final, **etiquetado como infraestructura** y sin la afirmación falsa. |
+| `CHANGELOG.md` | Formato Keep a Changelog. Una sección por fase (0–18) con `Añadido`/`Cambiado`/`Corregido`, fechadas con el commit real de cierre, y las seis correcciones de la fase 18 descritas por síntoma y arreglo, no por «se arregló». Incluye la convención para escribir la siguiente entrada. |
+| `docs/deployment.md` | Guía del **primer** despliegue, complementaria a `docs/operations.md` (que cubre el día a día): requisitos, preparación del servidor, los dos niveles de secretos, orden del primer arranque, cinco comprobaciones de verificación y una tabla de los siete errores que se cometen la primera vez. |
+
+### Corregido por el camino
+
+Escribir la documentación de entrega obliga a leer lo que se documenta, y aparecieron dos
+defectos:
+
+| # | Defecto | Síntoma | Causa raíz | Arreglo |
+|---|---|---|---|---|
+| 1 | El botón «rellenar credenciales de demo» del login no hacía nada | En desarrollo, al pulsarlo no pasaba nada; ningún error visible | `templates/security/login.html.twig` llamaba a `document.getElementByById(...)` —`ByById` en lugar de `ById`—, que devuelve `null` y el `if (!button) return;` abandonaba en silencio | `getElementById` |
+| 2 | `docs/DECISIONS.md` D-71 tenía una frase rota y una referencia imprecisa | «tendría que(handle cookies»; el panel citado era «el de integraciones» | Frase a medio traducir de un borrador, y el panel real es `/api-keys`, no el de integraciones (que es el de IA) | Frase reescrita; referencia corregida a `/api-keys` |
+
+El primero es exactamente el tipo de defecto que ningún test de PHP detecta y que solo aparece al
+usar la aplicación con las manos: la documentación de entrega lo encontró porque obligó a
+recorrer el flujo de arranque paso a paso.
+
+### Lo que se decidió no hacer
+
+- **Capturas de pantalla en el README.** La especificación de la fase las pedía. No se han
+  añadido: versionar binarios que cambian con cada retoque de interfaz envejece mal y nadie los
+  actualiza. El README describe las pantallas con texto y remite a la aplicación, que es la
+  fuente de verdad. Si algún día hay un pipeline de capturas automáticas, se añaden sin cambiar
+  nada más.
+- **`composer install --no-dev` en el servidor.** La especificación lo mencionaba como paso de
+  despliegue. No aplica: en este proyecto la imagen de producción se construye con el target
+  `frankenphp_prod` del `Dockerfile` y se publica en un registro. En el servidor **no hay PHP ni
+  Composer**, y por tanto no hay nada que instalar. `docs/deployment.md` documenta el
+  procedimiento real, no el genérico.
+- **Duplicar `docs/operations.md`.** La guía de despliegue no repite el runbook: separa lo que se
+  hace una vez (esta guía) de lo que se hace siempre (el runbook) y se enlazan entre sí.
+
+### Verificación de cierre
+
+| Comprobación | Resultado |
+|---|---|
+| Suite completa | **1 420 tests**, 5 664 aserciones, en verde |
+| PHPStan nivel 8 | Sin errores |
+| `php-cs-fixer --dry-run` | Sin cambios pendientes |
+| `lint:twig templates/` | 52 plantillas correctas |
+| `lint:yaml --parse-tags config/` | 38 ficheros correctos |
+| `lint:container` | Sin errores |
+| `doctrine:schema:validate` | Mapeo y esquema sincronizados |
+| Enlaces del README | Los doce documentos enlazados existen; los 13 nombres de ruta de la API, también |
+
+**Verificación de la fase:** alguien que no ha visto el proyecto consigue instalarlo, arrancar la
+aplicación, autenticarse contra la API y entender cada respuesta sin leer el código. El README es
+ahora el único documento que hace falta leer para empezar, y no contiene ninguna afirmación que
+el repositorio no respalde.
 
 ## Fase 20 — Webhooks de salida (no planificada)
 
