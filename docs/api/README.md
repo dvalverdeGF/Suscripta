@@ -6,6 +6,10 @@ del producto: un ERP, un panel de control, un bot, un script de shell o una web.
 - **Base:** `/api/v1` (toda la API está versionada en la URL).
 - **Formato:** JSON. Los errores son `application/problem+json` (RFC 9457).
 - **Autenticación:** clave de API por organización, emitida desde el panel de integraciones.
+- **Sentido inverso:** además de consultar, puedes **recibir avisos** en tu servidor con
+  [webhooks](webhooks.md) (`service.created`, `proposal.created`, `proposal.confirmed`,
+  `charge.detected`, `ai.budget_exhausted`). Son complementarios: la API es «pregunto», los
+  webhooks son «me avisan». No hace falta webhooks para usar la API, ni al contrario.
 - **Contrato machine-readable:** [`/api/doc.json`](http://localhost/api/doc.json) (OpenAPI 3) y
   [`/api/doc`](http://localhost/api/doc) (Swagger UI). No requieren credencial.
 
@@ -167,6 +171,16 @@ hay detalle que dar, la clave **no aparece** en lugar de venir vacía.
 
 ---
 
+## 2.bis ¿Consultar o recibir avisos?
+
+| Si necesitas… | Usa |
+|---|---|
+| Los datos cuando tú quieras | La API (`GET /api/v1/…`). |
+| Enterarte de un cambio sin sondear cada minuto | Un [webhook](webhooks.md). |
+| Ambas cosas | Las dos, con **la misma clave de API** para consultar y **el secreto del webhook** para verificar la firma. Son credenciales distintas: la clave es irreversible y el secreto se puede volver a ver, porque hay que usarlo para firmar (D-75). |
+
+---
+
 ## 3. Errores
 
 Todos los errores son `application/problem+json`:
@@ -239,6 +253,7 @@ respuesta aunque el servidor devuelva `200`.
 | [`errors.md`](errors.md) | Catálogo de errores: cada código, cuándo ocurre, qué hacer. |
 | [`versioning.md`](versioning.md) | Qué es la versión estable y qué garantiza. |
 | [`deprecation.md`](deprecation.md) | Política de deprecación: cómo y cuándo se retira algo. |
+| [`webhooks.md`](webhooks.md) | **Webhooks de salida**: cuando prefieras que Suscripta te avise en vez de preguntar. |
 | [`../ARCHITECTURE.md` §17](../ARCHITECTURE.md) | Cómo está construida la API por dentro. |
 | [`../DECISIONS.md`](../DECISIONS.md) D-71, D-72 | Por qué HMAC y por qué read models. |
 | [`../ROADMAP.md`](../ROADMAP.md) | Estado del proyecto y qué está pendiente. |

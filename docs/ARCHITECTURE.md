@@ -92,6 +92,8 @@ src/
 ├── Discovery/         # Discovery, ServiceMatcher, detección de recurrencia y de cambios
 ├── Notifications/     # Alert, Notification, NotificationPreference, canales
 ├── Privacy/           # Exportación, borrado y purga por retención (Fase 16)
+├── Api/               # API pública versionada bajo /api/v1 (Fase 18)
+├── Webhooks/          # Webhooks de salida: suscriptores, entregas, firma y reintentos (Fase 20)
 └── Dashboard/         # Consultas de lectura agregadas (sin entidades propias)
 ```
 
@@ -2348,3 +2350,72 @@ explicar al cliente y porque varias claves legítimas pueden salir del mismo ser
 `nelmio/api-doc` con `path_patterns: ^/api/v1`: solo la API versionada. `/api/doc.json` (JSON
 OpenAPI 3) y `/api/doc` (Swagger UI). La versión del contrato vive en la URL (`/api/v1`) y en
 el campo `version` de la definición OpenAPI.
+
+## 18. Webhooks de salida (Fase 20)
+
+El módulo `Webhooks` invierte la dirección de la API: en lugar de que un integrador pregunte,
+Suscripta le avisa. No comparte nada con `Api` salvo el idioma del contrato (importes en unidades
+menores, UUIDv7, RFC 3339) y no tiene credenciales propias: el secreto de cada suscriptor es su
+único secreto.
+
+### 18.1 Capas
+
+| Capa | Contenido |
+|---|---|
+| `Domain/Entity` | `Webhook` (suscriptor) y `WebhookDelivery` (una fila por suscriptor y evento). |
+| `Domain/Service` | `WebhookSigner` (HMAC-SHA-256) y `RetryPolicy` (ocho envíos y abandono). |
+| `Domain/Repository` | `WebhookRepositoryInterface`, `WebhookDeliveryRepositoryInterface`. |
+| `Application` | `WebhookNotifier` (crea y encola), `DeliverWebhook` (un intento), `AbandonStaleDeliveries`, `WebhookSecretGenerator`, mensaje y handler. |
+| `Infrastructure/Repository` | Implementaciones Doctrine. |
+| `UI` | `WebhookController` (`/webhooks`), `WebhookFormType`, `MaintainWebhookDeliveriesCommand`. |
+
+### 18.2 El flujo de una entrega
+
+```text
+caso de uso (CreateService, ConfirmDiscovery, ProcessEmailMessage, AiExtractionService)
+        │  notify(organizationId, event, data)   ← nunca lanza
+        ▼
+WebhookNotifier ──► 1 fila WebhookDelivery por suscriptor activo (cuerpo ya serializado)
+        │              + DeliverWebhookMessage en el transporte `webhooks`
+        ▼
+worker: DeliverWebhookHandler ──► DeliverWebhook (un intento)
+        │  runAs(organización) · firma · POST · 2xx o fallo
+        ▼
+   DELIVERED   |   PENDING con nextAttemptAt   |   ABANDONED
+```
+
+Cuatro propiedades sostienen el diseño:
+
+1. **El cuerpo se serializa una vez y se guarda.** El reintento manda los mismos bytes, así que la
+   firma cubre lo que el receptor recibió la primera vez y `Idempotency-Key` no cambia (D-73).
+2. **La política de reintentos es única y vive en `RetryPolicy`.** El transporte de Messenger va
+   con `max_retries: 0`: dos políticas a la vez producirían ráfagas que nadie ha diseñado.
+3. **`notify()` no lanza.** Un webhook es una notificación, no una transacción: un suscriptor mal
+   configurado no puede hacer fallar el alta de un servicio.
+4. **El worker entra en la organización con `runAs()`.** El `TenantFilter` esconde las filas de
+   otras organizaciones y sin él la entrega no se encontraría (mismo patrón que el resto de
+   workers, §8).
+
+### 18.3 Por qué se llama a mano y no hay bus de eventos
+
+Suscripta no tiene bus de eventos de dominio. Introducirlo para cuatro eventos obligaba a
+reescribir los casos de uso existentes; en su lugar, cada caso de uso llama a `notify()` al final,
+con los datos que ya tiene en la mano. Es explícito y se ve en el diff. El precio es que hay que
+acordarse, y por eso cada llamada tiene su test. El parámetro es opcional
+(`?WebhookNotifier $webhooks = null`) para no romper la construcción manual en los tests.
+
+### 18.4 Entrega «al menos una vez»
+
+No existe «exactamente una vez» sin coordinación con el receptor: un `200` perdido en la red es
+indistinguible de un fallo, así que el mismo evento puede llegar dos veces. La mitigación es
+`Idempotency-Key` (el identificador de la entrega, estable en todos los reintentos) y su
+documentación en `docs/api/webhooks.md`, con la recomendación de deduplicar con una ventana de al
+menos 48 h.
+
+### 18.5 Lo que no hace
+
+- **No valida que la URL sea alcanzable ni que no apunte a una red interna.** Es la deuda técnica
+  número 1 de `ROADMAP.md`.
+- **No hay webhooks de entrada.** Stripe (fase 24) tendrá su propia ruta, con su propia firma.
+- **No hay challenge de verificación de endpoint**: el botón «Enviar prueba» del panel cumple esa
+  función.

@@ -102,12 +102,16 @@ qa: cs-check phpstan test ## Ejecuta todas las comprobaciones de calidad
 
 .PHONY: worker
 worker: ## Consume la cola de procesamiento de correo
-	$(EXEC) bin/console messenger:consume mail_sync mail_processing ocr ai notifications \
+	$(EXEC) bin/console messenger:consume mail_sync mail_processing ocr ai notifications webhooks \
 		--time-limit=3600 --memory-limit=256M -vv
 
 .PHONY: worker-ai
 worker-ai: ## Consume únicamente la cola de IA
 	$(EXEC) bin/console messenger:consume ai --time-limit=3600 --memory-limit=256M -vv
+
+.PHONY: worker-webhooks
+worker-webhooks: ## Consume únicamente la cola de webhooks de salida
+	$(EXEC) bin/console messenger:consume webhooks --time-limit=3600 --memory-limit=128M -vv
 
 .PHONY: failed
 failed: ## Lista los mensajes fallidos
@@ -118,6 +122,10 @@ failed-retry: ## Reintenta los mensajes fallidos
 	$(EXEC) bin/console messenger:failed:retry
 
 # ---------------------------------------------------------------- Tareas programadas
+
+.PHONY: webhooks-maintain
+webhooks-maintain: ## Reencola entregas de webhook vencidas y abandona las caducadas
+	$(EXEC) bin/console app:webhooks:maintain
 
 .PHONY: sync
 sync: ## Sincroniza los buzones activos

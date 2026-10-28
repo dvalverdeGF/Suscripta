@@ -37,11 +37,20 @@ use App\Tests\Support\Ai\InMemoryAiUsageRepository;
 use App\Tests\Support\BuildsValidator;
 use App\Tests\Support\Entitlements\InMemoryEntitlementChecker;
 use App\Tests\Support\Integrations\InMemoryIntegrationRepository;
+use App\Webhooks\Application\WebhookNotifier;
+use App\Webhooks\Domain\Entity\Webhook;
+use App\Webhooks\Domain\Enum\WebhookEvent;
+use App\Webhooks\Domain\Repository\WebhookDeliveryRepositoryInterface;
+use App\Webhooks\Domain\Repository\WebhookRepositoryInterface;
 use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\NullLogger;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Clock\MockClock;
+use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Symfony\Component\RateLimiter\Storage\InMemoryStorage;
 use Symfony\Component\Uid\Uuid;
@@ -275,6 +284,55 @@ final class AiExtractionServiceTest extends TestCase
         self::assertTrue($exhausted->defersMessage());
     }
 
+    public function testTheExhaustedBudgetIsAnnouncedOncePerPeriodAndNotPerEmail(): void
+    {
+        $this->spend(500);
+
+        $announcements = [];
+        $bus = $this->createMock(MessageBusInterface::class);
+        $bus->method('dispatch')->willReturnCallback(static function (object $message) use (&$announcements) {
+            $announcements[] = $message;
+
+            return new Envelope($message);
+        });
+
+        $webhooks = $this->createMock(WebhookRepositoryInterface::class);
+        $webhooks->method('findActiveSubscribers')->willReturnCallback(
+            fn (Uuid $organizationId, WebhookEvent $event): array => WebhookEvent::AI_BUDGET_EXHAUSTED === $event ? [$this->subscriber()] : [],
+        );
+
+        $notifier = new WebhookNotifier(
+            $webhooks,
+            $this->createMock(WebhookDeliveryRepositoryInterface::class),
+            $bus,
+            new Clock(new MockClock(new DateTimeImmutable(self::NOW))),
+            new NullLogger(),
+        );
+
+        $cache = new ArrayAdapter();
+        $service = $this->service(500, $this->provider, AiBudgetMode::HARD, $notifier, $cache);
+
+        // Tres correos con el presupuesto ya agotado: tres pasadas por el
+        // servicio, un solo aviso. Sin el freno serían tres y el suscriptor
+        // acabaría ignorándolos.
+        for ($i = 0; $i < 3; ++$i) {
+            $service->enrich($this->deterministicDocument(), 'Factura de Netflix 12,99 €', $this->header());
+        }
+
+        self::assertCount(1, $announcements);
+    }
+
+    private function subscriber(): Webhook
+    {
+        return new Webhook(
+            organizationId: $this->tenantContext->requireOrganizationId(),
+            name: 'ERP',
+            url: 'https://erp.example.com/hooks',
+            secretEncrypted: 'whsec_c2VjcmV0bw',
+            events: [WebhookEvent::AI_BUDGET_EXHAUSTED],
+        );
+    }
+
     /**
      * @param AiProviderInterface|null $provider `null` simula que no hay
      *                                           proveedor configurado
@@ -283,6 +341,8 @@ final class AiExtractionServiceTest extends TestCase
         int $budgetMinor,
         ?AiProviderInterface $provider = null,
         AiBudgetMode $mode = AiBudgetMode::SOFT,
+        ?WebhookNotifier $webhooks = null,
+        ?CacheItemPoolInterface $cache = null,
     ): AiExtractionService {
         $integrations = new InMemoryIntegrationRepository();
         $config = new IntegrationConfigReader(
@@ -347,6 +407,8 @@ final class AiExtractionServiceTest extends TestCase
             ),
             selector: new FakeAiProviderSelector($provider),
             logger: new NullLogger(),
+            webhooks: $webhooks,
+            cache: $cache,
         );
     }
 

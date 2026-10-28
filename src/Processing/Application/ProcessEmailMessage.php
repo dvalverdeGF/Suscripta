@@ -45,6 +45,8 @@ use App\Shared\Application\Audit\AuditLoggerInterface;
 use App\Shared\Application\Clock;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Enum\AuditAction;
+use App\Webhooks\Application\WebhookNotifier;
+use App\Webhooks\Domain\Enum\WebhookEvent;
 
 use function hash;
 use function implode;
@@ -112,6 +114,11 @@ final readonly class ProcessEmailMessage
         private AiExtractionInterface $aiExtraction,
         private ResolveMailboxKnowledge $knowledgeResolver,
         private LearnFromMessage $learnFromMessage,
+        /**
+         * Opcional para que las pruebas unitarias que no ejercitan webhooks no
+         * tengan que montar la cola. En la aplicación siempre llega inyectado.
+         */
+        private ?WebhookNotifier $webhooks = null,
     ) {
     }
 
@@ -503,6 +510,17 @@ final readonly class ProcessEmailMessage
             ],
             actorUserId: $actorUserId,
         );
+
+        $this->webhooks?->notify($message->getOrganizationId(), WebhookEvent::PROPOSAL_CREATED, [
+            'discoveryId' => $discovery->getId()->toRfc4122(),
+            'type' => $type->value,
+            'providerName' => $document->providerName,
+            'planName' => $document->plan,
+            'amountMinor' => $document->amountMinor,
+            'currency' => $document->currency,
+            'matchScore' => $match->score,
+            'confidence' => $discovery->getConfidenceScore(),
+        ]);
 
         return $discovery;
     }

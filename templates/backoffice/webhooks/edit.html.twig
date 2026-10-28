@@ -1,0 +1,162 @@
+{% extends 'backoffice/base.html.twig' %}
+
+{#
+    Ficha de un suscriptor.
+
+    ## El historial va debajo del formulario, no en otra pantalla
+
+    Cuando una entrega no llega, el operador viene aquí a mirar. Tener el
+    formulario arriba y el historial abajo, en la misma página, evita el
+    ida y vuelta entre «configurar» y «comprobar» que hace que la gente
+    abandone el diagnóstico a la mitad.
+
+    ## «Probar» es un POST
+
+    Manda una entrega de verdad, así que no puede ser un enlace: un `GET` lo
+    dispararía cualquier prefetch del navegador.
+#}
+{% block title %}{{ webhook.name }} — Webhooks — Suscripta{% endblock %}
+
+{% block breadcrumb %}
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{{ path('app_dashboard') }}">Panel</a></li>
+        <li class="breadcrumb-item"><a href="{{ path('app_webhooks_index') }}">Webhooks</a></li>
+        <li class="breadcrumb-item active">{{ webhook.name }}</li>
+    </ol>
+{% endblock %}
+
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">{{ webhook.name }}</h1>
+            <p class="bo-page-header__subtitle">
+                <code class="small text-break">{{ webhook.url }}</code>
+            </p>
+        </div>
+        <div class="bo-page-header__actions d-flex gap-2 flex-wrap">
+            <form method="post" action="{{ path('app_webhooks_test', { id: webhook.id }) }}" class="d-inline">
+                <input type="hidden" name="_token" value="{{ csrf_token('test_webhook') }}">
+                <button type="submit" class="btn btn-outline-primary">
+                    <i class="fa-solid fa-paper-plane me-1" aria-hidden="true"></i> Enviar prueba
+                </button>
+            </form>
+            <form method="post" action="{{ path('app_webhooks_reveal_secret', { id: webhook.id }) }}" class="d-inline">
+                <input type="hidden" name="_token" value="{{ csrf_token('reveal_webhook_secret') }}">
+                <button type="submit" class="btn btn-outline-secondary">
+                    <i class="fa-solid fa-eye me-1" aria-hidden="true"></i> Ver secreto
+                </button>
+            </form>
+        </div>
+    </div>
+
+    {% if not webhook.active %}
+        <div class="alert alert-warning" role="status">
+            <i class="fa-solid fa-pause me-1" aria-hidden="true"></i>
+            Este suscriptor está pausado: no se le encola nada nuevo y las
+            entregas pendientes se descartan al intentarlas.
+        </div>
+    {% endif %}
+
+    {{ form_start(form, { attr: { id: 'webhook-form', class: 'form', novalidate: 'novalidate' } }) }}
+        {{ form_errors(form) }}
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h2 class="card-title">Destino</h2>
+            </div>
+            <div class="card-body">
+                {{ form_row(form.name) }}
+                {{ form_row(form.url) }}
+                {{ form_row(form.active) }}
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h2 class="card-title">Qué se avisa</h2>
+            </div>
+            <div class="card-body">
+                {{ form_row(form.events) }}
+            </div>
+        </div>
+    {{ form_end(form) }}
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="card-title">Últimas entregas</h2>
+        </div>
+        {% if deliveries is empty %}
+            <div class="card-body">
+                <p class="text-muted mb-0">
+                    Todavía no se ha intentado ninguna entrega. Usa «Enviar prueba»
+                    para comprobar que el receptor valida la firma.
+                </p>
+            </div>
+        {% else %}
+            <div class="table-responsive">
+                <table class="table bo-table bo-table--stack align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Evento</th>
+                            <th>Estado</th>
+                            <th>Intentos</th>
+                            <th>Respuesta</th>
+                            <th>Creada</th>
+                            <th>Siguiente intento</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for delivery in deliveries %}
+                            <tr>
+                                <td data-label="Evento">
+                                    <code class="small">{{ delivery.event.value }}</code>
+                                </td>
+                                <td data-label="Estado">
+                                    {% if delivery.status.delivered %}
+                                        <span class="badge text-bg-success">Entregado</span>
+                                    {% elseif delivery.status.pending %}
+                                        <span class="badge text-bg-warning">Pendiente</span>
+                                    {% else %}
+                                        <span class="badge text-bg-secondary">Descartado</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Intentos">{{ delivery.attempts }}</td>
+                                <td data-label="Respuesta">
+                                    {% if delivery.responseStatus is not null %}
+                                        <span class="small">{{ delivery.responseStatus }}</span>
+                                    {% elseif delivery.lastError is not null %}
+                                        <span class="small text-danger text-break">{{ delivery.lastError }}</span>
+                                    {% else %}
+                                        <span class="text-muted small">—</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Creada">
+                                    <span class="small">{{ delivery.createdAt|date('d/m/Y H:i') }}</span>
+                                </td>
+                                <td data-label="Siguiente intento">
+                                    {% if delivery.status.pending %}
+                                        <span class="small">{{ delivery.nextAttemptAt|date('d/m/Y H:i') }}</span>
+                                    {% else %}
+                                        <span class="text-muted small">—</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block page_actions %}
+    {{ include('backoffice/_form_actions.html.twig', {
+        form_id: 'webhook-form',
+        submit_label: 'Guardar cambios',
+        back_path: path('app_webhooks_index'),
+        delete_path: path('app_webhooks_delete', { id: webhook.id }),
+        delete_token: csrf_token('delete_webhook'),
+        delete_message: 'Al borrar «' ~ webhook.name ~ '» se pierden también sus entregas y su secreto. Tu sistema dejará de recibir avisos de inmediato.',
+        delete_label: 'Borrar suscriptor',
+    }) }}
+{% endblock %}

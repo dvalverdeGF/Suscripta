@@ -12,11 +12,15 @@ use App\Ai\Domain\Enum\AiSkipReason;
 use App\Ai\Domain\ValueObject\ExtractionContext;
 use App\Mailbox\Application\Imap\ImapMessageHeader;
 use App\Processing\Domain\Dto\ExtractedDocument;
+use App\Webhooks\Application\WebhookNotifier;
+use App\Webhooks\Domain\Enum\WebhookEvent;
 
 use function implode;
 
+use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 
+use function sprintf;
 use function trim;
 
 /**
@@ -64,6 +68,8 @@ final readonly class AiExtractionService implements AiExtractionInterface
         private AiCallRateLimiter $rateLimiter,
         private AiProviderSelectorInterface $selector,
         private LoggerInterface $logger,
+        private ?WebhookNotifier $webhooks = null,
+        private ?CacheItemPoolInterface $cache = null,
     ) {
     }
 
@@ -85,6 +91,14 @@ final readonly class AiExtractionService implements AiExtractionInterface
             $this->logger->info('Se omite la extracción con IA: el plan no incluye IA.');
 
             return AiExtractionOutcome::skipped(AiSkipReason::NOT_IN_PLAN);
+        }
+
+        // Avisar de que el presupuesto se ha agotado es un evento, no un
+        // registro: se manda a los suscriptores. Va **antes** de la puerta de
+        // llamada porque en modo `SOFT` agotado se sigue llamando al modelo
+        // económico, y el aviso sigue siendo cierto.
+        if ($this->budget->isExhausted()) {
+            $this->notifyBudgetExhausted();
         }
 
         if (!$this->budget->allowsCall()) {
@@ -211,5 +225,61 @@ final readonly class AiExtractionService implements AiExtractionInterface
         }
 
         return $metadata;
+    }
+
+    /**
+     * Avisa de que el presupuesto de IA del periodo se ha agotado.
+     *
+     * ## Por qué una vez por periodo y no por correo
+     *
+     * Este servicio se ejecuta una vez por mensaje. Sin freno, un buzón con
+     * cien correos pendientes mandaría cien avisos idénticos el día que se
+     * agota el presupuesto, y el suscriptor acabaría ignorándolos todos. El
+     * aviso se marca en caché con la clave del periodo, así que se manda una
+     * vez al mes y como mucho.
+     *
+     * Solo se marca si se ha programado alguna entrega: si el aviso cae cuando
+     * la organización todavía no tenía suscriptores, el siguiente correo lo
+     * vuelve a intentar y quien se suscriba a mitad de mes se entera.
+     */
+    private function notifyBudgetExhausted(): void
+    {
+        if (null === $this->webhooks || null === $this->cache) {
+            return;
+        }
+
+        $organizationId = $this->budget->organizationId();
+
+        if (null === $organizationId) {
+            return;
+        }
+
+        $period = $this->budget->currentPeriod();
+        $key = sprintf('webhooks.ai_budget_exhausted.%s.%s', $organizationId->toRfc4122(), $this->budget->currentPeriodKey());
+        $item = $this->cache->getItem($key);
+
+        if ($item->isHit()) {
+            return;
+        }
+
+        $scheduled = $this->webhooks->notify($organizationId, WebhookEvent::AI_BUDGET_EXHAUSTED, [
+            'organizationId' => $organizationId->toRfc4122(),
+            'budgetMinor' => $this->budget->limitMinor(),
+            'spentMinor' => $this->budget->spentMinor(),
+            'periodStart' => $period->from->format('Y-m-d'),
+            'periodEnd' => $period->to?->format('Y-m-d'),
+        ]);
+
+        if ($scheduled < 1) {
+            return;
+        }
+
+        $item->set(true);
+
+        if (null !== $period->to) {
+            $item->expiresAt($period->to);
+        }
+
+        $this->cache->save($item);
     }
 }

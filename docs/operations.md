@@ -240,6 +240,37 @@ docker compose exec -T php php bin/console messenger:failed:show
 `messenger:failed:retry` reintenta los mensajes que fallaron de forma
 irrecuperable; conviene leer antes el error.
 
+### Webhooks de salida
+
+Los webhooks tienen su propia cola (`webhooks`) y su propia política de reintentos, así que no
+aparecen en `messenger:failed` como el resto: **un webhook fallido no es un mensaje fallido**, es
+una entrega que sigue viva en la tabla `webhook_delivery`. Se consulta así:
+
+```bash
+# Entregas pendientes, con sus intentos y el próximo que toca
+docker compose exec -T database psql -U app -d app -c "
+  SELECT status, count(*) FROM webhook_delivery GROUP BY status;"
+
+# Las que más están fallando en las últimas 24 h
+docker compose exec -T database psql -U app -d app -c "
+  SELECT w.url, d.event, count(*) AS fallos, max(d.last_error) AS ultimo
+  FROM webhook_delivery d JOIN webhook w ON w.id = d.webhook_id
+  WHERE d.status = 'PENDING' AND d.last_error IS NOT NULL
+    AND d.created_at > now() - interval '24 hours'
+  GROUP BY w.url, d.event ORDER BY fallos DESC;"
+```
+
+Dos cosas que hay que vigilar:
+
+1. **El worker tiene que consumir el transporte `webhooks`.** Si no está en la lista de
+   `messenger:consume`, las entregas se quedan en `PENDING` y nadie las envía. En desarrollo y en
+   producción el worker lo incluye; `make worker-webhooks` levanta uno dedicado.
+2. **El cron de mantenimiento tiene que estar puesto** (ver §8). Sin él, una entrega que venció
+   mientras el worker estaba parado no se reencola hasta el siguiente arranque.
+
+El detalle del contrato (firma, cabeceras, eventos) está en `docs/api/webhooks.md`; el diseño, en
+`ARCHITECTURE.md` §18.
+
 ---
 
 ## 6. Incidentes frecuentes
@@ -314,11 +345,34 @@ Procedimiento para una clave de proveedor:
 | Podar conocimiento sin uso | `app:knowledge:prune` | Mensual. |
 | Purgar datos por retención | `app:privacy:purge` | Mensual (política de retención en `SECURITY.md` §6). |
 | Liberar correos aplazados por presupuesto | `app:ai:release-deferred` | Al subir el presupuesto. |
+| Reencolar entregas de webhook vencidas | `app:webhooks:maintain` | **Cada 5 minutos** (ver abajo). |
 | Sembrar la demostración | `app:demo:seed` | Solo en desarrollo. |
 
 Las tareas que se ejecutan a diario y semanalmente se programan con el
 cron del servidor (o con un `cron` en el contenedor `php`). Todas son
 idempotentes: repetirlas no rompe nada.
+
+### Cron mínimo en producción
+
+`app:webhooks:maintain` es la única que **no** puede faltar: es lo que recupera las entregas que
+vencieron mientras el worker estaba parado o reiniciándose. Cada cinco minutos es suficiente y
+sobra (la granularidad de la política es de 30 segundos a 24 horas):
+
+```cron
+# /etc/cron.d/suscripta
+*/5 * * * *  app  cd /app && php bin/console app:webhooks:maintain --no-interaction >/dev/null 2>&1
+0   3 * * *  app  cd /app && php bin/console app:discoveries:expire --no-interaction
+30  3 * * *  app  cd /app && php bin/console app:alerts:generate --no-interaction
+0   4 * * 1  app  cd /app && php bin/console app:changes:detect --no-interaction
+0   5 * * 1  app  cd /app && php bin/console app:recurrence:detect --no-interaction
+0   4 1 * *  app  cd /app && php bin/console app:knowledge:prune --no-interaction
+0   5 1 * *  app  cd /app && php bin/console app:privacy:purge --no-interaction
+```
+
+Si el despliegue es en Docker, el `cron` va en el contenedor `php` o en el anfitrión con
+`docker compose exec -T php php bin/console …`. Lo importante es que se ejecute **una sola vez**
+por intervalo: dos crons en dos contenedores reencolarían lo mismo dos veces (el reencolado es
+idempotente por estado, pero genera ruido en los registros).
 
 ---
 
@@ -332,6 +386,8 @@ idempotentes: repetirlas no rompe nada.
 - [ ] Workers reiniciados.
 - [ ] `/health` responde `200`.
 - [ ] `/observability` sin fallos de sincronización ni de IA.
+- [ ] El worker consume `webhooks` (`docker compose exec -T php php bin/console messenger:stats`
+      muestra la cola) y `app:webhooks:maintain` está en el cron.
 - [ ] Un correo de prueba entra, se procesa y genera un aviso.
 
 ### Al cierre de cada mes

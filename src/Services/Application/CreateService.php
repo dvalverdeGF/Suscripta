@@ -14,6 +14,8 @@ use App\Shared\Application\Entitlements\QuotaCheckerInterface;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Enum\AuditAction;
 use App\Shared\Domain\Exception\InvalidArgumentException;
+use App\Webhooks\Application\WebhookNotifier;
+use App\Webhooks\Domain\Enum\WebhookEvent;
 use DateTimeImmutable;
 use Symfony\Component\Uid\Uuid;
 
@@ -26,6 +28,11 @@ use Symfony\Component\Uid\Uuid;
  * El plan se comprueba **antes** de hacer nada: si la organización ya tiene
  * los servicios que su plan permite, no tiene sentido crear el servicio y
  * avisar después (Fase 17).
+ *
+ * Al final anuncia `service.created` a los suscriptores de webhooks (Fase 20).
+ * El aviso va después de guardar y de auditar: si se anunciara antes, un
+ * suscriptor podría recibir el evento de un servicio que aún no existe para
+ * quien lo consulte por la API.
  */
 final readonly class CreateService
 {
@@ -34,6 +41,11 @@ final readonly class CreateService
         private TenantContext $tenantContext,
         private AuditLoggerInterface $auditLogger,
         private QuotaCheckerInterface $quotas,
+        /**
+         * Opcional para que las pruebas unitarias que no ejercitan webhooks no
+         * tengan que montar la cola. En la aplicación siempre llega inyectado.
+         */
+        private ?WebhookNotifier $webhooks = null,
     ) {
     }
 
@@ -96,6 +108,15 @@ final readonly class CreateService
             targetId: $service->getId()->toRfc4122(),
             metadata: ['name' => $service->getName(), 'source' => $service->getSource()->value],
         );
+
+        $this->webhooks?->notify($organizationId, WebhookEvent::SERVICE_CREATED, [
+            'serviceId' => $service->getId()->toRfc4122(),
+            'name' => $service->getName(),
+            'billingPeriod' => $service->getBillingPeriod()->value,
+            'currency' => $service->getCurrency()->value,
+            'source' => $service->getSource()->value,
+            'startedAt' => $service->getStartedAt()?->format('Y-m-d'),
+        ]);
 
         return $service;
     }

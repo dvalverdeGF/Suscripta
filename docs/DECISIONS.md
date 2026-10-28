@@ -2313,3 +2313,119 @@ misma fuente, y las escrituras necesitan las reglas, no un DTO.
 bindings en `config/services.yaml`. La API (`src/Api/`) **no declara repositorios propios**: solo
 consume interfaces de otros módulos, que es lo que mantiene la frontera del módulo (§17.2 de
 `ARCHITECTURE.md`).
+
+## D-73 — Una entrega de webhook se serializa una vez y se reintenta byte a byte
+
+**Contexto.** Una entrega falla y hay que reintentarla. La tentación es volver a construir el
+cuerpo en cada intento: total, los datos están en base de datos. Pero el receptor verifica una
+firma HMAC sobre el cuerpo, y dos serializaciones del mismo array no tienen por qué dar la misma
+cadena (orden de claves, escapado de acentos, formato de números). Con dos cadenas distintas hay
+dos firmas distintas, y la `Idempotency-Key` deja de servir para lo único que sirve: que el
+receptor reconozca el duplicado y lo descarte.
+
+**Decisión.** El cuerpo se serializa **una vez**, al crear la fila de entrega, y se guarda en
+`WebhookDelivery.payload`. El reintento reutiliza esa cadena tal cual. La firma se calcula sobre
+ella en cada intento —el timestamp sí es nuevo, para que la ventana de 300 s no expire durante la
+política de reintentos—, pero el cuerpo no cambia nunca.
+
+**Consecuencias.**
+
+1. **Idempotencia real.** Mismo `Idempotency-Key`, mismos bytes: el receptor puede deduplicar sin
+   comparar el contenido.
+2. **La fila crece.** Se guarda el JSON completo por entrega y por suscriptor. Es el precio de
+   poder reintentar sin reconstruir; se compensa con el borrado de las entregas al borrar el
+   suscriptor y con el abandono a los 7 días.
+3. **Un cambio en el sobre no afecta a lo ya encolado.** Un evento creado antes de añadir un campo
+   viaja sin él, aunque el código ya lo genere. Es correcto: lo que se firma es lo que se guardó.
+
+**Alternativas descartadas.**
+
+- *Reconstruir el cuerpo en cada intento.* Descartada por lo dicho: rompe la firma y la
+  idempotencia.
+- *Firmar solo un `id` y que el receptor consulte la API.* Descartada: obliga al receptor a tener
+  credenciales de la API y convierte cada webhook en dos peticiones.
+
+## D-74 — Los reintentos los decide `RetryPolicy`, no Messenger
+
+**Contexto.** Messenger reintenta los mensajes que lanzan. Un webhook fallido es un caso normal,
+no una excepción: el receptor puede estar caído veinte minutos. Si el handler lanzara, Messenger
+reintentaría con su propia política (3 intentos con espera corta por defecto) y el resultado sería
+una ráfaga de peticiones al receptor, sin relación con la política pensada para webhooks —que
+empieza a 30 segundos y termina en 24 horas.
+
+**Decisión.** El transporte `webhooks` va con `max_retries: 0`. `DeliverWebhook` **nunca lanza**:
+guarda el fallo en la fila y programa el siguiente intento según `RetryPolicy`. El comando
+`app:webhooks:maintain` reencola lo que venció mientras el worker estaba parado.
+
+**Consecuencias.**
+
+1. **Una sola política.** Ocho envíos: 30 s, 2 min, 10 min, 1 h, 6 h, 24 h, 24 h, y abandono.
+2. **El fallo es observable.** La fila dice cuántos intentos lleva, qué código devolvió el
+   receptor y cuál fue el último error. Un reintento de Messenger solo diría «falló».
+3. **Coste: hace falta un cron.** Si el worker está parado, las entregas vencidas esperan al
+   mantenimiento. Está documentado en `docs/operations.md`.
+
+**Alternativas descartadas.**
+
+- *Dejar que Messenger reintente y usar el `RetryStrategy` de Messenger.* Descartada: la política
+  quedaría en configuración de infraestructura, no en el dominio, y el estado de la entrega
+  (intentos, próximo intento, último error) no se podría enseñar en el panel.
+
+## D-75 — El secreto del webhook se guarda cifrado y se puede volver a ver; la clave de API no
+
+**Contexto.** Las claves de API se guardan como HMAC y no se pueden recuperar nunca (D-71): si se
+pierden, se revoca y se emite otra. Un secreto de webhook no puede funcionar así, porque Suscripta
+lo necesita **en claro en cada entrega** para calcular la firma. Guardarlo en claro sería el mismo
+error que guardar contraseñas.
+
+**Decisión.** El secreto se guarda **cifrado** con `CredentialCipherInterface` —el mismo cifrador
+de las credenciales de integraciones— y por tanto se puede descifrar. La pantalla de creación es la
+única que lo enseña por defecto; verlo después exige un `POST` explícito («Ver secreto») para que
+no quede en el historial del navegador ni en un registro de peticiones.
+
+**Consecuencias.**
+
+1. **Dos credenciales, dos modelos.** La clave de API es irreversible; el secreto de webhook es
+   recuperable. La diferencia se explica en el panel y en `docs/api/webhooks.md`.
+2. **La rotación es posible sin romper nada**: se puede añadir un secreto nuevo y aceptar los dos
+   durante una ventana. No está implementado; hoy se cambia el suscriptor.
+3. **El cifrado depende de `APP_SECRET`.** Perderlo no filtra los secretos, pero inutiliza las
+   entregas: habría que volver a darlos de alta.
+
+**Alternativas descartadas.**
+
+- *Guardar solo el HMAC y pedir el secreto al crear.* Descartada: no se puede firmar lo que no se
+  puede leer.
+- *Guardar el secreto en claro y confiar en el cifrado del disco.* Descartada: un `pg_dump` o una
+  copia de seguridad lo expondrían.
+
+## D-76 — El aviso de presupuesto de IA se manda una vez por periodo, no por correo
+
+**Contexto.** `AiExtractionService` se ejecuta una vez por mensaje. El aviso de «presupuesto
+agotado» es útil una vez y ruido a partir de la segunda: un buzón con cien correos pendientes
+mandaría cien webhooks idénticos el mismo día, y el receptor acabaría filtrándolos, con lo que el
+aviso dejaría de existir el día que importa.
+
+**Decisión.** El aviso se emite desde `AiExtractionService` cuando `isExhausted()` es cierto —antes
+de la puerta de llamada, porque en modo `SOFT` agotado se sigue llamando al modelo económico y el
+aviso sigue siendo cierto—, y se marca en `cache.app` con una clave que incluye la organización y
+el periodo (`currentPeriodKey()`). La marca caduca al terminar el periodo. Solo se marca si se ha
+programado **alguna** entrega: si el aviso cae cuando no había suscriptores, el siguiente correo lo
+vuelve a intentar y quien se suscriba a mitad de mes se entera.
+
+**Consecuencias.**
+
+1. **Como mucho un aviso al mes por organización**, con independencia del volumen de correo.
+2. **La caché es una optimización, no una verdad.** Un `cache:clear` puede provocar un aviso
+   repetido. Es aceptable: el evento es informativo y el receptor ya deduplica por
+   `Idempotency-Key`… salvo que un aviso repetido es una entrega nueva con su propia clave. Se
+   acepta el ruido residual a cambio de no añadir una columna y una migración al presupuesto.
+3. **Si la organización no tiene suscriptores para ese evento, no se marca nada.** Es lo que hace
+   que suscribirse a mitad de periodo funcione.
+
+**Alternativas descartadas.**
+
+- *Una columna `budget_notified_period` en `AiBudget`.* Descartada por ahora: una migración y un
+  campo de estado para un aviso informativo. Si el ruido llega a molestar, es el sitio donde
+  ponerlo.
+- *No emitir el evento.* Descartada: es el aviso más útil para un integrador que controla su gasto.

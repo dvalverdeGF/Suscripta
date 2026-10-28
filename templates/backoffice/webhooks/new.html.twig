@@ -1,0 +1,62 @@
+{% extends 'backoffice/base.html.twig' %}
+
+{#
+    Alta de un suscriptor.
+
+    El secreto **no** se pide aquí: lo genera Suscripta. Si lo eligiera el
+    operador acabaría siendo «1234» o el mismo de otro servicio, y la firma
+    dejaría de proteger nada. Se enseña en la pantalla siguiente.
+#}
+{% block title %}Nuevo webhook — Suscripta{% endblock %}
+
+{% block breadcrumb %}
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{{ path('app_dashboard') }}">Panel</a></li>
+        <li class="breadcrumb-item"><a href="{{ path('app_webhooks_index') }}">Webhooks</a></li>
+        <li class="breadcrumb-item active">Nuevo</li>
+    </ol>
+{% endblock %}
+
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">Nuevo suscriptor</h1>
+            <p class="bo-page-header__subtitle">
+                Una URL que recibirá un POST por cada evento marcado.
+            </p>
+        </div>
+    </div>
+
+    {{ form_start(form, { attr: { id: 'webhook-form', class: 'form', novalidate: 'novalidate' } }) }}
+        {{ form_errors(form) }}
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h2 class="card-title">Destino</h2>
+            </div>
+            <div class="card-body">
+                {{ form_row(form.name) }}
+                {{ form_row(form.url) }}
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h2 class="card-title">Qué se avisa</h2>
+            </div>
+            <div class="card-body">
+                {{ form_row(form.events) }}
+                {{ form_row(form.active) }}
+            </div>
+        </div>
+    {{ form_end(form) }}
+{% endblock %}
+
+{% block page_actions %}
+    {{ include('backoffice/_form_actions.html.twig', {
+        form_id: 'webhook-form',
+        submit_label: 'Crear suscriptor',
+        submit_icon: 'fa-satellite-dish',
+        back_path: path('app_webhooks_index'),
+    }) }}
+{% endblock %}

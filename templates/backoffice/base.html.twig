@@ -184,6 +184,20 @@
                 </a>
             </li>
 
+            {#
+                Los webhooks son la salida: el mismo sitio que las claves de
+                API, porque los dos son "como sale Suscripta hacia otros
+                sistemas". Se ponen justo detras de las claves para que el
+                operador que viene a integrar vea las dos opciones juntas y no
+                se quede con la que encontro primero.
+            #}
+            <li class="bo-menu__item {{ app.request.attributes.get('_route') starts with 'app_webhooks' ? 'bo-menu__item--active' : '' }}">
+                <a href="{{ path('app_webhooks_index') }}" class="bo-menu__link">
+                    <i class="fa-solid fa-satellite-dish bo-menu__icon"></i>
+                    <span>Webhooks</span>
+                </a>
+            </li>
+
             <li class="bo-menu__item {{ app.request.attributes.get('_route') starts with 'app_ai' ? 'bo-menu__item--active' : '' }}">
                 <a href="{{ path('app_ai_settings') }}" class="bo-menu__link">
                     <i class="fa-solid fa-robot bo-menu__icon"></i>

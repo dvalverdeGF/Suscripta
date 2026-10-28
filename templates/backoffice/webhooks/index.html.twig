@@ -1,0 +1,117 @@
+{% extends 'backoffice/base.html.twig' %}
+
+{#
+    Listado de suscriptores de webhooks.
+
+    Cada fila responde a la pregunta que se hace el operador cuando algo no
+    llega: «¿esto está activo, a qué está suscrito y tiene algo atascado?».
+    Por eso el estado y el número de entregas pendientes van en la misma
+    línea que la URL.
+#}
+{% block title %}Webhooks — Suscripta{% endblock %}
+
+{% block breadcrumb %}
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{{ path('app_dashboard') }}">Panel</a></li>
+        <li class="breadcrumb-item active">Webhooks</li>
+    </ol>
+{% endblock %}
+
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">Webhooks</h1>
+            <p class="bo-page-header__subtitle">
+                Avisos firmados a tus sistemas cuando pasa algo en Suscripta.
+            </p>
+        </div>
+        <div class="bo-page-header__actions">
+            <a class="btn btn-primary" href="{{ path('app_webhooks_new') }}">
+                <i class="fa-solid fa-plus me-1" aria-hidden="true"></i> Añadir suscriptor
+            </a>
+        </div>
+    </div>
+
+    <div class="alert alert-info d-flex align-items-start" role="status">
+        <i class="fa-solid fa-shield-halved mt-1 me-2"></i>
+        <div>
+            <strong>Cada entrega va firmada con el secreto de su suscriptor.</strong>
+            <div class="small">
+                La cabecera <code>X-Suscripta-Signature</code> lleva <code>t=&lt;marca de tiempo&gt;,v1=&lt;hmac&gt;</code>
+                calculado sobre <code>t.cuerpo</code>. Comprueba siempre la firma en tiempo constante
+                y rechaza entregas de más de cinco minutos.
+            </div>
+        </div>
+    </div>
+
+    {% if rows is empty %}
+        <div class="bo-list">
+            <div class="text-center py-5">
+                <i class="fa-solid fa-satellite-dish fs-1 text-muted mb-3" aria-hidden="true"></i>
+                <p class="mb-1 fw-semibold">Todavía no hay ningún suscriptor.</p>
+                <p class="text-muted mb-3">
+                    Añade uno para que tu ERP, tu herramienta de contabilidad o tu
+                    panel de costes se entere de los cobros y las propuestas sin
+                    tener que preguntar.
+                </p>
+                <a class="btn btn-outline-primary" href="{{ path('app_webhooks_new') }}">
+                    <i class="fa-solid fa-plus me-1" aria-hidden="true"></i> Añadir el primero
+                </a>
+            </div>
+        </div>
+    {% else %}
+        <div class="bo-list">
+            <div class="table-responsive">
+                <table class="table bo-table bo-table--stack align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Suscriptor</th>
+                            <th>Eventos</th>
+                            <th>Estado</th>
+                            <th>Última entrega</th>
+                            <th class="text-end">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in rows %}
+                            {% set webhook = row.webhook %}
+                            <tr>
+                                <td data-label="Suscriptor">
+                                    <span class="fw-semibold">{{ webhook.name }}</span>
+                                    <div><code class="small text-muted text-break">{{ webhook.url }}</code></div>
+                                </td>
+                                <td data-label="Eventos">
+                                    {% for event in webhook.events %}
+                                        <span class="badge text-bg-light border">{{ event.value }}</span>
+                                    {% endfor %}
+                                </td>
+                                <td data-label="Estado">
+                                    {% if not webhook.active %}
+                                        <span class="badge text-bg-secondary">Pausado</span>
+                                    {% elseif row.pending > 0 %}
+                                        <span class="badge text-bg-warning">{{ row.pending }} pendientes</span>
+                                    {% else %}
+                                        <span class="badge text-bg-success">Al día</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Última entrega">
+                                    {% if webhook.lastDeliveryAt is not null %}
+                                        <span class="small">{{ webhook.lastDeliveryAt|date('d/m/Y H:i') }}</span>
+                                    {% else %}
+                                        <span class="text-muted small">Nunca</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end" data-label="Acciones">
+                                    <a class="btn btn-sm btn-outline-primary"
+                                       href="{{ path('app_webhooks_edit', { id: webhook.id }) }}">
+                                        <i class="fa-solid fa-pen me-1" aria-hidden="true"></i> Abrir
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}

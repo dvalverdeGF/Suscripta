@@ -1,0 +1,83 @@
+{% extends 'backoffice/base.html.twig' %}
+
+{#
+    El secreto de firma.
+
+    A diferencia de una clave de API, este secreto **sí** se puede volver a
+    ver: se guarda cifrado porque hay que leerlo para firmar cada entrega. Aun
+    así, esta pantalla es la única que lo enseña sin pedir nada, y por eso el
+    aviso de «cópialo» sigue siendo necesario: el operador no debería
+    acostumbrarse a volver aquí cada vez que lo necesita.
+#}
+{% block title %}Secreto del webhook — Suscripta{% endblock %}
+
+{% block breadcrumb %}
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{{ path('app_dashboard') }}">Panel</a></li>
+        <li class="breadcrumb-item"><a href="{{ path('app_webhooks_index') }}">Webhooks</a></li>
+        <li class="breadcrumb-item active">Secreto</li>
+    </ol>
+{% endblock %}
+
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">Secreto de firma</h1>
+            <p class="bo-page-header__subtitle">
+                «{{ name }}» ya está dado de alta. Este es el secreto con el que
+                tiene que validar las entregas.
+            </p>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="card-title">Guárdalo en tu sistema</h2>
+        </div>
+        <div class="card-body">
+            <div class="input-group mb-3">
+                <input type="text"
+                       class="form-control font-monospace"
+                       id="webhook-secret"
+                       value="{{ secret }}"
+                       readonly
+                       aria-label="Secreto de firma">
+                <button class="btn btn-outline-secondary" type="button"
+                        data-controller="copy"
+                        data-copy-target-value="#webhook-secret"
+                        data-action="copy#copy">
+                    <span data-copy-label><i class="fa-solid fa-copy me-1" aria-hidden="true"></i> Copiar</span>
+                </button>
+            </div>
+
+            <p class="form-text mb-0">
+                Puedes volver a verlo desde la ficha del suscriptor, pero trátalo
+                como una contraseña: quien lo tenga puede falsificar entregas.
+            </p>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="card-title">Cómo se verifica</h2>
+        </div>
+        <div class="card-body">
+            <p class="small text-muted mb-2">
+                La cabecera <code>X-Suscripta-Signature</code> trae
+                <code>t=&lt;marca de tiempo&gt;,v1=&lt;hmac&gt;</code>. El HMAC es
+                SHA-256 sobre la cadena <code>t.cuerpo</code>:
+            </p>
+            <pre class="small bg-light p-3 rounded mb-3"><code>payload = f"{t}.{body}"
+expected = hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
+assert hmac.compare_digest(expected, v1)</code></pre>
+            <p class="small text-muted mb-0">
+                Compara en tiempo constante y rechaza si <code>t</code> se aleja
+                más de cinco minutos de tu reloj.
+            </p>
+        </div>
+    </div>
+
+    <a class="btn btn-primary" href="{{ path('app_webhooks_edit', { id: id }) }}">
+        <i class="fa-solid fa-sliders me-1" aria-hidden="true"></i> Abrir el suscriptor
+    </a>
+{% endblock %}

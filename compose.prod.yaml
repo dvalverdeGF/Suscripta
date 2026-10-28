@@ -26,7 +26,7 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
-    command: ["php", "bin/console", "messenger:consume", "async", "--time-limit=3600", "--memory-limit=256M"]
+    command: ["php", "bin/console", "messenger:consume", "mail_sync", "mail_processing", "ocr", "ai", "notifications", "webhooks", "async", "--time-limit=3600", "--memory-limit=256M"]
     environment:
       APP_SECRET: ${APP_SECRET}
       MESSENGER_TRANSPORT_DSN: doctrine://default?auto_setup=0

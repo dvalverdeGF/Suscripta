@@ -19,6 +19,8 @@ use App\Shared\Application\Clock;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Enum\AuditAction;
 use App\Shared\Domain\Exception\InvalidArgumentException;
+use App\Webhooks\Application\WebhookNotifier;
+use App\Webhooks\Domain\Enum\WebhookEvent;
 
 use function is_scalar;
 use function sprintf;
@@ -41,6 +43,11 @@ use Symfony\Component\Uid\Uuid;
  * En ambos casos se guarda lo que el usuario ha confirmado, no lo que el
  * sistema había propuesto: la propuesta original se conserva en
  * `Discovery.proposedData` para poder medir la precisión del pipeline.
+ *
+ * Al final anuncia `proposal.confirmed` (Fase 20). El evento dice **qué** se ha
+ * confirmado y **en qué servicio** ha acabado, que es lo que un integrador no
+ * puede deducir por su cuenta: la propuesta desaparece de la bandeja al
+ * confirmarse.
  */
 final readonly class ConfirmDiscovery
 {
@@ -53,6 +60,11 @@ final readonly class ConfirmDiscovery
         private Clock $clock,
         private LearnFromConfirmation $learnFromConfirmation,
         private ClearSourceExcerpt $clearSourceExcerpt,
+        /**
+         * Opcional para que las pruebas unitarias que no ejercitan webhooks no
+         * tengan que montar la cola. En la aplicación siempre llega inyectado.
+         */
+        private ?WebhookNotifier $webhooks = null,
     ) {
     }
 
@@ -95,6 +107,14 @@ final readonly class ConfirmDiscovery
             ],
             actorUserId: $actorUserId,
         );
+
+        $this->webhooks?->notify($discovery->getOrganizationId(), WebhookEvent::PROPOSAL_CONFIRMED, [
+            'discoveryId' => $discovery->getId()->toRfc4122(),
+            'type' => $discovery->getType()->value,
+            'serviceId' => $service->getId()->toRfc4122(),
+            'serviceName' => $service->getName(),
+            'matchedExistingService' => null !== $discovery->getMatchedServiceId(),
+        ]);
 
         return $service;
     }
@@ -143,6 +163,20 @@ final readonly class ConfirmDiscovery
             if ($changed) {
                 $service->recordEvent(ServiceEventType::PRICE_CHANGED, $actorUserId, [
                     'amount' => $input->amount->format(),
+                    'source' => ServiceSource::EMAIL_DISCOVERY->value,
+                ]);
+
+                // `charge.detected` se anuncia **aquí** y no al final del caso
+                // de uso: es el único punto donde se sabe que el precio ha
+                // cambiado de verdad. Un importe igual al vigente no es un
+                // cobro nuevo, y anunciarlo obligaría al integrador a
+                // deduplicar lo que Suscripta ya sabe.
+                $this->webhooks?->notify($service->getOrganizationId(), WebhookEvent::CHARGE_DETECTED, [
+                    'serviceId' => $service->getId()->toRfc4122(),
+                    'serviceName' => $service->getName(),
+                    'amountMinor' => $input->amount->amountMinor,
+                    'currency' => $input->amount->currency->value,
+                    'billingPeriod' => $service->getBillingPeriod()->value,
                     'source' => ServiceSource::EMAIL_DISCOVERY->value,
                 ]);
             }

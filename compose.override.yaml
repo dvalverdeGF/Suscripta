@@ -60,7 +60,7 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
-    command: ["php", "bin/console", "messenger:consume", "mail_sync", "mail_processing", "ocr", "ai", "notifications", "async", "--time-limit=3600", "--memory-limit=256M", "-vv"]
+    command: ["php", "bin/console", "messenger:consume", "mail_sync", "mail_processing", "ocr", "ai", "notifications", "webhooks", "async", "--time-limit=3600", "--memory-limit=256M", "-vv"]
     volumes:
       - ./:/app
       - /app/var

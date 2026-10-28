@@ -1,8 +1,9 @@
 # Roadmap
 
-> Estado: **fases 0 a 19 cerradas** (1 420 tests, PHPStan nivel 8 limpio). No queda ninguna fase
-> comprometida; la fase 20 es una idea documentada, no un compromiso. Fases pequeñas y
-> verificables: cada fase termina con algo demostrable y con criterios de aceptación explícitos.
+> Estado: **fases 0 a 20 cerradas** (1 450 tests, PHPStan nivel 8 limpio). Las fases 21 a 25
+> están planificadas y decididas con el usuario, sin empezar; la deuda técnica conocida está
+> listada al final. Fases pequeñas y verificables: cada fase termina con algo demostrable y con
+> criterios de aceptación explícitos.
 
 ## Criterios de ordenación
 
@@ -44,8 +45,8 @@ en su apartado correspondiente.
 | Documento | Para qué |
 |---|---|
 | [`PRODUCT.md`](PRODUCT.md) | Qué es el producto, para quién y qué problema resuelve. |
-| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Cómo está construido, módulo por módulo. §17 = la API. |
-| [`DECISIONS.md`](DECISIONS.md) | Por qué se hizo así. D-71 y D-72 = la API. |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Cómo está construido, módulo por módulo. §17 = la API, §18 = los webhooks. |
+| [`DECISIONS.md`](DECISIONS.md) | Por qué se hizo así. D-71 y D-72 = la API; D-73 a D-76 = los webhooks. |
 | [`ROADMAP.md`](ROADMAP.md) | Este documento: qué está hecho y qué falta. |
 | [`SECURITY.md`](SECURITY.md) | Modelo de amenazas y medidas. |
 | [`operations.md`](operations.md) | Runbook del día a día: desplegar, copiar, restaurar, vigilar. |
@@ -55,6 +56,7 @@ en su apartado correspondiente.
 | [`api/README.md`](api/README.md) | **Guía de integración de la API**, de cero a la primera llamada. |
 | [`api/errors.md`](api/errors.md) | Catálogo de errores: cada código, cuándo y qué hacer. |
 | [`api/versioning.md`](api/versioning.md) | Qué es la versión estable y qué garantiza. |
+| [`api/webhooks.md`](api/webhooks.md) | **Webhooks de salida**: contrato, firma, reintentos e idempotencia. |
 | [`api/deprecation.md`](api/deprecation.md) | Política de deprecación. |
 | [`LEARNING.md`](LEARNING.md) | Lo aprendido en cada fase, para no repetir errores. |
 | [`agents.md`](agents.md) | Cómo trabajan los agentes de IA en este proyecto. |
@@ -85,19 +87,25 @@ en su apartado correspondiente.
 | 17 | Preparación SaaS | ✅ Completada | `9504ff6` | 1385 tests, planes, cuotas, onboarding, backups |
 | 18 | API pública | ✅ Completada | `d840174` + `ffa7127` | 15 casos E2E y **35 tests** de API en verde; 6 defectos corregidos |
 | 19 | Cierre de documentación y publicación | ✅ Completada | `5821de0` | README de producto, CHANGELOG por fase, guía de despliegue, 1 420 tests |
-| 20 | Webhooks de salida | ⬜ **No planificada** | — | Diseño propio: reintentos, firma, idempotencia |
+| 20 | Webhooks de salida | ✅ Completada | (ver cierre) | 29 tests nuevos; firma HMAC, 8 envíos, panel con prueba |
+| 21 | `Subscription` como entidad propia | ⬜ Planificada | — | Servicios y suscripciones como listas distintas |
+| 22 | Catálogo comercial en el backoffice | ⬜ Planificada | — | Un plan con dos precios publicado sin desplegar |
+| 23 | Web corporativa (11 páginas) | ⬜ Planificada | — | `/` pública sin sesión, precios desde el catálogo |
+| 24 | Checkout con Stripe | ⬜ Planificada | — | Alta, cobro en modo test, webhook y estado reflejado |
+| 25 | CSRF unificado con el gestor de sesión | ⬜ Planificada | — | Ningún `POST` con token sin estado |
 
-**Lectura rápida de la tabla:** las fases 0 a 19 están **cerradas, commiteadas y verificadas**.
+**Lectura rápida de la tabla:** las fases 0 a 20 están **cerradas, commiteadas y verificadas**.
 La fase 18 se cerró corrigiendo los seis defectos que aparecieron al verificarla —dos de
 comportamiento en la API, uno de arranque en el entorno, uno de contrato y dos que impedían
 usar el panel de claves—, todos con test. La fase 19 cerró la documentación de entrega: el
 README de producto, el CHANGELOG por fase y la guía del primer despliegue.
 
-**No queda ninguna fase comprometida por hacer.** La fase 20 (webhooks de salida) es una idea
-documentada, no un compromiso, y no bloquea nada: la API paginada ya permite integrarse sin
-ella. Lo único diferido conscientemente de la fase 19 son las **capturas de pantalla** del
-README: no se ha añadido ningún binario al repositorio y se prefiere que envejezcan mal fuera
-de él antes que versionar imágenes que se quedan obsoletas a la primera fase.
+La fase 20 cerró los webhooks de salida, que eran lo único que la fase 19 había dejado como
+«idea documentada». **Quedan cinco fases planificadas** (21 a 25) y están todas decididas con el
+usuario: no hay ninguna pregunta abierta que bloquee el trabajo, solo trabajo. Lo único diferido
+conscientemente de la fase 19 son las **capturas de pantalla** del README: no se ha añadido
+ningún binario al repositorio y se prefiere que envejezcan mal fuera de él antes que versionar
+imágenes que se quedan obsoletas a la primera fase.
 
 ## Fase 0 — Base del proyecto
 
@@ -2011,17 +2019,221 @@ aplicación, autenticarse contra la API y entender cada respuesta sin leer el c�
 ahora el único documento que hace falta leer para empezar, y no contiene ninguna afirmación que
 el repositorio no respalde.
 
-## Fase 20 — Webhooks de salida (no planificada)
+## Fase 20 — Webhooks de salida
 
-> **Estado:** ⬜ **No planificada.** Es una idea, no un compromiso. Se documenta aquí para que
-> no se pierda, y para que nadie la busque en el código.
+> **Estado:** ✅ **Completada.**
 
-Si algún día se implementa, el diseño mínimo es: una tabla de entregas (evento, suscriptor,
-intentos, estado, próximo reintento), firma HMAC-SHA-256 del cuerpo con una clave distinta por
-suscriptor, reintentos exponenciales con tope, `Idempotency-Key` en la entrega, y una política
-de «se descarta tras 7 días sin éxito». Los eventos candidatos son los que ya tienen marca de
-tiempo y estado: cobro detectado, propuesta creada, propuesta confirmada, presupuesto de IA
-agotado. La API actual no necesita cambios para que esto sea posible.
+**Objetivo:** que un integrador no tenga que preguntar cada minuto si ha pasado algo. La API se
+consulta; un webhook avisa. Es la diferencia entre gastar cuota y latencia en descubrir un hecho
+y recibirlo resuelto y firmado.
+
+**Lo que había antes de esta fase.** Un apartado en este mismo documento diciendo que los
+webhooks eran «una idea, no un compromiso», y una pregunta abierta con la misma respuesta. La
+API paginada cubría el caso de uso, así que nada se rompía por no tenerlos; lo que no había era
+forma de reaccionar a un cobro sin sondear.
+
+### Entregado
+
+| Pieza | Fichero | Qué hace |
+|---|---|---|
+| Suscriptor | `src/Webhooks/Domain/Entity/Webhook.php` | Nombre, URL, secreto cifrado, eventos suscritos, activo/pausado, última entrega. `isSubscribedTo()` decide a quién le toca. |
+| Entrega | `src/Webhooks/Domain/Entity/WebhookDelivery.php` | Una fila por suscriptor y evento: cuerpo ya serializado, estado (`PENDING`/`DELIVERED`/`ABANDONED`), intentos, próximo intento, código de respuesta, último error y `Idempotency-Key` único. |
+| Firma | `src/Webhooks/Domain/Service/WebhookSigner.php` | HMAC-SHA-256 de `"{timestamp}.{cuerpo}"`, cabecera `X-Suscripta-Signature: t=…,v1=…`, verificación en tiempo constante y tolerancia de 300 s. |
+| Reintentos | `src/Webhooks/Domain/Service/RetryPolicy.php` | Ocho envíos: 30 s, 2 min, 10 min, 1 h, 6 h, 24 h y 24 h. Después, abandono. |
+| Notificador | `src/Webhooks/Application/WebhookNotifier.php` | Crea una entrega por suscriptor activo y encola un mensaje. **Nunca lanza**: un webhook es una notificación, no una transacción. |
+| Entrega | `src/Webhooks/Application/DeliverWebhook.php` | Un intento: entra en la organización con `runAs()`, firma, hace el `POST` con timeout de 10 s y 20 s de duración máxima, y guarda el resultado. |
+| Cola | `src/Webhooks/Application/Message/DeliverWebhookHandler.php` | `#[AsMessageHandler]` sobre el transporte `webhooks`. |
+| Mantenimiento | `src/Webhooks/UI/Command/MaintainWebhookDeliveriesCommand.php` | `app:webhooks:maintain`: reencola lo vencido y abandona lo caducado (más de 7 días pendiente). |
+| Panel | `src/Webhooks/UI/Controller/WebhookController.php` + 4 plantillas | Listado, alta, secreto una sola vez, ficha con historial, revelar secreto, enviar prueba y borrar. |
+| Migración | `migrations/Version20261028215037.php` | Tablas `webhook` y `webhook_delivery` con sus índices. |
+
+### Eventos emitidos
+
+| Evento | Dónde se emite |
+|---|---|
+| `service.created` | `CreateService` |
+| `proposal.created` | `ProcessEmailMessage`, solo cuando la propuesta es nueva (el camino de deduplicación no anuncia nada) |
+| `proposal.confirmed` | `ConfirmDiscovery` |
+| `charge.detected` | `ConfirmDiscovery::applyToExisting()`, solo cuando el importe cambia de verdad |
+| `ai.budget_exhausted` | `AiExtractionService`, **una vez por periodo** (ver abajo) |
+
+### Las tres decisiones que costaron pensar
+
+1. **Se llama a mano, no hay bus de eventos.** Introducir un bus para cuatro eventos obligaba a
+   reescribir los casos de uso existentes. Cada caso de uso llama a `notify()` al final, con los
+   datos que ya tiene. Es explícito y se ve en el diff; el precio es que hay que acordarse, y por
+   eso cada llamada tiene su test. El parámetro es **opcional** (`?WebhookNotifier $webhooks =
+   null`) para no romper la construcción manual de los casos de uso en los tests.
+2. **El reintento manda los mismos bytes.** El cuerpo se serializa una vez y se guarda en la fila
+   de entrega. Reintentar reutiliza esa cadena, así que la firma cubre exactamente lo que el
+   receptor recibió la primera vez y `Idempotency-Key` no cambia. Serializar de nuevo en cada
+   intento habría dado firmas distintas para el mismo evento, que es justo lo que la idempotencia
+   existe para evitar.
+3. **`max_retries: 0` en el transporte.** La política de reintentos vive en `RetryPolicy`. Si
+   Messenger también reintentara, habría dos sistemas decidiendo a la vez y el receptor recibiría
+   ráfagas que nadie ha diseñado.
+
+Y una cuarta, que apareció al escribir el aviso de presupuesto: **`ai.budget_exhausted` se emite
+una vez por periodo, no por correo**. `AiExtractionService` se ejecuta una vez por mensaje; sin
+freno, un buzón con cien correos pendientes mandaría cien avisos idénticos el día que se agota el
+presupuesto. El aviso se marca en `cache.app` con la clave del periodo y solo se marca si se ha
+programado alguna entrega, para que quien se suscriba a mitad de mes se entere igualmente.
+
+Las cuatro están registradas como **D-73** (el cuerpo se serializa una vez), **D-74**
+(`RetryPolicy` manda sobre Messenger), **D-75** (el secreto del webhook se cifra y es recuperable,
+a diferencia de la clave de API) y **D-76** (el aviso de presupuesto, una vez por periodo).
+
+### Defectos encontrados y corregidos al verificar
+
+| # | Defecto | Síntoma | Causa raíz | Arreglo |
+|---|---|---|---|---|
+| 1 | El número de intentos no cuadraba con los envíos | Un test de la política esperaba abandono y obtenía «pendiente»; el recuento de intentos se quedaba en 7 tras 8 envíos | `abandon()` no incrementaba `attempts`, y `maxAttempts()` se leía como «envíos» cuando contaba **reintentos** | `abandon()` cuenta el intento que lo provoca; el método pasa a llamarse `maxRetries()` y se añade `maxDeliveries()` = reintentos + 1 |
+| 2 | El test de cabeceras no encontraba `Idempotency-Key` | `Undefined array key` | `MockHttpClient` entrega las cabeceras como **lista de cadenas** `"Nombre: valor"`, no como mapa | Helper `headersOf()` que las vuelve a partir; el test comprueba el contrato real |
+| 3 | El test funcional del panel usaba `https://127.0.0.1:1` | `422`: el formulario rechaza la URL | `Assert\Url(requireTld: true)` rechaza direcciones IP, y con razón: un webhook apunta a un dominio público | El test usa `https://host.docker.internal:1`, que resuelve dentro del contenedor y falla al instante |
+
+### Lo que se decidió no hacer
+
+- **Guarda anti-SSRF.** Un suscriptor puede apuntar a `https://10.0.0.5/…`. La URL la elige un
+  administrador de la organización, así que no es un agujero abierto a cualquiera, pero tampoco
+  está cerrado. Es el trabajo pendiente más importante de la fase y está en las preguntas
+  abiertas.
+- **Entrega «exactamente una vez».** No existe sin coordinación con el receptor. Se ofrece «al
+  menos una vez» con `Idempotency-Key` y se documenta cómo deduplicar.
+- **Challenge de verificación de endpoint al dar de alta.** El botón «Enviar prueba» cumple esa
+  función sin añadir un estado intermedio al suscriptor.
+- **Webhooks de entrada.** Stripe (fase 24) tendrá su propia ruta de recepción, con su propia
+  firma; no tiene nada que ver con esto.
+
+### Verificación de cierre
+
+| Comprobación | Resultado |
+|---|---|
+| Suite completa | **1 450 tests**, 5 850 aserciones, en verde |
+| Tests nuevos | 6 del firmante, 4 de la política, 7 de la entrega, 11 del panel, 1 del aviso de presupuesto |
+| PHPStan nivel 8 | Sin errores |
+| `php-cs-fixer --dry-run` | Sin cambios pendientes |
+| `lint:container` | Sin errores |
+| `doctrine:schema:validate` | Mapeo y esquema sincronizados |
+| Migración | Aplicada en `dev` y en `test` (20 migraciones) |
+| `debug:router` | Las 7 rutas del panel registradas |
+
+**Verificación de la fase:** un suscriptor se da de alta en el backoffice, recibe su secreto una
+vez, pulsa «Enviar prueba» y ve el código de respuesta de su endpoint; a partir de ahí, crear un
+servicio o confirmar una propuesta le llega firmado, con `Idempotency-Key`, y se reintenta solo
+durante algo menos de dos días antes de abandonarse.
+
+## Fase 21 — `Subscription` como entidad propia (planificada)
+
+> **Estado:** ⬜ **Planificada.** Decidida con el usuario; no empezada.
+
+**Objetivo:** separar «servicio contratado» de «suscripción» sin romper lo que ya funciona.
+
+**Por qué ahora.** `Service` es hoy el término único del dominio (D-22 lo decidió así a
+propósito). El catálogo comercial de la fase 22 y el cobro de la fase 24 necesitan distinguir el
+**producto** que se vende de la **suscripción** que un cliente tiene a ese producto: un plan puede
+cambiar de precio sin tocar las suscripciones vivas, y una suscripción tiene estado propio
+(activa, impagada, cancelada) que no es el estado de un servicio detectado en el correo.
+
+**Alcance.**
+
+- Entidad `Subscription` con `organizationId`, `planId`, estado, periodo, fechas de alta y baja.
+- Relación con `Service` **opcional y explícita**: un servicio detectado en una factura no es una
+  suscripción del catálogo, y confundirlos es el error que esta fase evita.
+- Migración con relleno de datos: los servicios con `source = MANUAL` que correspondan a un plan
+  del catálogo se enlazan; el resto se quedan como están.
+- Sin cambios en la API pública todavía (el contrato se amplía en la fase 24).
+
+**Verificación:** el backoffice enseña servicios y suscripciones como dos listas distintas; los
+tests existentes de `Service` siguen pasando sin tocarlos.
+
+## Fase 22 — Catálogo comercial en el backoffice (planificada)
+
+> **Estado:** ⬜ **Planificada.**
+
+**Objetivo:** que un administrador pueda definir qué se vende —planes, precios, ciclos,
+características— sin tocar código.
+
+**Alcance.**
+
+- Entidades `Plan`, `Price` y `Feature`, con ciclo (`monthly`/`yearly`), moneda e importe en
+  unidades menores.
+- Panel de catálogo: alta, edición, activar/desactivar, orden de presentación.
+- Precios con historial: cambiar un precio **no** reescribe las suscripciones vivas.
+- Los límites del plan (`config/packages/entitlements.yaml`) siguen siendo la fuente de verdad de
+  las capacidades; el catálogo comercial no los duplica.
+
+**Verificación:** se crea un plan con dos precios, se publica y aparece en la web corporativa
+(fase 23) sin desplegar.
+
+## Fase 23 — Web corporativa (planificada)
+
+> **Estado:** ⬜ **Planificada.** Decidida con el usuario: **en la misma aplicación**.
+
+**Objetivo:** que `https://suscripta…/` venda el producto. Hoy `/` redirige al login.
+
+**Alcance.**
+
+- `/` sirve la página pública **si no hay sesión** y el dashboard si la hay. Es una decisión
+  explícita: dos aplicaciones separadas habrían duplicado el diseño y el despliegue.
+- Once páginas: inicio, producto, cómo funciona, precios, integraciones, seguridad, preguntas
+  frecuentes, contacto, aviso legal, privacidad y condiciones.
+- Los precios se leen del catálogo (fase 22), no se escriben en la plantilla.
+- Sin blog (descartado explícitamente).
+- SEO mínimo: `title`, `description`, `canonical`, `sitemap.xml` y `robots.txt`.
+
+**Verificación:** un visitante sin sesión recorre las once páginas, ve los precios reales del
+catálogo y llega al alta; con sesión, `/` sigue siendo el dashboard.
+
+## Fase 24 — Checkout con Stripe (planificada)
+
+> **Estado:** ⬜ **Planificada.** Pasarela decidida: **Stripe**.
+
+**Objetivo:** cobrar suscripciones del catálogo sin trabajo manual.
+
+**Alcance.**
+
+- Checkout de Stripe (sesión alojada) desde la web corporativa.
+- Webhooks **de entrada** de Stripe: firma propia, idempotencia por `event.id`, y estados de
+  suscripción (`active`, `past_due`, `canceled`) reflejados en `Subscription`.
+- Facturas del cobro enlazadas a la organización, no a los servicios detectados en el correo.
+- Reintento y conciliación: si un webhook se pierde, el estado se reconcilia consultando a Stripe
+  en el siguiente arranque del worker, no esperando a que llegue otro.
+- Cumplimiento: el cobro lo hace Stripe; Suscripta no almacena datos de tarjeta.
+
+**Verificación:** alta desde la web, cobro en modo test, webhook recibido, suscripción activa en
+el backoffice, y cancelación que se refleja al recibir el evento.
+
+## Fase 25 — CSRF unificado con el gestor de sesión (planificada)
+
+> **Estado:** ⬜ **Planificada.** Decidida con el usuario: **unificar**.
+
+**Objetivo:** que todas las comprobaciones CSRF usen el mismo mecanismo.
+
+**Por qué.** Hoy conviven dos: los formularios que dependen de la sesión (confirmar/descartar
+descubrimiento, probar buzón) usan el gestor con sesión, y el resto tokens sin estado —el valor
+por defecto de Symfony 8—. Dos mecanismos son dos formas de equivocarse, y en los tests se nota:
+hay que leer el token de la página para cada POST manual.
+
+**Alcance.** Configurar `framework.csrf_protection` con el gestor de sesión para toda la
+aplicación, ajustar los formularios que hoy dependen del token sin estado y actualizar los tests
+funcionales que hacen POST a mano.
+
+**Verificación:** ningún formulario ni acción `POST` usa ya el token sin estado; la suite entera
+en verde.
+
+## Deuda técnica conocida
+
+Lo que se sabe que está flojo y no justifica una fase propia.
+
+| # | Deuda | Por qué se acepta | Cuándo duele |
+|---|---|---|---|
+| 1 | **Sin guarda anti-SSRF en los webhooks** | La URL la elige un administrador de la organización | El día que haya organizaciones de terceros |
+| 2 | **Rotación del pepper de la API manual** | Son dos comandos y hoy hay pocas claves | Cuando haya muchas integraciones que migrar |
+| 3 | **Ámbitos de API solo `read`/`write`** | Cubre el caso actual | Cuando un integrador pida escritura sin lectura |
+| 4 | **La API comparte cuota con el backoffice** | Es el mismo plan | Si la API se vende como producto aparte |
+| 5 | **Verificación con un buzón real pendiente** | La vertical está probada con un doble de IMAP | Antes de la primera venta: es la hipótesis del producto |
+| 6 | **Sin capturas de pantalla en el README** | Envejecen mal fuera del repositorio | Cuando haya marketing |
+| 7 | **Recarga en caliente de FrankenPHP desde un CDN** | Solo afecta a `dev` | Nunca, salvo auditoría de privacidad |
 
 ## Fuera del roadmap (explícitamente descartado)
 
@@ -2037,46 +2249,53 @@ agotado. La API actual no necesita cambios para que esto sea posible.
 
 ## Preguntas abiertas
 
-Decisiones que están tomadas y funcionando, pero que conviene revisar con el usuario antes de
-consolidarlas. Ninguna bloquea el avance del roadmap.
+Decisiones que estaban tomadas y funcionando pero que convenía revisar con el usuario. **Se
+revisaron todas el 2026-10-28 y están resueltas**; se dejan aquí con la respuesta para que nadie
+vuelva a abrir el mismo debate.
 
-1. **`Subscription` como entidad separada (D-22).** El dominio usa `Service` como término
-   único. Si en algún momento se quiere distinguir «suscripción de consumo» de «servicio
-   contratado», habría que reintroducir la entidad. Hoy no aporta valor.
-2. **Recarga en caliente de FrankenPHP en desarrollo.** La imagen de desarrollo inyecta un
-   script desde un CDN, lo que choca con los principios de privacidad (`SECURITY.md` §1). Solo
-   afecta a `APP_ENV=dev`; en producción no se carga. Alternativa: desactivarla y recargar a
-   mano.
-3. **CSRF sin estado (valor por defecto de Symfony 8) frente a CSRF con sesión.** Los
-   formularios que dependen de la sesión (confirmar/descartar descubrimiento, probar buzón)
-   usan el gestor con sesión; el resto, tokens sin estado. Unificar simplificaría las pruebas.
-4. **`AGENTS.md` y `CLAUDE.md`.** Aparecieron en la raíz al instalar recetas de Symfony. Hay
-   que decidir si se conservan, se adaptan al proyecto o se eliminan.
-5. **Orden de clasificación de documentos.** `DeterministicExtractor::classify()` evalúa
-   `RENEWAL_NOTICE` antes que `INVOICE`, de modo que una factura que menciona «se renovará»
-   se tipa como `OTHER`. Es deliberado y está cubierto por una prueba, pero puede perjudicar
-   el tipado de documentos.
-6. **Verificación con un buzón real.** La vertical está probada de punta a punta con un doble
-   de IMAP (`RecordingImapClient`). Falta ejecutarla contra un proveedor real (Gmail,
-   Microsoft 365, hosting propio) para validar `WebklexImapClient` y la hipótesis de producto
-   de `PRODUCT.md` §3.2.
-7. **Rotación del pepper de las claves de API.** El pepper (`API_KEY_PEPPER`) **no se puede
-   rotar sin invalidar todas las claves emitidas**, porque la huella es un HMAC determinista.
-   El procedimiento de rotación (emitir las claves nuevas antes de cambiar el pepper, y revocar
-   las viejas después) está descrito en `docs/api/` y en `docs/operations.md`, pero **no se ha
-   automatizado**: hoy es un procedimiento manual. Si el volumen de integraciones crece, esto
-   debería ser un comando de consola.
-8. **Ámbitos de la API: ¿bastan `read` y `write`?** Hoy son dos, y `write` cubre `read`. Es
-   suficiente para el alcance actual, pero no permite «escribir sin poder leer los documentos»
-   ni «leer sin ver los importes». Si algún integrador pide esa separación, habrá que añadir
-   ámbitos (`documents:read`, `services:write`…), lo que es un cambio incompatible del
-   contrato de la clave. **Cuanto más tarde se añada, más integraciones habrá que migrar.**
-9. **Coste de la API.** No hay planes diferenciados por uso de API: la API consume los mismos
-   límites del plan (`config/packages/entitlements.yaml`) que el backoffice. Si la API se
-   convierte en un producto con vida propia, habrá que decidir si los límites por clave
-   cuentan por separado del consumo del backoffice de la misma organización. Hoy **comparten
-   contador**, lo que significa que un integrador puede agotar el límite del plan de una
-   organización que también está usando el backoffice.
-10. **Webhooks de salida.** Descartados de la fase 18 y documentados como fase 20 (no
-    planificada). La decisión de fondo —que la API paginada cubre el caso de uso sin webhooks—
-    es reversible, pero conviene revisarla cuando haya el primer integrador real.
+### Resueltas por el usuario
+
+| # | Pregunta | Respuesta |
+|---|---|---|
+| 1 | ¿`Subscription` como entidad separada de `Service`? | **Sí, reintroducirla.** Es la fase 21. |
+| 2 | ¿Recarga en caliente de FrankenPHP en desarrollo? | **Se mantiene.** Solo afecta a `dev` y el ahorro de tiempo es real. |
+| 3 | ¿CSRF sin estado o con sesión? | **Unificar con el gestor de sesión.** Es la fase 25. |
+| 4 | ¿`AGENTS.md` y `CLAUDE.md` en la raíz? | **Eliminar los dos.** No aportan al producto. |
+| 5 | Orden de clasificación de documentos | **Corregido**: `INVOICE` antes que `RENEWAL_NOTICE`. Ver abajo. |
+| 7 | ¿Rotación del pepper de la API? | **Manual por ahora.** Se automatiza cuando haya volumen. |
+| 8 | ¿Bastan los ámbitos `read`/`write`? | **Se dejan como están.** Se amplían cuando un integrador los pida. |
+| 9 | ¿La API tiene cuota propia? | **No: contador compartido con el backoffice.** Es el mismo plan. |
+| 10 | ¿Webhooks de salida? | **Sí, ahora.** Es la fase 20, ya entregada. |
+
+### Resueltas y ya implementadas
+
+**La clasificación de documentos estaba al revés.** `DeterministicExtractor::classify()` evaluaba
+`RENEWAL_NOTICE` antes que `INVOICE`, así que una factura que menciona «se renovará el 1 de
+noviembre» —que es como están escritas casi todas las facturas de suscripción— se tipaba como
+`OTHER`. Era deliberado y estaba cubierto por un test, pero la justificación no se sostenía: el
+tipo del documento lo decide lo que **es**, no lo que **anuncia**. El orden pasa a ser
+`PRICE_CHANGE → PLAN_CHANGE → INVOICE → RECEIPT → RENEWAL_NOTICE → UNKNOWN`, el test que fijaba
+el comportamiento anterior se renombra a
+`testAnInvoiceThatAlsoAnnouncesItsRenewalIsStillAnInvoice`, y se añade
+`testARenewalNoticeWithoutAnInvoiceIsStillARenewalNotice` para que el cambio no se lleve por
+delante el caso legítimo.
+
+**El panel de integraciones y la elección de IA por necesidad** ya existían desde la fase 11
+(`/integrations`): credenciales cifradas por organización y un selector por propósito
+(`EXTRACTION`, `SUMMARY`, …). No era una pregunta abierta; se comprobó al revisar.
+
+### Siguen abiertas
+
+1. **Verificación con un buzón real.** La vertical está probada de punta a punta con un doble de
+   IMAP (`RecordingImapClient`). Falta ejecutarla contra un proveedor real (Gmail, Microsoft 365,
+   hosting propio) para validar `WebklexImapClient` y la hipótesis de producto de
+   `PRODUCT.md` §3.2. **Es la más importante de la lista**: valida la premisa del producto, no una
+   funcionalidad.
+2. **Guarda anti-SSRF en los webhooks.** Hoy la URL del suscriptor puede apuntar a una red
+   interna. Ver «Deuda técnica conocida», fila 1.
+3. **Qué pasa cuando un plan baja de nivel con suscripciones vivas.** La fase 24 introduce cobros
+   y, con ellos, la pregunta de qué se hace con el exceso de servicios o de consumo al bajar de
+   plan: ¿se bloquea el alta, se avisa, se recorta? No está decidido y conviene decidirlo **antes**
+   de la fase 24, no durante.
+4. **Precio del producto.** El catálogo (fase 22) permite fijar precios, pero no hay decisión de
+   negocio sobre cuánto cuesta Suscripta ni qué incluye cada plan.

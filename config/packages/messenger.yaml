@@ -67,6 +67,17 @@ framework:
                     multiplier: 2
                     max_delay: 300000
 
+            # Entregas de webhooks de salida. Los reintentos los decide la propia
+            # fila de la entrega (`RetryPolicy`), no Messenger: por eso el
+            # transporte no reintenta. Si lo hiciera, un fallo de red contaría dos
+            # veces y el panel mostraría intentos que no han existido.
+            webhooks:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    queue_name: webhooks
+                retry_strategy:
+                    max_retries: 0
+
             # Mensajes agotados. Inspección manual + alerta a administración.
             failed:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
@@ -90,4 +101,5 @@ when@test:
                 ocr: 'in-memory://'
                 ai: 'in-memory://'
                 notifications: 'in-memory://'
+                webhooks: 'in-memory://'
                 failed: 'in-memory://'

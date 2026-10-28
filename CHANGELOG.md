@@ -13,9 +13,76 @@ cerrada, verificada y commiteada. El detalle de lo que queda pendiente está en
 
 ### Pendiente
 
-- Fase 19 — Cierre, documentación y publicación (este CHANGELOG, el README de producto y la
-  guía de despliegue son parte de ella).
-- Fase 20 — Webhooks de salida. Sin planificar.
+- Fase 21 — `Subscription` como entidad propia. Planificada.
+- Fase 22 — Catálogo comercial en el backoffice. Planificada.
+- Fase 23 — Web corporativa (once páginas). Planificada.
+- Fase 24 — Checkout con Stripe. Planificada.
+- Fase 25 — CSRF unificado con el gestor de sesión. Planificada.
+
+---
+
+## [Fase 20] — 2026-10-28 — Webhooks de salida
+
+Un integrador deja de tener que preguntar: Suscripta le avisa cuando pasa algo, firmado.
+
+### Añadido
+
+- **Suscriptores de webhook** (`/webhooks`): alta, edición, pausa, borrado, secreto mostrado una
+  única vez al crear y recuperable desde la ficha con un `POST` explícito, y botón «Enviar
+  prueba» que hace una entrega real y enseña el código de respuesta.
+- **Cinco eventos**: `service.created`, `proposal.created`, `proposal.confirmed`,
+  `charge.detected` y `ai.budget_exhausted`. Este último se emite **una vez por periodo**, no una
+  vez por correo, para que agotar el presupuesto no genere cien avisos idénticos.
+- **Firma HMAC-SHA-256** del cuerpo con el timestamp dentro de lo firmado
+  (`X-Suscripta-Signature: t=…,v1=…`), verificación en tiempo constante y tolerancia de 300 s.
+- **Reintentos propios**: ocho envíos (30 s, 2 min, 10 min, 1 h, 6 h, 24 h, 24 h) y abandono.
+  El transporte de Messenger va con `max_retries: 0` para que solo haya una política.
+- **Idempotencia real**: el cuerpo se serializa una vez y se guarda; el reintento manda los
+  mismos bytes con la misma `Idempotency-Key`.
+- **Comando `app:webhooks:maintain`** para reencolar lo vencido y abandonar lo caducado, con
+  `--limit` y `--dry-run`.
+- Tablas `webhook` y `webhook_delivery` (migración `Version20261028215037`).
+- Documentación de integración en [`docs/api/webhooks.md`](docs/api/webhooks.md): contrato,
+  cabeceras, catálogo de eventos, verificación de la firma con ejemplo en PHP, Python y Node.js,
+  política de reintentos y buenas prácticas del receptor.
+
+### Corregido
+
+- **Clasificación de documentos.** `DeterministicExtractor::classify()` evaluaba
+  `RENEWAL_NOTICE` antes que `INVOICE`, de modo que una factura que menciona «se renovará» se
+  tipaba como `OTHER`. El orden pasa a `PRICE_CHANGE → PLAN_CHANGE → INVOICE → RECEIPT →
+  RENEWAL_NOTICE → UNKNOWN`: el tipo del documento lo decide lo que **es**, no lo que anuncia.
+- **Recuento de intentos de una entrega.** `abandon()` no incrementaba el contador, así que tras
+  ocho envíos el registro decía siete. Ahora el intento que provoca el abandono también cuenta, y
+  `maxAttempts()` pasa a llamarse `maxRetries()` con un `maxDeliveries()` explícito al lado: el
+  nombre anterior se leía como «envíos» y contaba reintentos.
+
+### Documentación
+
+- `docs/ROADMAP.md`: fase 20 cerrada con su tabla de entregado, decisiones y defectos; fases 21 a
+  25 planificadas con alcance y verificación; tabla de deuda técnica conocida; **todas las
+  preguntas abiertas respondidas** por el usuario.
+- `docs/DECISIONS.md`: D-73 a D-76.
+- `docs/ARCHITECTURE.md`: el módulo `Webhooks` y su lugar en el pipeline.
+
+---
+
+## [Fase 19] — 2026-10-28 — Cierre, documentación y publicación
+
+El proyecto se puede entregar a alguien que no lo ha visto.
+
+### Añadido
+
+- `README.md` de producto: qué es Suscripta, estado real, arranque en cinco minutos, tabla de
+  órdenes, cómo integrar la API e índice de los doce documentos. El contenido de
+  `symfony-docker` queda al final, etiquetado como infraestructura.
+- Este CHANGELOG, con una sección por fase.
+- `docs/deployment.md`: guía del **primer** despliegue, complementaria a `docs/operations.md`.
+
+### Corregido
+
+- El botón «rellenar credenciales de demo» del login no hacía nada
+  (`document.getElementByById` en lugar de `getElementById`).
 
 ---
 
