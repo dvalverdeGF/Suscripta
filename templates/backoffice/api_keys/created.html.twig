@@ -70,11 +70,11 @@
         <div class="card-body">
             <p class="small text-muted mb-2">Mándala en la cabecera <code>Authorization</code>:</p>
             <pre class="small bg-light p-3 rounded mb-3"><code>curl -H "Authorization: Bearer {{ secret }}" \
-     {{ url('/api/v1/services') }}</code></pre>
+     {{ url('api_v1_services_index') }}</code></pre>
 
             <p class="small text-muted mb-2">O en la cabecera <code>X-Api-Key</code>:</p>
             <pre class="small bg-light p-3 rounded mb-3"><code>curl -H "X-Api-Key: {{ secret }}" \
-     {{ url('/api/v1/services') }}</code></pre>
+     {{ url('api_v1_services_index') }}</code></pre>
 
             <p class="small text-muted mb-0">
                 La <a href="/api/doc" target="_blank" rel="noopener">documentación de la API</a>

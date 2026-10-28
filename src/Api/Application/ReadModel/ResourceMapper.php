@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Api\Application\ReadModel;
 
+use function abs;
+
 use App\Discovery\Domain\Dto\DiscoveryView;
 use App\Documents\Domain\Dto\DocumentView;
 use App\Mailbox\Domain\Dto\EmailAccountView;
@@ -15,7 +17,6 @@ use App\Shared\Domain\ValueObject\Money;
 use DateTimeImmutable;
 use DateTimeInterface;
 
-use function abs;
 use function intdiv;
 use function str_pad;
 

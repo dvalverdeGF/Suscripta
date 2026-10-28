@@ -15,6 +15,7 @@ use App\Discovery\Domain\Repository\DiscoveryRepositoryInterface;
 use App\Discovery\Domain\Repository\DiscoveryViewRepositoryInterface;
 use App\Shared\Domain\ValueObject\BillingPeriod;
 use DateTimeImmutable;
+use RuntimeException;
 use Symfony\Component\Uid\Uuid;
 
 use function trim;
@@ -62,7 +63,7 @@ final readonly class ConfirmApiProposal
         $view = $this->views->findOne($id);
 
         if (null === $view) {
-            throw new \RuntimeException('La propuesta confirmada no se puede leer.');
+            throw new RuntimeException('La propuesta confirmada no se puede leer.');
         }
 
         return ResourceMapper::proposal($view);

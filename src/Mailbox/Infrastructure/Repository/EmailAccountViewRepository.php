@@ -17,6 +17,9 @@ use Symfony\Component\Uid\Uuid;
  */
 final class EmailAccountViewRepository extends DoctrineRepository implements EmailAccountViewRepositoryInterface
 {
+    /**
+     * @return Page<EmailAccountView>
+     */
     public function findPage(int $page = 1, int $perPage = 50): Page
     {
         $pagination = Pagination::fromRequest($page, $perPage);

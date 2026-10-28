@@ -7,16 +7,18 @@ namespace App\Api\UI\EventListener;
 use App\Api\Infrastructure\Security\ApiClient;
 use App\Api\UI\Http\Problem;
 use App\Shared\Application\RateLimit\RateLimitGuard;
-use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
-use Symfony\Component\HttpKernel\Event\RequestEvent;
-use Symfony\Component\HttpKernel\Event\ResponseEvent;
-use Symfony\Component\HttpKernel\KernelEvents;
-use Symfony\Bundle\SecurityBundle\Security;
 
 use function is_array;
 use function max;
 use function sprintf;
 use function str_starts_with;
+
+use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
+use Symfony\Component\HttpKernel\Event\RequestEvent;
+use Symfony\Component\HttpKernel\Event\ResponseEvent;
+use Symfony\Component\HttpKernel\KernelEvents;
+
 use function time;
 
 /**

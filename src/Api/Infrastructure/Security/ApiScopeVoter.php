@@ -5,14 +5,15 @@ declare(strict_types=1);
 namespace App\Api\Infrastructure\Security;
 
 use App\Api\Domain\Enum\ApiScope;
-use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
-use Symfony\Component\Security\Core\Authorization\Voter\Vote;
-use Symfony\Component\Security\Core\Authorization\Voter\Voter;
 
 use function str_starts_with;
 use function strlen;
 use function strtolower;
 use function substr;
+
+use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
+use Symfony\Component\Security\Core\Authorization\Voter\Vote;
+use Symfony\Component\Security\Core\Authorization\Voter\Voter;
 
 /**
  * Decide si una clave de API tiene el ámbito que pide un endpoint.
@@ -110,6 +111,6 @@ final class ApiScopeVoter extends Voter
             return null;
         }
 
-        return ApiScope::tryFrom(strtolower(substr($attribute, \strlen(self::PREFIX))));
+        return ApiScope::tryFrom(strtolower(substr($attribute, strlen(self::PREFIX))));
     }
 }

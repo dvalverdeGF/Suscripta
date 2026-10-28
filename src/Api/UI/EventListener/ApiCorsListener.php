@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace App\Api\UI\EventListener;
 
+use function array_filter;
+use function array_map;
+use function array_values;
+use function in_array;
+use function str_starts_with;
+
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -11,11 +17,6 @@ use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 
-use function array_filter;
-use function array_map;
-use function array_values;
-use function in_array;
-use function str_starts_with;
 use function trim;
 
 /**

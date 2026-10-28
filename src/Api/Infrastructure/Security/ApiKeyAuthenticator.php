@@ -8,6 +8,12 @@ use App\Api\Application\AuthenticateApiKey;
 use App\Api\Domain\Entity\ApiKey;
 use App\Api\Domain\Exception\InvalidApiKeyException;
 use App\Shared\Application\TenantContext;
+
+use function is_string;
+use function strlen;
+use function strncasecmp;
+use function substr;
+
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
@@ -17,10 +23,6 @@ use Symfony\Component\Security\Http\Authenticator\Passport\Badge\UserBadge;
 use Symfony\Component\Security\Http\Authenticator\Passport\Passport;
 use Symfony\Component\Security\Http\Authenticator\Passport\SelfValidatingPassport;
 
-use function is_string;
-use function strlen;
-use function strncasecmp;
-use function substr;
 use function trim;
 
 /**
@@ -121,8 +123,8 @@ final class ApiKeyAuthenticator extends AbstractAuthenticator
     {
         $authorization = $request->headers->get('Authorization');
 
-        if (is_string($authorization) && 0 === strncasecmp($authorization, self::BEARER_PREFIX, \strlen(self::BEARER_PREFIX))) {
-            $secret = trim(substr($authorization, \strlen(self::BEARER_PREFIX)));
+        if (is_string($authorization) && 0 === strncasecmp($authorization, self::BEARER_PREFIX, strlen(self::BEARER_PREFIX))) {
+            $secret = trim(substr($authorization, strlen(self::BEARER_PREFIX)));
 
             if ('' !== $secret) {
                 return $secret;

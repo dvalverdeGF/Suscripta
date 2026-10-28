@@ -76,7 +76,7 @@ final readonly class AuthenticateApiKey
         return $apiKey;
     }
 
-    private function recordUse(ApiKey $apiKey, \DateTimeImmutable $now): void
+    private function recordUse(ApiKey $apiKey, DateTimeImmutable $now): void
     {
         $lastUsedAt = $apiKey->getLastUsedAt();
 

@@ -21,8 +21,8 @@ use Symfony\Component\Uid\Uuid;
 final readonly class DiscoveryView
 {
     /**
-     * @param array<string, mixed> $proposedData
-     * @param list<string>        $matchReasons
+     * @param list<array{signal: string, weight: int, detail?: string|null}> $matchReasons
+     * @param array<string, mixed>                                           $proposedData
      */
     public function __construct(
         public Uuid $id,
@@ -57,10 +57,10 @@ final readonly class DiscoveryView
             confidence: $discovery->getConfidence()->value,
             confidenceScore: $discovery->getConfidenceScore(),
             matchScore: $discovery->getMatchScore(),
-            matchReasons: array_values(array_map(
-                static fn (mixed $reason): string => (string) $reason,
-                $discovery->getMatchReasons()
-            )),
+            // Las razones ya son estructuras (`signal`, `weight`, `detail`): se
+            // copian tal cual. Convertirlas a texto las dejaba en «Array» y la
+            // API publicaba una lista de cadenas vacías de contenido.
+            matchReasons: array_values($discovery->getMatchReasons()),
             proposedData: $discovery->getProposedData(),
             matchedServiceId: $discovery->getMatchedServiceId(),
             sourceEmailMessageId: $discovery->getSourceEmailMessageId(),

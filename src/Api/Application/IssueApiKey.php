@@ -12,10 +12,12 @@ use App\Shared\Application\Clock;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Exception\InvalidArgumentException;
 use DateTimeImmutable;
-use Symfony\Component\Uid\Uuid;
 
 use function mb_strlen;
 use function sprintf;
+
+use Symfony\Component\Uid\Uuid;
+
 use function trim;
 
 /**

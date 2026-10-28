@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Api\Application\ReadModel;
 
 use App\Api\Application\ApiCollection;
+use App\Services\Domain\Enum\ServiceStatus;
 use App\Services\Domain\Repository\ServiceFilters;
 use App\Services\Domain\Repository\ServiceViewRepositoryInterface;
-use App\Services\Domain\Enum\ServiceStatus;
 use Symfony\Component\Uid\Uuid;
 
 /**

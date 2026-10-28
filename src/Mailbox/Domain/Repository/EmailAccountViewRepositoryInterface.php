@@ -6,13 +6,14 @@ namespace App\Mailbox\Domain\Repository;
 
 use App\Mailbox\Domain\Dto\EmailAccountView;
 use App\Shared\Application\Page;
-
 use Symfony\Component\Uid\Uuid;
 
 interface EmailAccountViewRepositoryInterface
 {
     /**
      * Cuentas de la organización activa, paginadas.
+     *
+     * @return Page<EmailAccountView>
      */
     public function findPage(int $page = 1, int $perPage = 50): Page;
 

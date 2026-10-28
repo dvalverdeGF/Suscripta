@@ -6,10 +6,11 @@ namespace App\Api\Infrastructure\Security;
 
 use App\Api\Domain\Enum\ApiScope;
 use App\Shared\Domain\Contract\TenantAwareInterface;
-use Symfony\Component\Uid\Uuid;
-use Symfony\Component\Security\Core\User\UserInterface;
 
 use function strtoupper;
+
+use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * La identidad de una llamada a la API.

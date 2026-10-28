@@ -125,6 +125,19 @@ Todos requieren `read` salvo los marcados como `write`.
 | `GET` | `/api/v1/proposals` | `read` | Propuestas pendientes. |
 | `POST` | `/api/v1/proposals/{id}/confirm` | `write` | Confirma una propuesta y crea el servicio. |
 
+`match_reasons` es una **lista de objetos**, no de textos: cada razón explica por qué se
+propone ese servicio, y es lo que puedes enseñar a tu usuario para que decida.
+
+```json
+"match_reasons": [
+  { "signal": "Dominio del remitente", "weight": 20, "detail": "ovh.com" },
+  { "signal": "Nombre del servicio",    "weight": 20 }
+]
+```
+
+`weight` es la aportación al `match_score` (puede ser negativa). `detail` es opcional: si no
+hay detalle que dar, la clave **no aparece** en lugar de venir vacía.
+
 ### Documentos
 
 | Método | Ruta | Ámbito | Descripción |
@@ -191,11 +204,19 @@ preflight (`OPTIONS`) debe devolver `204` con `Access-Control-Allow-Origin`.
 Por defecto **no se permite ningún origen**. La lista se configura en el servidor:
 
 ```dotenv
-API_CORS_ALLOWED_ORIGINS=["https://tu-app.ejemplo","https://otra.ejemplo"]
+API_CORS_ALLOWED_ORIGINS='["https://tu-app.ejemplo","https://otra.ejemplo"]'
 ```
 
 Es una lista JSON, no un texto. Si tu origen no está en la lista, el navegador bloqueará la
 respuesta aunque el servidor devuelva `200`.
+
+> **Ojo con las comillas.** El valor va entre comillas **simples**. Symfony Dotenv se come las
+> comillas dobles al leer el fichero, así que `API_CORS_ALLOWED_ORIGINS=["https://x"]` llega al
+> parámetro como `[https://x]` —que no es JSON válido— y **el arranque falla** con
+> `Invalid JSON in env var "API_CORS_ALLOWED_ORIGINS"`. Se comprueba con
+> `bin/console debug:dotenv`. Si el valor se define como variable de entorno del contenedor (y
+> no en un `.env`), las comillas dobles sí son correctas: el problema es del parser del `.env`,
+> no del formato.
 
 ---
 

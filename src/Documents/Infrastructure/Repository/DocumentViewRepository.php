@@ -11,7 +11,6 @@ use App\Documents\Domain\Repository\DocumentViewRepositoryInterface;
 use App\Shared\Application\Page;
 use App\Shared\Application\Pagination;
 use App\Shared\Infrastructure\Persistence\DoctrineRepository;
-use Doctrine\ORM\QueryBuilder;
 use Symfony\Component\Uid\Uuid;
 
 /**

@@ -16,10 +16,12 @@ use App\Shared\Domain\ValueObject\Currency;
 use App\Shared\Domain\ValueObject\Money;
 use DateTimeImmutable;
 use Exception;
-use Symfony\Component\Uid\Uuid;
 
 use function sprintf;
 use function strtoupper;
+
+use Symfony\Component\Uid\Uuid;
+
 use function trim;
 
 /**

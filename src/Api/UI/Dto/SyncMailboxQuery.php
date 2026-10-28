@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Api\UI\Dto;
 
-use Symfony\Component\Serializer\Attribute\SerializedName;
-
 /**
  * Ajustes de una sincronización de buzón.
  *

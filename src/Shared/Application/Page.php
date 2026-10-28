@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Shared\Application;
 
+use function count;
+
 /**
  * Página de resultados de un read model.
  *
@@ -23,8 +25,7 @@ final readonly class Page
     /**
      * @template U
      *
-     * @param list<U>  $items
-     * @param Pagination $pagination
+     * @param list<U> $items
      *
      * @return self<U>
      */

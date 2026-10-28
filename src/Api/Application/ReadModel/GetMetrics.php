@@ -8,6 +8,8 @@ use App\Dashboard\Application\BuildDashboardSummary;
 use App\Dashboard\Application\Dto\DashboardSummary;
 use App\Shared\Domain\ValueObject\Money;
 
+use function count;
+
 /**
  * Métricas de la organización: lo que se paga, cuánto hay y qué queda
  * pendiente.

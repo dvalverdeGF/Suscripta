@@ -14,12 +14,14 @@ use App\Documents\Domain\Repository\DocumentViewRepositoryInterface;
 use App\Shared\Domain\Exception\InvalidArgumentException;
 
 use function base64_decode;
-use function sprintf;
-use function trim;
 
 use const FILEINFO_MIME_TYPE;
 
 use finfo;
+use RuntimeException;
+
+use function sprintf;
+use function trim;
 
 /**
  * Subida de un documento desde la API.
@@ -75,7 +77,7 @@ final readonly class CreateApiDocument
         $view = $this->documents->findOne($document->getId());
 
         if (null === $view) {
-            throw new \RuntimeException('El documento recién subido no se puede leer.');
+            throw new RuntimeException('El documento recién subido no se puede leer.');
         }
 
         return ResourceMapper::document($view);

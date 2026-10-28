@@ -1,7 +1,8 @@
 # Roadmap
 
-> Estado: **propuesta inicial**. Fases pequeñas y verificables. Cada fase termina con algo
-> demostrable y con criterios de aceptación explícitos.
+> Estado: **fases 0 a 18 cerradas** (1 419 tests, PHPStan nivel 8 limpio). Queda la fase 19
+> (cierre de documentación y publicación). Fases pequeñas y verificables: cada fase termina con
+> algo demostrable y con criterios de aceptación explícitos.
 
 ## Criterios de ordenación
 
@@ -79,14 +80,17 @@ en su apartado correspondiente.
 | 15 | Detección de cambios | ✅ Completada | `1db3473` | Hechos e inferencias con confianza |
 | 16 | Hardening de seguridad y RGPD | ✅ Completada | `a035a36` | Retención, privacidad, exportación y borrado |
 | 17 | Preparación SaaS | ✅ Completada | `9504ff6` | 1385 tests, planes, cuotas, onboarding, backups |
-| 18 | API pública | 🟡 **En curso** | `d840174` (WIP) | 11 de 13 casos E2E en verde; **faltan 2 correcciones, tests y `docs/api/`** |
-| 19 | Cierre de documentación y publicación | ⬜ **Pendiente** | — | README, CHANGELOG, guía de despliegue, `docs/api/` |
+| 18 | API pública | ✅ Completada | `d840174` + `ffa7127` | 15 casos E2E y **35 tests** de API en verde; 6 defectos corregidos |
+| 19 | Cierre de documentación y publicación | ⬜ **Pendiente** | — | README, CHANGELOG, guía de despliegue |
+| 20 | Webhooks de salida | ⬜ **No planificada** | — | Diseño propio: reintentos, firma, idempotencia |
 
-**Lectura rápida de la tabla:** las fases 0 a 17 están **cerradas, commiteadas y verificadas**.
-La fase 18 tiene **el código escrito y commiteado**, pero **no está cerrada**: le faltan dos
-correcciones de comportamiento (detalladas en su apartado), la batería de tests y la carpeta
-`docs/api/`. La fase 19 es la única fase que no ha empezado, y es la que convierte el producto
-en algo publicable (README, CHANGELOG, guía de despliegue, política de deprecación).
+**Lectura rápida de la tabla:** las fases 0 a 18 están **cerradas, commiteadas y verificadas**.
+La fase 18 se cerró corrigiendo los seis defectos que aparecieron al verificarla —dos de
+comportamiento en la API, uno de arranque en el entorno, uno de contrato y dos que impedían
+usar el panel de claves—, todos con test. **La fase 19 es la única que queda por empezar**, y es
+la que convierte el producto en algo publicable: README de primer nivel, CHANGELOG y guía de
+despliegue. La fase 20 (webhooks de salida) no está planificada y no bloquea nada: la API
+paginada ya permite integrarse sin ella.
 
 ## Fase 0 — Base del proyecto
 
@@ -1405,9 +1409,10 @@ tenía `DEFAULT 'free'` en la base de datos y el mapeo no lo declaraba, así que
 
 ## Fase 18 — API pública
 
-> **Estado:** 🟡 **En curso.** Código implementado y commiteado (`d840174`). Faltan 2
-> correcciones de comportamiento, la batería de tests y la documentación en `docs/api/`.
-> Ver «Qué falta para cerrarla» al final de esta fase.
+> **Estado:** ✅ **Cerrada.** Código (`d840174`), correcciones de comportamiento
+> (`ffa7127` y el commit de cierre), documentación en `docs/api/` (`8860e55`) y **35 tests
+> funcionales** en `tests/Functional/Api/`. Ver «Defectos encontrados y corregidos» al final de
+> la fase: se encontraron **seis**, y los seis están arreglados y cubiertos por un test.
 
 **Objetivo:** que Suscripta sea **integrable en otros proyectos** que necesiten este servicio.
 
@@ -1443,8 +1448,8 @@ La API se autentica con una **clave propia**, emitida desde el backoffice. La ta
 | `secret_hash` | VARCHAR(64) | HMAC-SHA-256 de la clave completa. **La clave nunca se guarda en claro.** |
 | `scopes` | JSON | `["read"]`, `["read","write"]`. Se guardan como texto y no como enumeración porque el filtro de Doctrine no mapea enumeraciones dentro de un `json` (D-69). |
 | `expires_at` | TIMESTAMP NULL | Caducidad opcional. `NULL` = sin caducidad. |
-| `revoked_at` | TIMESTAMP NULL | revocación. `NULL` = vigente. |
-| `last_used_at` | TIMESTAMP NULL | Última utilization. Solo se escribe si el registro de uso está habilitado. |
+| `revoked_at` | TIMESTAMP NULL | Cuándo se revocó. `NULL` = vigente. |
+| `last_used_at` | TIMESTAMP NULL | Última utilización. Solo se escribe si el registro de uso está habilitado. |
 | `created_by_user_id` | UUID NULL | Qué usuario del backoffice la emitió. |
 | `created_at` | TIMESTAMP | Cuándo se emitió. |
 
@@ -1484,7 +1489,7 @@ Un `403` por ámbito insuficiente **no** revela la existencia del recurso: la co
 ámbito ocurre antes que la de propiedad del recurso.
 
 **El panel del backoffice.** `/api-keys` (listado con nombre, prefijo visible, ámbitos,
-caducidad, fecha de creación y última utilization), `/api-keys/new` (alta, con elección de
+caducidad, fecha de creación y última utilización), `/api-keys/new` (alta, con elección de
 ámbitos y fecha de caducidad opcional) y `/api-keys/{id}/revoke` (revocación). La clave
 completa se muestra **una sola vez**, en `/api-keys/created`, y no vuelve a estar disponible:
 el servidor solo conserva la huella. Copiarla y guardarla es responsabilidad de quien la emite;
@@ -1637,19 +1642,29 @@ La API **no** consulta entidades Doctrine directamente. Habla con interfaces de 
 2. Un test puede sustituir la implementación por un doble, así que los tests de la API no
    necesitan base de datos.
 
-### Defectos encontrados al verificar la fase
+### Defectos encontrados y corregidos
 
-La verificación E2E (11 casos, real, con peticiones HTTP contra el contenedor) encontró dos
-defectos. **Ninguno de los dos está corregido todavía**: son el trabajo pendiente principal de
-esta fase.
+La fase se verificó de dos formas: con **peticiones HTTP reales** contra el contenedor (15
+casos, `curl` de verdad) y con **35 tests funcionales** en `tests/Functional/Api/`. Entre las
+dos aparecieron **seis defectos**. Ninguno era teórico: los seis se manifestaban como un fallo
+visible para el integrador o para el operador del backoffice.
 
-#### Defecto 1 — El preflight CORS devuelve `405` en vez de `204`
+| # | Defecto | Dónde | Cómo se arregló | Commit |
+|---|---|---|---|---|
+| 1 | El preflight CORS devolvía `405` | `ApiCorsListener` | Prioridad en `REQUEST` de **9 a 40** | `ffa7127` |
+| 2 | El `422` salía genérico, en inglés y sin `violations` | `ApiExceptionListener` | Desempaquetar la `ValidationFailedException` de `getPrevious()` | `ffa7127` |
+| 3 | El arranque reventaba con el JSON del CORS | `.env.dev` | Comillas **simples** envolviendo el JSON | `ffa7127` |
+| 4 | `violations[].field` usaba el nombre PHP | `ApiExceptionListener` | Traducir la ruta al nombre serializado | `ffa7127` |
+| 5 | `match_reasons` llegaba como `["Array","Array"]` | `DiscoveryView` | Dejar de castear las razones a texto | cierre |
+| 6 | El formulario de alta de clave daba `500` | `ApiKeyFormType` | `choices` con los casos del enum y `choice_value` | cierre |
+
+#### Defecto 1 — El preflight CORS devolvía `405` en vez de `204`
 
 **Síntoma.** `OPTIONS /api/v1/services` devolvía `405 Method Not Allowed` en vez de `204 No
 Content` con las cabeceras de CORS. En un navegador, eso significa que **ninguna llamada
 cruzada desde JavaScript funciona**.
 
-**Causa raíz.** El `ApiCorsListener` está registrado con
+**Causa raíz.** El `ApiCorsListener` estaba registrado con
 `#[AsEventListener(event: KernelEvents::REQUEST, priority: 9)]`. En `KernelEvents::REQUEST`,
 las prioridades son:
 
@@ -1658,42 +1673,38 @@ las prioridades son:
 | `LocaleListener::setDefaultLocale` | 100 | Fija el locale por defecto. |
 | `RouterListener::onKernelRequest` | **32** | Resuelve la ruta y **responde 405 si el método no existe**. |
 | `LocaleAwareListener` | 15 | Aplica el locale de la ruta. |
-| `ApiCorsListener` | **9** | Pretende responder al preflight. |
+| `ApiCorsListener` | **40** (antes 9) | Contesta al preflight. |
 | `Firewall::onKernelRequest` | 8 | Autenticación. |
 | `ApiRateLimitListener` | -8 | Límite de frecuencia. |
 
-El router va con prioridad **32** y el listener de CORS con **9**: el router se ejecuta
-primero, no encuentra ninguna ruta `OPTIONS /api/v1/services` (las rutas solo aceptan `GET` y
-`POST`), lanza `MethodNotAllowedHttpException` y **corta el ciclo de eventos**. El listener de
-CORS no llega a ejecutarse nunca.
+El router va con prioridad **32** y el listener de CORS iba con **9**: el router se ejecutaba
+primero, no encontraba ninguna ruta `OPTIONS /api/v1/services` (las rutas solo aceptan `GET` y
+`POST`), lanzaba `MethodNotAllowedHttpException` y **cortaba el ciclo de eventos**. El listener
+de CORS no llegaba a ejecutarse nunca.
 
-La hipótesis inicial era que el culpable era el firewall (que rejects `OPTIONS` por exigir
-autenticación), pero el firewall va con prioridad **8**, todavía por debajo. El culpable es el
-**router**, por prioridad.
+La hipótesis inicial era que el culpable era el firewall (que rechaza `OPTIONS` por exigir
+autenticación), pero el firewall va con prioridad **8**, todavía por debajo. **El culpable era
+el router**, y la lección es que la prioridad hay que compararla con la del router, no con la
+del firewall: cualquier listener que tenga que contestar antes de que exista una ruta necesita
+una prioridad **> 32**.
 
-**Arreglo.** Subir el listener a una prioridad **> 32** (por ejemplo `40`), y documentarlo en
-el propio listener: un preflight **tiene** que contestarse antes que el router, porque para
-CORS el `OPTIONS` no es «una petición a una ruta que no admite ese método», es «una pregunta
-por CORS que hay que contestar sí o sí».
+**Arreglo.** Prioridad **40**. Como `RequestEvent::setResponse()` llama a `stopPropagation()`,
+en cuanto el listener de CORS fija la respuesta de preflight ni el router ni el firewall se
+ejecutan: que es exactamente lo deseado, porque el preflight **no lleva credenciales** (por
+diseño de CORS) y no puede autenticarse.
 
-Como `RequestEvent::setResponse()` llama a `stopPropagation()`, en cuanto el listener de CORS
-fija la respuesta de preflight, ni el router ni el firewall se ejecutan: que es exactamente lo
-deseado, porque el preflight **no lleva credenciales** (por diseño de CORS) y no puede
-autenticarse.
+**Verificación.** `ApiCorsTest` (5 tests): preflight con origen permitido → `204` +
+`Access-Control-Allow-Origin`; preflight con origen no permitido → sin `ACAO`; `OPTIONS` sin
+`Origin` → `405` (no es un preflight, es un método que esa ruta no admite); y las cabeceras
+también viajan en una respuesta real, incluido el `401`.
 
-**Verificación pendiente.** Con `API_CORS_ALLOWED_ORIGINS=["https://integrador.example"]` en
-`.env.dev`, un `OPTIONS` con `Origin: https://integrador.example` debe devolver `204` con
-`Access-Control-Allow-Origin: https://integrador.example`,
-`Access-Control-Allow-Headers: authorization, x-api-key, content-type` y
-`Access-Control-Allow-Methods: GET, POST, OPTIONS`.
-
-#### Defecto 2 — El `422` sale genérico y en inglés, sin `violations`
+#### Defecto 2 — El `422` salía genérico y en inglés, sin `violations`
 
 **Síntoma.** Un `POST /api/v1/services` con un campo inválido devolvía `422` con el mensaje
 genérico de Symfony en inglés y **sin el array `violations`**, que es justo el campo que
 permite a un integrador saber qué corregir.
 
-**Causa raíz.** En Symfony 8, `RequestPayloadValueResolver` (líneas 104-210) no lanza la
+**Causa raíz.** En Symfony 8, `RequestPayloadValueResolver` no lanza la
 `ValidationFailedException` directamente: la **envuelve** en un `HttpException`:
 
 ```php
@@ -1712,21 +1723,22 @@ listener. Y el `ApiExceptionListener` comprobaba:
 if ($exception instanceof ValidationFailedException) { … }
 ```
 
-…condición que **nunca se cumple**, porque la excepción que llega no es una
+…condición que **nunca se cumplía**, porque la excepción que llega no es una
 `ValidationFailedException`: es una `UnprocessableEntityHttpException`. El listener caía en la
 rama genérica de `HttpExceptionInterface`, que construye el problema con
 `Problem::make($status, Response::$statusTexts[$status], …)`: el `Response::$statusTexts` de
 Symfony está **en inglés** («Unprocessable Entity») y no lleva `violations`.
 
-**Arreglo.** En `ApiExceptionListener`, desempaquetar la `ValidationFailedException` de
-`getPrevious()` antes de decidir, y construir el `problem+json` con
-`Problem::unprocessable($detalle, $violations)`, que ya sabe generar el array `violations` con
-el título en español («Entidad no procesable»).
+**Arreglo.** `validationFailure()` recorre `getPrevious()` (con tope de 5 niveles, para no
+colgarse si alguien construye una cadena circular) y devuelve la primera
+`ValidationFailedException` que encuentre. El `problem+json` se construye con
+`Problem::unprocessable($detalle, $violations)`, que ya sabe generar `violations[]` con el
+título en español («Entidad no procesable»).
 
 Nota: `MapRequestPayload::$validationFailedStatusCode` **ya vale 422 por defecto** en Symfony
-8.1, así que el código de estado era correcto; lo que faltaba era el cuerpo. Los
-controladores que usan `MapQueryString` sí declaran `validationFailedStatusCode: 422`
-explícitamente, para que quede a la vista y no dependa del valor por defecto.
+8.1, así que el código de estado era correcto; lo que faltaba era el cuerpo. Los controladores
+que usan `MapQueryString` sí declaran `validationFailedStatusCode: 422` explícitamente, para
+que quede a la vista y no dependa del valor por defecto.
 
 **Nota adicional ya aplicada.** El `default_locale` del framework era `en`, lo que hacía que
 los mensajes del Validator salieran **en inglés** en una interfaz que está en español. Cambiado
@@ -1735,71 +1747,175 @@ seguro: Twig no depende del locale para `number_format` (usa el `number_format()
 PHP) ni para `date` (usa `DateTimeInterface::format()`), y los catálogos `validators`, `form` y
 `security` en español existen en `vendor/` y se registran solos.
 
-### Verificación ejecutada hasta ahora
+**Verificación.** `ApiContractTest` comprueba el `422` con `violations[]`, el campo y el
+mensaje **en español**, tanto para una regla de tipo como para una de rango.
 
-Verificación E2E real, con peticiones HTTP contra el contenedor en ejecución, usando claves de
-API reales insertadas en la base de datos de desarrollo (organización «Estudio Demo», plan
-`pro`):
+#### Defecto 3 — El arranque reventaba con el JSON del CORS
+
+**Síntoma.** Con el origen de prueba añadido a `.env.dev`, **todas** las peticiones devolvían
+`200` con un cuerpo que no era JSON: la página de error de Symfony. El log decía
+`Invalid JSON in env var "API_CORS_ALLOWED_ORIGINS": Syntax error` en
+`EnvVarProcessor.php:297`.
+
+**Causa raíz.** Symfony Dotenv **elimina las comillas dobles** del valor al parsear el
+`.env`. `API_CORS_ALLOWED_ORIGINS=["https://integrador.example"]` llegaba al parámetro como
+`[https://integrador.example]`, que **no es JSON válido** (las claves y las cadenas de un JSON
+necesitan comillas dobles). Y el fallo no ocurría al usar el parámetro, sino **al arrancar**,
+porque `%env(json:API_CORS_ALLOWED_ORIGINS)%` se resuelve al compilar el contenedor.
+
+Es un fallo especialmente traicionero porque **`.env` ya tenía `API_CORS_ALLOWED_ORIGINS=[]`**
+(sin comillas, y por tanto válido): el valor por defecto funcionaba, y el que rompía era la
+sobrescritura de `.env.dev` — es decir, el fichero que solo existe en desarrollo.
+
+**Arreglo.** Envolver el JSON en comillas **simples**, que Dotenv sí respeta:
+
+```
+API_CORS_ALLOWED_ORIGINS='["https://integrador.example"]'
+```
+
+Se comprueba con `bin/console debug:dotenv`. Queda documentado en un comentario dentro de
+`.env.dev`, porque es el tipo de detalle que se vuelve a romper en el siguiente entorno que
+alguien configure.
+
+#### Defecto 4 — `violations[].field` usaba el nombre PHP, no el serializado
+
+**Síntoma.** `POST /api/v1/services` con `billingIntervalCount` inválido devolvía
+`violations[0].field = "billingIntervalCount"`, cuando en el JSON el campo se llama
+`billing_interval_count`. Un integrador que use el `field` para resaltar el campo del formulario
+no encontraría nada: **el contrato decía una cosa y el error decía otra**.
+
+**Causa raíz.** El Validador de Symfony recorre **propiedades PHP**, así que el `propertyPath`
+que produce (`billingIntervalCount`) es el nombre de la propiedad, no el nombre con el que el
+`Serializer` la publica. La traducción entre los dos la hace `#[SerializedName]`, y el
+`ApiExceptionListener` no la estaba aplicando: leía la ruta del validador y la publicaba tal
+cual.
+
+**Arreglo.** `serializedPath()` toma el primer tramo del `propertyPath`, reflexiona sobre la
+clase del payload (`ValidationFailedException::getValue()`) y, si la propiedad tiene
+`#[SerializedName]`, devuelve ese nombre. Solo se traduce la **propiedad raíz**: las rutas
+anidadas se dejan igual, porque resolverlas exigiría recorrer el grafo de tipos y el contrato
+actual no tiene ningún DTO con anidamiento serializado distinto.
+
+Detalle de la implementación: `SerializedName` **no tiene getter**. Expone
+`public readonly string $serializedName`. Se descubrió porque el primer intento llamaba a
+`getSerializedName()` y reventaba.
+
+**Verificación.** `ApiContractTest::testAValidationErrorCarriesViolationsInSpanish` comprueba
+que el `field` es exactamente `billing_interval_count`.
+
+#### Defecto 5 — `match_reasons` llegaba como `["Array","Array"]`
+
+**Síntoma.** `GET /api/v1/proposals` publicaba `match_reasons: ["Array", "Array"]` en vez de
+las razones del emparejamiento. La explicación de *por qué* se propone un servicio —lo que el
+integrador enseña a su usuario y lo que justifica la propuesta— se perdía en el camino.
+
+**Causa raíz.** `DiscoveryView::fromDiscovery()` mapeaba las razones con
+`(string) $reason`. Pero `Discovery::$matchReasons` es
+`list<array{signal: string, weight: int, detail?: string|null}>`: castear un array a `string` en
+PHP da la cadena `"Array"` y emite un aviso de conversión. El tipo declarado en el DTO
+(`list<string>`) era el que estaba mal, y PHPStan nivel 8 lo llevaba señalando desde que se
+escribió el DTO: `Cannot cast array{signal: string, weight: int, detail?: string|null} to
+string`.
+
+**Arreglo.** Tipar la propiedad como la lista de estructuras que realmente es y **dejar de
+castear**: `matchReasons: array_values($discovery->getMatchReasons())`.
+
+**Verificación.** `ApiContractTest::testProposalMatchReasonsTravelAsStructuredObjects` crea una
+propuesta con dos razones (una con `detail` y otra sin él) y comprueba que llegan como objetos
+con `signal`, `weight` y `detail`, y que la segunda **no** tiene la clave `detail`.
+
+#### Defecto 6 — El formulario de alta de clave daba `500`
+
+**Síntoma.** Abrir `/api-keys/new` en el navegador devolvía `500`. Es decir: **el panel de
+claves de API, la única forma de emitir una credencial, no se podía usar**.
+
+**Causa raíz.** Dos errores en `ApiKeyFormType`, los dos por haber escrito el formulario sin
+abrirlo nunca:
+
+1. El campo `scopes` declaraba `choices` como un mapa etiqueta → **string**
+   (`ApiScope::Read->label() => ApiScope::Read->value`) y a la vez un `choice_label` tipado
+   `static fn (ApiScope $scope): string`. Symfony llama a `choice_label` con el **valor** de la
+   opción, que era un `string`: `TypeError` → `500`.
+2. El campo `expiresInDays` declaraba `placeholder_value`, **una opción que no existe** en
+   `ChoiceType` (ni en Symfony 8 ni antes). `OptionsResolver` lanzaba
+   `The option "placeholder_value" does not exist`.
+
+**Arreglo.** Los `choices` son ahora `ApiScope::cases()` —los casos del enum, no un mapa— con
+`choice_value: static fn (?ApiScope $scope): ?string => $scope?->value`, de modo que la
+etiqueta y el valor salen del mismo sitio y no hay dos listas que se puedan desincronizar. Y se
+quitó `placeholder_value`: con `required => false`, la opción vacía ya llega como `null`.
+
+Consecuencia en el DTO: `ApiKeyFormData::$scopes` pasa a ser `list<ApiScope>` (antes
+`list<string>` con un `toScopes()` que convertía a mano). El `ChoiceType` ya devuelve los casos
+del enum, así que la conversión manual sobraba — y era justo la que ocultaba el problema de
+tipos.
+
+**Verificación.** `ApiKeyPanelTest` (5 tests) recorre el formulario de verdad: alta, la clave
+se enseña **una sola vez** y no reaparece al recargar, el listado nunca contiene el secreto,
+`write` arrastra `read`, y revocar marca la clave como revocada.
+
+**Nota de método.** Los defectos 5 y 6 no los encontró la verificación E2E: los encontró
+**PHPStan** (el 5) y **los tests del panel** (el 6). La verificación E2E solo recorrió la API
+con `curl`; nunca abrió el panel en un navegador. La lección es que «lo probé y funcionaba»
+significa «probé el camino que recorrí».
+
+### Verificación de cierre
+
+**Verificación E2E real**, con `curl` contra el contenedor en ejecución, usando claves de API
+reales de la organización «Estudio Demo» (plan `pro`). **15 de 15 en verde:**
 
 | Caso | Esperado | Resultado |
 |---|---|---|
 | `GET` sin credencial | `401` `problem+json` | ✅ |
 | `GET` con clave inexistente | `401` `problem+json` | ✅ |
 | `GET` con clave de lectura | `200` `application/json` | ✅ |
+| `GET` con `X-Api-Key` en vez de `Authorization` | `200` | ✅ |
 | `POST` con clave de solo lectura | `403` `problem+json` | ✅ |
 | `POST` con clave de escritura, importe válido | `201` | ✅ |
+| `POST` con importe como número JSON (`12.5`) | `422` + `violations[]` | ✅ |
 | `GET` de un recurso inexistente | `404` `problem+json` | ✅ |
-| `OPTIONS` (preflight CORS) | `204` + cabeceras CORS | ❌ **`405` — defecto 1** |
-| `POST` con campo inválido | `422` + `violations[]` en español | ❌ **genérico en inglés — defecto 2** |
+| `GET` de un recurso de otra organización | `404` (indistinguible) | ✅ |
+| `OPTIONS` (preflight CORS) | `204` + cabeceras CORS | ✅ |
+| `OPTIONS` con origen no permitido | sin `Access-Control-Allow-Origin` | ✅ |
+| `GET` con clave caducada | `401` | ✅ |
+| `GET` con clave revocada | `401` | ✅ |
+| `GET` `/api/doc.json` | `200` OpenAPI 3 | ✅ |
+| Cabeceras `X-RateLimit-*` en respuesta real | presentes | ✅ |
 
-Los 8 casos de la tabla se probaron con `curl` real, no con dobles. El resto de la superficie
-(13 rutas, 8 controladores) se verificó por lectura de código y por la generación del
-OpenAPI, no por petición: **esa es la parte que cubren los tests que faltan**.
+**Tests funcionales:** **35 tests, 526 aserciones**, todos en verde.
 
-### Qué falta para cerrarla
+| Fichero | Tests | Qué fija |
+|---|---|---|
+| `ApiAuthenticationTest` | 7 | Sin credencial, inexistente, caducada, revocada, las dos cabeceras, el mismo cuerpo en los cuatro fallos. |
+| `ApiScopeTest` | 4 | `read` no escribe, `write` sí, `write` cubre `read`. |
+| `ApiIsolationTest` | 1 | Dos organizaciones: la una no ve el recurso de la otra (`404`). |
+| `ApiCorsTest` | 5 | Preflight `204`, origen no permitido, `OPTIONS` sin `Origin`, cabeceras en respuestas reales. |
+| `ApiContractTest` | 7 | `data`/`meta`, las seis claves de `meta`, paginación, `422` con `violations[]` en español, `field` serializado, `match_reasons` estructurado, `404` problem+json. |
+| `ApiRateLimitTest` | 3 | El límite se agota exactamente en 300, cada clave tiene su ventana, cabeceras de cuota. |
+| `ApiKeyPanelTest` | 5 | Alta desde el panel, el secreto se enseña una sola vez, no reaparece, `write` arrastra `read`, revocar. |
+| `ApiOpenApiTest` | 3 | `/api/doc.json` responde, declara las rutas de `/api/v1` y los esquemas de seguridad. |
 
-Esta es la lista exacta de lo pendiente en la fase 18. Nada más.
+**Lints:** PHPStan nivel 8 limpio, `lint:twig` 52 ficheros OK, `lint:yaml --parse-tags` 38
+ficheros OK, `lint:container` OK, `doctrine:schema:validate` OK, suite completa
+(1 419 tests) en verde.
 
-1. **Corregir el defecto 1** (CORS): `ApiCorsListener` de prioridad 9 a prioridad 40, y
-   reescribir el docblock, que hoy culpa al firewall cuando el culpable es el router.
-2. **Corregir el defecto 2** (422): desempaquetar la `ValidationFailedException` de
-   `getPrevious()` en `ApiExceptionListener` y devolver `violations[]` con título en español.
-3. **Añadir un origen de prueba** a `.env.dev`
-   (`API_CORS_ALLOWED_ORIGINS=["https://integrador.example"]`) para poder validar el preflight
-   de verdad. `.env` es para valores por defecto; lo específico de desarrollo va en `.env.dev`.
-4. **Tests de la API** en `tests/Functional/Api/`, siguiendo el estilo de
-   `tests/Functional/Integrations/IntegrationPanelTest.php` (panel de claves) y
-   `tests/Functional/Shared/RateLimitTest.php` (429 con limitador real):
-   - `ApiAuthenticationTest` — sin credencial, credencial inexistente, caducada, revocada.
-   - `ApiScopeTest` — `read` no escribe, `write` sí; `write` cubre `read`.
-   - `ApiIsolationTest` — una organización no ve ni toca los datos de otra.
-   - `ApiContractTest` — forma de las respuestas (`data`/`meta`), las seis claves de `meta`,
-     `per_page` máximo, campos del DTO de alta de servicio.
-   - `ApiCorsTest` — preflight `204` con origen permitido; `403` (o sin ACAO) con origen no
-     permitido.
-   - `ApiRateLimitTest` — `429` con `retry_after`. **Clave única por test**: los contadores
-     del limitador viven en un pool de cache en disco que **sobrevive entre ejecuciones**, así
-     que un test reutilizado fallaría al segundo arranque de la suite.
-   - `ApiKeyPanelTest` — alta desde el backoffice, la clave se muestra una sola vez, revocación
-     effectiveness.
-   - `ApiOpenApiTest` — `/api/doc.json` responde 200, es OpenAPI 3, documenta las 13 rutas y
-     declara los dos esquemas de autenticación.
-5. **`docs/api/` — ya escrita, pendiente de revisión final.** La carpeta existe con los cuatro
-   documentos (`README.md` con la guía de integración de cero a la primera llamada, `errors.md`
-   con el catálogo de errores, `versioning.md` con la política de versión estable y
-   `deprecation.md` con la política de deprecación). Falta **revisarla contra el
-   comportamiento real** una vez corregidos los dos defectos: si el `422` pasa a devolver
-   `violations[]` con la forma descrita, y si el preflight responde `204`, el texto de los
-   documentos tiene que coincidir con lo que hace el servidor.
-6. **Limpieza**: borrar las tres claves `e2e-*` de la base de datos de desarrollo y el fichero
-   de sondeo `var/probe_scope.php`.
-7. **Verificación de cierre**: suite completa en verde, PHPStan nivel 8 sobre `src` y `tests`,
-   `vendor/bin/php-cs-fixer fix`, `bin/console lint:twig templates/`,
-   `bin/console doctrine:schema:validate`, y un `curl` real de los 8 casos de la tabla.
+### Lo que queda fuera de esta fase
+
+Queda **un solo** punto del alcance original fuera de esta fase: los **webhooks de salida**,
+que pasan a la fase 20 con diseño propio. El motivo está en la sección siguiente.
+
+El **panel de integraciones** —credenciales por proveedor y elección de IA **por necesidad** y
+por organización— no es trabajo de esta fase porque **ya existe**: lo entregaron las fases 11
+(`AiPurposeSelector`, elección de proveedor por necesidad) y 14 (control de coste y
+observabilidad), y vive en `/integrations` (`IntegrationController`) y en
+`src/Integrations/`. Esta fase solo añadió, encima de eso, la credencial de **API key** con la
+que un sistema externo entra en Suscripta: son dos direcciones distintas de la misma idea —
+Suscripta llamando hacia fuera con credenciales de terceros, y terceros llamándonos a nosotros
+con una clave que emitimos aquí.
 
 ### Webhooks de salida: fuera de esta fase
 
-El roadmap original Mentionaba los webhooks de salida (avisar a otros sistemas de un cobro
+El roadmap original mencionaba los webhooks de salida (avisar a otros sistemas de un cobro
 detectado, una propuesta creada o un presupuesto de IA agotado) como **opcionales** dentro de
 esta fase. **No se han implementado**, y la decisión es explícita:
 

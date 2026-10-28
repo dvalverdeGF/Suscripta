@@ -6,9 +6,6 @@ namespace App\Api\UI\Form;
 
 use App\Api\Domain\Enum\ApiScope;
 
-use function array_values;
-use function is_string;
-
 /**
  * Datos del formulario de alta de una clave de API.
  *
@@ -18,44 +15,23 @@ use function is_string;
  * ámbitos son un conjunto cerrado y conocido, y una casilla deja claro que
  * `write` es más que `read` (además de incluirlo).
  *
- * La conversión a enumeración la hace el propio DTO, no el controlador: así
- * el caso de uso recibe siempre `ApiScope` y no texto.
+ * La conversión de texto a enumeración la hace el propio `ChoiceType` (sus
+ * opciones son los casos de `ApiScope`), así que aquí la propiedad ya es una
+ * lista de `ApiScope` y el caso de uso no tiene que volver a interpretarla.
+ * Un valor que no sea un ámbito conocido ni siquiera llega: el formulario lo
+ * rechaza antes.
  */
 final class ApiKeyFormData
 {
     public ?string $name = null;
 
     /**
-     * @var list<string>
+     * @var list<ApiScope>
      */
-    public array $scopes = [ApiScope::Read->value];
+    public array $scopes = [ApiScope::Read];
 
     /**
      * Validez en días. `null` significa «no caduca».
      */
     public ?int $expiresInDays = null;
-
-    /**
-     * @return list<ApiScope>
-     */
-    public function toScopes(): array
-    {
-        $scopes = [];
-
-        foreach ($this->scopes as $scope) {
-            if (!is_string($scope)) {
-                continue;
-            }
-
-            $enumeration = ApiScope::tryFrom($scope);
-
-            if (null === $enumeration) {
-                continue;
-            }
-
-            $scopes[] = $enumeration;
-        }
-
-        return $scopes;
-    }
 }

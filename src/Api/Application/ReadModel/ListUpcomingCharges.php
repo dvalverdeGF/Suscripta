@@ -10,7 +10,6 @@ use App\Shared\Application\Clock;
 
 use function sprintf;
 
-
 /**
  * Próximos cobros de la organización.
  *

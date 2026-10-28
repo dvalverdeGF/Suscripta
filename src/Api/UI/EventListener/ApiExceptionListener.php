@@ -10,6 +10,17 @@ use App\Api\UI\Http\Problem;
 use App\Api\UI\Security\ApiAuthenticationEntryPoint;
 use App\Shared\Domain\Exception\InvalidArgumentException;
 use App\Shared\Domain\Exception\QuotaExceededException;
+
+use function is_object;
+use function preg_replace;
+use function property_exists;
+
+use ReflectionProperty;
+
+use function sprintf;
+use function str_contains;
+use function str_replace;
+
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpFoundation\Request;
@@ -19,9 +30,9 @@ use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
+use Symfony\Component\Serializer\Attribute\SerializedName;
 use Symfony\Component\Validator\Exception\ValidationFailedException;
-
-use function sprintf;
+use Throwable;
 
 /**
  * Convierte cualquier excepción de la API en un error `problem+json`.
@@ -103,7 +114,7 @@ final readonly class ApiExceptionListener
      * un error de configuración), que deben seguir su camino para que se
      * vean en el log y en el panel de Symfony.
      */
-    private function response(\Throwable $exception, Request $request): ?Response
+    private function response(Throwable $exception, Request $request): ?Response
     {
         if ($exception instanceof QuotaExceededException) {
             return $this->problem(
@@ -208,7 +219,7 @@ final readonly class ApiExceptionListener
      *
      * @see \Symfony\Component\HttpKernel\Controller\ArgumentResolver\RequestPayloadValueResolver
      */
-    private function validationFailure(\Throwable $exception): ?ValidationFailedException
+    private function validationFailure(Throwable $exception): ?ValidationFailedException
     {
         $current = $exception;
 
@@ -262,19 +273,70 @@ final readonly class ApiExceptionListener
     /**
      * Errores de validación, campo a campo.
      *
+     * ## El campo se devuelve con el nombre que el integrador envió
+     *
+     * El Validador recorre las **propiedades PHP**, así que
+     * `getPropertyPath()` devuelve `billingIntervalCount`. Pero el integrador
+     * mandó `billing_interval_count` (el nombre serializado, el que está en el
+     * `#[SerializedName]` y en la documentación). Devolver el nombre interno
+     * le obliga a adivinar a qué campo corresponde el error, y en un DTO con
+     * nombres distintos es directamente imposible.
+     *
+     * Se traduce aquí, en el borde, y no en los DTO: el nombre serializado ya
+     * está declarado una sola vez en el atributo, y duplicarlo en el validador
+     * sería dos fuentes de verdad que se separan en cuanto alguien renombre un
+     * campo.
+     *
      * @return list<array{field: string, message: string}>
      */
     private function violations(ValidationFailedException $exception): array
     {
+        $payload = $exception->getValue();
         $violations = [];
 
         foreach ($exception->getViolations() as $violation) {
+            $path = $violation->getPropertyPath();
+
             $violations[] = [
-                'field' => $violation->getPropertyPath(),
+                'field' => is_object($payload) ? $this->serializedPath($payload, $path) : $path,
                 'message' => (string) $violation->getMessage(),
             ];
         }
 
         return $violations;
+    }
+
+    /**
+     * Traduce el primer tramo de un `propertyPath` a su nombre serializado.
+     *
+     * Solo se traduce la **propiedad raíz** del payload: las rutas anidadas
+     * (`items[0].name`) se dejan como están, porque el validador ya las
+     * construye con los nombres que ve y traducir cada nivel exigiría recorrer
+     * el grafo de objetos, que es mucho más de lo que este borde necesita.
+     */
+    private function serializedPath(object $payload, string $path): string
+    {
+        $property = $path;
+
+        // `items[0]` -> `items`, conservando el resto de la ruta.
+        if (str_contains($property, '[')) {
+            $property = (string) preg_replace('/\[.*$/', '', $property);
+        }
+
+        if (str_contains($property, '.')) {
+            $property = (string) preg_replace('/\..*$/', '', $property);
+        }
+
+        if (!property_exists($payload, $property)) {
+            return $path;
+        }
+
+        $attributes = new ReflectionProperty($payload, $property)->getAttributes(SerializedName::class);
+
+        if ([] === $attributes) {
+            return $path;
+        }
+
+        return str_replace($property, $attributes[0]->newInstance()->serializedName, $path);
     }
 }

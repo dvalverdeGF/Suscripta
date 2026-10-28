@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace App\Api\UI\Http;
 
-use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpFoundation\Response;
-
 use function sprintf;
+
+use Symfony\Component\HttpFoundation\JsonResponse;
 
 /**
  * Errores de la API en formato `application/problem+json` (RFC 9457).

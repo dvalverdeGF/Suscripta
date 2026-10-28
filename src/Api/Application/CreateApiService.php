@@ -11,6 +11,7 @@ use App\Services\Application\Dto\ServiceInput;
 use App\Services\Domain\Enum\ServiceSource;
 use App\Services\Domain\Repository\ServiceViewRepositoryInterface;
 use App\Shared\Domain\ValueObject\BillingPeriod;
+use RuntimeException;
 
 /**
  * Alta de un servicio desde la API.
@@ -73,7 +74,7 @@ final readonly class CreateApiService
             // que el filtro de inquilino no coincide con la organización
             // activa, y es mejor fallar en voz alta que devolver un `null`
             // silencioso.
-            throw new \RuntimeException('El servicio recién creado no se puede leer.');
+            throw new RuntimeException('El servicio recién creado no se puede leer.');
         }
 
         return ResourceMapper::service($view);

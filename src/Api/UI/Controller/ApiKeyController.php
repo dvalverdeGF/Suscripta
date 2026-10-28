@@ -15,6 +15,10 @@ use App\Identity\Domain\Entity\User;
 use App\Shared\Application\Clock;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Exception\InvalidArgumentException;
+
+use function is_array;
+use function sprintf;
+
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -23,9 +27,6 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Uid\Uuid;
-
-use function is_array;
-use function sprintf;
 
 /**
  * Gestión de las claves de API desde el backoffice (Fase 18).
@@ -99,7 +100,7 @@ final class ApiKeyController extends AbstractController
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            $scopes = $data->toScopes();
+            $scopes = $data->scopes;
 
             if ([] === $scopes) {
                 // El campo es obligatorio, pero el mensaje se cuelga del

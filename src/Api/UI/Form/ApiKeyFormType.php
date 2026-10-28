@@ -5,14 +5,15 @@ declare(strict_types=1);
 namespace App\Api\UI\Form;
 
 use App\Api\Domain\Enum\ApiScope;
+
+use function sprintf;
+
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints as Assert;
-
-use function sprintf;
 
 /**
  * Formulario de alta de una clave de API.
@@ -59,10 +60,12 @@ final class ApiKeyFormType extends AbstractType
             'required' => true,
             'multiple' => true,
             'expanded' => true,
-            'choices' => [
-                ApiScope::Read->label() => ApiScope::Read->value,
-                ApiScope::Write->label() => ApiScope::Write->value,
-            ],
+            // Los propios casos de la enumeración son las opciones: así la
+            // etiqueta y el valor salen del mismo sitio y no hay dos listas
+            // que se puedan desincronizar. El valor enviado es el `value` del
+            // enum (`read`/`write`), que es lo que guarda `ApiKeyFormData`.
+            'choices' => ApiScope::cases(),
+            'choice_value' => static fn (?ApiScope $scope): ?string => $scope?->value,
             'choice_label' => static fn (ApiScope $scope): string => sprintf(
                 '%s — %s',
                 $scope->label(),
@@ -74,8 +77,9 @@ final class ApiKeyFormType extends AbstractType
         $builder->add('expiresInDays', ChoiceType::class, [
             'label' => 'Validez',
             'required' => false,
+            // Con `required => false`, Symfony deja la opción vacía como
+            // valor `null`: «sin caducidad» no necesita nada más.
             'placeholder' => 'Sin caducidad',
-            'placeholder_value' => null,
             'choices' => [
                 '30 días' => 30,
                 '90 días' => 90,
