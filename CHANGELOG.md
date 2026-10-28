@@ -13,10 +13,73 @@ cerrada, verificada y commiteada. El detalle de lo que queda pendiente está en
 
 ### Pendiente
 
-- Fase 24 — Checkout con Stripe. Planificada.
 - Fase 25 — CSRF unificado con el gestor de sesión. Planificada.
 - **Antes de publicar:** sustituir los marcadores de las tres páginas legales
   (`[RAZÓN SOCIAL]`, `[NIF]`, `[DOMICILIO]`, `[REGISTRO Y TOMO]`).
+
+---
+
+## [Fase 24] — 2026-10-29 — Cobro con Stripe
+
+El producto ya se cobra solo: se paga desde la web, el plan se activa sin que nadie toque nada y el
+recibo aparece en el panel de la organización. Commit de cierre: `5b32389`.
+
+### Añadido
+
+- **Módulo `Billing`** con las cuatro capas del resto del proyecto: `Domain` (puerto
+  `PaymentGatewayInterface`, entidades `PaymentEvent` y `SalesInvoice`, seis objetos de valor),
+  `Application` (`StartCheckout`, `CompleteCheckout`, `HandlePaymentEvent`,
+  `ApplyGatewaySubscription`, `RecordSalesInvoice`, `ReconcileSubscriptions`),
+  `Infrastructure/Stripe` y `UI`.
+- **`GET /checkout/{priceId}`** abre una sesión de pago alojada en Stripe y redirige. Antes de
+  mandar a nadie a pagar comprueba cinco cosas: pasarela configurada, precio vigente, plan activo,
+  importe mayor que cero y que la organización no tenga ya ese plan vivo.
+- **`POST /webhooks/stripe`**, endpoint público cuya única autenticación es la firma HMAC-SHA256,
+  con ventana de tolerancia y soporte de rotación de secreto. Aplica seis tipos de evento e ignora
+  el resto sin devolver error.
+- **Idempotencia por `INSERT` atómico** sobre `payment_event`: un evento repetido responde 200 sin
+  duplicar nada, y si aplicarlo falla la reserva se suelta para que el reintento se procese.
+- **`GET /checkout/gracias`** aplica la suscripción al volver del pago **sin esperar al webhook**, y
+  no afirma que se ha cobrado cuando la pasarela no lo confirma.
+- **`GET /facturacion`**: plan actual y recibos de la organización, con enlace al recibo alojado.
+- **`app:billing:reconcile`**: pone al día las suscripciones contra la pasarela, con el mismo código
+  que el webhook. Es la red de seguridad para los eventos que Stripe deja de reintentar a los tres
+  días.
+- **`stripe` en el panel de integraciones**: clave secreta y secreto de firma del webhook, cifrados
+  por organización.
+- **Migración `Version20261028233512`** con `payment_event` y `sales_invoice`.
+
+### Corregido
+
+Cuatro defectos de producción que encontraron los tests de la fase, no una prueba manual:
+
+- `StripeWebhookController` invocaba el manejador como método en vez de como invocable: **500 en
+  cada evento**.
+- `PaymentEventRepository::claim()` insertaba el booleano sin tipo explícito; DBAL lo enlazaba como
+  cadena y PostgreSQL lo rechazaba (`SQLSTATE[22P02]`).
+- `PaymentEventRepository::save()` usaba `EntityManager::merge()`, **eliminado en ORM 3**.
+- El `INSERT` que choca con el índice único dejaba la transacción de PostgreSQL en aborto
+  (`25P02`) y contaminaba todo lo que viniera después.
+
+### Cambiado
+
+- `Subscription` gana `syncWithGateway()`: el periodo lo dicta la pasarela, no se calcula en casa
+  (D-89).
+- El catálogo de integraciones pasa de cuatro proveedores a cinco.
+
+### Seguridad
+
+- El cobro lo hace Stripe en su dominio: Suscripta no recibe ni almacena datos de tarjeta.
+- La verificación de la firma tiene su propio test con once casos, incluida la rotación de secreto
+  con varias `v1` y la firma fuera de ventana.
+
+### Documentación
+
+- `ARCHITECTURE.md` §20: el módulo `Billing`, la idempotencia y el reparto de responsabilidades con
+  la pasarela.
+- `DECISIONS.md` D-86 a D-90: factura de venta ≠ factura descubierta, reserva atómica, sin SDK,
+  el periodo lo dicta la pasarela y la suscripción la crea el pago.
+- `operations.md` §8: el cron de conciliación y qué significa cada código de respuesta del webhook.
 
 ---
 

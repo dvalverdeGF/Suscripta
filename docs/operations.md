@@ -346,6 +346,7 @@ Procedimiento para una clave de proveedor:
 | Purgar datos por retención | `app:privacy:purge` | Mensual (política de retención en `SECURITY.md` §6). |
 | Liberar correos aplazados por presupuesto | `app:ai:release-deferred` | Al subir el presupuesto. |
 | Reencolar entregas de webhook vencidas | `app:webhooks:maintain` | **Cada 5 minutos** (ver abajo). |
+| Conciliar cobros con la pasarela | `app:billing:reconcile -v` | **Cada hora** (ver abajo). |
 | Sembrar la demostración | `app:demo:seed` | Solo en desarrollo. |
 
 Las tareas que se ejecutan a diario y semanalmente se programan con el
@@ -367,7 +368,43 @@ sobra (la granularidad de la política es de 30 segundos a 24 horas):
 0   5 * * 1  app  cd /app && php bin/console app:recurrence:detect --no-interaction
 0   4 1 * *  app  cd /app && php bin/console app:knowledge:prune --no-interaction
 0   5 1 * *  app  cd /app && php bin/console app:privacy:purge --no-interaction
+17  * * * *  app  cd /app && php bin/console app:billing:reconcile --no-interaction
 ```
+
+### Cobros: qué hay que configurar y qué vigilar
+
+La pasarela es Stripe y se configura **desde el panel de integraciones** (`/integrations`), no
+desde variables de entorno: cada organización pega su clave secreta (`sk_…`) y el secreto de firma
+del webhook (`whsec_…`), que se guardan cifrados. Sin esas dos credenciales el checkout responde
+503 y la pantalla lo dice antes de mandar a nadie a pagar.
+
+**Configuración única en el panel de Stripe.** El endpoint es `https://<host>/webhooks/stripe` y
+tiene que suscribirse a estos seis eventos, que son los de `GatewayEvent::HANDLED_TYPES`:
+
+- `checkout.session.completed`
+- `customer.subscription.created`
+- `customer.subscription.updated`
+- `customer.subscription.deleted`
+- `invoice.paid`
+- `invoice.payment_failed`
+
+Cualquier otro evento que llegue se apunta como `ignored` y se responde 200: no hay que
+suscribirse a los cientos que ofrece Stripe.
+
+**Qué significa cada respuesta del webhook**, por si hay que mirar los registros de Stripe:
+
+| Código | Cuándo | Qué hacer |
+|---|---|---|
+| `200` | Evento aplicado, duplicado o ignorado | Nada: los tres casos son correctos. |
+| `400` | Firma inválida o cabecera malformada | Revisar que el `whsec_…` del panel coincide con el del endpoint. |
+| `500` | Error al aplicar | Nada: la reserva se ha soltado y Stripe reintenta. |
+| `503` | No hay secreto de webhook configurado | Pegar el `whsec_…` en integraciones. |
+
+**`app:billing:reconcile` es la red de seguridad.** Stripe reintenta una entrega durante tres días
+y después se rinde; cuando se rinde, la suscripción local se queda con el estado de hace una
+semana y el cliente paga sin que su plan lo refleje. Esta pasada pregunta a la pasarela por cada
+suscripción con referencia externa y aplica lo que conteste, con el mismo código que el webhook.
+Cada hora es suficiente; no cancela lo que no encuentra, solo lo apunta en el log.
 
 Si el despliegue es en Docker, el `cron` va en el contenedor `php` o en el anfitrión con
 `docker compose exec -T php php bin/console …`. Lo importante es que se ejecute **una sola vez**

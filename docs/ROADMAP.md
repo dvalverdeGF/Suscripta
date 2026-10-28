@@ -1,9 +1,9 @@
 # Roadmap
 
-> Estado: **fases 0 a 21 cerradas** (1 512 tests, PHPStan nivel 8 limpio). Las fases 22 a 25
-> están planificadas y decididas con el usuario, sin empezar; la deuda técnica conocida está
-> listada al final. Fases pequeñas y verificables: cada fase termina con algo demostrable y con
-> criterios de aceptación explícitos.
+> Estado: **fases 0 a 24 cerradas** (1 603 tests, PHPStan nivel 8 limpio). Queda **una fase
+> planificada**, la 25 (CSRF unificado), decidida con el usuario y sin preguntas abiertas que la
+> bloqueen; la deuda técnica conocida está listada al final. Fases pequeñas y verificables: cada
+> fase termina con algo demostrable y con criterios de aceptación explícitos.
 
 ## Criterios de ordenación
 
@@ -45,8 +45,8 @@ en su apartado correspondiente.
 | Documento | Para qué |
 |---|---|
 | [`PRODUCT.md`](PRODUCT.md) | Qué es el producto, para quién y qué problema resuelve. |
-| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Cómo está construido, módulo por módulo. §17 = la API, §18 = los webhooks. |
-| [`DECISIONS.md`](DECISIONS.md) | Por qué se hizo así. D-71 y D-72 = la API; D-73 a D-76 = los webhooks; D-77 = la guarda anti-SSRF; D-78 y D-79 = la suscripción como entidad propia; D-80 a D-82 = el catálogo comercial. |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Cómo está construido, módulo por módulo. §17 = la API, §18 = los webhooks, §19 = la web, §20 = los cobros. |
+| [`DECISIONS.md`](DECISIONS.md) | Por qué se hizo así. D-71 y D-72 = la API; D-73 a D-76 = los webhooks; D-77 = la guarda anti-SSRF; D-78 y D-79 = la suscripción como entidad propia; D-80 a D-82 = el catálogo comercial; D-83 a D-85 = la web; D-86 a D-90 = los cobros. |
 | [`ROADMAP.md`](ROADMAP.md) | Este documento: qué está hecho y qué falta. |
 | [`SECURITY.md`](SECURITY.md) | Modelo de amenazas y medidas. |
 | [`operations.md`](operations.md) | Runbook del día a día: desplegar, copiar, restaurar, vigilar. |
@@ -91,22 +91,22 @@ en su apartado correspondiente.
 | 21 | `Subscription` como entidad propia | ✅ Completada | `4c71499` | Servicios y suscripciones como listas distintas |
 | 22 | Catálogo comercial en el backoffice | ✅ Completada | `5e983b0` | Un plan con dos precios publicado sin desplegar |
 | 23 | Web corporativa (11 páginas) | ✅ Completada | `bb643c4` | Once páginas sin sesión, precios desde el catálogo, contacto con correo real |
-| 24 | Checkout con Stripe | ⬜ Planificada | — | Alta, cobro en modo test, webhook y estado reflejado |
+| 24 | Checkout con Stripe | ✅ Completada | `5b32389` | 53 tests nuevos, 4 defectos de producción corregidos; cobro, webhook idempotente y conciliación |
 | 25 | CSRF unificado con el gestor de sesión | ⬜ Planificada | — | Ningún `POST` con token sin estado |
 
-**Lectura rápida de la tabla:** las fases 0 a 23 están **cerradas, commiteadas y verificadas**.
+**Lectura rápida de la tabla:** las fases 0 a 24 están **cerradas, commiteadas y verificadas**.
 La fase 18 se cerró corrigiendo los seis defectos que aparecieron al verificarla —dos de
 comportamiento en la API, uno de arranque en el entorno, uno de contrato y dos que impedían
 usar el panel de claves—, todos con test. La fase 19 cerró la documentación de entrega: el
 README de producto, el CHANGELOG por fase y la guía del primer despliegue.
 
 La fase 20 cerró los webhooks de salida, que eran lo único que la fase 19 había dejado como
-«idea documentada». La 21 separó la suscripción del servicio detectado y la 22 puso el catálogo
-comercial del que la 23 va a leer los precios. **Quedan tres fases planificadas** (23, 24 y 25) y
-están todas decididas con el usuario: no hay ninguna pregunta abierta que bloquee el trabajo,
-solo trabajo. Lo único diferido conscientemente de la fase 19 son las **capturas de pantalla**
-del README: no se ha añadido ningún binario al repositorio y se prefiere que envejezcan mal
-fuera de él antes que versionar imágenes que se quedan obsoletas a la primera fase.
+«idea documentada». La 21 separó la suscripción del servicio detectado, la 22 puso el catálogo
+comercial, la 23 la web que lo vende y la 24 el cobro: **el producto ya se vende y se cobra solo**.
+Queda **una fase planificada** (25, CSRF unificado), decidida con el usuario, sin preguntas que la
+bloqueen. Lo único diferido conscientemente de la fase 19 son las **capturas de pantalla** del
+README: no se ha añadido ningún binario al repositorio y se prefiere que envejezcan mal fuera de
+él antes que versionar imágenes que se quedan obsoletas a la primera fase.
 
 ## Fase 0 — Base del proyecto
 
@@ -2371,24 +2371,105 @@ al panel; y `sitemap.xml` lista las once URLs públicas sin una sola privada.
 fuera de `prod`. Sustituirlos **no es una tarea de estilo**: publicar con marcadores es publicar un
 aviso legal falso.
 
-## Fase 24 — Checkout con Stripe (planificada)
+## Fase 24 — Checkout con Stripe (completada)
 
-> **Estado:** ⬜ **Planificada.** Pasarela decidida: **Stripe**.
+> **Estado:** ✅ **Completada** el 2026-10-29, commit `5b32389`. Pasarela: **Stripe**.
 
-**Objetivo:** cobrar suscripciones del catálogo sin trabajo manual.
+**Objetivo:** cobrar las suscripciones del catálogo sin trabajo manual. Cumplido: se paga desde la
+web, el plan se activa solo, el recibo aparece en `/facturacion` y una cancelación hecha en Stripe
+se refleja sin tocar nada.
 
-**Alcance.**
+**Alcance entregado.**
 
-- Checkout de Stripe (sesión alojada) desde la web corporativa.
-- Webhooks **de entrada** de Stripe: firma propia, idempotencia por `event.id`, y estados de
-  suscripción (`active`, `past_due`, `canceled`) reflejados en `Subscription`.
-- Facturas del cobro enlazadas a la organización, no a los servicios detectados en el correo.
-- Reintento y conciliación: si un webhook se pierde, el estado se reconcilia consultando a Stripe
-  en el siguiente arranque del worker, no esperando a que llegue otro.
-- Cumplimiento: el cobro lo hace Stripe; Suscripta no almacena datos de tarjeta.
+| Pieza | Dónde |
+|---|---|
+| Checkout (sesión alojada) | `GET /checkout/{priceId}` → `StartCheckout` → URL de Stripe |
+| Vuelta del pago | `GET /checkout/gracias` → `CompleteCheckout` (aplica sin esperar al webhook) |
+| Webhook de entrada | `POST /webhooks/stripe` → `StripeSignatureVerifier` + `HandlePaymentEvent` |
+| Panel de facturación | `GET /facturacion` (plan actual y recibos de la organización) |
+| Conciliación | `app:billing:reconcile` (cron; mismo código que el webhook) |
+| Persistencia | `payment_event` (idempotencia) y `sales_invoice` (recibos) |
+| Integración | `stripe` en el panel de integraciones: clave secreta y secreto del webhook, cifrados por organización |
 
-**Verificación:** alta desde la web, cobro en modo test, webhook recibido, suscripción activa en
-el backoffice, y cancelación que se refleja al recibir el evento.
+**Las decisiones que costaron pensar.**
+
+1. **Sin SDK** (D-88). Cinco llamadas sobre `symfony/http-client`, la versión de la API fijada en la
+   cabecera `Stripe-Version` y la verificación HMAC escrita donde se puede leer y probar. El SDK ata
+   la versión de la API a la suya y son ~1 MB para cinco llamadas.
+2. **Idempotencia por `INSERT` atómico**, no por `SELECT` previo (D-87). Dos entregas simultáneas del
+   mismo evento leen «no existe» las dos; el índice único lo cierra en la base de datos, que es el
+   único sitio donde se puede cerrar.
+3. **El periodo lo dicta la pasarela** (D-89). Un prorrateo hecho en el panel de Stripe dejaría dos
+   versiones discrepando y la que manda es la del cobro.
+4. **La suscripción la crea el pago, no la intención** (D-90). La mayoría de los checkouts abiertos
+   no se pagan; cada apertura no puede dejar una suscripción fantasma ocupando plaza del plan.
+5. **Factura de venta ≠ factura descubierta** (D-86). `SalesInvoice` (lo que nos cobran a nosotros) y
+   `Documents\Invoice` (lo que el cliente recibe de sus proveedores) son dos entidades en dos
+   módulos. Mezclarlas arriesga enseñar a una organización lo que le hemos cobrado a otra.
+6. **La vuelta del pago no miente.** Si la pasarela no confirma la sesión, la pantalla dice que el
+   pago se está confirmando en vez de afirmar que se ha cobrado. Enseñar «todo listo» sobre un pago
+   que no consta es la peor versión de este error.
+
+**Defectos encontrados al verificar, y corregidos.** Los cuatro los encontraron los tests, no una
+prueba manual, y los cuatro eran de producción:
+
+| # | Defecto | Cómo se vio |
+|---|---|---|
+| 1 | `StripeWebhookController` llamaba `$this->handleEvent($event)` sobre un invocable: `Call to undefined method` → **500 en cada evento** | Test del webhook: el primer evento devolvía 500 |
+| 2 | `PaymentEventRepository::claim()` insertaba `applied => false` sin tipo: DBAL lo enlazaba como cadena y PostgreSQL rechazaba `''` (`SQLSTATE[22P02]`) | Test del webhook, primer `INSERT` |
+| 3 | `PaymentEventRepository::save()` usaba `EntityManager::merge()`, **eliminado en ORM 3** | Test del webhook, al marcar el evento como aplicado |
+| 4 | El `INSERT` que choca con el índice único dejaba la transacción de PostgreSQL en aborto (`25P02`) y contaminaba el resto del test | Test del evento duplicado |
+
+Los tres primeros habrían dejado el cobro **completamente roto en producción** sin que nada
+avisara: no hay ningún camino que ejercite el webhook salvo que Stripe llame de verdad.
+
+**Tests de la fase.** 53 casos nuevos, todos con red cero:
+
+| Fichero | Casos | Qué fija |
+|---|---|---|
+| `Unit/Billing/.../StripeSignatureVerifierTest` | 11 | La única defensa del endpoint público: firma válida, cuerpo alterado, firma antigua, timestamp futuro, rotación con varias `v1`, cabeceras malformadas |
+| `Unit/Billing/.../StripeGatewayTest` | 14 | El contrato del cuerpo enviado a Stripe: `price_data` vs `price`, metadatos, `year/1`, y los errores de la API |
+| `Functional/Billing/CheckoutTest` | 8 | Los cinco motivos por los que no se manda a nadie a pagar, y el camino feliz |
+| `Functional/Billing/CheckoutReturnTest` | 4 | La vuelta aplica el plan sin webhook, no miente si no consta y no activa una sesión de otra organización |
+| `Functional/Billing/StripeWebhookTest` | 7 | Firma, duplicado, evento ignorado, suscripción creada y actualizada, factura registrada |
+| `Functional/Billing/BillingPanelTest` | 5 | El panel enseña el plan actual y los recibos de la organización, y nada de otra |
+| `Functional/Billing/ReconcileCommandTest` | 4 | La conciliación corrige, no cancela lo que no encuentra y dice qué ha hecho |
+
+**Lo que se decidió no hacer.**
+
+- **Portal de cliente de Stripe.** El cambio de plan y la cancelación se hacen desde el panel de
+  Suscripta o desde el de Stripe. Un tercer sitio con la misma información es un sitio más donde
+  desincronizarse.
+- **Facturación con impuestos.** Stripe Tax y la factura legal española son un proyecto propio.
+  `SalesInvoice` guarda el recibo del cobro, no sustituye al sistema de facturación.
+- **Varios métodos de pago.** Tarjeta, que es lo que Stripe ofrece por defecto en la sesión alojada.
+  SEPA y transferencia se replantean con demanda real (y con SDK, probablemente).
+- **Precios creados en Stripe desde el backoffice.** El catálogo vive en Suscripta (fase 22) y se
+  manda a Stripe como `price_data` en cada checkout. Duplicar el catálogo en Stripe sería dos
+  fuentes de verdad para el mismo importe.
+
+**Verificación de cierre**
+
+| Comprobación | Resultado |
+|---|---|
+| Suite completa | **1 603 tests**, 6 445 aserciones, en verde (+53 desde la fase 23) |
+| PHPStan nivel 8 | Sin errores |
+| `php-cs-fixer` | Sin cambios pendientes (848 ficheros) |
+| `lint:container` / `lint:twig` | Sin errores (89 plantillas) |
+| `lint:yaml --parse-tags` | Sin errores (38 YAML) |
+| `doctrine:schema:validate` | Mapeo y esquema sincronizados |
+| Migración | `Version20261028233512` aplicada en `dev` y en `test` |
+
+**Verificación de la fase:** con la clave de Stripe en modo test pegada en el panel de
+integraciones, un usuario abre `/checkout/{priceId}`, paga en la sesión alojada, vuelve a
+`/checkout/gracias` y ve su plan activo **antes** de que llegue el webhook; el webhook llega, se
+reserva, se aplica y el recibo aparece en `/facturacion`; una segunda entrega del mismo evento
+responde 200 sin duplicar nada; y una cancelación hecha en el panel de Stripe deja la suscripción
+cancelada tras la siguiente pasada de `app:billing:reconcile`.
+
+**Pendiente para operar de verdad.** Configurar el endpoint en el panel de Stripe
+(`https://<host>/webhooks/stripe`) con los seis tipos de `GatewayEvent::HANDLED_TYPES`, pegar el
+`whsec_…` en integraciones y añadir el cron de conciliación. Está en `docs/operations.md` §8.
 
 ## Fase 25 — CSRF unificado con el gestor de sesión (planificada)
 
@@ -2485,9 +2566,10 @@ allowlist de desarrollo están en `docs/api/webhooks.md` § «Qué URLs se recha
    hosting propio) para validar `WebklexImapClient` y la hipótesis de producto de
    `PRODUCT.md` §3.2. **Es la más importante de la lista**: valida la premisa del producto, no una
    funcionalidad.
-2. **Qué pasa cuando un plan baja de nivel con suscripciones vivas.** La fase 24 introduce cobros
-   y, con ellos, la pregunta de qué se hace con el exceso de servicios o de consumo al bajar de
-   plan: ¿se bloquea el alta, se avisa, se recorta? No está decidido y conviene decidirlo **antes**
-   de la fase 24, no durante.
+2. **Qué pasa cuando un plan baja de nivel con suscripciones vivas.** La fase 24 ya cobra, así que
+   la pregunta es de negocio, no de código: al bajar de plan, ¿se bloquea el alta nueva, se avisa,
+   se recorta el exceso? Hoy el guard de cuotas impide **crear** por encima del límite pero no
+   recorta lo que ya existe, que es una respuesta defendible y no una decisión tomada. No bloquea
+   ninguna fase.
 3. **Precio del producto.** El catálogo (fase 22) permite fijar precios, pero no hay decisión de
    negocio sobre cuánto cuesta Suscripta ni qué incluye cada plan.

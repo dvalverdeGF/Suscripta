@@ -2618,3 +2618,149 @@ Las tres páginas legales llevan **marcadores** (`[RAZÓN SOCIAL]`, `[NIF]`, `[D
 `[REGISTRO Y TOMO]`) y un aviso rojo que solo se pinta fuera de `prod`. Sustituirlos es un
 requisito de lanzamiento, no una tarea de estilo: publicar con marcadores es publicar un aviso
 legal falso.
+
+## 20. Cobros con Stripe (Fase 24)
+
+El módulo `src/Billing/` convierte el catálogo de la fase 22 en dinero cobrado: abre un checkout
+desde la web, aplica lo que la pasarela confirma y deja el recibo a la vista de la organización.
+
+### 20.1 Capas
+
+| Capa | Contenido |
+|---|---|
+| `Domain/Port` | `PaymentGatewayInterface` — el puerto que aísla a la aplicación de Stripe. |
+| `Domain/ValueObject` | `CheckoutRequest`, `CheckoutSession`, `GatewayCheckoutSession`, `GatewayEvent`, `GatewayInvoice`, `GatewaySubscription`. Todos `readonly`. |
+| `Domain/Entity` | `PaymentEvent` (idempotencia) y `SalesInvoice` (recibo del cobro). |
+| `Domain/Exception` | `GatewayNotConfiguredException` (503), `InvalidSignatureException` (400), `GatewayRequestException` (502 con el estado de la pasarela). |
+| `Application` | `StartCheckout`, `CompleteCheckout`, `HandlePaymentEvent`, `ApplyGatewaySubscription`, `RecordSalesInvoice`, `ReconcileSubscriptions`. |
+| `Infrastructure/Stripe` | `StripeGateway` (HTTP + form-encoding + parseo) y `StripeSignatureVerifier` (HMAC). |
+| `Infrastructure/Repository` | `PaymentEventRepository`, `SalesInvoiceRepository`. |
+| `UI/Controller` | `CheckoutController` (`/checkout/{priceId}`), `BillingReturnController` (`/checkout/gracias`), `BillingController` (`/facturacion`), `StripeWebhookController` (`/webhooks/stripe`). |
+| `UI/Command` | `app:billing:reconcile`. |
+
+### 20.2 Rutas
+
+| Método | Ruta | Quién | Qué hace |
+|---|---|---|---|
+| `GET` | `/checkout/{priceId}` | sesión | Abre la sesión de pago y redirige a Stripe. |
+| `GET` | `/checkout/gracias` | sesión | Consulta la sesión y aplica la suscripción sin esperar al webhook. |
+| `GET` | `/facturacion` | sesión | Plan actual y recibos de la organización. |
+| `POST` | `/webhooks/stripe` | pública | Recibe los eventos de Stripe, firmados. |
+
+`/webhooks/stripe` está en `PUBLIC_ACCESS` porque quien llama es Stripe, no un usuario: la
+autenticación es la firma HMAC, no una sesión.
+
+### 20.3 El checkout no crea la suscripción
+
+`StartCheckout` comprueba cinco cosas antes de mandar a nadie a pagar —pasarela configurada, precio
+vigente, plan activo, importe mayor que cero y que la organización no tenga ya ese mismo plan
+vivo— y devuelve la URL de la sesión alojada. **No crea `Subscription`.** La crea el pago, no la
+intención de pagar: si se creara al abrir el checkout, cada cliente que abandona dejaría una
+suscripción fantasma ocupando plaza del plan.
+
+La organización y el plan viajan en los metadatos de la sesión (`organization_id`, `plan_id`,
+`billing_period`). Es lo único que permite que un evento que llega suelto —sin sesión, sin
+usuario— sepa a quién pertenece.
+
+### 20.4 Idempotencia: reservar antes de aplicar
+
+`HandlePaymentEvent` reserva el `event.id` en `payment_event` **antes** de aplicar nada:
+
+1. `claim()` inserta la fila. Si choca con el índice único, el evento ya estaba y se responde
+   «duplicado» sin tocar nada.
+2. Se aplica el efecto.
+3. Se marca `applied` o `ignored` con el motivo.
+
+Si el paso 2 falla, la reserva se **suelta** y el error se propaga para responder 500: la pasarela
+reintenta y, como la reserva ya no está, el reintento se procesa de verdad. Sin soltarla, un fallo
+de red de dos segundos se convertiría en un evento perdido para siempre.
+
+Dos detalles de implementación que costaron un bug cada uno y están fijados por tests:
+
+- **El `INSERT` va con `Types::BOOLEAN` explícito.** DBAL enlaza por defecto como cadena y
+  PostgreSQL rechaza `''` en una columna booleana (`SQLSTATE[22P02]`).
+- **El `INSERT` va envuelto en su propia transacción.** Un choque contra el índice único deja la
+  transacción de PostgreSQL en aborto y cualquier consulta posterior falla con `25P02`. Al capturar
+  `UniqueConstraintViolationException` se hace `rollBack()` y se sigue. En DBAL 4 el anidamiento
+  usa savepoints.
+
+`PaymentEventOutcome` tiene tres valores y **ninguno es un error**: `applied`, `duplicate` e
+`ignored`. Los tres responden 200. La diferencia está en el log y en la tabla, que es donde se mira
+cuando un cobro «no se ha reflejado».
+
+### 20.5 Qué eventos se aplican y qué se ignora
+
+| Evento | Efecto |
+|---|---|
+| `checkout.session.completed` | Crea o sincroniza la suscripción. |
+| `customer.subscription.created` / `.updated` / `.deleted` | Sincroniza estado, periodo y cancelación. |
+| `invoice.paid` | Registra el recibo y resincroniza la suscripción. |
+| `invoice.payment_failed` | Marca el recibo como fallido. |
+| Cualquier otro | Se marca `ignored` y se responde 200. |
+
+Un evento que no está en `GatewayEvent::HANDLED_TYPES` se apunta y se olvida. Devolver un error
+haría que Stripe lo reintentara durante días por un tipo que no vamos a entender nunca.
+
+### 20.6 El periodo lo dicta la pasarela
+
+`ApplyGatewaySubscription` copia `currentPeriodStart`/`currentPeriodEnd` tal y como los manda
+Stripe y no los calcula a partir del estado local. Si se calcularan aquí, un prorrateo o un
+aplazamiento hecho en el panel de Stripe dejaría las dos versiones discrepando, y la que manda es
+la del cobro.
+
+Crear y actualizar son el mismo camino: se busca por `externalReference` y, si existe, se llama a
+`Subscription::syncWithGateway()`; si no, se crea con el periodo de la pasarela.
+
+### 20.7 La vuelta del pago no espera al webhook
+
+`CompleteCheckout` pregunta a la pasarela por la sesión al volver del checkout. Si está `complete`,
+aplica la suscripción en el acto, porque el cliente está mirando la pantalla y tiene que ver su
+plan activo ya. El webhook llegará después e intentará lo mismo con los mismos datos: es
+idempotente, así que da igual quién llegue primero.
+
+Si la sesión no lleva el identificador de la organización activa **no se aplica nada**: es una
+comprobación de propiedad, no de existencia, para que pegar el `session_id` de otra cuenta en la
+URL no active un plan ajeno.
+
+Cuando no se puede confirmar, la pantalla dice que el pago se está confirmando en lugar de afirmar
+que se ha cobrado. Enseñar «todo listo» sobre un pago que no consta es la peor versión de este
+error.
+
+### 20.8 Conciliación por cron
+
+`app:billing:reconcile` recorre las suscripciones con referencia externa, pregunta a la pasarela
+por cada una y aplica lo que conteste, con **el mismo código que el webhook**. Un webhook se pierde
+—servidor reiniciando, puerto cerrado, firma rotada sin actualizar—, Stripe reintenta tres días y
+después se rinde; a partir de ahí la suscripción local se queda con el estado de hace una semana y
+el cliente paga sin que su plan lo refleje. Esta pasada lo corrige.
+
+**No cancela lo que no encuentra.** Una suscripción que la pasarela ya no conoce se deja como está
+y se apunta en el log: puede ser un borrado a mano en Stripe o un fallo puntual de la consulta, y
+cancelar por eso dejaría a un cliente de baja sin motivo.
+
+### 20.9 Factura de venta ≠ factura descubierta
+
+`SalesInvoice` es el recibo de **lo que nos cobran a nosotros** por usar Suscripta. `Documents\Invoice`
+es la factura que **el cliente recibe de sus proveedores** y que el producto descubre en el correo.
+Son dos entidades distintas, en dos módulos distintos, y no se mezclan (D-86).
+
+### 20.10 Sin SDK de Stripe
+
+La integración son dos ficheros: `StripeGateway` (peticiones `application/x-www-form-urlencoded` y
+parseo de la respuesta) y `StripeSignatureVerifier` (HMAC-SHA256 con `t` + `.` + cuerpo y ventana de
+tolerancia). No se instaló `stripe/stripe-php`:
+
+- El SDK son ~1 MB de clases para cinco llamadas.
+- Ata la versión de la API a la del SDK, y aquí interesa fijarla a mano.
+- La verificación de la firma es la única defensa de un endpoint público y conviene tenerla escrita
+  donde se pueda leer y probar, no dentro de una dependencia.
+
+La versión de la API se fija explícitamente en la cabecera `Stripe-Version` (`2024-06-20`): sin
+fijarla, Stripe aplica la de la cuenta y un cambio de su lado puede cambiar la forma de la
+respuesta sin que nadie haya desplegado nada.
+
+### 20.11 Cumplimiento
+
+El cobro lo hace Stripe en su dominio. Suscripta no ve, no recibe y no almacena datos de tarjeta:
+solo guarda el identificador de la suscripción y el del recibo, más las URLs alojadas por Stripe.
+No hay nada que PCI-DSS tenga que auditar en este servidor.

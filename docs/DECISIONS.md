@@ -2832,3 +2832,185 @@ con las de la web, que es como se acaba con `!important` en un sitio y en el otr
 - *Tailwind.* Descartada: añade un build, un `content` que escanear y clases en el HTML que la
   plantilla no puede leer como un sistema.
 - *Reutilizar `backoffice.scss`.* Descartada por lo dicho arriba.
+
+---
+
+## D-86 — La factura de venta es del cobro, no la que el cliente recibe de sus proveedores
+
+**Estado:** aceptada.
+
+**Contexto.** El módulo `Documents` ya tiene una entidad `Invoice`: la factura que el producto
+**descubre en el correo del cliente**, la que le manda su proveedor de hosting o de software. Con
+el cobro de la fase 24 aparece un segundo papel que también se llama «factura»: la que Suscripta
+emite al cliente por el servicio.
+
+**Decisión.** Dos entidades distintas, en dos módulos distintos, sin herencia ni tabla común:
+
+- `Documents\Domain\Entity\Invoice` — factura **descubierta**, del cliente, con su proveedor, su
+  CIF y sus líneas extraídas.
+- `Billing\Domain\Entity\SalesInvoice` — recibo de **venta**, de Suscripta, con el importe cobrado,
+  el estado del cobro y las URLs alojadas por la pasarela.
+
+**Por qué.** Comparten nombre y nada más. La descubierta tiene proveedor, fecha de servicio y
+líneas que se extraen de un PDF; la de venta tiene pasarela, estado del pago e identificador
+externo. Meterlas en una tabla obligaría a que la mitad de las columnas fueran nulas en cada fila y
+a que cada consulta empezara filtrando por un discriminador. Y un error en esa consulta haría que
+el listado de facturas del cliente enseñara lo que le hemos cobrado a él, que es una fuga entre
+organizaciones, no un fallo de estilo.
+
+**Consecuencias.**
+
+1. **Dos pantallas.** `/facturacion` enseña los recibos de venta; el listado de facturas
+   descubiertas sigue donde estaba. Son dos preguntas distintas («¿qué me habéis cobrado?» y «¿qué
+   me están cobrando mis proveedores?»).
+2. **`SalesInvoice` no pasa por el pipeline de extracción.** No se parsea: la pasarela da importe,
+   fecha y estado ya estructurados.
+3. **El nombre de la tabla lo dice**: `sales_invoice`, no `invoice`.
+
+**Alternativas descartadas.**
+
+- *Una sola entidad con un discriminador de tipo.* Descartada por lo dicho: columnas nulas y riesgo
+  de fuga.
+- *Llamar `Receipt` a la de venta.* Descartada: en España el recibo y la factura no son lo mismo, y
+  el nombre `SalesInvoice` deja claro de qué lado del negocio está.
+
+---
+
+## D-87 — La idempotencia del webhook se reserva con un `INSERT` atómico, no con un `SELECT` previo
+
+**Estado:** aceptada.
+
+**Contexto.** Stripe puede entregar el mismo evento varias veces, en paralelo y con reintentos de
+hasta tres días. Aplicar un `invoice.paid` dos veces no duplica el cobro, pero sí puede duplicar el
+recibo o pisar un estado más reciente con uno viejo.
+
+**Decisión.** La reserva es un `INSERT` contra un índice único (`uniq_payment_event_external`). Si
+inserta, el evento es nuestro y se aplica; si choca, ya estaba y se responde «duplicado». Nunca se
+pregunta primero «¿existe?» para insertar después.
+
+**Por qué.** Un `SELECT` seguido de un `INSERT` es una condición de carrera con ventana: dos
+entregas simultáneas del mismo evento leen «no existe» las dos y las dos aplican. El índice único
+la cierra en la base de datos, que es el único sitio donde se puede cerrar.
+
+**Consecuencias.**
+
+1. **El `INSERT` necesita su propia transacción.** Un choque contra un índice único deja la
+   transacción de PostgreSQL en estado de aborto y cualquier consulta posterior falla con `25P02`.
+   Se envuelve en `beginTransaction()`/`commit()` y se hace `rollBack()` al capturar
+   `UniqueConstraintViolationException`. En DBAL 4 el anidamiento usa savepoints.
+2. **El `INSERT` necesita `Types::BOOLEAN` explícito.** DBAL enlaza por defecto como cadena; `''` no
+   es un booleano válido en PostgreSQL y el evento falla con `SQLSTATE[22P02]` antes de llegar a
+   ninguna parte.
+3. **Si aplicar falla, la reserva se suelta.** Se borra la fila y se responde 500 para que Stripe
+   reintente. Sin soltarla, un fallo transitorio se convertiría en un evento perdido para siempre.
+
+**Alternativas descartadas.**
+
+- *`SELECT` y luego `INSERT`.* Descartada: condición de carrera.
+- *Guardar solo `event.id` en caché.* Descartada: la caché se pierde en un despliegue y la
+  idempotencia tiene que sobrevivir a un reinicio.
+- *Confiar en que Stripe no repite.* Descartada: repite por diseño, y está documentado que repite.
+
+---
+
+## D-88 — La integración con la pasarela se escribe a mano, sin SDK
+
+**Estado:** aceptada.
+
+**Contexto.** Stripe publica `stripe/stripe-php`. La alternativa era escribir las cinco llamadas
+que hacen falta —crear sesión, consultar sesión, consultar suscripción, listar y verificar la
+firma— sobre `symfony/http-client`.
+
+**Decisión.** Sin SDK. `StripeGateway` construye el cuerpo `application/x-www-form-urlencoded` y
+parsea la respuesta; `StripeSignatureVerifier` verifica el HMAC. La versión de la API se fija en la
+cabecera `Stripe-Version` (`2024-06-20`).
+
+**Por qué.**
+
+1. **Volumen.** Son cinco llamadas. El SDK son ~1 MB de clases para cinco llamadas.
+2. **La versión de la API.** El SDK ata la versión de la API a la suya. Aquí interesa fijarla a mano:
+   sin la cabecera, Stripe aplica la versión de la cuenta y un cambio de su lado puede cambiar la
+   forma de la respuesta sin que nadie haya desplegado nada.
+3. **La firma es la única defensa del endpoint público.** Conviene tenerla escrita donde se pueda
+   leer y probar, no dentro de una dependencia. Tiene su propio test con once casos, incluida la
+   rotación de secreto con varias `v1`.
+
+**Consecuencias.**
+
+1. **Si Stripe cambia el formato de una respuesta, se rompe aquí.** Mitigado con la versión fijada y
+   con tests que fijan el contrato del cuerpo enviado.
+2. **El parseo es responsabilidad nuestra.** `parse_str()` **no** sirve para inspeccionar el cuerpo
+   con claves tipo `line_items[0][price_data][unit_amount]`: las convierte en arrays anidados. El
+   test que comprueba el cuerpo decodifica a mano.
+3. **Los dobles de test son triviales.** `FakeStripeGateway` implementa el puerto; no hay que
+   simular un SDK.
+
+**Alternativas descartadas.**
+
+- *`stripe/stripe-php`.* Descartada por lo dicho. Si algún día hacen falta pagos por transferencia,
+  disputas o varios métodos de pago, se replantea.
+- *Un servicio de terceros que envuelva a Stripe.* Descartada: una dependencia más y un salto de red
+  más para lo mismo.
+
+---
+
+## D-89 — El periodo de la suscripción lo dicta la pasarela, no se calcula en casa
+
+**Estado:** aceptada.
+
+**Contexto.** Una suscripción tiene un periodo (`currentPeriodStart`/`End`). Se podía calcular a
+partir de la fecha de alta y la periodicidad, o copiarlo de lo que dice Stripe.
+
+**Decisión.** Se copia. `Subscription::syncWithGateway()` recibe las fechas de la pasarela y las
+guarda tal cual.
+
+**Por qué.** En cuanto hay un prorrateo, un aplazamiento o un cambio de plan hecho en el panel de
+Stripe, el cálculo local y el real dejan de coincidir. La versión que manda es la del cobro: si
+Suscripta cree que el periodo acaba el día 3 y Stripe cobra el día 5, el cliente ve «vencida» una
+suscripción que está pagada.
+
+**Consecuencias.**
+
+1. **`ApplyGatewaySubscription` es el único sitio que escribe el periodo.** Crear y actualizar son
+   el mismo camino: se busca por `externalReference` y se sincroniza.
+2. **La conciliación repara el periodo.** Un evento perdido se corrige en la siguiente pasada de
+   `app:billing:reconcile` con los mismos datos.
+3. **Si la pasarela no manda periodo, no se inventa.** `GatewaySubscription` lo exige, así que un
+   evento sin fechas no se construye y no se aplica.
+
+**Alternativas descartadas.**
+
+- *Calcular en casa con `billingPeriod`.* Descartada por lo dicho.
+- *Guardar las dos versiones y mostrar la local.* Descartada: dos verdades sobre lo mismo es cómo se
+  acaba discutiendo con un cliente que tiene la factura delante.
+
+---
+
+## D-90 — La suscripción la crea el pago, no la apertura del checkout
+
+**Estado:** aceptada.
+
+**Contexto.** `StartCheckout` podía crear la `Subscription` en estado pendiente al abrir la sesión
+de pago, o esperar a que la pasarela confirme.
+
+**Decisión.** No se crea nada al abrir el checkout. La suscripción nace en
+`checkout.session.completed` (o en la vuelta a `/checkout/gracias`, que consulta la sesión) y en
+ningún otro sitio.
+
+**Por qué.** La mayoría de los checkouts abiertos no se pagan: el cliente compara, duda, cierra la
+pestaña. Si cada apertura dejara una suscripción pendiente, el panel se llenaría de fantasmas y
+—peor— la comprobación de «ya tienes este plan» empezaría a rechazar clientes que nunca pagaron.
+Una intención de pagar no es un contrato.
+
+**Consecuencias.**
+
+1. **Un pago abandonado no deja rastro.** Es lo correcto: no hay nada que limpiar.
+2. **La comprobación de duplicado mira solo suscripciones vivas**, no intenciones.
+3. **El periodo empieza cuando la pasarela lo dice** (D-89), no cuando se pulsó el botón.
+
+**Alternativas descartadas.**
+
+- *Crear en estado `PENDING` y confirmar después.* Descartada: hay que limpiar los abandonados y la
+  limpieza siempre se olvida.
+- *No comprobar duplicados y confiar en Stripe.* Descartada: dos clics dejan dos cobros recurrentes
+  y devolver uno es trabajo manual.
