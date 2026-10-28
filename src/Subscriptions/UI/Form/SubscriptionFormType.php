@@ -18,12 +18,20 @@ use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
- * Alta y edición de una suscripción del catálogo.
+ * Alta y edición de una suscripción.
  *
  * Los servicios enlazables llegan como opción (`service_choices`) porque viven
  * en el módulo `Services` y este formulario no debe consultar sus repositorios
- * (ARCHITECTURE.md §3). El plan no se elige todavía: el catálogo comercial es la
- * fase 22 y hasta entonces la suscripción se identifica por su nombre.
+ * (ARCHITECTURE.md §3). Los planes del catálogo llegan igual (`plan_choices`),
+ * aunque los dos están en `Subscriptions`: el catálogo es global y esto es de un
+ * inquilino, así que la consulta se hace en el controlador y el formulario solo
+ * pinta la lista.
+ *
+ * ## El nombre sigue siendo libre
+ *
+ * Elegir plan **no** renombra la suscripción: el nombre está congelado desde el
+ * alta (D-79) porque es lo que el cliente contrató, y el plan es a qué ficha
+ * comercial corresponde. Por eso son dos campos y no uno.
  *
  * @extends AbstractType<SubscriptionFormData>
  */
@@ -81,6 +89,15 @@ final class SubscriptionFormType extends AbstractType
                 'choice_label' => static fn (string $label): string => $label,
                 'help' => 'Opcional. Enlázala si esta suscripción ya aparece en tu inventario como servicio.',
             ])
+            ->add('planId', ChoiceType::class, [
+                'label' => 'Plan del catálogo',
+                'required' => false,
+                'placeholder' => 'Sin plan',
+                'choices' => $options['plan_choices'],
+                'choice_value' => static fn (?Uuid $id): ?string => $id?->toRfc4122(),
+                'choice_label' => static fn (string $label): string => $label,
+                'help' => 'Opcional. El plan comercial al que corresponde, si está en el catálogo.',
+            ])
             ->add('externalReference', TextType::class, [
                 'label' => 'Referencia externa',
                 'required' => false,
@@ -96,8 +113,10 @@ final class SubscriptionFormType extends AbstractType
         $resolver->setDefaults([
             'data_class' => SubscriptionFormData::class,
             'service_choices' => [],
+            'plan_choices' => [],
         ]);
 
         $resolver->setAllowedTypes('service_choices', 'array');
+        $resolver->setAllowedTypes('plan_choices', 'array');
     }
 }

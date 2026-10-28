@@ -2571,3 +2571,144 @@ pasarela delante, que es la que ya sabe hacerlo. Hasta entonces el importe vive 
 2. La ficha de la suscripción no enseña importe; enseña periodo, estado y periodicidad.
 3. Cuando la Fase 24 traiga el cobro, el importe entra por la factura de la pasarela, no por un
    campo nuevo en `Subscription`.
+
+---
+
+## D-80 — El panel del catálogo exige `ROLE_OPERATOR`, un rol que no se hereda de ningún plan
+
+**Estado:** aceptada.
+
+**Contexto.** La Fase 22 trae la primera pantalla del backoffice que no gestiona datos del
+tenant sino **del producto**: los planes que Suscripta vende, sus precios y sus características.
+Hasta ahora todo el backoffice estaba detrás de `ROLE_USER` y cada consulta se filtraba por
+`organizationId`, así que la pregunta «¿quién puede entrar aquí?» no se había planteado.
+
+**Decisión.** El catálogo exige `ROLE_OPERATOR`. Es un rol **independiente de los planes**: no
+lo concede el plan de nadie, no se compra y no se deduce de `OrganizationPlan`. Se concede a
+mano con `app:user:grant-operator <email>` y se retira con `--revoke`; el comando es idempotente
+y dice qué ha hecho.
+
+**Por qué un rol y no una comprobación de «es el tenant propietario».** No hay tenant
+propietario: el catálogo es global (D-81) y no pertenece a ninguna organización. Tampoco vale
+`ROLE_ADMIN`, porque en este proyecto los roles de la organización describen lo que un miembro
+puede hacer **dentro de su cuenta** —invitar, ver facturas, gestionar correo—, y ninguno de esos
+permisos implica cambiar el precio que ven todos los clientes.
+
+**Por qué la constante y no el literal.** `App\Identity\Domain\Security\Roles::OPERATOR` es el
+único sitio donde aparece la cadena. Un `ROLE_OPERATOR` suelto en un `#[IsGranted]`, en un
+comando y en una plantilla son tres oportunidades de escribir `ROLE_OPERATOR_` y descubrirlo en
+producción.
+
+**Consecuencias.**
+
+1. **El enlace del menú va condicionado.** `templates/backoffice/base.html.twig` lo envuelve en
+   `{% if is_granted('ROLE_OPERATOR') %}`: un enlace que lleva a un 403 es peor que no tenerlo,
+   porque el usuario aprende a ignorar los errores.
+2. **El primer operador se crea desde consola.** No hay pantalla de «hazme operador», a
+   propósito: sería una escalada de privilegios a un clic. Es acceso al servidor o no es.
+3. **Un operador ve el catálogo, no los datos de los tenants.** El rol abre el catálogo y nada
+   más; no exime de `TenantFilter` en ninguna otra pantalla.
+
+**Alternativas descartadas.**
+
+- *`ROLE_ADMIN`.* Descartada: mezcla «administro mi organización» con «administro el producto».
+- *Una organización marcada como propietaria.* Descartada: el catálogo no es de ningún tenant, y
+  haría que el propietario pudiera perder el acceso al cambiar de plan.
+- *Un parámetro `OPERATOR_EMAILS` en `.env`.* Descartada: los roles ya viven en la base de
+  datos, y un `.env` obliga a reiniciar para dar acceso.
+
+---
+
+## D-81 — El catálogo comercial vive en `Subscriptions` y `Plan.code` es el puente con los límites
+
+**Estado:** aceptada.
+
+**Contexto.** Había dos sitios plausibles para `Plan`: el módulo `Catalog`, que ya tiene
+`Provider` y `Category`, o el módulo `Subscriptions`, que es quien lo consume. La documentación
+anterior decía «`Plan` vivirá en `Catalog`», y esa frase había que confirmarla o corregirla.
+
+**Decisión.** `Plan`, `PlanPrice` y `PlanFeature` viven en `Subscriptions`. `Plan::$code` es un
+`OrganizationPlan` (el mismo enum que usa `entitlements.yaml`), con índice único `uniq_plan_code`,
+y **no** hay copia de los límites en la entidad.
+
+**Por qué `Subscriptions` y no `Catalog`.** `Catalog` responde *qué proveedores conocemos y cómo
+los reconocemos*: es conocimiento del mundo, no se factura, y sus entidades cuelgan de `Provider`.
+Un `Plan` ahí sería un objeto de venta codeándose con proveedores de los que no cobramos nada, y
+el panel de operador tendría que filtrar la mitad de las tablas del módulo. `Subscriptions`
+responde *qué contrata un cliente*, y el plan es exactamente eso: el objeto del contrato. Además
+`Subscription::$planId` apunta a `Plan` sin FK, así que la cercanía no crea acoplamiento.
+
+**Por qué `code` es el enum y no una cadena libre.** Porque `entitlements.yaml` ya está indexado
+por `OrganizationPlan` y es la única fuente de los límites (D-64). Con el enum como clave, el
+catálogo y la configuración **no pueden** desincronizarse: un plan sin entrada en el YAML no
+compila una ficha coherente, y una entrada del YAML sin plan se detecta en el listado, que avisa
+de los planes sin ficha. Con una cadena libre habría que validar a mano que coincide.
+
+**Por qué los límites no se copian en `Plan`.** Serían una segunda verdad. El día que alguien
+suba `documents` de 500 a 1000 en el YAML, la ficha seguiría diciendo 500 y nadie sabría cuál es
+la buena. La ficha los enseña en **solo lectura** y lo dice por escrito.
+
+**Consecuencias.**
+
+1. **Añadir un plan nuevo toca dos sitios**: una entrada en `entitlements.yaml` y una ficha en el
+   panel (o `app:catalog:seed`). El listado del catálogo avisa de los planes del enum que no
+   tienen ficha.
+2. **El nombre y el gancho sí viven en la base de datos**, porque son texto comercial que cambia
+   sin desplegar. Los límites no, porque los aplica el código.
+3. **La ficha del plan muestra los límites reales**, no los prometidos: lee `EntitlementSettings`,
+   que es lo que el producto va a hacer cumplir.
+
+**Alternativas descartadas.**
+
+- *`Plan` en `Catalog`.* Descartada por lo dicho arriba; obliga además a que `Subscriptions`
+  dependa de `Catalog` para algo que no es conocimiento de proveedores.
+- *`code` como cadena libre con validación.* Descartada: dos fuentes de verdad y un error que solo
+  se ve en tiempo de ejecución.
+- *Copiar los límites en `Plan` «para que la ficha sea rápida».* Descartada: la ficha se abre una
+  vez al mes; leer el YAML es gratis y siempre correcto.
+
+---
+
+## D-82 — El precio se cierra, no se sobrescribe; y publicar el mismo importe no crea historial
+
+**Estado:** aceptada.
+
+**Contexto.** Cambiar el precio de un plan es la operación más delicada del catálogo: afecta a lo
+que se cobra a partir de ahora y a lo que se puede explicar de lo cobrado antes. Hay que decidir
+si el precio es un campo del plan o una fila con fechas.
+
+**Decisión.** El precio es una fila de `PlanPrice` con `validFrom` / `validTo`. **Vigente =
+`validTo IS NULL`**. Publicar un precio nuevo cierra el vigente del mismo periodo y moneda
+(`validTo = ahora`) y abre otro. Un precio **nunca** se modifica ni se borra. Además,
+`PublishPlanPrice` **no crea fila si el importe, la moneda y el periodo no cambian**.
+
+**Por qué con historial.** Es el mismo patrón que `ServicePrice` (D-13) y por la misma razón: una
+factura de marzo tiene que poder explicarse en junio. Si el precio fuera un campo de `Plan`, subir
+el precio borraría la prueba de lo que se cobró antes, y la primera reclamación de un cliente
+sería irresoluble.
+
+**Por qué cerrar y no sobrescribir.** `validTo` deja el historial consultable y hace que «el
+precio de un día» sea una pregunta con respuesta. La ficha del plan enseña los vigentes arriba y
+el historial debajo, sin repetir los de arriba: `findHistoryForPlan()` filtra
+`validTo IS NOT NULL` a propósito.
+
+**Por qué no crear fila cuando el importe no cambia.** Porque el formulario se reenvía: alguien
+pulsa «Guardar» dos veces, o corrige la descripción del plan y vuelve a guardar el precio. Sin
+esta comprobación, el historial se llena de filas de un minuto que no explican nada y que
+convierten la pregunta «¿cuándo subió el precio?» en arqueología.
+
+**Por qué el periodo forma parte de la identidad del precio.** Un plan puede costar 19 €/mes y
+182,40 €/año. Son dos precios vigentes a la vez, no uno que sustituye a otro; por eso el cierre
+solo afecta al vigente **del mismo periodo y moneda**.
+
+**Consecuencias.**
+
+1. **`PlanPrice::SELLABLE_PERIODS`** limita lo que se puede vender a mensual, trimestral y anual.
+   Un periodo nuevo (bienal, semanal) es una línea en el enum, no una migración.
+2. **`externalPriceId` está desde ya** para el `price_…` de Stripe: la Fase 24 necesita casar la
+   fila local con el precio remoto, y añadir la columna entonces obligaría a rellenar el
+   histórico a mano.
+3. **La baja de un plan no borra sus precios.** El plan se retira con `isActive = false`; sus
+   precios se quedan para poder explicar las facturas de quien lo contrató.
+4. **Las características sí se borran.** Son texto de presentación: no sostienen ninguna factura
+   y equivocarse con ellas no cuesta dinero.

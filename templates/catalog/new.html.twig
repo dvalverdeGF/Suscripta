@@ -1,0 +1,26 @@
+{% extends 'backoffice/base.html.twig' %}
+
+{% block title %}Nuevo plan — Suscripta{% endblock %}
+
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">Nuevo plan</h1>
+            <p class="bo-page-header__subtitle">La ficha comercial de un plan de la aplicación.</p>
+        </div>
+    </div>
+
+    {% include 'catalog/_form.html.twig' with {
+        form: form,
+        form_id: 'plan-form',
+    } only %}
+{% endblock %}
+
+{% block page_actions %}
+    {{ include('backoffice/_form_actions.html.twig', {
+        form_id: 'plan-form',
+        submit_label: 'Añadir plan',
+        submit_icon: 'fa-plus',
+        back_path: path('app_catalog_index'),
+    }) }}
+{% endblock %}

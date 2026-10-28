@@ -1,0 +1,36 @@
+{#
+    Formulario de plan.
+
+    El `id` lo pasa la pantalla porque el boton de guardar vive en la barra del
+    pie y se le asocia con el atributo HTML `form`.
+#}
+{{ form_start(form, {attr: {id: form_id|default('plan-form'), class: 'form'}}) }}
+    {{ form_errors(form) }}
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="card-title">Qué plan es</h2>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                {{ form_row(form.code) }}
+                {{ form_row(form.name) }}
+                {{ form_row(form.tagline) }}
+                {{ form_row(form.description) }}
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="card-title">Cómo se presenta</h2>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                {{ form_row(form.position) }}
+                {{ form_row(form.isActive) }}
+                {{ form_row(form.isHighlighted) }}
+            </div>
+        </div>
+    </div>
+{{ form_end(form) }}

@@ -44,6 +44,19 @@
                         {% endfor %}
                     </select>
                 </div>
+                {% if plans is not empty %}
+                    <div class="mb-3">
+                        <label class="form-label" for="filter-plan">Plan</label>
+                        <select class="form-select" id="filter-plan" name="plan">
+                            <option value="">Todos</option>
+                            {% for plan in plans %}
+                                <option value="{{ plan.id.toRfc4122() }}" {% if filters.planId and filters.planId.toRfc4122() == plan.id.toRfc4122() %}selected{% endif %}>
+                                    {{ plan.name }}{% if not plan.isActive %} (retirado){% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                {% endif %}
                 <div class="mb-3">
                     <label class="form-label" for="filter-sort">Ordenar por</label>
                     <select class="form-select" id="filter-sort" name="sort">
@@ -95,6 +108,12 @@
                         <tr>
                             <td data-label="Suscripción">
                                 <a href="{{ path('app_subscriptions_show', {id: subscription.id.toRfc4122()}) }}">{{ subscription.name }}</a>
+                                {% if subscription.planId %}
+                                    {% set planName = planNames[subscription.planId.toRfc4122()]|default(null) %}
+                                    {% if planName %}
+                                        <span class="badge text-bg-light ms-1">{{ planName }}</span>
+                                    {% endif %}
+                                {% endif %}
                                 {% if subscription.serviceId %}
                                     {% set serviceName = serviceNames[subscription.serviceId.toRfc4122()]|default(null) %}
                                     {% if serviceName %}

@@ -1,0 +1,36 @@
+{% extends 'backoffice/base.html.twig' %}
+
+{% block title %}Editar característica — {{ plan.name }} — Suscripta{% endblock %}
+
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">Editar característica</h1>
+            <p class="bo-page-header__subtitle">
+                Una de las líneas de la tarjeta de precios de «{{ plan.name }}».
+            </p>
+        </div>
+    </div>
+
+    {{ form_start(form, {attr: {id: 'plan-feature-form', class: 'form'}}) }}
+        {{ form_errors(form) }}
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row g-3">
+                    {{ form_row(form.label) }}
+                    {{ form_row(form.included) }}
+                </div>
+            </div>
+        </div>
+    {{ form_end(form) }}
+{% endblock %}
+
+{% block page_actions %}
+    {{ include('backoffice/_form_actions.html.twig', {
+        form_id: 'plan-feature-form',
+        submit_label: 'Guardar característica',
+        submit_icon: 'fa-floppy-disk',
+        back_path: path('app_catalog_show', {id: plan.id.toRfc4122()}),
+    }) }}
+{% endblock %}

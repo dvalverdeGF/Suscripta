@@ -13,11 +13,56 @@ cerrada, verificada y commiteada. El detalle de lo que queda pendiente está en
 
 ### Pendiente
 
-- Fase 22 — Catálogo comercial en el backoffice. Planificada (incluye enlazar con su plan las
-  suscripciones creadas en la fase 21).
 - Fase 23 — Web corporativa (once páginas). Planificada.
 - Fase 24 — Checkout con Stripe. Planificada.
 - Fase 25 — CSRF unificado con el gestor de sesión. Planificada.
+
+---
+
+## [Fase 22] — 2026-10-28 — Catálogo comercial en el backoffice
+
+Lo que se vende deja de estar en el código: planes, precios con historial y características se
+gestionan desde el backoffice. Commit de cierre: `PENDIENTE_SHA`.
+
+### Añadido
+
+- **Módulo de catálogo dentro de `Subscriptions`** con `Plan`, `PlanPrice` y `PlanFeature`. No va
+  en `Catalog`, que describe proveedores del mundo que no se facturan (D-81).
+- **Panel `/catalog`** con nueve rutas: listado, alta, edición, ficha, publicación y cierre de
+  precios, y alta, edición y borrado de características.
+- **Precios con historial**: vigente = `validTo IS NULL`. Publicar un precio cierra el vigente del
+  mismo periodo y moneda; publicar el mismo importe no crea fila (D-82).
+- **`ROLE_OPERATOR`** y el comando `app:user:grant-operator <email> [--revoke]` para concederlo. El
+  rol no se hereda de ningún plan y el enlace del menú solo aparece si se tiene (D-80).
+- **`app:catalog:seed`**: siembra idempotente de los planes por defecto, con `--dry-run` y
+  opciones de precio y moneda.
+- **`app:catalog:link-subscriptions`**: rellena el `planId` de las suscripciones de la fase 21
+  emparejando por nombre normalizado, y solo cuando hay un único candidato.
+- **`SubscriptionFormType` acepta plan**, y las listas y fichas de suscripciones muestran su
+  nombre con enlace a la ficha del catálogo, en lugar del UUID suelto.
+- Tablas `plan`, `plan_price` y `plan_feature` (migración `Version20261028230248`).
+
+### Cambiado
+
+- `PlanPriceRepository::findHistoryForPlan()` devuelve **solo precios cerrados**: la ficha ya
+  enseña los vigentes arriba y el historial no los repite.
+
+### Decisiones
+
+- **D-80** — El panel del catálogo exige `ROLE_OPERATOR`, un rol que no se hereda de ningún plan.
+- **D-81** — El catálogo comercial vive en `Subscriptions` y `Plan.code` es el puente con los
+  límites de `entitlements.yaml`.
+- **D-82** — El precio se cierra, no se sobrescribe; publicar el mismo importe no crea historial.
+
+### Notas
+
+- **Los límites siguen en `entitlements.yaml`** y la ficha los muestra en solo lectura: copiarlos
+  en la base de datos crearía una segunda verdad (D-64).
+- **Nada se borra**: un plan se retira (`isActive = false`) y un precio se cierra. Las
+  características sí se borran, porque son texto de presentación.
+- `PlanPrice::externalPriceId` queda listo para el `price_…` de Stripe de la fase 24.
+- El catálogo está sembrado en `dev` («Gratis» y «Profesional»); la base de datos de `test` se
+  siembra en los propios tests.
 
 ---
 

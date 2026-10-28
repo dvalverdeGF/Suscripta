@@ -46,7 +46,7 @@ en su apartado correspondiente.
 |---|---|
 | [`PRODUCT.md`](PRODUCT.md) | Qué es el producto, para quién y qué problema resuelve. |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | Cómo está construido, módulo por módulo. §17 = la API, §18 = los webhooks. |
-| [`DECISIONS.md`](DECISIONS.md) | Por qué se hizo así. D-71 y D-72 = la API; D-73 a D-76 = los webhooks; D-77 = la guarda anti-SSRF; D-78 y D-79 = la suscripción como entidad propia. |
+| [`DECISIONS.md`](DECISIONS.md) | Por qué se hizo así. D-71 y D-72 = la API; D-73 a D-76 = los webhooks; D-77 = la guarda anti-SSRF; D-78 y D-79 = la suscripción como entidad propia; D-80 a D-82 = el catálogo comercial. |
 | [`ROADMAP.md`](ROADMAP.md) | Este documento: qué está hecho y qué falta. |
 | [`SECURITY.md`](SECURITY.md) | Modelo de amenazas y medidas. |
 | [`operations.md`](operations.md) | Runbook del día a día: desplegar, copiar, restaurar, vigilar. |
@@ -88,24 +88,25 @@ en su apartado correspondiente.
 | 18 | API pública | ✅ Completada | `d840174` + `ffa7127` | 15 casos E2E y **35 tests** de API en verde; 6 defectos corregidos |
 | 19 | Cierre de documentación y publicación | ✅ Completada | `5821de0` | README de producto, CHANGELOG por fase, guía de despliegue, 1 420 tests |
 | 20 | Webhooks de salida | ✅ Completada | `bd646a8` | 29 tests nuevos; firma HMAC, 8 envíos, panel con prueba |
-| 21 | `Subscription` como entidad propia | ⬜ Planificada | — | Servicios y suscripciones como listas distintas |
-| 22 | Catálogo comercial en el backoffice | ⬜ Planificada | — | Un plan con dos precios publicado sin desplegar |
+| 21 | `Subscription` como entidad propia | ✅ Completada | `4c71499` | Servicios y suscripciones como listas distintas |
+| 22 | Catálogo comercial en el backoffice | ✅ Completada | `PENDIENTE_SHA` | Un plan con dos precios publicado sin desplegar |
 | 23 | Web corporativa (11 páginas) | ⬜ Planificada | — | `/` pública sin sesión, precios desde el catálogo |
 | 24 | Checkout con Stripe | ⬜ Planificada | — | Alta, cobro en modo test, webhook y estado reflejado |
 | 25 | CSRF unificado con el gestor de sesión | ⬜ Planificada | — | Ningún `POST` con token sin estado |
 
-**Lectura rápida de la tabla:** las fases 0 a 20 están **cerradas, commiteadas y verificadas**.
+**Lectura rápida de la tabla:** las fases 0 a 22 están **cerradas, commiteadas y verificadas**.
 La fase 18 se cerró corrigiendo los seis defectos que aparecieron al verificarla —dos de
 comportamiento en la API, uno de arranque en el entorno, uno de contrato y dos que impedían
 usar el panel de claves—, todos con test. La fase 19 cerró la documentación de entrega: el
 README de producto, el CHANGELOG por fase y la guía del primer despliegue.
 
 La fase 20 cerró los webhooks de salida, que eran lo único que la fase 19 había dejado como
-«idea documentada». **Quedan cinco fases planificadas** (21 a 25) y están todas decididas con el
-usuario: no hay ninguna pregunta abierta que bloquee el trabajo, solo trabajo. Lo único diferido
-conscientemente de la fase 19 son las **capturas de pantalla** del README: no se ha añadido
-ningún binario al repositorio y se prefiere que envejezcan mal fuera de él antes que versionar
-imágenes que se quedan obsoletas a la primera fase.
+«idea documentada». La 21 separó la suscripción del servicio detectado y la 22 puso el catálogo
+comercial del que la 23 va a leer los precios. **Quedan tres fases planificadas** (23, 24 y 25) y
+están todas decididas con el usuario: no hay ninguna pregunta abierta que bloquee el trabajo,
+solo trabajo. Lo único diferido conscientemente de la fase 19 son las **capturas de pantalla**
+del README: no se ha añadido ningún binario al repositorio y se prefiere que envejezcan mal
+fuera de él antes que versionar imágenes que se quedan obsoletas a la primera fase.
 
 ## Fase 0 — Base del proyecto
 
@@ -2216,28 +2217,78 @@ distintas —una suscripción no aparece en `/services` y un servicio no aparece
 una suscripción se enlaza opcionalmente con un servicio, y los tests de `Service` siguen pasando
 sin haberlos tocado.
 
-## Fase 22 — Catálogo comercial en el backoffice (planificada)
+## Fase 22 — Catálogo comercial en el backoffice
 
-> **Estado:** ⬜ **Planificada.**
+> **Estado:** ✅ **Completada.** Commit de cierre: `PENDIENTE_SHA`.
 
-**Objetivo:** que un administrador pueda definir qué se vende —planes, precios, ciclos,
-características— sin tocar código.
+**Objetivo:** que un operador pueda definir qué se vende —planes, precios, ciclos,
+características— sin tocar código, y que la web corporativa de la fase 23 lo lea de ahí.
 
-**Alcance.**
+**Por qué ahora.** La fase 21 dejó `Subscription::$planId` apuntando a un UUID que no existía.
+Sin catálogo, la suscripción es un contrato con un plan que nadie puede nombrar, y la fase 23 no
+tiene precios que enseñar. El catálogo es también lo que convierte `entitlements.yaml` en algo
+explicable: los límites ya se aplicaban (D-64), pero no había dónde contarlos.
 
-- Entidades `Plan`, `Price` y `Feature`, con ciclo (`monthly`/`yearly`), moneda e importe en
-  unidades menores.
-- Panel de catálogo: alta, edición, activar/desactivar, orden de presentación.
-- Precios con historial: cambiar un precio **no** reescribe las suscripciones vivas.
-- Los límites del plan (`config/packages/entitlements.yaml`) siguen siendo la fuente de verdad de
-  las capacidades; el catálogo comercial no los duplica.
-- **Relleno que la fase 21 dejó pendiente:** ahora que existen planes, enlazar (`planId`) las
-  suscripciones creadas antes y los servicios `MANUAL` que correspondan a un plan del catálogo.
-  Es una migración con datos, no un cambio de esquema, y va al final de la fase.
+**Dónde vive.** En `Subscriptions`, no en `Catalog`. `Catalog` es el conocimiento de proveedores
+—OVH, Microsoft, GitHub—, que no se factura; `Plan` es el producto que vendemos. La decisión está
+en D-81, junto con el motivo de que `Plan.code` sea el enum `OrganizationPlan`.
 
-**Verificación:** se crea un plan con dos precios, se publica y aparece en la web corporativa
-(fase 23) sin desplegar; una suscripción creada en la fase 21 queda enlazada a su plan sin
-intervención manual.
+| Capa | Piezas |
+|---|---|
+| `Domain/Entity` | `Plan` (código, nombre, slug, gancho, descripción, activo, destacado, orden), `PlanPrice` (importe en unidades menores, moneda, periodo, `validFrom`/`validTo`, `externalPriceId`) y `PlanFeature` (etiqueta, incluida, orden). |
+| `Domain/Enum` | Reutiliza `BillingPeriod` y `OrganizationPlan`. `PlanPrice::SELLABLE_PERIODS` limita la venta a mensual, trimestral y anual. |
+| `Domain/Repository` | `PlanRepositoryInterface`, `PlanPriceRepositoryInterface`, `PlanFeatureRepositoryInterface`. |
+| `Application` | `CreatePlan`, `UpdatePlan`, `PublishPlanPrice`, `ClosePlanPrice`, `AddPlanFeature`, `UpdatePlanFeature`, `DeletePlanFeature`, `LinkSubscriptionsToPlans`. |
+| `UI` | `CatalogController` (9 rutas), `PlanFormType`, `PlanPriceFormType`, `PlanFeatureFormType`, `GrantOperatorCommand`, `SeedCatalogCommand`, `LinkSubscriptionsCommand` y 7 plantillas. |
+| Migración | `Version20261028230248`: `plan`, `plan_price` y `plan_feature`, con índice único en `plan.code` y en `plan.slug`. |
+
+**Las reglas del catálogo**, que es donde está el valor de la fase:
+
+1. **El catálogo es global.** `Plan` no implementa `TenantAwareInterface`: los precios de Suscripta
+   son los mismos para todos. Lo que es por tenant es la suscripción, no el plan.
+2. **El panel exige `ROLE_OPERATOR`**, un rol que no se hereda de ningún plan y se concede a mano
+   con `app:user:grant-operator <email>` (D-80). Es la primera pantalla del backoffice que no
+   gestiona datos de un tenant sino del producto.
+3. **El precio se cierra, no se sobrescribe.** Vigente = `validTo IS NULL`; publicar cierra el
+   vigente del mismo periodo y moneda. Publicar el mismo importe **no** crea fila (D-82), porque
+   el formulario se reenvía y el historial no debe llenarse de ruido.
+4. **Nada se borra.** Un plan se retira (`isActive = false`) y un precio se cierra: borrarlos
+   dejaría suscripciones y facturas apuntando a un UUID inexistente. Las características sí se
+   borran, porque son texto de presentación y no sostienen ninguna factura.
+5. **Los límites no se copian.** La ficha los muestra en solo lectura leyendo
+   `EntitlementSettings`, que sigue siendo la única fuente (D-64). Copiarlos crearía una segunda
+   verdad que se desincroniza el día que alguien edite el YAML.
+6. **`externalPriceId` está desde ya**, aunque Stripe llegue en la fase 24: añadir la columna
+   entonces obligaría a rellenar el histórico a mano.
+
+**El relleno que la fase 21 dejó pendiente.** `app:catalog:link-subscriptions` rellena el
+`planId` de las suscripciones antiguas emparejando por nombre normalizado, y **solo enlaza cuando
+hay exactamente un candidato**: ante la duda no toca nada y lo dice. Se ejecutó en `dev` y
+`app:catalog:seed` dejó sembrados los planes «Gratis» y «Profesional» con sus precios (0, 19,00 y
+182,40) y sus características.
+
+**Verificación de cierre**
+
+| Comprobación | Resultado |
+|---|---|
+| Suite completa | **1 528 tests**, 6 105 aserciones, en verde (+16 desde la fase 21) |
+| Tests nuevos | 11 unitarios (`PlanCatalogTest`: cierre de precios, no duplicar importe, periodos vendibles, orden de características, idempotencia del sembrado, enlace solo con candidato único) y 5 funcionales (`CatalogPanelTest`: 403 sin `ROLE_OPERATOR`, alta de plan con precio y característica, cierre del precio anterior, borrado de característica con CSRF, límites en solo lectura) |
+| PHPStan nivel 8 | Sin errores |
+| `php-cs-fixer` | Sin cambios pendientes (795 ficheros) |
+| `lint:container` / `lint:twig` / `lint:yaml --parse-tags` | Sin errores (68 plantillas, 38 YAML) |
+| `doctrine:schema:validate` | Mapeo y esquema sincronizados |
+| Migración | Aplicada en `dev` y en `test` (22 migraciones) |
+| `debug:router` | Las 9 rutas del panel registradas |
+
+**Verificación de la fase:** un operador entra en `/catalog`, crea un plan con su precio y sus
+características, publica un precio nuevo y ve el anterior pasar al historial; un usuario sin
+`ROLE_OPERATOR` recibe un 403 y no ve el enlace en el menú; una suscripción de la fase 21 queda
+enlazada a su plan con `app:catalog:link-subscriptions`; y la ficha del plan enseña los límites
+que el producto aplica de verdad, sin poder editarlos.
+
+**Lo que esta fase deja para después.** El catálogo no cobra: no hay checkout ni factura de
+venta. `externalPriceId` está listo y `PlanPrice` tiene el importe que Stripe necesita, pero el
+cobro es la fase 24.
 
 ## Fase 23 — Web corporativa (planificada)
 

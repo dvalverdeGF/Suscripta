@@ -13,6 +13,7 @@ use App\Subscriptions\Application\RenewSubscription;
 use App\Subscriptions\Application\UpdateSubscription;
 use App\Subscriptions\Domain\Entity\Subscription;
 use App\Subscriptions\Domain\Enum\SubscriptionStatus;
+use App\Subscriptions\Domain\Repository\PlanRepositoryInterface;
 use App\Subscriptions\Domain\Repository\SubscriptionFilters;
 use App\Subscriptions\Domain\Repository\SubscriptionRepositoryInterface;
 use App\Subscriptions\UI\Form\SubscriptionFormData;
@@ -44,6 +45,7 @@ final class SubscriptionController extends AbstractController
     public function __construct(
         private readonly SubscriptionRepositoryInterface $subscriptions,
         private readonly ServiceRepositoryInterface $services,
+        private readonly PlanRepositoryInterface $plans,
     ) {
     }
 
@@ -65,6 +67,8 @@ final class SubscriptionController extends AbstractController
             'statuses' => SubscriptionStatus::cases(),
             'counts' => $this->subscriptions->countByStatus(),
             'serviceNames' => $this->serviceNamesById(),
+            'planNames' => $this->planNamesById(),
+            'plans' => $this->plans->findAll(),
         ]);
     }
 
@@ -96,6 +100,7 @@ final class SubscriptionController extends AbstractController
         return $this->render('subscriptions/show.html.twig', [
             'subscription' => $subscription,
             'service' => $service,
+            'plan' => null === $subscription->getPlanId() ? null : $this->plans->find($subscription->getPlanId()),
         ]);
     }
 
@@ -194,7 +199,50 @@ final class SubscriptionController extends AbstractController
      */
     private function formOptions(): array
     {
-        return ['service_choices' => $this->serviceNames()];
+        return [
+            'service_choices' => $this->serviceNames(),
+            'plan_choices' => $this->planChoices(),
+        ];
+    }
+
+    /**
+     * Planes del catálogo para el desplegable de la suscripción.
+     *
+     * Se incluyen también los retirados —marcados como tales— porque una
+     * suscripción viva puede apuntar a un plan que ya no se ofrece, y si no
+     * apareciera, guardar cualquier otro cambio la dejaría sin plan.
+     *
+     * @return array<string, Uuid>
+     */
+    private function planChoices(): array
+    {
+        $choices = [];
+
+        foreach ($this->plans->findAll() as $plan) {
+            $label = $plan->getName();
+
+            if (!$plan->isActive()) {
+                $label = sprintf('%s (retirado)', $label);
+            }
+
+            $choices[$label] = $plan->getId();
+        }
+
+        return $choices;
+    }
+
+    /**
+     * @return array<string, string> id (RFC 4122) => nombre, para el listado
+     */
+    private function planNamesById(): array
+    {
+        $names = [];
+
+        foreach ($this->plans->findAll() as $plan) {
+            $names[$plan->getId()->toRfc4122()] = $plan->getName();
+        }
+
+        return $names;
     }
 
     /**

@@ -226,11 +226,53 @@ producto, quien ya lo contrató sigue viendo el nombre con el que lo contrató (
 cobro (Fase 24). Congelarlo aquí obligaría a decidir hoy qué pasa con las subidas de precio, y
 esa decisión se toma con la pasarela delante.
 
-**`planId` y `serviceId` son UUID sueltos, sin clave ajena.** `Plan` vivirá en `Catalog` y
-`Service` en `Services`; los módulos no se referencian por FK, igual que `Service::$providerId`
-y `$categoryId`. La relación con el servicio es **opcional y explícita**: un servicio detectado
-en una factura no es una suscripción del catálogo, y confundirlos es el error que esta fase
-evita.
+**`planId` y `serviceId` son UUID sueltos, sin clave ajena.** `Plan` vive en `Subscriptions`
+(§4.3.2) y `Service` en `Services`; los módulos no se referencian por FK, igual que
+`Service::$providerId` y `$categoryId`. La relación con el servicio es **opcional y explícita**:
+un servicio detectado en una factura no es una suscripción del catálogo, y confundirlos es el
+error que esta fase evita.
+
+### 4.3.2 Catálogo comercial: lo que se vende (Fase 22)
+
+El catálogo de §4.2 responde *qué proveedores conocemos*; este responde *qué vendemos nosotros*.
+Son dos cosas distintas y por eso son dos módulos: `Catalog` describe el mundo (OVH, Microsoft,
+GitHub…, con sus dominios y sus parsers) y no se factura; `Subscriptions` describe el producto
+que Suscripta pone a la venta. Meter ambos en el mismo módulo habría dejado un `Plan` que no es
+un proveedor codeándose con `Provider`, y un panel de operador que tendría que filtrar la mitad
+de las tablas.
+
+| Entidad | Campos clave | Notas |
+|---|---|---|
+| `Plan` | id, code (enum `OrganizationPlan`, único), name, slug (único), tagline, description, isActive, isHighlighted, sortOrder, createdAt, updatedAt | `code` es el **puente** con `entitlements.yaml`: no hay dos catálogos, hay uno con límites en configuración (D-64, D-81). |
+| `PlanPrice` | id, planId, amountMinor, currency, billingPeriod, validFrom, validTo (nullable), externalPriceId (nullable), createdAt | Vigente = `validTo IS NULL`. Nunca se sobrescribe: se cierra y se abre otro (D-13, D-82). |
+| `PlanFeature` | id, planId, label, included, sortOrder | Texto de presentación de la tarjeta de precios. `included = false` sirve para enseñar tachado lo que **no** entra. |
+
+**El catálogo es global, no por tenant.** Un `Plan` no implementa `TenantAwareInterface`: los
+precios de Suscripta son los mismos para todos. Lo que sí es por tenant es la *suscripción* a
+un plan, que es la Fase 21.
+
+**El panel exige `ROLE_OPERATOR`**, un rol que **no se hereda de ningún plan** y se concede a
+mano con `app:user:grant-operator <email>` (y se retira con `--revoke`). Es la primera pantalla
+del backoffice que no está al alcance de un `ROLE_USER`: cambiar el precio que ven todos los
+clientes no es una preferencia de la cuenta. La constante vive en
+`App\Identity\Domain\Security\Roles::OPERATOR`, no en un literal suelto, y el enlace del menú
+va envuelto en `is_granted()` porque un enlace que lleva a un 403 es peor que no tenerlo.
+
+**Los precios tienen historial; los planes no se borran.** Un precio se cierra poniendo
+`validTo` y se publica otro (`PublishPlanPrice`), que además **no crea fila si el importe no
+cambia** — reenviar el mismo formulario no debe fabricar un historial de un solo día. Un plan se
+retira con `isActive = false`: borrarlo dejaría suscripciones apuntando a un UUID que ya no
+existe. Las **características sí se borran**, porque son texto de marketing y no sostienen nada.
+
+**Los límites no se editan aquí y no se copian en la base de datos.** La ficha del plan los
+muestra en solo lectura leyendo `EntitlementSettings`, que es la única fuente (D-64). Copiarlos
+en `Plan` crearía una segunda verdad que se desincroniza el día que alguien edite el YAML.
+
+**Dos comandos de operación.** `app:catalog:seed` siembra los planes por defecto de forma
+idempotente (no toca fichas existentes, `--dry-run` para ver qué haría) y
+`app:catalog:link-subscriptions` rellena el `planId` de las suscripciones antiguas emparejando
+por nombre normalizado, **solo cuando hay exactamente un candidato**: ante la duda no enlaza, y
+lo dice.
 
 ### 4.4 Documentos y facturas
 
@@ -450,9 +492,10 @@ interface EntitlementCheckerInterface
 }
 ```
 
-En v1 se registra una implementación `UnlimitedEntitlements`. Cuando existan planes, se
-sustituye por una implementación basada en el plan contratado, sin tocar entidades ni casos
-de uso.
+La implementación vigente es `EntitlementSettings`: lee los límites de
+`config/packages/entitlements.yaml` por `OrganizationPlan` (D-64), así que cambiar un límite es
+editar configuración, no código ni base de datos. La interfaz se mantiene porque es la que
+permite que el dominio pregunte «¿puede?» sin saber de planes, de YAML ni de Doctrine.
 
 ### 4.10 Separación fuente / procesamiento / dominio / valor
 

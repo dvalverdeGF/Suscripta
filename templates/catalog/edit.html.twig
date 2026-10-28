@@ -1,0 +1,29 @@
+{% extends 'backoffice/base.html.twig' %}
+
+{% block title %}Editar {{ plan.name }} — Suscripta{% endblock %}
+
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">{{ plan.name }}</h1>
+            <p class="bo-page-header__subtitle">
+                Ficha comercial del plan <code>{{ plan.code.value }}</code>.
+                El código no se puede cambiar: cambiarlo convertiría el plan en otro.
+            </p>
+        </div>
+    </div>
+
+    {% include 'catalog/_form.html.twig' with {
+        form: form,
+        form_id: 'plan-form',
+    } only %}
+{% endblock %}
+
+{% block page_actions %}
+    {{ include('backoffice/_form_actions.html.twig', {
+        form_id: 'plan-form',
+        submit_label: 'Guardar cambios',
+        submit_icon: 'fa-floppy-disk',
+        back_path: path('app_catalog_show', {id: plan.id.toRfc4122()}),
+    }) }}
+{% endblock %}

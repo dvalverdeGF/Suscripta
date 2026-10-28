@@ -1,0 +1,263 @@
+{% extends 'backoffice/base.html.twig' %}
+
+{% block title %}{{ plan.name }} — Catálogo — Suscripta{% endblock %}
+
+{% block content %}
+    {% set id = plan.id.toRfc4122() %}
+
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">{{ plan.name }}</h1>
+            <p class="bo-page-header__subtitle">
+                {% if plan.tagline %}
+                    {{ plan.tagline }}
+                {% else %}
+                    Plan <code>{{ plan.code.value }}</code> del catálogo comercial.
+                {% endif %}
+            </p>
+            <div class="bo-page-header__meta">
+                <span class="badge text-bg-light">{{ plan.code.label() }}</span>
+                {% if plan.isActive %}
+                    <span class="badge text-bg-success">Publicado</span>
+                {% else %}
+                    <span class="badge text-bg-secondary">Retirado</span>
+                {% endif %}
+                {% if plan.isHighlighted %}
+                    <span class="badge text-bg-primary">Destacado</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="bo-page-header__actions">
+            <a class="btn btn-outline-secondary" href="{{ path('app_catalog_edit', {id: id}) }}">
+                <i class="fa-solid fa-pen-to-square me-1" aria-hidden="true"></i> Editar
+            </a>
+        </div>
+    </div>
+
+    {% if plan.description %}
+        <div class="card mb-4">
+            <div class="card-body">
+                <p class="mb-0">{{ plan.description|nl2br }}</p>
+            </div>
+        </div>
+    {% endif %}
+
+    {#
+        Precios. Un plan puede tener varios a la vez (mensual, trimestral, anual),
+        pero **solo uno vigente por periodo y moneda**: publicar otro cierra el
+        anterior en lugar de sobrescribirlo, para que la factura de hace tres
+        meses siga cuadrando con el precio que se cobro entonces.
+    #}
+    <div class="card mb-4">
+        <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <h2 class="card-title mb-0">Precios</h2>
+            <a class="btn btn-sm btn-outline-primary" href="{{ path('app_catalog_price_new', {id: id}) }}">
+                <i class="fa-solid fa-plus me-1" aria-hidden="true"></i> Añadir precio
+            </a>
+        </div>
+        <div class="card-body">
+            {% if prices is empty %}
+                <p class="text-muted mb-0">
+                    Sin precio vigente. Un plan publicado sin precio aparece en la web pero nadie puede contratarlo,
+                    así que conviene añadir al menos el mensual.
+                </p>
+            {% else %}
+                <div class="table-responsive">
+                    <table class="table bo-table align-middle mb-0">
+                        <caption class="visually-hidden">Precios vigentes de {{ plan.name }}</caption>
+                        <thead>
+                            <tr>
+                                <th scope="col">Importe</th>
+                                <th scope="col">Periodicidad</th>
+                                <th scope="col">Vigente desde</th>
+                                <th scope="col">Cobrador</th>
+                                <th scope="col"><span class="visually-hidden">Acciones</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for price in prices %}
+                                <tr>
+                                    <td data-label="Importe">{{ price.amountMinor|money(price.currency.value) }}</td>
+                                    <td data-label="Periodicidad">{{ price.billingPeriod.label() }}</td>
+                                    <td data-label="Vigente desde">
+                                        <time datetime="{{ price.validFrom|date('Y-m-d') }}">{{ price.validFrom|date('d/m/Y') }}</time>
+                                    </td>
+                                    <td data-label="Cobrador">
+                                        {% if price.externalPriceId %}
+                                            <code>{{ price.externalPriceId }}</code>
+                                        {% else %}
+                                            <span class="text-secondary">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td data-label="Acciones">
+                                        {#
+                                            Cerrar no borra: pone fecha de fin. El precio
+                                            sigue en el historial porque las facturas que
+                                            se emitieron con el tienen que poder explicarse.
+                                        #}
+                                        <form method="post"
+                                              action="{{ path('app_catalog_price_close', {id: id, priceId: price.id.toRfc4122()}) }}"
+                                              data-controller="confirm"
+                                              data-confirm-message-value="El precio dejará de ofrecerse hoy. Las suscripciones que ya lo tienen contratado no cambian.">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('catalog_price_' ~ price.id.toRfc4122()) }}">
+                                            <button class="btn btn-sm btn-outline-secondary" type="submit" data-action="confirm#submit">
+                                                <i class="fa-solid fa-circle-stop me-1" aria-hidden="true"></i> Cerrar
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if history is not empty %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h2 class="card-title mb-0">Historial de precios</h2>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table bo-table align-middle mb-0">
+                        <caption class="visually-hidden">Precios cerrados de {{ plan.name }}</caption>
+                        <thead>
+                            <tr>
+                                <th scope="col">Importe</th>
+                                <th scope="col">Periodicidad</th>
+                                <th scope="col">Vigencia</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for price in history %}
+                                <tr>
+                                    <td data-label="Importe">{{ price.amountMinor|money(price.currency.value) }}</td>
+                                    <td data-label="Periodicidad">{{ price.billingPeriod.label() }}</td>
+                                    <td data-label="Vigencia">
+                                        {{ price.validFrom|date('d/m/Y') }}
+                                        – {{ price.validTo ? price.validTo|date('d/m/Y') : 'hoy' }}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    {#
+        Caracteristicas. Son texto de presentacion y por eso si se borran: no
+        sostienen ninguna factura, solo ayudan a decidir. `included` permite
+        enseñar tachado lo que **no** entra, que tambien informa.
+    #}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="card-title mb-0">Características</h2>
+        </div>
+        <div class="card-body">
+            {% if features is empty %}
+                <p class="text-muted">Todavía no hay características. Son las líneas de la tarjeta de precios.</p>
+            {% else %}
+                <ul class="list-unstyled mb-3">
+                    {% for feature in features %}
+                        <li class="d-flex flex-wrap align-items-center justify-content-between gap-2 py-2 border-bottom">
+                            <span>
+                                {% if feature.isIncluded %}
+                                    <i class="fa-solid fa-circle-check text-success me-1" aria-hidden="true"></i>
+                                    {{ feature.label }}
+                                {% else %}
+                                    <i class="fa-solid fa-circle-minus text-secondary me-1" aria-hidden="true"></i>
+                                    <span class="text-muted text-decoration-line-through">{{ feature.label }}</span>
+                                {% endif %}
+                            </span>
+                            <span class="d-flex gap-2">
+                                <a class="btn btn-sm btn-outline-secondary"
+                                   href="{{ path('app_catalog_feature_edit', {id: id, featureId: feature.id.toRfc4122()}) }}">
+                                    <i class="fa-solid fa-pen me-1" aria-hidden="true"></i> Editar
+                                </a>
+                                <form method="post"
+                                      action="{{ path('app_catalog_feature_delete', {id: id, featureId: feature.id.toRfc4122()}) }}"
+                                      data-controller="confirm"
+                                      data-confirm-message-value="Se eliminará «{{ feature.label }}» de la lista de características.">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('catalog_feature_' ~ feature.id.toRfc4122()) }}">
+                                    <button class="btn btn-sm btn-outline-danger" type="submit" data-action="confirm#submit">
+                                        <i class="fa-solid fa-trash-can me-1" aria-hidden="true"></i> Eliminar
+                                    </button>
+                                </form>
+                            </span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+
+            {#
+                El `action` es explicito: sin el, Symfony usa la URI actual, que
+                es la ficha del plan y solo admite GET. El formulario tiene que
+                ir a su propia ruta.
+            #}
+            {{ form_start(add_feature_form, {
+                action: path('app_catalog_feature_add', {id: id}),
+                attr: {class: 'row g-2 align-items-end'},
+            }) }}
+                <div class="col-12 col-md-7">
+                    {{ form_row(add_feature_form.label) }}
+                </div>
+                <div class="col-12 col-md-3">
+                    {{ form_row(add_feature_form.included) }}
+                </div>
+                <div class="col-12 col-md-2">
+                    <button class="btn btn-outline-primary w-100 mb-3" type="submit">
+                        <i class="fa-solid fa-plus me-1" aria-hidden="true"></i> Añadir
+                    </button>
+                </div>
+            {{ form_end(add_feature_form) }}
+        </div>
+    </div>
+
+    {#
+        Limites: **solo lectura**. Viven en entitlements.yaml porque el producto
+        los aplica desde ahi; copiarlos en la base de datos crearia una segunda
+        verdad que se desincroniza el dia que alguien edite el YAML.
+    #}
+    <div class="card mb-4 catalog-limits">
+        <div class="card-header">
+            <h2 class="card-title mb-0">Límites que aplica el producto</h2>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table bo-table align-middle mb-0">
+                    <caption class="visually-hidden">Límites del plan {{ plan.code.label() }}</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Concepto</th>
+                            <th scope="col">Límite</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for limit in limits %}
+                            <tr>
+                                <td data-label="Concepto">{{ limit.label }}</td>
+                                <td data-label="Límite">{{ limit.value }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <p class="text-muted small mb-0 mt-3">
+                Se leen de <code>config/packages/entitlements.yaml</code>. Cambiarlos aquí no tendría efecto,
+                así que la pantalla no lo permite.
+            </p>
+        </div>
+    </div>
+{% endblock %}
+
+{% block page_actions %}
+    <div class="bo-actions">
+        <a class="btn btn-outline-secondary" href="{{ path('app_catalog_index') }}">
+            <i class="fa-solid fa-arrow-left me-1" aria-hidden="true"></i> Volver al catálogo
+        </a>
+    </div>
+{% endblock %}

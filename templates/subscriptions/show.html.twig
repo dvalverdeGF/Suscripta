@@ -76,11 +76,29 @@
         </div>
     {% endif %}
 
+    {#
+        El plan es la ficha comercial a la que corresponde la suscripcion. Si la
+        ficha existe se enlaza; si se borro del catalogo (cosa que la interfaz no
+        permite) se dice en vez de dejar un uuid suelto, que no le dice nada a
+        nadie.
+    #}
     {% if subscription.planId %}
         <div class="card mb-4">
             <div class="card-body">
-                <p class="m-0 text-muted small">
-                    Plan del catálogo: <code>{{ subscription.planId.toRfc4122() }}</code>
+                <p class="m-0">
+                    <span class="text-muted small">Plan del catálogo</span><br>
+                    {% if plan %}
+                        {% if is_granted('ROLE_OPERATOR') %}
+                            <a href="{{ path('app_catalog_show', {id: plan.id.toRfc4122()}) }}">{{ plan.name }}</a>
+                        {% else %}
+                            {{ plan.name }}
+                        {% endif %}
+                        {% if not plan.isActive %}
+                            <span class="badge text-bg-secondary ms-1">Retirado</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="text-muted">La ficha de este plan ya no está en el catálogo.</span>
+                    {% endif %}
                 </p>
             </div>
         </div>

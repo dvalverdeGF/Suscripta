@@ -29,6 +29,19 @@ interface SubscriptionRepositoryInterface
      */
     public function countByStatus(): array;
 
+    /**
+     * Suscripciones a las que todavía no se les ha enlazado un plan del
+     * catálogo, de **todas** las organizaciones.
+     *
+     * Es la única consulta del módulo que no se limita al inquilino actual, y
+     * solo la usa el relleno de la fase 22 (`app:catalog:link-subscriptions`),
+     * que corre desde la consola, donde no hay organización en contexto y el
+     * filtro de tenant no restringe (D-80).
+     *
+     * @return list<Subscription>
+     */
+    public function findWithoutPlan(): array;
+
     public function save(Subscription $subscription): void;
 
     public function remove(Subscription $subscription): void;

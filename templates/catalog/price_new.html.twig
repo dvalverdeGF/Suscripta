@@ -1,0 +1,42 @@
+{% extends 'backoffice/base.html.twig' %}
+
+{% block title %}Nuevo precio — {{ plan.name }} — Suscripta{% endblock %}
+
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">Nuevo precio</h1>
+            <p class="bo-page-header__subtitle">
+                Para «{{ plan.name }}». Si ya hay un precio vigente con el mismo periodo y moneda,
+                este lo sustituye y el anterior pasa al historial.
+            </p>
+        </div>
+    </div>
+
+    {{ form_start(form, {attr: {id: 'plan-price-form', class: 'form'}}) }}
+        {{ form_errors(form) }}
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h2 class="card-title">Cuánto cuesta</h2>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    {{ form_row(form.currency) }}
+                    {{ form_row(form.amount) }}
+                    {{ form_row(form.billingPeriod) }}
+                    {{ form_row(form.externalPriceId) }}
+                </div>
+            </div>
+        </div>
+    {{ form_end(form) }}
+{% endblock %}
+
+{% block page_actions %}
+    {{ include('backoffice/_form_actions.html.twig', {
+        form_id: 'plan-price-form',
+        submit_label: 'Guardar precio',
+        submit_icon: 'fa-floppy-disk',
+        back_path: path('app_catalog_show', {id: plan.id.toRfc4122()}),
+    }) }}
+{% endblock %}

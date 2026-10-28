@@ -104,6 +104,21 @@ final class SubscriptionRepository extends DoctrineRepository implements Subscri
         return $counts;
     }
 
+    public function findWithoutPlan(): array
+    {
+        /** @var list<Subscription> $subscriptions */
+        $subscriptions = $this->entityManager
+            ->createQueryBuilder()
+            ->select('s')
+            ->from(Subscription::class, 's')
+            ->where('s.planId IS NULL')
+            ->orderBy('s.name', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $subscriptions;
+    }
+
     public function save(Subscription $subscription): void
     {
         $this->persist($subscription, true);

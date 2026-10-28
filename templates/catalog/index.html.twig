@@ -1,0 +1,122 @@
+{% extends 'backoffice/base.html.twig' %}
+
+{% block title %}Catálogo — Suscripta{% endblock %}
+
+{% block content %}
+    {#
+        El catalogo es la oferta de Suscripta para todo el mundo: no pertenece a
+        ningun inquilino. Por eso la pantalla no tiene selector de organizacion y
+        por eso solo la ve un operador.
+    #}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">Catálogo</h1>
+            <p class="bo-page-header__subtitle">
+                Los planes que se ofrecen, lo que cuestan y lo que incluye cada uno.
+                Es la oferta de Suscripta para todos sus clientes, no la de tu organización.
+            </p>
+        </div>
+        <div class="bo-page-header__actions">
+            {% if missing_codes is not empty %}
+                <a class="btn btn-primary" href="{{ path('app_catalog_new') }}">
+                    <i class="fa-solid fa-plus me-1" aria-hidden="true"></i> Añadir plan
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if missing_codes is not empty %}
+        <div class="alert alert-info" role="status">
+            <i class="fa-solid fa-circle-info me-1" aria-hidden="true"></i>
+            Queda{% if missing_codes|length > 1 %}n{% endif %} por dar de alta
+            {% for code in missing_codes %}
+                <strong>{{ code.label() }}</strong>{% if not loop.last %}, {% endif %}
+            {% endfor %}.
+            Un plan de la aplicación sin ficha comercial no se puede contratar desde la web.
+        </div>
+    {% endif %}
+
+    {% if rows is empty %}
+        <div class="card">
+            <div class="card-body">
+                <div class="bo-empty">
+                    <p class="bo-empty__title">El catálogo está vacío</p>
+                    <p class="bo-empty__text">
+                        Un plan del catálogo es la cara comercial de un plan de la aplicación: su nombre,
+                        su gancho, su precio y su lista de características. Los límites que aplica el
+                        producto siguen viviendo en <code>entitlements.yaml</code> y aquí solo se leen.
+                    </p>
+                    <div class="d-flex flex-wrap align-items-center justify-content-end gap-2">
+                        <a class="btn btn-primary" href="{{ path('app_catalog_new') }}">Añadir el primer plan</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="table-responsive">
+            <table class="table bo-table bo-table--stack align-middle">
+                <caption class="visually-hidden">Planes del catálogo comercial</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Plan</th>
+                        <th scope="col">Precios vigentes</th>
+                        <th scope="col">Características</th>
+                        <th scope="col">Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                        {% set plan = row.plan %}
+                        <tr>
+                            <td data-label="Plan">
+                                <a href="{{ path('app_catalog_show', {id: plan.id.toRfc4122()}) }}">{{ plan.name }}</a>
+                                <span class="badge text-bg-light ms-1">{{ plan.code.label() }}</span>
+                                {% if plan.tagline %}
+                                    <div class="text-muted small">{{ plan.tagline }}</div>
+                                {% endif %}
+                            </td>
+                            <td data-label="Precios vigentes">
+                                {% if row.prices is empty %}
+                                    <span class="text-secondary">Sin precio</span>
+                                {% else %}
+                                    {% for price in row.prices %}
+                                        <div>
+                                            {{ price.amountMinor|money(price.currency.value) }}
+                                            <span class="text-muted small">/ {{ price.billingPeriod.label()|lower }}</span>
+                                        </div>
+                                    {% endfor %}
+                                {% endif %}
+                            </td>
+                            <td data-label="Características">
+                                {% if row.features is empty %}
+                                    <span class="text-secondary">—</span>
+                                {% else %}
+                                    {{ row.features|length }}
+                                {% endif %}
+                            </td>
+                            <td data-label="Estado">
+                                {% if plan.isActive %}
+                                    <span class="badge text-bg-success">Publicado</span>
+                                {% else %}
+                                    <span class="badge text-bg-secondary">Retirado</span>
+                                {% endif %}
+                                {% if plan.isHighlighted %}
+                                    <span class="badge text-bg-primary">Destacado</span>
+                                {% endif %}
+                                {% if row.prices is empty and plan.isActive %}
+                                    <span class="badge text-bg-warning">Sin precio: no se puede contratar</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <p class="text-muted small mt-3">
+            Los límites de cada plan (servicios, buzones, documentos, consultas de IA) se configuran en
+            <code>config/packages/entitlements.yaml</code> y se enseñan en la ficha de cada plan en modo lectura.
+            Se guardan en un solo sitio para que no haya dos verdades que se puedan contradecir.
+        </p>
+    {% endif %}
+{% endblock %}

@@ -261,6 +261,22 @@
             #}
             <li class="bo-menu__heading">Sistema</li>
 
+            {#
+                El catalogo comercial es la unica pantalla que **no** es de un
+                inquilino: los planes y sus precios son la oferta de Suscripta
+                para todo el mundo. Por eso va en "Sistema" y no en
+                "Operacion", y por eso se esconde a quien no es operador: un
+                enlace que lleva a un 403 es peor que no tener el enlace.
+            #}
+            {% if is_granted('ROLE_OPERATOR') %}
+                <li class="bo-menu__item {{ app.request.attributes.get('_route') starts with 'app_catalog' ? 'bo-menu__item--active' : '' }}">
+                    <a href="{{ path('app_catalog_index') }}" class="bo-menu__link">
+                        <i class="fa-solid fa-tags bo-menu__icon"></i>
+                        <span>Catálogo</span>
+                    </a>
+                </li>
+            {% endif %}
+
             <li class="bo-menu__item {{ app.request.attributes.get('_route') starts with 'app_observability' ? 'bo-menu__item--active' : '' }}">
                 <a href="{{ path('app_observability') }}" class="bo-menu__link">
                     <i class="fa-solid fa-activity bo-menu__icon"></i>
