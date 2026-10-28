@@ -8,6 +8,7 @@ use App\Identity\Application\RegisterUser;
 use App\Identity\Domain\Repository\OrganizationRepositoryInterface;
 use App\Shared\Application\TenantContext;
 use App\Tests\Support\Identity\CompletesOnboarding;
+use App\Tests\Support\Webhooks\ControllableHostResolver;
 use App\Webhooks\Domain\Entity\Webhook;
 use App\Webhooks\Domain\Enum\DeliveryStatus;
 use App\Webhooks\Domain\Enum\WebhookEvent;
@@ -93,6 +94,14 @@ final class WebhookPanelTest extends WebTestCase
         self::assertResponseRedirects('/webhooks/created');
         $this->client->followRedirect();
         self::assertResponseIsSuccessful();
+    }
+
+    private function resolver(): ControllableHostResolver
+    {
+        $resolver = self::getContainer()->get(ControllableHostResolver::class);
+        self::assertInstanceOf(ControllableHostResolver::class, $resolver);
+
+        return $resolver;
     }
 
     private function secretFromCreatedPage(): string
@@ -210,6 +219,58 @@ final class WebhookPanelTest extends WebTestCase
         ]);
 
         self::assertResponseStatusCodeSame(422);
+    }
+
+    /**
+     * Un receptor en la red interna se rechaza al darlo de alta.
+     *
+     * El formulario no admite `https://10.0.0.5/` porque `Assert\Url` exige un
+     * dominio con punto, así que el escenario real es un nombre que resuelve a
+     * una dirección privada. El resolutor de test contesta justo eso.
+     */
+    public function testAUrlResolvingToAnInternalAddressIsRejected(): void
+    {
+        // Sin esto, el navegador de test reinicia el kernel entre peticiones y
+        // el resolutor que se configura aquí no es el que atiende el `POST`.
+        $this->client->disableReboot();
+        $this->resolver()->willResolve('erp.example.com', ['10.0.0.5']);
+
+        $crawler = $this->client->request('GET', '/webhooks/new');
+        $token = $crawler->filter('#webhook-form input[name="webhook_form[_token]"]')->attr('value');
+        self::assertIsString($token);
+
+        $crawler = $this->client->request('POST', '/webhooks/new', [
+            'webhook_form' => [
+                'name' => 'Hacia dentro',
+                'url' => 'https://erp.example.com/hooks',
+                'events' => ['service.created'],
+                'active' => '1',
+                '_token' => $token,
+            ],
+        ]);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertStringContainsString('dirección interna', $crawler->filter('#webhook-form')->text());
+
+        $tenant = self::getContainer()->get(TenantContext::class);
+        $tenant->setOrganizationId(null);
+        self::assertCount(0, self::getContainer()->get(WebhookRepositoryInterface::class)->findForOrganization($this->organizationId));
+    }
+
+    /**
+     * Un host que resuelve a una dirección pública se acepta.
+     *
+     * Es la otra mitad de la guarda: si rechazara todo, el test anterior
+     * pasaría igual y nadie podría dar de alta nada.
+     */
+    public function testAUrlResolvingToAPublicAddressIsAccepted(): void
+    {
+        $this->client->disableReboot();
+        $this->resolver()->willResolve('erp.example.com', ['93.184.216.34']);
+
+        $this->createWebhook('Hacia fuera', 'https://erp.example.com/hooks', ['service.created']);
+
+        self::assertSame('https://erp.example.com/hooks', $this->storedWebhook()->getUrl());
     }
 
     public function testPausingASubscriberIsSaved(): void

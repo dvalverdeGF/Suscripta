@@ -8,6 +8,7 @@ use App\Mailbox\Application\CredentialCipherInterface;
 use App\Shared\Application\Clock;
 use App\Shared\Application\TenantContext;
 use App\Webhooks\Domain\Entity\WebhookDelivery;
+use App\Webhooks\Domain\Exception\UnsafeWebhookUrlException;
 use App\Webhooks\Domain\Repository\WebhookDeliveryRepositoryInterface;
 use App\Webhooks\Domain\Repository\WebhookRepositoryInterface;
 use App\Webhooks\Domain\Service\RetryPolicy;
@@ -50,6 +51,14 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  * El worker no tiene organización activa. Se entra en la del suscriptor con
  * `runAs()` antes de tocar nada, porque el filtro de Doctrine esconde las
  * filas de otras organizaciones y sin él la entrega no se encontraría.
+ *
+ * ## La URL pasa por la guarda anti-SSRF en **cada** intento
+ *
+ * No solo al dar de alta al suscriptor. El DNS cambia, y un host que hoy
+ * resuelve a una dirección pública puede resolver mañana a una privada. Si la
+ * guarda rechaza el destino, la entrega se abandona **en el acto**, sin
+ * reintentos: reintentar ocho veces durante siete días una URL que es un error
+ * de configuración no la va a arreglar, y solo llena el historial de ruido.
  */
 final readonly class DeliverWebhook
 {
@@ -59,6 +68,7 @@ final readonly class DeliverWebhook
         private CredentialCipherInterface $cipher,
         private WebhookSigner $signer,
         private RetryPolicy $retryPolicy,
+        private WebhookUrlGuard $urlGuard,
         private HttpClientInterface $httpClient,
         private TenantContext $tenantContext,
         private Clock $clock,
@@ -109,23 +119,49 @@ final readonly class DeliverWebhook
             return;
         }
 
+        try {
+            $target = $this->urlGuard->pin($webhook->getUrl());
+        } catch (UnsafeWebhookUrlException $exception) {
+            $delivery->abandon($exception->getMessage(), $this->clock->now());
+            $this->deliveries->save($delivery);
+            $this->logger->error('Entrega de webhook abandonada: la URL apunta a una red interna.', [
+                'deliveryId' => (string) $delivery->getId(),
+                'url' => $webhook->getUrl(),
+                'error' => $exception->getMessage(),
+            ]);
+
+            return;
+        }
+
         $body = $this->encode($delivery);
         $secret = $this->cipher->decrypt($webhook->getSecretEncrypted());
         $timestamp = $this->clock->now()->getTimestamp();
 
+        $options = [
+            'headers' => [
+                'Content-Type' => 'application/json',
+                'User-Agent' => 'Suscripta-Webhooks/1.0',
+                WebhookSigner::HEADER => $this->signer->header($secret, $timestamp, $body),
+                'Idempotency-Key' => $delivery->getIdempotencyKey(),
+                'X-Suscripta-Event' => $delivery->getEvent()->value,
+            ],
+            'body' => $body,
+            'timeout' => 10,
+            'max_duration' => 20,
+            // Un `302` desde un host público hacia `http://169.254.169.254/`
+            // sería el mismo ataque con un salto intermedio. Un webhook
+            // responde en la URL que dio o no responde.
+            'max_redirects' => 0,
+        ];
+
+        if (null !== $target) {
+            // Conectar a la dirección ya validada en vez de volver a preguntar
+            // al DNS: cierra la ventana del DNS rebinding.
+            $options['resolve'] = [$target->host => $target->ip];
+        }
+
         try {
-            $response = $this->httpClient->request('POST', $webhook->getUrl(), [
-                'headers' => [
-                    'Content-Type' => 'application/json',
-                    'User-Agent' => 'Suscripta-Webhooks/1.0',
-                    WebhookSigner::HEADER => $this->signer->header($secret, $timestamp, $body),
-                    'Idempotency-Key' => $delivery->getIdempotencyKey(),
-                    'X-Suscripta-Event' => $delivery->getEvent()->value,
-                ],
-                'body' => $body,
-                'timeout' => 10,
-                'max_duration' => 20,
-            ]);
+            $response = $this->httpClient->request('POST', $webhook->getUrl(), $options);
 
             $status = $response->getStatusCode();
         } catch (HttpClientExceptionInterface $exception) {

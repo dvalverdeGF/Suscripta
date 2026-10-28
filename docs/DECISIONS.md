@@ -2429,3 +2429,63 @@ vuelve a intentar y quien se suscriba a mitad de mes se entera.
   campo de estado para un aviso informativo. Si el ruido llega a molestar, es el sitio donde
   ponerlo.
 - *No emitir el evento.* Descartada: es el aviso más útil para un integrador que controla su gasto.
+
+## D-77 — La URL de un webhook se valida contra la red interna y la conexión se ata a la IP comprobada
+
+**Contexto.** El webhook hace una petición `POST` a la URL que configure un administrador de la
+organización. Esa petición sale **desde dentro de la red del servidor**, así que el campo de texto
+del formulario es, en la práctica, un cliente HTTP arbitrario que ejecuta el atacante: `10.0.0.5`,
+`169.254.169.254` (metadatos de la nube, donde están las credenciales del servidor), `localhost`,
+`::1`… No hace falta ser nadie: basta con ser administrador de una organización o con robar una
+cuenta que lo sea. Era la deuda técnica número uno del proyecto y el usuario pidió cerrarla antes
+de las fases de cobro.
+
+**Decisión.** Una guarda (`WebhookUrlGuard`) se interpone en los dos momentos en que importa:
+
+1. **Al dar de alta o editar el suscriptor** (`WebhookController`), para que el error se explique
+   en el formulario y no se descubra tres días después con un historial de entregas abandonadas.
+2. **En cada entrega** (`DeliverWebhook`), porque el DNS de hoy no es el de mañana. Aquí no se
+   reintenta: un destino interno no se arregla esperando, así que la entrega se abandona en el
+   acto con el motivo escrito.
+
+La guarda comprueba el esquema (`https`), **todas** las direcciones a las que resuelve el host —no
+solo la primera, porque un host puede devolver una pública y una privada a la vez— y que ninguna
+caiga en 14 rangos IPv4 y 8 IPv6: loopback, RFC 1918, link-local, CGNAT, rangos de documentación,
+reservados, multicast, `fc00::/7`, y las **IPv4-mapeadas** (`::ffff:10.0.0.1`), que son la forma
+habitual de esquivar una comprobación que solo mira IPv4. Los literales IP los comprueba la propia
+guarda, sin pasar por el resolutor: si dependiera de que una implementación futura del resolutor
+se acuerde de mirarlos, el agujero volvería solo.
+
+**Por qué se «fija» la dirección.** Validar y luego conectar sin más deja una ventana de un
+segundo en la que el DNS puede contestar una dirección pública y, acto seguido, una privada
+(*DNS rebinding*). Por eso `pin()` devuelve la dirección validada y `DeliverWebhook` se la pasa al
+cliente HTTP en la opción `resolve`: se conecta a esa IP concreta y no se vuelve a preguntar.
+Además la entrega va con `max_redirects: 0`, porque un `302` desde un host público hacia
+`http://169.254.169.254/` es el mismo ataque con un salto intermedio.
+
+**Un host que no resuelve no se rechaza.** Es lo normal de quien da de alta el receptor antes de
+desplegarlo, y en la entrega se comporta como cualquier fallo de red: se reintenta. La guarda no es
+un comprobador de disponibilidad, es un cortafuegos.
+
+**Consecuencias.**
+
+1. **Cuatro mensajes de error distintos** (esquema, host ausente, destino interno, no resoluble),
+   porque «URL no válida» no le dice a nadie qué arreglar.
+2. **`WEBHOOK_ALLOWED_PRIVATE_HOSTS`** (lista separada por comas, vacía por defecto, con
+   `host.docker.internal` en `.env.test`) permite nombrar hosts que se saltan la comprobación. Es
+   una concesión al desarrollo y al autoalojado, no una opción de producción.
+3. **El resolutor es un puerto** (`HostResolverInterface` → `DnsHostResolver`, A con
+   `gethostbynamel` y AAAA con `dns_get_record`), para que los tests no dependan del DNS de la
+   máquina: en test se inyecta `ControllableHostResolver`, que contesta lo que el test le dice.
+4. **Coste: una resolución DNS por entrega.** Despreciable frente a la petición HTTP que viene
+   detrás, y es lo que hace que el pinneo sea real.
+
+**Alternativas descartadas.**
+
+- *Validar solo en el alta.* Descartada: un dominio que hoy resuelve fuera puede resolver dentro
+  mañana, y el ataque consiste precisamente en controlar el DNS.
+- *Validar solo en la entrega.* Descartada por producto: el alta es donde el error se puede
+  explicar.
+- *Usar `FILTER_VALIDATE_URL` y fiarse.* Descartada: no mira direcciones, solo sintaxis.
+- *Una lista negra de nombres (`localhost`, `metadata.google.internal`…).* Descartada: los nombres
+  son infinitos y las direcciones no.

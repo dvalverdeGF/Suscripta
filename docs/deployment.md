@@ -70,6 +70,11 @@ openssl rand -base64 24     # POSTGRES_PASSWORD
 > Se puede comprobar con `bin/console debug:dotenv`. Si no se define, la API no admite ningún
 > origen de navegador (correcto si solo la consumen servidores).
 
+> **`WEBHOOK_ALLOWED_PRIVATE_HOSTS` se deja vacía en producción.** Es la allowlist de hosts que se
+> saltan la guarda anti-SSRF (D-77): solo tiene sentido en desarrollo o en una instalación
+> autoalojada cuyo receptor viva en la red interna. En un servidor público, un valor aquí es un
+> agujero abierto a propósito.
+
 ---
 
 ## 3. Secretos

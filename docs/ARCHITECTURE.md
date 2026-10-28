@@ -2365,7 +2365,9 @@ menores, UUIDv7, RFC 3339) y no tiene credenciales propias: el secreto de cada s
 | `Domain/Entity` | `Webhook` (suscriptor) y `WebhookDelivery` (una fila por suscriptor y evento). |
 | `Domain/Service` | `WebhookSigner` (HMAC-SHA-256) y `RetryPolicy` (ocho envíos y abandono). |
 | `Domain/Repository` | `WebhookRepositoryInterface`, `WebhookDeliveryRepositoryInterface`. |
-| `Application` | `WebhookNotifier` (crea y encola), `DeliverWebhook` (un intento), `AbandonStaleDeliveries`, `WebhookSecretGenerator`, mensaje y handler. |
+| `Application` | `WebhookNotifier` (crea y encola), `DeliverWebhook` (un intento), `AbandonStaleDeliveries`, `WebhookSecretGenerator`, `WebhookUrlGuard` (anti-SSRF), mensaje y handler. |
+| `Application/Port` | `HostResolverInterface`: el DNS detrás de una interfaz, para que la guarda se pueda probar sin red. |
+| `Infrastructure/Http` | `DnsHostResolver`: A con `gethostbynamel`, AAAA con `dns_get_record`. |
 | `Infrastructure/Repository` | Implementaciones Doctrine. |
 | `UI` | `WebhookController` (`/webhooks`), `WebhookFormType`, `MaintainWebhookDeliveriesCommand`. |
 
@@ -2395,6 +2397,10 @@ Cuatro propiedades sostienen el diseño:
 4. **El worker entra en la organización con `runAs()`.** El `TenantFilter` esconde las filas de
    otras organizaciones y sin él la entrega no se encontraría (mismo patrón que el resto de
    workers, §8).
+5. **La conexión no la elige el formulario.** `WebhookUrlGuard::pin()` comprueba el esquema y
+   **todas** las direcciones del host, y devuelve la que se usó para validar; `DeliverWebhook` se
+   la pasa al cliente HTTP en `resolve` y va con `max_redirects: 0`. Sin eso, el campo «URL» sería
+   un cliente HTTP arbitrario dentro de la red del servidor (D-77, §18.5).
 
 ### 18.3 Por qué se llama a mano y no hay bus de eventos
 
@@ -2414,8 +2420,9 @@ menos 48 h.
 
 ### 18.5 Lo que no hace
 
-- **No valida que la URL sea alcanzable ni que no apunte a una red interna.** Es la deuda técnica
-  número 1 de `ROADMAP.md`.
+- **No valida que la URL sea alcanzable.** Sí comprueba que no apunte a una red interna, en el
+  alta y en cada entrega, con la IP fijada (D-77). Un host que aún no existe se acepta: dar de
+  alta el receptor antes de desplegarlo es lo normal.
 - **No hay webhooks de entrada.** Stripe (fase 24) tendrá su propia ruta, con su propia firma.
 - **No hay challenge de verificación de endpoint**: el botón «Enviar prueba» del panel cumple esa
   función.

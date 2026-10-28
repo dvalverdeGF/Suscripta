@@ -8,6 +8,8 @@ use App\Mailbox\Application\CredentialCipherInterface;
 use App\Shared\Application\Clock;
 use App\Shared\Application\TenantContext;
 use App\Webhooks\Application\DeliverWebhook;
+use App\Webhooks\Application\Port\HostResolverInterface;
+use App\Webhooks\Application\WebhookUrlGuard;
 use App\Webhooks\Domain\Entity\Webhook;
 use App\Webhooks\Domain\Entity\WebhookDelivery;
 use App\Webhooks\Domain\Enum\DeliveryStatus;
@@ -38,6 +40,17 @@ final class DeliverWebhookTest extends TestCase
     private const string NOW = '2026-10-28 12:00:00';
     private const string SECRET = 'whsec_c2VjcmV0by1kZS1wcnVlYmE';
 
+    /**
+     * Direcciones que devolverá el resolutor falso, por host.
+     *
+     * Ningún test de este fichero toca el DNS real: un test que dependa de un
+     * registro de verdad falla el día que alguien lo cambia, y con un mapa se
+     * prueban las direcciones privadas sin salir del proceso.
+     *
+     * @var array<string, list<string>>
+     */
+    private array $hostIps = [];
+
     private Uuid $organizationId;
     private Webhook $webhook;
     private WebhookDelivery $delivery;
@@ -51,6 +64,7 @@ final class DeliverWebhookTest extends TestCase
     {
         $this->organizationId = Uuid::v7();
         $this->requests = [];
+        $this->hostIps = ['erp.example.com' => ['93.184.216.34']];
 
         $this->webhook = new Webhook(
             organizationId: $this->organizationId,
@@ -175,6 +189,65 @@ final class DeliverWebhookTest extends TestCase
     }
 
     /**
+     * Una URL que resuelve a una red interna no se llama: se abandona.
+     *
+     * Es la prueba de que la guarda anti-SSRF está **en el camino de la
+     * entrega** y no solo en el formulario. Se comprueba además que no hay
+     * petición: si la hubiera, el daño ya estaría hecho.
+     */
+    public function testAnInternalTargetIsAbandonedWithoutMakingTheRequest(): void
+    {
+        $this->hostIps = ['internal.example.com' => ['10.0.0.5']];
+        $this->webhook->changeUrl('https://internal.example.com/hooks');
+
+        $deliver = $this->deliver(new MockResponse('', ['http_code' => 200]));
+
+        ($deliver)($this->delivery->getId());
+
+        self::assertCount(0, $this->requests, 'No se puede hacer la petición ni una sola vez.');
+        self::assertSame(DeliveryStatus::ABANDONED, $this->delivery->getStatus());
+        self::assertStringContainsString('interna', (string) $this->delivery->getLastError());
+    }
+
+    /**
+     * Un destino interno se abandona en el acto, sin agotar los ocho envíos.
+     *
+     * Reintentar durante siete días un error de configuración no lo arregla y
+     * deja el historial lleno de ruido.
+     */
+    public function testAnInternalTargetIsNotRetried(): void
+    {
+        $this->hostIps = ['internal.example.com' => ['192.168.1.10']];
+        $this->webhook->changeUrl('https://internal.example.com/hooks');
+
+        $deliver = $this->deliver();
+
+        ($deliver)($this->delivery->getId());
+
+        self::assertSame(1, $this->delivery->getAttempts());
+        self::assertSame(DeliveryStatus::ABANDONED, $this->delivery->getStatus());
+    }
+
+    /**
+     * La petición se conecta a la dirección ya validada.
+     *
+     * Es lo que cierra la ventana del DNS rebinding: entre validar y conectar
+     * el DNS podría devolver otra cosa.
+     */
+    public function testTheRequestIsPinnedToTheValidatedAddress(): void
+    {
+        $deliver = $this->deliver(new MockResponse('', ['http_code' => 200]));
+
+        ($deliver)($this->delivery->getId());
+
+        self::assertSame(
+            ['erp.example.com' => '93.184.216.34'],
+            $this->requests[0]['options']['resolve'] ?? null,
+        );
+        self::assertSame(0, $this->requests[0]['options']['max_redirects'] ?? null);
+    }
+
+    /**
      * Las cabeceras de una petición capturada, indexadas por nombre.
      *
      * El cliente HTTP de Symfony las entrega como una lista de cadenas
@@ -218,12 +291,29 @@ final class DeliverWebhookTest extends TestCase
             return array_shift($queue) ?? new MockResponse('', ['http_code' => 200]);
         });
 
+        $hostIps = $this->hostIps;
+
+        $resolver = new class($hostIps) implements HostResolverInterface {
+            /**
+             * @param array<string, list<string>> $hostIps
+             */
+            public function __construct(private readonly array $hostIps)
+            {
+            }
+
+            public function resolve(string $host): array
+            {
+                return $this->hostIps[$host] ?? [];
+            }
+        };
+
         return new DeliverWebhook(
             $deliveries,
             $webhooks,
             $cipher,
             new WebhookSigner(),
             new RetryPolicy(),
+            new WebhookUrlGuard($resolver),
             $client,
             new TenantContext(),
             new Clock(new MockClock(new DateTimeImmutable(self::NOW))),

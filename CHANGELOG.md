@@ -63,8 +63,28 @@ Commit de cierre: `bd646a8`.
   `maxAttempts()` pasa a llamarse `maxRetries()` con un `maxDeliveries()` explícito al lado: el
   nombre anterior se leía como «envíos» y contaba reintentos.
 
+### Seguridad
+
+- **Guarda anti-SSRF en las URLs de webhook** (D-77). El webhook hace la petición desde dentro de
+  la red del servidor, así que la URL que configura un administrador era un cliente HTTP
+  arbitrario: `https://10.0.0.5/`, `https://169.254.169.254/` (metadatos de la nube) o
+  `https://localhost/`. Ahora se comprueba el esquema, **todas** las direcciones a las que resuelve
+  el host (no solo la primera), 14 rangos IPv4 y 8 IPv6 —incluidas las IPv4-mapeadas
+  `::ffff:10.0.0.1`— y los literales IP. Se valida al dar de alta el suscriptor (el error se
+  explica en el campo) y otra vez en cada entrega, donde un destino interno abandona en el acto
+  sin reintentos. La conexión se **ata** a la dirección comprobada (`resolve`) para que un cambio
+  de DNS no la convierta en interna, y no se siguen redirecciones (`max_redirects: 0`), porque un
+  `302` hacia los metadatos es el mismo ataque con un salto intermedio.
+- `WEBHOOK_ALLOWED_PRIVATE_HOSTS`: allowlist de hosts que se saltan la comprobación. Vacía por
+  defecto; `host.docker.internal` en `.env.test`.
+- El resolutor DNS es un puerto (`HostResolverInterface`), y los tests usan
+  `ControllableHostResolver` en lugar del DNS de la máquina.
+
 ### Documentación
 
+- `docs/api/webhooks.md` § «Qué URLs se rechazan»: la tabla de casos, por qué se comprueban todas
+  las direcciones, por qué se fija la IP y por qué no se siguen redirecciones.
+- `docs/DECISIONS.md`: D-77.
 - `docs/ROADMAP.md`: fase 20 cerrada con su tabla de entregado, decisiones y defectos; fases 21 a
   25 planificadas con alcance y verificación; tabla de deuda técnica conocida; **todas las
   preguntas abiertas respondidas** por el usuario.

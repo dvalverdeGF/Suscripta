@@ -222,8 +222,10 @@ las claves vistas y descarta los duplicados.
 
 En el backoffice, **Webhooks → Nuevo suscriptor**:
 
-- **URL**: `https` obligatorio, con dominio real. Es la única validación de red que se hace hoy;
-  no se comprueba que el destino sea alcanzable hasta que mandas una prueba.
+- **URL**: `https` obligatorio, con dominio real, y que **no apunte a una red interna** (ver
+  [«Qué URLs se rechazan»](#qué-urls-se-rechazan) más abajo). No se comprueba que el destino sea
+  alcanzable hasta que mandas una prueba: un host que aún no existe se acepta, porque dar de alta
+  el receptor antes de desplegarlo es lo normal.
 - **Eventos**: al menos uno. Un suscriptor que no escucha nada no se distingue de uno roto.
 - **Activo**: un suscriptor pausado no recibe nada, pero conserva su historial.
 
@@ -238,6 +240,42 @@ descubrirlo cuando ya hay algo que contar.
 
 La ficha muestra el **historial de entregas** (estado, intentos, código de respuesta y último
 error) y cuántas quedan pendientes en el listado.
+
+## Qué URLs se rechazan
+
+Suscripta hace el `POST` **desde dentro de su propia red**. Si aceptara cualquier URL, un
+administrador de una organización —o cualquiera que robara esa cuenta— podría apuntar un
+suscriptor a `https://10.0.0.5/`, a `http://169.254.169.254/` (el servicio de metadatos de la
+nube, donde están las credenciales del servidor) o a un `localhost`, y usar los webhooks como un
+túnel hacia la red interna. Por eso la URL se comprueba **al darla de alta** (el formulario
+explica el problema en el campo) y **en cada entrega** (por si el DNS cambió después).
+
+Se rechaza, con un mensaje que dice qué pasó:
+
+| Caso | Ejemplo | Por qué |
+|---|---|---|
+| No es `https` | `http://erp.example.com/hooks` | El cuerpo va firmado y con datos de facturación del cliente; en claro lo lee cualquiera. |
+| Loopback | `https://localhost/…`, `127.0.0.1`, `::1` | Es la propia máquina de Suscripta. |
+| Redes privadas | `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `fc00::/7` | Es la red interna del servidor. |
+| Link-local / metadatos | `169.254.169.254`, `fe80::/10` | Credenciales de la nube al alcance de un `GET`. |
+| Reservados y de prueba | `100.64.0.0/10`, `198.18.0.0/15`, `203.0.113.0/24`, `240.0.0.0/4`, `ff00::/8`… | No son servicios públicos a los que avisar. |
+| IPv4 escondida en IPv6 | `::ffff:10.0.0.1`, `64:ff9b::/96` | La forma habitual de esquivar una comprobación que solo mira IPv4. |
+
+Tres detalles que importan si estás al otro lado:
+
+1. **Se comprueban todas las direcciones del nombre**, no solo la primera. Un host puede devolver
+   una pública y una privada a la vez, y quedarse con la primera es cómo se cuela el ataque.
+2. **La dirección validada es la que se usa para conectar.** No se valida y luego se vuelve a
+   preguntar al DNS: entre las dos consultas cabe un cambio de respuesta (*DNS rebinding*) que
+   convierte una URL pública en una privada. La entrega se ata a la IP comprobada.
+3. **Las redirecciones no se siguen** (`max_redirects: 0`). Un `302` desde un host público hacia
+   `http://169.254.169.254/` sería el mismo ataque con un salto intermedio. Si tu endpoint
+   redirige, no es un destino válido para un webhook.
+
+Si tu receptor vive en una red privada y quieres probarlo contra un entorno de desarrollo, la
+variable `WEBHOOK_ALLOWED_PRIVATE_HOSTS` (lista separada por comas) permite nombrar hosts
+concretos que se saltan la comprobación. Está **vacía** por defecto y solo se rellena en el
+entorno de test y en instalaciones autoalojadas que lo necesiten: no es una lista para producción.
 
 ## Operación
 
@@ -264,9 +302,9 @@ En producción va en el cron, cada cinco minutos. Ver [`../operations.md`](../op
 
 ## Límites conocidos
 
-- **No se valida que la URL sea alcanzable ni que no apunte a una red interna.** La elige un
-  administrador de la organización, y hoy no hay guarda anti-SSRF: un suscriptor podría apuntar
-  a `https://10.0.0.5/…`. Es el trabajo pendiente más importante de esta fase.
+- **No se valida que la URL sea alcanzable.** Se comprueba que no apunte a una red interna (ver
+  [«Qué URLs se rechazan»](#qué-urls-se-rechazan)), pero no que responda: un host que todavía no
+  existe se acepta y las entregas fallan hasta que exista.
 - **No hay entrega garantizada.** «Al menos una vez» con deduplicación por parte del receptor,
   no «exactamente una vez».
 - **No hay firma de respuesta ni challenge de verificación de endpoint.** El botón de prueba

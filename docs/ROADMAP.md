@@ -1,6 +1,6 @@
 # Roadmap
 
-> Estado: **fases 0 a 20 cerradas** (1 450 tests, PHPStan nivel 8 limpio). Las fases 21 a 25
+> Estado: **fases 0 a 20 cerradas** (1 483 tests, PHPStan nivel 8 limpio). Las fases 21 a 25
 > están planificadas y decididas con el usuario, sin empezar; la deuda técnica conocida está
 > listada al final. Fases pequeñas y verificables: cada fase termina con algo demostrable y con
 > criterios de aceptación explícitos.
@@ -46,7 +46,7 @@ en su apartado correspondiente.
 |---|---|
 | [`PRODUCT.md`](PRODUCT.md) | Qué es el producto, para quién y qué problema resuelve. |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | Cómo está construido, módulo por módulo. §17 = la API, §18 = los webhooks. |
-| [`DECISIONS.md`](DECISIONS.md) | Por qué se hizo así. D-71 y D-72 = la API; D-73 a D-76 = los webhooks. |
+| [`DECISIONS.md`](DECISIONS.md) | Por qué se hizo así. D-71 y D-72 = la API; D-73 a D-76 = los webhooks; D-77 = la guarda anti-SSRF. |
 | [`ROADMAP.md`](ROADMAP.md) | Este documento: qué está hecho y qué falta. |
 | [`SECURITY.md`](SECURITY.md) | Modelo de amenazas y medidas. |
 | [`operations.md`](operations.md) | Runbook del día a día: desplegar, copiar, restaurar, vigilar. |
@@ -1874,6 +1874,30 @@ se enseña **una sola vez** y no reaparece al recargar, el listado nunca contien
 con `curl`; nunca abrió el panel en un navegador. La lección es que «lo probé y funcionaba»
 significa «probé el camino que recorrí».
 
+### Guarda anti-SSRF (D-77)
+
+La deuda técnica número uno del proyecto, cerrada al terminar la fase en lugar de esperar a la 24.
+La URL de un suscriptor ya no puede apuntar a la red interna del servidor: ni al loopback, ni a
+`10.0.0.0/8`, ni a `169.254.169.254` (los metadatos de la nube, que es donde están las credenciales
+de la máquina), ni a una IPv4 escondida dentro de una IPv6.
+
+| Pieza | Fichero | Qué hace |
+|---|---|---|
+| La guarda | `src/Webhooks/Application/WebhookUrlGuard.php` | Esquema, resolución de **todas** las direcciones del host, 14 rangos IPv4 y 8 IPv6, IPv4-mapeadas, allowlist por host, literales IP |
+| El puerto | `src/Webhooks/Application/Port/HostResolverInterface.php` | Aísla el DNS para que los tests no dependan de la red de la máquina |
+| El adaptador | `src/Webhooks/Infrastructure/Http/DnsHostResolver.php` | A con `gethostbynamel`, AAAA con `dns_get_record` |
+| El resultado | `src/Webhooks/Application/WebhookTarget.php` | `host` + `ip`: la dirección que se comprobó es la que se usa para conectar |
+| El error | `src/Webhooks/Domain/Exception/UnsafeWebhookUrlException.php` | Cuatro mensajes: esquema, host ausente, destino interno, no resoluble |
+
+Se aplica **dos veces**: al dar de alta o editar el suscriptor (`WebhookController`, con el error
+colgado del campo `url`) y en cada entrega (`DeliverWebhook`), donde un destino interno **abandona
+la entrega en el acto, sin reintentos**, porque esperar no arregla una dirección privada. La
+conexión va con `resolve` apuntando a la IP validada y `max_redirects: 0`, para que ni un cambio de
+DNS ni un `302` reabran el agujero.
+
+Lo que **no** hace: rechazar un host que no resuelve. Dar de alta el receptor antes de desplegarlo
+es lo normal, y en la entrega se comporta como cualquier fallo de red.
+
 ### Verificación de cierre
 
 **Verificación E2E real**, con `curl` contra el contenedor en ejecución, usando claves de API
@@ -2079,9 +2103,10 @@ freno, un buzón con cien correos pendientes mandaría cien avisos idénticos el
 presupuesto. El aviso se marca en `cache.app` con la clave del periodo y solo se marca si se ha
 programado alguna entrega, para que quien se suscriba a mitad de mes se entere igualmente.
 
-Las cuatro están registradas como **D-73** (el cuerpo se serializa una vez), **D-74**
+Están registradas como **D-73** (el cuerpo se serializa una vez), **D-74**
 (`RetryPolicy` manda sobre Messenger), **D-75** (el secreto del webhook se cifra y es recuperable,
-a diferencia de la clave de API) y **D-76** (el aviso de presupuesto, una vez por periodo).
+a diferencia de la clave de API), **D-76** (el aviso de presupuesto, una vez por periodo) y **D-77**
+(la guarda anti-SSRF: qué URLs se rechazan, por qué se fija la IP y por qué no se siguen redirecciones).
 
 ### Defectos encontrados y corregidos al verificar
 
@@ -2089,14 +2114,12 @@ a diferencia de la clave de API) y **D-76** (el aviso de presupuesto, una vez po
 |---|---|---|---|---|
 | 1 | El número de intentos no cuadraba con los envíos | Un test de la política esperaba abandono y obtenía «pendiente»; el recuento de intentos se quedaba en 7 tras 8 envíos | `abandon()` no incrementaba `attempts`, y `maxAttempts()` se leía como «envíos» cuando contaba **reintentos** | `abandon()` cuenta el intento que lo provoca; el método pasa a llamarse `maxRetries()` y se añade `maxDeliveries()` = reintentos + 1 |
 | 2 | El test de cabeceras no encontraba `Idempotency-Key` | `Undefined array key` | `MockHttpClient` entrega las cabeceras como **lista de cadenas** `"Nombre: valor"`, no como mapa | Helper `headersOf()` que las vuelve a partir; el test comprueba el contrato real |
-| 3 | El test funcional del panel usaba `https://127.0.0.1:1` | `422`: el formulario rechaza la URL | `Assert\Url(requireTld: true)` rechaza direcciones IP, y con razón: un webhook apunta a un dominio público | El test usa `https://host.docker.internal:1`, que resuelve dentro del contenedor y falla al instante |
+| 3 | El test funcional del panel usaba `https://127.0.0.1:1` | `422`: el formulario rechaza la URL | `Assert\Url(requireTld: true)` rechaza direcciones IP, y con razón: un webhook apunta a un dominio público | El test usa `https://host.docker.internal:1`, que resuelve dentro del contenedor y falla al instante (y está en la allowlist de `.env.test` desde D-77) |
 
 ### Lo que se decidió no hacer
 
-- **Guarda anti-SSRF.** Un suscriptor puede apuntar a `https://10.0.0.5/…`. La URL la elige un
-  administrador de la organización, así que no es un agujero abierto a cualquiera, pero tampoco
-  está cerrado. Es el trabajo pendiente más importante de la fase y está en las preguntas
-  abiertas.
+- ~~**Guarda anti-SSRF.**~~ **Ya no se deja fuera.** Al cerrar la fase se decidió que no podía
+  esperar a la 24 y se implementó en el acto: ver «Guarda anti-SSRF (D-77)» más abajo.
 - **Entrega «exactamente una vez».** No existe sin coordinación con el receptor. Se ofrece «al
   menos una vez» con `Idempotency-Key` y se documenta cómo deduplicar.
 - **Challenge de verificación de endpoint al dar de alta.** El botón «Enviar prueba» cumple esa
@@ -2108,7 +2131,7 @@ a diferencia de la clave de API) y **D-76** (el aviso de presupuesto, una vez po
 
 | Comprobación | Resultado |
 |---|---|
-| Suite completa | **1 450 tests**, 5 843 aserciones, en verde |
+| Suite completa | **1 483 tests**, 5 904 aserciones, en verde |
 | Tests nuevos | 6 del firmante, 4 de la política, 7 de la entrega, 11 del panel, 1 del aviso de presupuesto |
 | PHPStan nivel 8 | Sin errores |
 | `php-cs-fixer --dry-run` | Sin cambios pendientes |
@@ -2227,7 +2250,7 @@ Lo que se sabe que está flojo y no justifica una fase propia.
 
 | # | Deuda | Por qué se acepta | Cuándo duele |
 |---|---|---|---|
-| 1 | **Sin guarda anti-SSRF en los webhooks** | La URL la elige un administrador de la organización | El día que haya organizaciones de terceros |
+| ~~1~~ | ~~**Sin guarda anti-SSRF en los webhooks**~~ — **resuelta** (D-77): la URL se valida al darla de alta y en cada entrega, la conexión se ata a la IP comprobada y no se siguen redirecciones | — | — |
 | 2 | **Rotación del pepper de la API manual** | Son dos comandos y hoy hay pocas claves | Cuando haya muchas integraciones que migrar |
 | 3 | **Ámbitos de API solo `read`/`write`** | Cubre el caso actual | Cuando un integrador pida escritura sin lectura |
 | 4 | **La API comparte cuota con el backoffice** | Es el mismo plan | Si la API se vende como producto aparte |
@@ -2266,6 +2289,7 @@ vuelva a abrir el mismo debate.
 | 8 | ¿Bastan los ámbitos `read`/`write`? | **Se dejan como están.** Se amplían cuando un integrador los pida. |
 | 9 | ¿La API tiene cuota propia? | **No: contador compartido con el backoffice.** Es el mismo plan. |
 | 10 | ¿Webhooks de salida? | **Sí, ahora.** Es la fase 20, ya entregada. |
+| 11 | ¿Guarda anti-SSRF en las URLs de webhook? | **Implementarla ya**, sin esperar a la fase 24. Hecho: D-77. |
 
 ### Resueltas y ya implementadas
 
@@ -2280,6 +2304,12 @@ el comportamiento anterior se renombra a
 `testARenewalNoticeWithoutAnInvoiceIsStillARenewalNotice` para que el cambio no se lleve por
 delante el caso legítimo.
 
+**La guarda anti-SSRF de los webhooks** era la deuda técnica número uno y ya está implementada
+(D-77): la URL se valida al dar de alta el suscriptor y otra vez en cada entrega, la conexión se
+ata a la dirección comprobada para que un cambio de DNS no la convierta en interna, y la entrega
+no sigue redirecciones. La lista de rangos prohibidos, los cuatro mensajes de error y la
+allowlist de desarrollo están en `docs/api/webhooks.md` § «Qué URLs se rechazan».
+
 **El panel de integraciones y la elección de IA por necesidad** ya existían desde la fase 11
 (`/integrations`): credenciales cifradas por organización y un selector por propósito
 (`EXTRACTION`, `SUMMARY`, …). No era una pregunta abierta; se comprobó al revisar.
@@ -2291,11 +2321,9 @@ delante el caso legítimo.
    hosting propio) para validar `WebklexImapClient` y la hipótesis de producto de
    `PRODUCT.md` §3.2. **Es la más importante de la lista**: valida la premisa del producto, no una
    funcionalidad.
-2. **Guarda anti-SSRF en los webhooks.** Hoy la URL del suscriptor puede apuntar a una red
-   interna. Ver «Deuda técnica conocida», fila 1.
-3. **Qué pasa cuando un plan baja de nivel con suscripciones vivas.** La fase 24 introduce cobros
+2. **Qué pasa cuando un plan baja de nivel con suscripciones vivas.** La fase 24 introduce cobros
    y, con ellos, la pregunta de qué se hace con el exceso de servicios o de consumo al bajar de
    plan: ¿se bloquea el alta, se avisa, se recorta? No está decidido y conviene decidirlo **antes**
    de la fase 24, no durante.
-4. **Precio del producto.** El catálogo (fase 22) permite fijar precios, pero no hay decisión de
+3. **Precio del producto.** El catálogo (fase 22) permite fijar precios, pero no hay decisión de
    negocio sobre cuánto cuesta Suscripta ni qué incluye cada plan.

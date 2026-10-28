@@ -9,9 +9,11 @@ use App\Shared\Application\Clock;
 use App\Shared\Application\TenantContext;
 use App\Webhooks\Application\DeliverWebhook;
 use App\Webhooks\Application\WebhookSecretGenerator;
+use App\Webhooks\Application\WebhookUrlGuard;
 use App\Webhooks\Domain\Entity\Webhook;
 use App\Webhooks\Domain\Entity\WebhookDelivery;
 use App\Webhooks\Domain\Enum\WebhookEvent;
+use App\Webhooks\Domain\Exception\UnsafeWebhookUrlException;
 use App\Webhooks\Domain\Repository\WebhookDeliveryRepositoryInterface;
 use App\Webhooks\Domain\Repository\WebhookRepositoryInterface;
 use App\Webhooks\UI\Form\WebhookFormData;
@@ -24,6 +26,7 @@ use function sprintf;
 
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormError;
+use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -68,6 +71,7 @@ final class WebhookController extends AbstractController
         private readonly WebhookSecretGenerator $secretGenerator,
         private readonly CredentialCipherInterface $cipher,
         private readonly DeliverWebhook $deliverWebhook,
+        private readonly WebhookUrlGuard $urlGuard,
         private readonly TenantContext $tenantContext,
         private readonly Clock $clock,
     ) {
@@ -103,6 +107,8 @@ final class WebhookController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             if ([] === $data->events) {
                 $form->get('events')->addError(new FormError('Marca al menos un evento: un suscriptor que no escucha nada no se distingue de uno roto.'));
+            } elseif (!$this->urlIsAcceptable((string) $data->url, $form)) {
+                // El error ya está colgado del campo `url`.
             } else {
                 $secret = $this->secretGenerator->generate();
 
@@ -175,6 +181,8 @@ final class WebhookController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             if ([] === $data->events) {
                 $form->get('events')->addError(new FormError('Marca al menos un evento.'));
+            } elseif (!$this->urlIsAcceptable((string) $data->url, $form)) {
+                // El error ya está colgado del campo `url`.
             } else {
                 $webhook->rename((string) $data->name);
                 $webhook->changeUrl((string) $data->url);
@@ -287,6 +295,34 @@ final class WebhookController extends AbstractController
         $this->addFlash('success', sprintf('El suscriptor «%s» se ha borrado.', $name));
 
         return $this->redirectToRoute('app_webhooks_index');
+    }
+
+    /**
+     * Comprueba que la URL no apunta a una red interna (anti-SSRF).
+     *
+     * Se comprueba **aquí**, al dar de alta, además de en cada entrega. El
+     * motivo es de producto: un suscriptor que apunta a `https://10.0.0.5/` es
+     * un error que se puede explicar en el formulario, y descubrirlo tres días
+     * después por un historial de entregas abandonadas no es lo mismo.
+     *
+     * Un host que **no resuelve** sí se acepta: es lo normal de quien da de
+     * alta el receptor antes de desplegarlo. La guarda no es un comprobador de
+     * disponibilidad, es un cortafuegos.
+     */
+    /**
+     * @param FormInterface<mixed> $form
+     */
+    private function urlIsAcceptable(string $url, FormInterface $form): bool
+    {
+        try {
+            $this->urlGuard->pin($url);
+        } catch (UnsafeWebhookUrlException $exception) {
+            $form->get('url')->addError(new FormError($exception->getMessage()));
+
+            return false;
+        }
+
+        return true;
     }
 
     private function findWebhook(Uuid $id): Webhook
