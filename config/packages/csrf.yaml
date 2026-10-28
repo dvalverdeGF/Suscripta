@@ -1,11 +1,11 @@
-# Enable stateless CSRF protection for forms and logins/logouts
+# CSRF con el gestor de sesión para toda la aplicación (D-91).
+#
+# Los tokens se guardan en la sesión y se validan contra ella, igual para los
+# formularios, el login, el logout y los POST a mano del backoffice. No hay
+# tokens sin estado: un solo mecanismo, una sola forma de equivocarse.
 framework:
     form:
         csrf_protection:
             token_id: submit
 
-    csrf_protection:
-        stateless_token_ids:
-            - submit
-            - authenticate
-            - logout
+    csrf_protection: ~
