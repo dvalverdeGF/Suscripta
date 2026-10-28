@@ -84,7 +84,7 @@ en su apartado correspondiente.
 | 16 | Hardening de seguridad y RGPD | ✅ Completada | `a035a36` | Retención, privacidad, exportación y borrado |
 | 17 | Preparación SaaS | ✅ Completada | `9504ff6` | 1385 tests, planes, cuotas, onboarding, backups |
 | 18 | API pública | ✅ Completada | `d840174` + `ffa7127` | 15 casos E2E y **35 tests** de API en verde; 6 defectos corregidos |
-| 19 | Cierre de documentación y publicación | ✅ Completada | `PENDIENTE_SHA` | README de producto, CHANGELOG por fase, guía de despliegue, 1 420 tests |
+| 19 | Cierre de documentación y publicación | ✅ Completada | `5821de0` | README de producto, CHANGELOG por fase, guía de despliegue, 1 420 tests |
 | 20 | Webhooks de salida | ⬜ **No planificada** | — | Diseño propio: reintentos, firma, idempotencia |
 
 **Lectura rápida de la tabla:** las fases 0 a 19 están **cerradas, commiteadas y verificadas**.
@@ -1942,7 +1942,7 @@ por su marca de tiempo y su estado, así que un webhook futuro no exigirá cambi
 
 ## Fase 19 — Cierre, documentación y publicación
 
-> **Estado:** ✅ **Completada.** Commit `PENDIENTE_SHA`.
+> **Estado:** ✅ **Completada.** Commit `5821de0`.
 
 **Objetivo:** que el proyecto se pueda entregar a alguien que no lo ha visto: instalar, entender,
 usar e integrar.
