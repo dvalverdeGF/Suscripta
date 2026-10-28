@@ -43,7 +43,7 @@ final class EmailVerificationTest extends WebTestCase
 
         $this->client->request('GET', $this->verificationUrl($user));
 
-        self::assertResponseRedirects('/');
+        self::assertResponseRedirects('/dashboard');
         $this->client->followRedirect();
         self::assertSelectorTextContains('.alert-success', 'Correo confirmado');
 
@@ -60,7 +60,7 @@ final class EmailVerificationTest extends WebTestCase
 
         $this->client->request('GET', $tampered);
 
-        self::assertResponseRedirects('/');
+        self::assertResponseRedirects('/dashboard');
         $this->client->followRedirect();
         self::assertSelectorTextContains('.alert-danger', 'no es válido o ha caducado');
 
@@ -91,7 +91,7 @@ final class EmailVerificationTest extends WebTestCase
         $this->client->followRedirect();
 
         $this->client->request('GET', $url);
-        self::assertResponseRedirects('/');
+        self::assertResponseRedirects('/dashboard');
         $this->client->followRedirect();
         self::assertSelectorTextContains('.alert-info', 'ya estaba confirmado');
     }
@@ -101,10 +101,10 @@ final class EmailVerificationTest extends WebTestCase
         $user = $this->createUser('ada@example.com');
         $this->client->loginUser($user);
 
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/dashboard');
         $this->client->submitForm('Reenviar el correo');
 
-        self::assertResponseRedirects('/');
+        self::assertResponseRedirects('/dashboard');
         $this->client->followRedirect();
         self::assertSelectorTextContains('.alert-success', 'Te hemos enviado un correo nuevo');
     }

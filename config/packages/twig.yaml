@@ -2,6 +2,13 @@ twig:
     file_name_pattern: '*.twig'
     form_themes:
         - 'form/theme.html.twig'
+    globals:
+        # La web corporativa necesita la URL publica para el `canonical`, el
+        # Open Graph y el JSON-LD. Se expone como global y no se toma de la
+        # peticion porque detras de un proxy el host que ve la aplicacion es
+        # el interno (ver `SeoController`).
+        site_url: '%app.site.url%'
+        site_contact_email: '%app.site.contact_email%'
 
 when@test:
     twig:

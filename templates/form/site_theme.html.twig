@@ -1,0 +1,63 @@
+{#
+    Tema de formularios de la web corporativa.
+
+    Es distinto del tema del backoffice (`form/theme.html.twig`) porque el
+    vocabulario visual tambien lo es: alli se usan las clases de Bootstrap, aqui
+    las de `site.css`. Compartir un solo tema obligaria a que la web cargara
+    Bootstrap para que el formulario de contacto se viera bien.
+
+    Como el otro, delega en `form_div_layout.html.twig` con `parent()`: la
+    logica de etiquetas, ayuda y errores la sigue poniendo Symfony.
+#}
+{% use 'form_div_layout.html.twig' %}
+
+{% block form_row -%}
+    <div class="field">
+        {{- form_label(form) -}}
+        {{- form_widget(form) -}}
+        {{- form_help(form) -}}
+        {{- form_errors(form) -}}
+    </div>
+{%- endblock form_row %}
+
+{# Solo se pone la clase por defecto si la plantilla no ha pedido otra: el
+   consentimiento necesita el texto en tamaño normal, no en versalitas. #}
+{% block form_label -%}
+    {%- if label_attr.class is not defined -%}
+        {%- set label_attr = label_attr|merge({class: 'field__label'}) -%}
+    {%- endif -%}
+    {{- parent() -}}
+{%- endblock form_label %}
+
+{% block form_help -%}
+    {%- set help_attr = help_attr|merge({class: ['field__help', help_attr.class|default('')]|join(' ')|trim}) -%}
+    {{- parent() -}}
+{%- endblock form_help %}
+
+{% block form_errors -%}
+    {%- if errors|length > 0 -%}
+        {%- if form is rootform -%}
+            <div class="form-errors" role="alert">
+                <ul>
+                    {%- for error in errors -%}
+                        <li>{{ error.message }}</li>
+                    {%- endfor -%}
+                </ul>
+            </div>
+        {%- else -%}
+            {%- for error in errors -%}
+                <p class="field__error" role="alert">{{ error.message }}</p>
+            {%- endfor -%}
+        {%- endif -%}
+    {%- endif -%}
+{%- endblock form_errors %}
+
+{% block checkbox_row -%}
+    <div class="field field--check">
+        {{- form_widget(form) -}}
+        <div>
+            {{- form_label(form, null, {label_attr: {class: 'field__consent'}}) -}}
+            {{- form_errors(form) -}}
+        </div>
+    </div>
+{%- endblock checkbox_row %}

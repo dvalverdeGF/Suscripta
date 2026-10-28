@@ -164,7 +164,7 @@ final class PrivacyIsolationTest extends WebTestCase
 
     private function switchTo(Organization $organization): void
     {
-        $crawler = $this->client->request('GET', '/');
+        $crawler = $this->client->request('GET', '/dashboard');
 
         $token = $crawler
             ->filter('form[action="/organizations/switch"] input[name="_token"]')
@@ -177,7 +177,7 @@ final class PrivacyIsolationTest extends WebTestCase
             'organization' => $organization->getId()->toRfc4122(),
         ]);
 
-        self::assertResponseRedirects('/');
+        self::assertResponseRedirects('/dashboard');
     }
 
     private function createService(Organization $organization, string $name): void

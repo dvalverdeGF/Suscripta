@@ -1,0 +1,317 @@
+{% extends 'website/base.html.twig' %}
+
+{% block title %}Suscripta — las suscripciones de tu empresa, encontradas en el correo{% endblock %}
+
+{% block description %}Suscripta lee el correo donde llegan tus facturas, reconoce las suscripciones que pagas y te avisa antes de que se renueven. Sin conectar el banco y sin hojas de cálculo.{% endblock %}
+
+{% block structured_data %}
+    <script type="application/ld+json" nonce="{{ csp_nonce() }}">
+        {
+            "@context": "https://schema.org",
+            "@type": "SoftwareApplication",
+            "name": "Suscripta",
+            "applicationCategory": "BusinessApplication",
+            "operatingSystem": "Web",
+            "url": "{{ site_url }}",
+            "description": "Descubrimiento y control de las suscripciones de empresa a partir del correo.",
+            "inLanguage": "es",
+            "offers": {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "EUR",
+                "description": "Plan gratuito con tres servicios y un buzón."
+            },
+            "publisher": { "@id": "{{ site_url }}/#organizacion" }
+        }
+    </script>
+{% endblock %}
+
+{% block body %}
+    <section class="hero">
+        <div class="container hero__grid">
+            <div>
+                <p class="eyebrow">Inventario de suscripciones</p>
+
+                <h1 class="hero__title">
+                    Cada recibo recurrente de tu empresa, con <em>nombre y apellido</em>.
+                </h1>
+
+                <p class="hero__lead">
+                    Suscripta lee el correo donde llegan las facturas, reconoce las
+                    suscripciones que pagas y te dice cuánto suman, cuándo se renuevan
+                    y cuáles han subido de precio. Sin conectar el banco y sin abrir
+                    una hoja de cálculo paralela.
+                </p>
+
+                <div class="actions">
+                    <a class="btn btn--primary btn--lg" href="{{ path('app_register') }}">Crear cuenta gratis</a>
+                    <a class="btn btn--ghost btn--lg" href="{{ path('app_site_pricing') }}">Ver los precios</a>
+                </div>
+
+                <p class="hero__note">
+                    <span>Sin tarjeta en el plan gratuito</span>
+                    <span>Correo en solo lectura</span>
+                    <span>API y webhooks</span>
+                </p>
+            </div>
+
+            {# Maqueta del extracto. Es una ilustracion con datos inventados: se
+               marca como imagen para que un lector de pantalla anuncie que es un
+               ejemplo y no lea cuatro importes falsos como si fueran reales. #}
+            <div class="statement" role="img"
+                 aria-label="Ejemplo del extracto mensual: Figma, Slack, Amazon Web Services —con una subida de precio— y Zoom, que ya no se renueva.">
+                <div class="statement__head">
+                    <p class="statement__title">Extracto del mes</p>
+                    <p class="statement__total">1.284,60 €</p>
+                </div>
+
+                <ul class="statement__rows">
+                    <li class="statement__row">
+                        <span class="statement__name">Figma</span>
+                        <span class="statement__meta">Diseño · 5 licencias · renueva el 4 nov</span>
+                        <span class="statement__amount">75,00 €</span>
+                    </li>
+                    <li class="statement__row">
+                        <span class="statement__name">Slack</span>
+                        <span class="statement__meta">Comunicación · plan Pro · renueva el 12 nov</span>
+                        <span class="statement__amount">41,25 €</span>
+                    </li>
+                    <li class="statement__row statement__row--alert">
+                        <span class="statement__name">Amazon Web Services</span>
+                        <span class="statement__meta">Subió un 18 % frente a octubre</span>
+                        <span class="statement__amount">412,80 €</span>
+                    </li>
+                    <li class="statement__row statement__row--muted">
+                        <span class="statement__name">Zoom</span>
+                        <span class="statement__meta">Cancelada el 2 oct · ya no se renueva</span>
+                        <span class="statement__amount">0,00 €</span>
+                    </li>
+                </ul>
+
+                <p class="statement__foot">4 de los 11 servicios detectados · actualizado hace 2 minutos</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="section section--tight">
+        <div class="container">
+            <div class="band">
+                <div class="band__item">
+                    <p class="band__value">Correo</p>
+                    <p class="band__label">La única fuente. Nada que conectar al banco.</p>
+                </div>
+                <div class="band__item">
+                    <p class="band__value">API</p>
+                    <p class="band__label">REST con claves por organización y webhooks firmados.</p>
+                </div>
+                <div class="band__item">
+                    <p class="band__value">Solo lectura</p>
+                    <p class="band__label">Del correo no se envía, ni se mueve, ni se borra nada.</p>
+                </div>
+                <div class="band__item">
+                    <p class="band__value">0 €</p>
+                    <p class="band__label">El plan gratuito no pide tarjeta.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section section--paper">
+        <div class="container">
+            <div class="section-head">
+                <p class="eyebrow">El problema</p>
+                <h2>Nadie contrata una suscripción para olvidarla</h2>
+                <p>
+                    Pero se olvidan. No porque nadie las apunte, sino porque las apunta
+                    una persona, en un sitio, durante un tiempo. Cuando esa persona se
+                    va, se van las suscripciones con ella: siguen cobrándose y ya no
+                    aparecen en ninguna lista.
+                </p>
+            </div>
+
+            <div class="grid grid--3">
+                <div class="tile">
+                    <h3 class="tile__title">La que nadie recuerda</h3>
+                    <p class="tile__text">
+                        La contrató alguien que ya no está, para un proyecto que ya cerró.
+                        Sigue saliendo del banco cada mes y nadie sabe que existe hasta
+                        que alguien mira el extracto con lupa.
+                    </p>
+                </div>
+                <div class="tile">
+                    <h3 class="tile__title">La que subió sin avisar</h3>
+                    <p class="tile__text">
+                        Un 8 % aquí, un cambio de plan allá. La factura del mes sube y el
+                        presupuesto no. Cuando alguien lo nota, llevan tres trimestres
+                        pagando de más.
+                    </p>
+                </div>
+                <div class="tile">
+                    <h3 class="tile__title">La que se paga dos veces</h3>
+                    <p class="tile__text">
+                        El mismo servicio dado de alta con dos correos o con dos formas
+                        de pago. Las dos facturas parecen correctas por separado, y
+                        juntas son un cargo de más todos los meses.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="container">
+            <div class="section-head">
+                <p class="eyebrow">Cómo funciona</p>
+                <h2>Cuatro pasos y el correo que ya tienes</h2>
+                <p>
+                    No hay que instalar nada ni cambiar la forma de pagar. Suscripta se
+                    pone al lado de lo que ya llega a tu buzón.
+                </p>
+            </div>
+
+            <div class="grid grid--4">
+                <div class="step">
+                    <p class="step__num">01</p>
+                    <h3 class="step__title">Conecta el correo</h3>
+                    <p class="step__text">
+                        Reenvía a la dirección de tu organización solo las facturas que
+                        quieras vigilar, o conecta el buzón por IMAP.
+                    </p>
+                </div>
+                <div class="step">
+                    <p class="step__num">02</p>
+                    <h3 class="step__title">Se lee lo que importa</h3>
+                    <p class="step__text">
+                        Solo se procesan los mensajes que parecen una factura. De cada uno
+                        se saca proveedor, importe, periodicidad y próxima renovación.
+                    </p>
+                </div>
+                <div class="step">
+                    <p class="step__num">03</p>
+                    <h3 class="step__title">Tú confirmas</h3>
+                    <p class="step__text">
+                        Nada entra en el inventario sin tu visto bueno: lo detectado llega
+                        como propuesta, con su nivel de confianza a la vista.
+                    </p>
+                </div>
+                <div class="step">
+                    <p class="step__num">04</p>
+                    <h3 class="step__title">El panel te avisa</h3>
+                    <p class="step__text">
+                        Renovaciones próximas, cambios de precio y servicios que ya no
+                        usas. Y si tienes otro sistema, por webhook.
+                    </p>
+                </div>
+            </div>
+
+            <p class="mt-4">
+                <a class="btn btn--link" href="{{ path('app_site_how_it_works') }}">Ver el recorrido completo, paso a paso</a>
+            </p>
+        </div>
+    </section>
+
+    <section class="section section--paper">
+        <div class="container">
+            <div class="section-head">
+                <p class="eyebrow">Lo que obtienes</p>
+                <h2>Un inventario que no envejece</h2>
+                <p>
+                    La diferencia entre una hoja de cálculo y esto no es el diseño: es
+                    que la hoja la actualiza alguien y el inventario se actualiza con
+                    cada factura que llega.
+                </p>
+            </div>
+
+            <div class="grid grid--3">
+                <div class="tile tile--teal">
+                    <h3 class="tile__title">Inventario vivo</h3>
+                    <p class="tile__text">
+                        Todos los servicios con su importe, su periodicidad y su fecha de
+                        renovación, en una sola lista.
+                    </p>
+                </div>
+                <div class="tile tile--teal">
+                    <h3 class="tile__title">Detección desde el correo</h3>
+                    <p class="tile__text">
+                        Reglas deterministas primero; un modelo solo cuando las reglas no
+                        bastan. Sin IA, el producto sigue funcionando.
+                    </p>
+                </div>
+                <div class="tile tile--teal">
+                    <h3 class="tile__title">Avisos antes de renovar</h3>
+                    <p class="tile__text">
+                        Te avisa antes de que el cargo salga, no después. Con margen para
+                        cancelar o renegociar.
+                    </p>
+                </div>
+                <div class="tile tile--teal">
+                    <h3 class="tile__title">Historial de precios</h3>
+                    <p class="tile__text">
+                        Cada cambio de importe queda registrado: cuándo subió, cuánto y en
+                        qué factura se ve.
+                    </p>
+                </div>
+                <div class="tile tile--teal">
+                    <h3 class="tile__title">Documentos enlazados</h3>
+                    <p class="tile__text">
+                        La factura original queda unida a su servicio. Se acabó buscar el
+                        PDF por el correo.
+                    </p>
+                </div>
+                <div class="tile tile--teal">
+                    <h3 class="tile__title">API y webhooks</h3>
+                    <p class="tile__text">
+                        Claves por organización y eventos firmados para que tu ERP o tu
+                        hoja de cálculo se entere sin preguntar.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="container">
+            <div class="section-head">
+                <p class="eyebrow">Precios</p>
+                <h2>Precios que caben en el presupuesto que vigilan</h2>
+                <p>
+                    Empieza gratis con tres servicios. Cuando el inventario crezca, el
+                    plan Profesional quita el techo y enciende la inteligencia artificial.
+                </p>
+            </div>
+
+            {% if plans is empty %}
+                <div class="pricing-note">
+                    El catálogo de planes todavía no está publicado. Escríbenos y te
+                    contamos cómo funciona mientras tanto.
+                </div>
+            {% else %}
+                <div class="plans">
+                    {% for card in plans %}
+                        {% include 'website/_plan_card.html.twig' with { card: card } only %}
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <p class="mt-3">
+                <a class="btn btn--link" href="{{ path('app_site_pricing') }}">Comparar los planes con sus límites</a>
+            </p>
+        </div>
+    </section>
+
+    <section class="section section--ink">
+        <div class="container cta-band">
+            <div>
+                <h2 class="mb-0">Empieza por el correo que ya tienes</h2>
+                <p class="lead mt-2">
+                    Crear la cuenta lleva menos que leer esta página. El plan gratuito no
+                    pide tarjeta y se puede borrar cuando quieras.
+                </p>
+            </div>
+            <div class="actions">
+                <a class="btn btn--on-ink btn--lg" href="{{ path('app_register') }}">Crear cuenta gratis</a>
+                <a class="btn btn--ghost-on-ink btn--lg" href="{{ path('app_site_contact') }}">Hablar con nosotros</a>
+            </div>
+        </div>
+    </section>
+{% endblock %}

@@ -49,7 +49,7 @@ final class OnboardingTest extends WebTestCase
 
     public function testANewUserLandsInTheGuideInsteadOfAnEmptyDashboard(): void
     {
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/dashboard');
 
         self::assertResponseRedirects('/onboarding');
     }
@@ -83,7 +83,7 @@ final class OnboardingTest extends WebTestCase
 
         $this->client->submit($this->client->getCrawler()->selectButton('Hecho, llévame al panel')->form());
 
-        self::assertResponseRedirects('/');
+        self::assertResponseRedirects('/dashboard');
 
         $this->client->followRedirect();
 
@@ -91,7 +91,7 @@ final class OnboardingTest extends WebTestCase
         self::assertSelectorTextContains('h1', 'Panel');
 
         // La guía no vuelve a aparecer: el estado está guardado.
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/dashboard');
 
         self::assertResponseIsSuccessful();
     }

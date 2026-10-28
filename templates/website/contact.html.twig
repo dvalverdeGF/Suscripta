@@ -1,0 +1,55 @@
+{% extends 'website/base.html.twig' %}
+
+{% form_theme form 'form/site_theme.html.twig' %}
+
+{% block title %}Contacto — Suscripta{% endblock %}
+
+{% block description %}Escríbenos si tienes dudas sobre los planes, quieres una integración que no está o has encontrado un problema de seguridad.{% endblock %}
+
+{% block body %}
+    <section class="section">
+        <div class="container">
+            <div class="grid grid--2">
+                <div>
+                    <p class="eyebrow">Contacto</p>
+                    <h1>Escríbenos y te contestamos una persona</h1>
+                    <p class="lead">
+                        No hay un chatbot en esta página. Cuéntanos qué necesitas y te
+                        responde alguien del equipo, normalmente en un día laborable.
+                    </p>
+
+                    <hr class="rule">
+
+                    <h2 class="h-sub">Qué contar según el caso</h2>
+                    <ul class="checks mt-2">
+                        <li>Si dudas entre planes, cuántos servicios y buzones tienes</li>
+                        <li>Si necesitas una integración que no está en la lista</li>
+                        <li>Si has encontrado un fallo de seguridad, con los pasos para reproducirlo</li>
+                        <li>Si quieres ejercer tus derechos sobre los datos, desde el correo de la cuenta</li>
+                    </ul>
+
+                    <p class="mt-4 mono text-muted small">
+                        O directamente a
+                        <a href="mailto:{{ site_contact_email }}">{{ site_contact_email }}</a>
+                    </p>
+                </div>
+
+                <div>
+                    {{ form_start(form, {attr: {class: 'form-grid', novalidate: 'novalidate'}}) }}
+                        {{ form_errors(form) }}
+                        {{ form_row(form.name) }}
+                        {{ form_row(form.email) }}
+                        {{ form_row(form.company) }}
+                        {{ form_row(form.topic) }}
+                        {{ form_row(form.message) }}
+                        {{ form_row(form.consent) }}
+
+                        <div>
+                            <button class="btn btn--primary btn--lg" type="submit">Enviar mensaje</button>
+                        </div>
+                    {{ form_end(form) }}
+                </div>
+            </div>
+        </div>
+    </section>
+{% endblock %}

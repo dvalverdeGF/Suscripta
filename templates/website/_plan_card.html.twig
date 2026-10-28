@@ -1,0 +1,86 @@
+{#
+    Una tarjeta de precio.
+
+    Recibe `card`, que es un `PlanCard` ya resuelto por `BuildPricingPage`: la
+    plantilla no consulta el catalogo ni los limites, solo pinta lo que le dan.
+
+    El precio grande es el que `card.headline()` decide (mensual, y si no hay,
+    anual). La rebaja anual no se escribe aqui: la calcula el servidor y, si no
+    hay con que compararla, llega como `null` y no se inventa nada.
+#}
+{% set suffixes = { monthly: 'mes', quarterly: 'trimestre', annual: 'año' } %}
+{% set price = card.headline %}
+
+<article class="plan{{ card.highlighted ? ' plan--featured' }}">
+    {% if card.highlighted %}
+        <span class="plan__flag">Recomendado</span>
+    {% endif %}
+
+    <div>
+        <h3 class="plan__name">{{ card.name }}</h3>
+        {% if card.tagline %}
+            <p class="plan__tagline">{{ card.tagline }}</p>
+        {% endif %}
+    </div>
+
+    <div>
+        {% if price is null %}
+            <p class="plan__price"><span class="plan__amount">A consultar</span></p>
+        {% elseif card.isFree %}
+            <p class="plan__price">
+                <span class="plan__amount">0 €</span>
+                <span class="plan__period">para siempre</span>
+            </p>
+        {% else %}
+            <p class="plan__price">
+                <span class="plan__amount">{{ price.amountMinor|money(price.currency.value) }}</span>
+                <span class="plan__period">/ {{ suffixes[price.billingPeriod.value] ?? price.billingPeriod.label|lower }}</span>
+            </p>
+        {% endif %}
+
+        <p class="plan__aside">
+            {%- if card.annualSavingPercent is not null -%}
+                Ahorra un <strong>{{ card.annualSavingPercent }} %</strong> pagando el año
+            {%- elseif card.isFree -%}
+                Sin tarjeta y sin límite de tiempo
+            {%- endif -%}
+        </p>
+    </div>
+
+    {% if card.features is not empty %}
+        <ul class="plan__features">
+            {% for feature in card.features %}
+                <li data-included="{{ feature.included ? 'true' : 'false' }}">
+                    <span class="mark" aria-hidden="true">{{ feature.included ? '✓' : '×' }}</span>
+                    <span>
+                        {{ feature.label }}
+                        {%- if not feature.included %} <span class="visually-hidden">(no incluida)</span>{% endif %}
+                    </span>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    {% if card.limits is not empty %}
+        <dl class="plan__limits">
+            {% for limit in card.limits %}
+                <div class="plan__limit">
+                    <dt>{{ limit.label }}</dt>
+                    <dd>{{ limit.value }}</dd>
+                </div>
+            {% endfor %}
+        </dl>
+    {% endif %}
+
+    <p class="plan__cta">
+        {% if card.isFree %}
+            <a class="btn {{ card.highlighted ? 'btn--primary' : 'btn--ghost' }}" href="{{ path('app_register') }}">
+                Empezar gratis
+            </a>
+        {% else %}
+            <a class="btn {{ card.highlighted ? 'btn--primary' : 'btn--ghost' }}" href="{{ path('app_register') }}">
+                Crear cuenta
+            </a>
+        {% endif %}
+    </p>
+</article>

@@ -1,0 +1,88 @@
+{#
+    El armazon de la web corporativa.
+
+    Es un layout aparte del backoffice a proposito: la web no carga Bootstrap ni
+    el importmap del panel. Un visitante que solo quiere leer los precios no
+    deberia descargar la aplicacion entera, y el panel no deberia cargar la
+    tipografia y el aire de la web.
+
+    Lo que si comparten es la marca: mismo simbolo, mismos colores de base y la
+    misma tipografia (IBM Plex), compuesta de otra manera.
+#}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>{% block title %}Suscripta — control de suscripciones{% endblock %}</title>
+    <meta name="description" content="{% block description %}Suscripta lee el correo de tu empresa, encuentra las suscripciones que pagas y te avisa antes de que se renueven.{% endblock %}">
+
+    <link rel="canonical" href="{% block canonical %}{{ site_url }}{{ path(app.request.attributes.get('_route')) }}{% endblock %}">
+
+    {# Open Graph y Twitter: cuando alguien pega un enlace en un chat, esto es
+       lo que se ve. Se reutilizan los mismos bloques que el `<title>` y la
+       descripcion para que no haya dos versiones del mismo texto. #}
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Suscripta">
+    <meta property="og:locale" content="es_ES">
+    <meta property="og:title" content="{{ block('title') }}">
+    <meta property="og:description" content="{{ block('description') }}">
+    <meta property="og:url" content="{{ block('canonical') }}">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="{{ block('title') }}">
+    <meta name="twitter:description" content="{{ block('description') }}">
+
+    <meta name="theme-color" content="#0b1620">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230b1620'/><path d='M9 22V10h7a4 4 0 0 1 0 8h-3l6 4h-4l-6-4z' fill='%234cc9d4'/></svg>">
+
+    <link rel="stylesheet" href="{{ asset('styles/site.css') }}">
+
+    {% block head %}{% endblock %}
+</head>
+<body class="site-body">
+    <a class="skip-link" href="#contenido">Saltar al contenido</a>
+
+    {% include 'website/_header.html.twig' %}
+
+    <main id="contenido">
+        {% set flashes = app.flashes %}
+
+        {% if flashes is not empty %}
+            <div class="container flashes">
+                {% for type, messages in flashes %}
+                    {% for message in messages %}
+                        <div class="notice {{ type == 'error' ? 'notice--error' : 'notice--success' }}" role="status">
+                            <span class="notice__icon" aria-hidden="true">{{ type == 'error' ? '!' : '✓' }}</span>
+                            <span>{{ message }}</span>
+                        </div>
+                    {% endfor %}
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% block body %}{% endblock %}
+    </main>
+
+    {% include 'website/_footer.html.twig' %}
+
+    {# Datos estructurados de la organizacion: es el mismo bloque en todas las
+       paginas, porque describe al responsable del sitio y no a la pagina. El
+       `@id` permite que otras entidades lo referencien en vez de repetirlo. #}
+    <script type="application/ld+json" nonce="{{ csp_nonce() }}">
+        {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "@id": "{{ site_url }}/#organizacion",
+            "name": "Suscripta",
+            "url": "{{ site_url }}",
+            "description": "Descubrimiento y control de las suscripciones de empresa a partir del correo.",
+            "email": "{{ site_contact_email }}",
+            "areaServed": "ES",
+            "knowsLanguage": ["es", "en"]
+        }
+    </script>
+
+    {% block structured_data %}{% endblock %}
+</body>
+</html>

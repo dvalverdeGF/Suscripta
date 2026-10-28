@@ -72,7 +72,7 @@ final class SecurityHeadersTest extends WebTestCase
     {
         $client = $this->clientWithUser();
 
-        $client->request('GET', '/');
+        $client->request('GET', '/dashboard');
 
         self::assertResponseIsSuccessful();
 
@@ -146,7 +146,7 @@ final class SecurityHeadersTest extends WebTestCase
     {
         $client = $this->clientWithUser();
 
-        $client->request('GET', '/');
+        $client->request('GET', '/dashboard');
 
         self::assertResponseIsSuccessful();
         self::assertSame('DENY', $client->getResponse()->headers->get('X-Frame-Options'));

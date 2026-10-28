@@ -32,7 +32,7 @@ final class RegistrationTest extends WebTestCase
     {
         $this->register('ada@example.com');
 
-        self::assertResponseRedirects('/');
+        self::assertResponseRedirects('/dashboard');
 
         // Recién registrado, el usuario aterriza en la guía de bienvenida: es el
         // primer paso de la Fase 17 y el panel no se muestra hasta terminarla.

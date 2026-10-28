@@ -2513,3 +2513,108 @@ menos 48 h.
 - **No hay webhooks de entrada.** Stripe (fase 24) tendrá su propia ruta, con su propia firma.
 - **No hay challenge de verificación de endpoint**: el botón «Enviar prueba» del panel cumple esa
   función.
+
+## 19. Web corporativa (Fase 23)
+
+La web que vende el producto vive **en la misma aplicación** que el panel. No es un segundo
+proyecto ni un generador de sitios estáticos: es un módulo más, `src/Website/`, con sus cuatro
+capas, y comparte contenedor, despliegue y catálogo con el resto.
+
+### 19.1 Por qué en la misma aplicación
+
+Dos despliegues separados habrían duplicado el diseño, el dominio y los datos: la página de
+precios necesita leer `PlanPrice` en cada petición, y el alta necesita la sesión que abre el
+panel. Compartir proceso convierte «pulsa contratar» en un enlace interno en vez de un salto entre
+sistemas con su propia copia del catálogo (D-83).
+
+El precio de esa decisión es que la portada y el panel conviven bajo el mismo `access_control`, y
+por eso la fase dedica un test a recorrer **todas** las rutas públicas sin sesión (D-84).
+
+### 19.2 Capas
+
+| Capa | Contenido |
+|---|---|
+| `Application` | `PlanCard` (DTO de una tarjeta de precio), `BuildPricingPage` (catálogo + límites → tarjetas), `Faq` (seis preguntas, fuente única de la página y del JSON-LD), `SendContactMessage` (correo con `Reply-To`). |
+| `UI/Form` | `ContactMessageData` (DTO validado) y `ContactFormType`. |
+| `UI/Controller` | `HomepageController` (`/`), `PricingController` (`/precios`), `SiteController` (siete páginas), `ContactController` (`/contacto`, GET y POST) y `SeoController` (`/sitemap.xml`, `/robots.txt`). |
+| `templates/website` | `base`, `_header`, `_footer`, `_plan_card` y una plantilla por página, más `seo/sitemap.xml.twig`. |
+| `assets/styles/site.css` | Hoja de estilos propia, escrita a mano, sin SCSS ni build (D-85). |
+
+### 19.3 La portada bifurca, no adivina
+
+`GET /` responde **redirección** al panel si hay sesión y portada si no. Se eligió redirección y
+no renderizar el panel en `/` para que cada pantalla tenga una sola URL: `/dashboard` es el panel
+para todo el mundo, los enlaces `path('app_dashboard')` siguen siendo válidos y el botón «atrás»
+no devuelve a una portada que ya no toca.
+
+### 19.4 Los precios no se escriben en la plantilla
+
+`BuildPricingPage` lee `PlanRepositoryInterface::findAll(onlyActive: true)`, los precios vigentes
+de cada plan y sus características. **Un cambio de precio en el backoffice aparece en la web sin
+desplegar**, que es exactamente lo que la fase 22 vino a permitir.
+
+Los **límites** se leen de `entitlements.yaml` a través de `EntitlementSettings` (D-64), no de la
+base de datos: si la web prometiera unos límites distintos de los que el guard de cuotas aplica,
+la primera queja de un cliente tendría razón. `ai_budget_minor` se oculta porque es un tope
+interno de coste, no algo que se venda.
+
+La rebaja anual (`annualSavingPercent`) la calcula el servidor comparando el precio mensual por
+doce con el anual. Si no hay con qué compararla, llega como `null` y la plantilla **no inventa
+nada**: el hueco queda vacío.
+
+### 19.5 Sin JavaScript
+
+La web no carga Bootstrap, ni importmap, ni una sola línea de JavaScript. El menú móvil y las
+preguntas frecuentes usan `<details>`, que es HTML. Las consecuencias:
+
+- La CSP no necesita `unsafe-inline` en `script-src`; los únicos `<script>` de la página son los
+  bloques `application/ld+json`, que llevan el `nonce` de la respuesta.
+- No hay estado de cliente que pueda desincronizarse con el servidor.
+- La página funciona con el JS desactivado y en un lector de pantalla sin configuración extra.
+
+El formulario de contacto se renderiza con un tema propio, `templates/form/site_theme.html.twig`,
+porque el tema global del proyecto es el de Bootstrap y arrastraría sus clases.
+
+### 19.6 SEO: lo que se afirma y lo que no
+
+Cada página define `title`, `description` y `canonical` como bloques de Twig, y el layout los
+reutiliza para Open Graph y Twitter. El `canonical` se construye con `%app.site.url%` y no con el
+host de la petición: detrás de un proxy, el host que ve la aplicación es el interno, y un sitemap
+con `http://localhost/…` no lo indexa nadie.
+
+`sitemap.xml` y `robots.txt` se generan desde la tabla de rutas (`SeoController::PAGES`), no se
+escriben a mano: un sitemap escrito a mano envejece a la primera página nueva, y un `robots.txt` a
+mano se olvida de la ruta privada que se añadió ayer.
+
+Hay JSON-LD de `Organization` en todas las páginas, `SoftwareApplication` en la portada y
+`FAQPage` en las preguntas frecuentes, generado desde el mismo objeto `Faq` que pinta el HTML: si
+las dos listas se separaran, Google acabaría indexando preguntas que ya no están en la página.
+
+**Lo que no se afirma.** La web no dice «100 % privado» ni «datos alojados en la UE», porque el
+proyecto no puede sostenerlo (D-25): la propia página de seguridad explica qué se hace y qué no se
+puede prometer. Tampoco hay `lastmod` en el sitemap, porque estas páginas cambian con un
+despliegue y no con una fecha que se pueda afirmar sin mentir.
+
+### 19.7 El formulario de contacto
+
+`POST /contacto` valida con el componente Validator, limita por IP con `limiter.contact_form`
+(cinco mensajes por hora) y manda un `TemplatedEmail` al buzón de `SITE_CONTACT_EMAIL` con
+`Reply-To` de quien escribe. **No se guarda nada en la base de datos**: el buzón es el archivo, y
+así no hay datos personales que retener, exportar ni borrar.
+
+Dos detalles que costaron un error cada uno:
+
+1. **`email` es una variable reservada** en `TemplatedEmail`: la ocupa el propio mensaje. El
+   contexto de la plantilla usa `sender`, y con `email` el envío falla en tiempo de ejecución, no
+   al compilar.
+2. **El limitador vive en caché y la caché sobrevive a la suite.** Los tests fijan una IP distinta
+   por prueba (`REMOTE_ADDR` aleatorio en `198.51.100.0/24`) en lugar de bajar el límite en el
+   entorno de test: así el test del límite real —cinco pasan, el sexto recibe el aviso— convive
+   con los demás sin tocar la configuración.
+
+### 19.8 Lo que queda pendiente antes de publicar
+
+Las tres páginas legales llevan **marcadores** (`[RAZÓN SOCIAL]`, `[NIF]`, `[DOMICILIO]`,
+`[REGISTRO Y TOMO]`) y un aviso rojo que solo se pinta fuera de `prod`. Sustituirlos es un
+requisito de lanzamiento, no una tarea de estilo: publicar con marcadores es publicar un aviso
+legal falso.

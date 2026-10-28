@@ -1,0 +1,168 @@
+{% extends 'website/base.html.twig' %}
+
+{% block title %}Qué hace Suscripta — inventario y control de suscripciones{% endblock %}
+
+{% block description %}Descubre qué servicios paga tu empresa, cuánto suman, cuándo se renuevan y cuáles han cambiado de precio. Todo a partir del correo donde llegan las facturas.{% endblock %}
+
+{% block body %}
+    <section class="section">
+        <div class="container">
+            <div class="section-head">
+                <p class="eyebrow">El producto</p>
+                <h1>Tres trabajos, uno detrás de otro</h1>
+                <p class="lead">
+                    Suscripta no es un gestor de gastos ni un lector de facturas a secas.
+                    Hace tres cosas encadenadas: descubrir lo que se paga, mantenerlo
+                    ordenado y avisar antes de que vuelva a pasar.
+                </p>
+            </div>
+
+            <div class="grid grid--3">
+                <div class="tile tile--teal">
+                    <h3 class="tile__title">1. Descubrir</h3>
+                    <p class="tile__text">
+                        Lee el correo donde llegan las facturas y saca de ahí los servicios
+                        que la empresa paga. No hace falta que nadie los apunte antes: el
+                        inventario se construye desde lo que ya está pasando.
+                    </p>
+                </div>
+                <div class="tile tile--teal">
+                    <h3 class="tile__title">2. Ordenar</h3>
+                    <p class="tile__text">
+                        Cada servicio queda con su importe, su moneda, su periodicidad, su
+                        próxima renovación y el documento del que salió. Lo que no se puede
+                        afirmar con seguridad no se inventa: se queda como propuesta.
+                    </p>
+                </div>
+                <div class="tile tile--teal">
+                    <h3 class="tile__title">3. Avisar</h3>
+                    <p class="tile__text">
+                        Con el inventario al día, el sistema puede decir lo único que de
+                        verdad se necesita: qué se cobra esta semana, qué ha subido de
+                        precio y qué ya no se usa.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section section--paper">
+        <div class="container">
+            <div class="section-head">
+                <p class="eyebrow">Ciclo de vida</p>
+                <h2>Una suscripción no es «activa» o «cancelada»</h2>
+                <p>
+                    Entre la prueba gratuita y la baja definitiva hay estados que cambian
+                    lo que hay que hacer. El producto los distingue porque el panel tiene
+                    que decir la verdad, no una versión simplificada.
+                </p>
+            </div>
+
+            <div class="band">
+                <div class="band__item">
+                    <p class="band__value">Prueba</p>
+                    <p class="band__label">Va a empezar a cobrarse y todavía no se ha cobrado.</p>
+                </div>
+                <div class="band__item">
+                    <p class="band__value">Activa</p>
+                    <p class="band__label">Se cobra con normalidad y tiene fecha de renovación.</p>
+                </div>
+                <div class="band__item">
+                    <p class="band__value">Vencida</p>
+                    <p class="band__label">Toca pagar y el cargo no ha entrado: ojo con la pérdida de servicio.</p>
+                </div>
+                <div class="band__item">
+                    <p class="band__value">Pausada</p>
+                    <p class="band__label">No se cobra ahora, pero volverá. No es una baja.</p>
+                </div>
+                <div class="band__item">
+                    <p class="band__value">Cancelada</p>
+                    <p class="band__label">Ya no se renueva. Se conserva el historial de lo pagado.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="container">
+            <div class="section-head">
+                <p class="eyebrow">El detalle</p>
+                <h2>Lo que separa un inventario de una lista de deseos</h2>
+                <p>
+                    Cualquiera puede enseñar una tabla con logos. Lo difícil es que la
+                    tabla siga siendo cierta el mes que viene y que se pueda defender
+                    delante de una auditoría.
+                </p>
+            </div>
+
+            <div class="grid grid--2">
+                <div class="tile">
+                    <h3 class="tile__title">Nada entra sin confirmar</h3>
+                    <p class="tile__text">
+                        Lo detectado llega como propuesta con su confianza. Confirmar o
+                        descartar es una decisión tuya y queda registrada. El sistema
+                        aprende de ella: descartar el mismo remitente dos veces hace que la
+                        próxima ni aparezca.
+                    </p>
+                </div>
+                <div class="tile">
+                    <h3 class="tile__title">El texto se redacta antes de salir</h3>
+                    <p class="tile__text">
+                        Si hay que usar un modelo de lenguaje, el texto pasa antes por un
+                        redactado que quita lo que no hace falta para leer un importe.
+                        Cuanto menos texto viaja, menos datos salen y menos cuesta.
+                    </p>
+                </div>
+                <div class="tile">
+                    <h3 class="tile__title">La IA es opcional</h3>
+                    <p class="tile__text">
+                        La extracción empieza por reglas deterministas. El modelo solo entra
+                        cuando las reglas no bastan, y se puede apagar: el producto sigue
+                        funcionando, con menos cobertura en facturas raras.
+                    </p>
+                </div>
+                <div class="tile">
+                    <h3 class="tile__title">Varias organizaciones, una cuenta</h3>
+                    <p class="tile__text">
+                        Si llevas la contabilidad de un grupo, cada sociedad tiene su propio
+                        inventario, sus propios usuarios y sus propios límites. Se cambia de
+                        una a otra sin cerrar sesión.
+                    </p>
+                </div>
+                <div class="tile">
+                    <h3 class="tile__title">Historial, no foto fija</h3>
+                    <p class="tile__text">
+                        Los importes cambian. Cada cambio queda con su fecha y su factura,
+                        así que se puede responder «¿desde cuándo pagamos esto?» sin
+                        adivinar.
+                    </p>
+                </div>
+                <div class="tile">
+                    <h3 class="tile__title">Los datos salen cuando quieras</h3>
+                    <p class="tile__text">
+                        Exportación completa en cualquier plan, incluido el gratuito, y
+                        borrado real cuando lo pides. Sin copias escondidas para «por si
+                        acaso».
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section section--ink">
+        <div class="container cta-band">
+            <div>
+                <h2 class="mb-0">Verlo con tus propias facturas</h2>
+                <p class="lead mt-2">
+                    El plan gratuito llega para tres servicios y un buzón. Es suficiente
+                    para comprobar si lo que hay en tu correo se parece a lo que crees que
+                    pagas.
+                </p>
+            </div>
+            <div class="actions">
+                <a class="btn btn--on-ink btn--lg" href="{{ path('app_register') }}">Crear cuenta gratis</a>
+                <a class="btn btn--ghost-on-ink btn--lg" href="{{ path('app_site_how_it_works') }}">Cómo funciona</a>
+            </div>
+        </div>
+    </section>
+{% endblock %}

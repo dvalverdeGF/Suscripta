@@ -1,0 +1,13 @@
+Mensaje desde la web — {{ topic }}
+
+De: {{ name }} <{{ sender }}>
+{% if company %}
+Empresa: {{ company }}
+{% endif %}
+Motivo: {{ topic }}
+
+{{ message }}
+
+---
+Responde a este correo y la respuesta irá a {{ sender }}.
+El mensaje no se ha guardado en la base de datos.

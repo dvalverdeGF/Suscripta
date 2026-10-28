@@ -1,0 +1,56 @@
+{% extends 'website/base.html.twig' %}
+
+{% block title %}Preguntas frecuentes — Suscripta{% endblock %}
+
+{% block description %}Qué se lee del correo, cómo llegan las facturas, qué pasa al cancelar y cómo se usa la API. Las dudas de siempre, contestadas sin rodeos.{% endblock %}
+
+{% block structured_data %}
+    {# El mismo texto que se ve en la página: Google penaliza el marcado que no
+       coincide con el contenido visible, así que la lista viene de `Faq`. #}
+    <script type="application/ld+json" nonce="{{ csp_nonce() }}">
+        {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": [
+                {% for item in questions %}
+                {
+                    "@type": "Question",
+                    "name": {{ item.question|json_encode|raw }},
+                    "acceptedAnswer": {
+                        "@type": "Answer",
+                        "text": {{ item.answer|json_encode|raw }}
+                    }
+                }{{ loop.last ? '' : ',' }}
+                {% endfor %}
+            ]
+        }
+    </script>
+{% endblock %}
+
+{% block body %}
+    <section class="section">
+        <div class="container">
+            <div class="section-head">
+                <p class="eyebrow">Preguntas frecuentes</p>
+                <h1>Lo que nos preguntan antes de contratar</h1>
+                <p class="lead">
+                    Si la respuesta que buscas no está, escríbenos: las que se repiten
+                    acaban en esta página.
+                </p>
+            </div>
+
+            <div class="faq">
+                {% for item in questions %}
+                    <details class="faq__item"{{ loop.first ? ' open' : '' }}>
+                        <summary>{{ item.question }}</summary>
+                        <div class="faq__answer">{{ item.answer }}</div>
+                    </details>
+                {% endfor %}
+            </div>
+
+            <p class="mt-4">
+                <a class="btn btn--ghost" href="{{ path('app_site_contact') }}">Hacer otra pregunta</a>
+            </p>
+        </div>
+    </section>
+{% endblock %}

@@ -1,0 +1,54 @@
+{#
+    Cabecera de la web.
+
+    La navegacion es una lista de rutas, no de URLs: si una pagina cambia de
+    sitio, cambia en la tabla de rutas y aqui no hay nada que tocar.
+
+    En pantallas pequenas la navegacion desaparece y se recoge en un
+    `<details>`: no hay JavaScript en toda la web, y un menu que solo funciona
+    con script es un menu que no funciona el dia que el script falla.
+#}
+{% set route = app.request.attributes.get('_route') %}
+
+{% set nav = [
+    { route: 'app_site_product', label: 'Producto' },
+    { route: 'app_site_how_it_works', label: 'Cómo funciona' },
+    { route: 'app_site_pricing', label: 'Precios' },
+    { route: 'app_site_integrations', label: 'Integraciones' },
+    { route: 'app_site_security', label: 'Seguridad' },
+    { route: 'app_site_faq', label: 'Preguntas' },
+] %}
+
+<header class="site-header">
+    <div class="container site-header__inner">
+        <a class="brand" href="{{ path('app_home') }}">
+            <span class="brand__mark" aria-hidden="true">S</span>
+            Suscripta
+        </a>
+
+        <nav class="site-nav" aria-label="Navegación principal">
+            {% for item in nav %}
+                <a class="site-nav__link"
+                   href="{{ path(item.route) }}"
+                   {% if route == item.route %}aria-current="page"{% endif %}>{{ item.label }}</a>
+            {% endfor %}
+
+            <span class="site-nav__actions">
+                <a class="btn btn--ghost" href="{{ path('app_login') }}">Entrar</a>
+                <a class="btn btn--primary" href="{{ path('app_register') }}">Crear cuenta</a>
+            </span>
+        </nav>
+
+        <details class="site-menu">
+            <summary>Menú</summary>
+            <div class="site-menu__panel">
+                {% for item in nav %}
+                    <a href="{{ path(item.route) }}"
+                       {% if route == item.route %}aria-current="page"{% endif %}>{{ item.label }}</a>
+                {% endfor %}
+                <a href="{{ path('app_login') }}">Entrar</a>
+                <a href="{{ path('app_register') }}">Crear cuenta</a>
+            </div>
+        </details>
+    </div>
+</header>

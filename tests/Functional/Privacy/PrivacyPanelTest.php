@@ -188,7 +188,7 @@ final class PrivacyPanelTest extends WebTestCase
             'organization_form[name]' => 'Suscripta de nuevo',
         ]);
 
-        self::assertResponseRedirects('/');
+        self::assertResponseRedirects('/dashboard');
         $this->client->followRedirect();
         self::assertResponseIsSuccessful();
 
@@ -240,7 +240,7 @@ final class PrivacyPanelTest extends WebTestCase
      */
     private function switchTo(Organization $organization): void
     {
-        $crawler = $this->client->request('GET', '/');
+        $crawler = $this->client->request('GET', '/dashboard');
 
         $token = $crawler
             ->filter('form[action="/organizations/switch"] input[name="_token"]')
@@ -253,7 +253,7 @@ final class PrivacyPanelTest extends WebTestCase
             'organization' => $organization->getId()->toRfc4122(),
         ]);
 
-        self::assertResponseRedirects('/');
+        self::assertResponseRedirects('/dashboard');
     }
 
     private function createService(string $name): void

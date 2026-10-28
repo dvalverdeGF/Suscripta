@@ -90,11 +90,11 @@ en su apartado correspondiente.
 | 20 | Webhooks de salida | ✅ Completada | `bd646a8` | 29 tests nuevos; firma HMAC, 8 envíos, panel con prueba |
 | 21 | `Subscription` como entidad propia | ✅ Completada | `4c71499` | Servicios y suscripciones como listas distintas |
 | 22 | Catálogo comercial en el backoffice | ✅ Completada | `5e983b0` | Un plan con dos precios publicado sin desplegar |
-| 23 | Web corporativa (11 páginas) | ⬜ Planificada | — | `/` pública sin sesión, precios desde el catálogo |
+| 23 | Web corporativa (11 páginas) | ✅ Completada | `PENDING_SHA` | Once páginas sin sesión, precios desde el catálogo, contacto con correo real |
 | 24 | Checkout con Stripe | ⬜ Planificada | — | Alta, cobro en modo test, webhook y estado reflejado |
 | 25 | CSRF unificado con el gestor de sesión | ⬜ Planificada | — | Ningún `POST` con token sin estado |
 
-**Lectura rápida de la tabla:** las fases 0 a 22 están **cerradas, commiteadas y verificadas**.
+**Lectura rápida de la tabla:** las fases 0 a 23 están **cerradas, commiteadas y verificadas**.
 La fase 18 se cerró corrigiendo los seis defectos que aparecieron al verificarla —dos de
 comportamiento en la API, uno de arranque en el entorno, uno de contrato y dos que impedían
 usar el panel de claves—, todos con test. La fase 19 cerró la documentación de entrega: el
@@ -2290,24 +2290,86 @@ que el producto aplica de verdad, sin poder editarlos.
 venta. `externalPriceId` está listo y `PlanPrice` tiene el importe que Stripe necesita, pero el
 cobro es la fase 24.
 
-## Fase 23 — Web corporativa (planificada)
+## Fase 23 — Web corporativa
 
-> **Estado:** ⬜ **Planificada.** Decidida con el usuario: **en la misma aplicación**.
+> **Estado:** ✅ **Completada.** Commit de cierre: `PENDING_SHA`.
 
-**Objetivo:** que `https://suscripta…/` venda el producto. Hoy `/` redirige al login.
+**Objetivo:** que la raíz del dominio venda el producto. Antes de esta fase, `/` redirigía al
+login y no había ni una página pública: el producto no se podía enseñar sin dar de alta una
+cuenta.
 
-**Alcance.**
+**Dónde vive.** En la misma aplicación, en el módulo `src/Website/` (D-83). Un proyecto aparte
+habría duplicado el diseño, el despliegue y —lo caro— el catálogo de precios.
 
-- `/` sirve la página pública **si no hay sesión** y el dashboard si la hay. Es una decisión
-  explícita: dos aplicaciones separadas habrían duplicado el diseño y el despliegue.
-- Once páginas: inicio, producto, cómo funciona, precios, integraciones, seguridad, preguntas
-  frecuentes, contacto, aviso legal, privacidad y condiciones.
-- Los precios se leen del catálogo (fase 22), no se escriben en la plantilla.
-- Sin blog (descartado explícitamente).
-- SEO mínimo: `title`, `description`, `canonical`, `sitemap.xml` y `robots.txt`.
+| Capa | Piezas |
+|---|---|
+| `Application` | `PlanCard` (DTO de tarjeta), `BuildPricingPage` (catálogo + límites → tarjetas), `Faq` (seis preguntas), `SendContactMessage`. |
+| `UI/Form` | `ContactMessageData`, `ContactFormType`. |
+| `UI/Controller` | `HomepageController`, `PricingController`, `SiteController`, `ContactController`, `SeoController`. |
+| Plantillas | `base`, `_header`, `_footer`, `_plan_card`, una por página, `seo/sitemap.xml.twig` y los dos correos de contacto. |
+| Estilos | `assets/styles/site.css`, CSS plano de ~1 400 líneas con propiedades CSS como variables (D-85). |
+| Configuración | Dos globales de Twig (`site_url`, `site_contact_email`), 13 reglas `PUBLIC_ACCESS` y un limitador (`contact_form`). |
 
-**Verificación:** un visitante sin sesión recorre las once páginas, ve los precios reales del
-catálogo y llega al alta; con sesión, `/` sigue siendo el dashboard.
+**Las once páginas.** `/`, `/producto`, `/como-funciona`, `/precios`, `/integraciones`,
+`/seguridad`, `/preguntas-frecuentes`, `/contacto`, `/aviso-legal`, `/privacidad` y
+`/condiciones`, más `/sitemap.xml` y `/robots.txt` generados desde la tabla de rutas.
+
+**Las decisiones que costaron pensar.**
+
+1. **`/` bifurca por sesión y redirige, no renderiza** (D-83). Una URL por pantalla; el panel sigue
+   en `/dashboard` y ningún enlace `path('app_dashboard')` se rompe.
+2. **Los precios salen del catálogo de la fase 22.** Un cambio de precio en el backoffice aparece
+   en la web sin desplegar. Los **límites** salen de `entitlements.yaml` (D-64) porque son los que
+   el producto aplica de verdad; `ai_budget_minor` se oculta por ser un tope interno de coste.
+3. **La web no carga JavaScript.** Menú móvil y preguntas frecuentes con `<details>`; los únicos
+   `<script>` son los bloques `application/ld+json`, con el `nonce` de la CSP.
+4. **Las páginas públicas se declaran una a una** en `access_control` y un test las recorre todas
+   sin sesión (D-84). Olvidar una regla no da error de compilación: da un 403.
+5. **El contacto no guarda nada.** `Reply-To` de quien escribe, correo al buzón de la web, cinco
+   mensajes por hora y por IP. El buzón es el archivo.
+
+**Defectos encontrados al verificar, y corregidos.**
+
+| # | Defecto | Cómo se vio |
+|---|---|---|
+| 1 | `TemplatedEmail` rechaza un contexto con la clave `email` (es reservada): el envío del formulario daba **500** | Test del envío de contacto; el contexto pasa a `sender` |
+| 2 | El limitador de contacto vive en caché y la caché sobrevive a la suite: a la segunda tanda, el formulario respondía «demasiados mensajes» | El test del envío empezó a fallar solo entre ejecuciones |
+| 3 | Diez ficheros de test pedían `/` esperando el panel, que ya es la portada | Suite completa tras el cambio de ruta |
+| 4 | El test de cabeceras de seguridad comprobaba el `nonce` en `/` como usuario autenticado, que ahora redirige | Suite completa |
+| 5 | Acentos escapados (`\u00e9`) literales en una plantilla, por un heredoc con comillas | Lectura del HTML servido |
+| 6 | `form_start` sin `action` apunta a la URI actual: POST sobre una ruta GET-only da 405 | Prueba manual del formulario |
+
+**Lo que se decidió no hacer.**
+
+- **Blog.** Descartado por el usuario. Un blog sin autor ni cadencia es una carpeta vacía.
+- **Capturas de pantalla.** Envejecen y no hay producto que fotografiar con datos reales.
+- **Afirmar «100 % UE» o «100 % privado».** D-25 lo prohíbe y la página de seguridad explica por
+  qué: el correo se procesa con proveedores que no se pueden afirmar al 100 % en la UE.
+- **Bootstrap en la web.** El layout del backoffice no se reutiliza; 200 KB de CSS para once
+  páginas editoriales no se justifican.
+
+**Verificación de cierre**
+
+| Comprobación | Resultado |
+|---|---|
+| Suite completa | **1 550 tests**, 6 224 aserciones, en verde (+22 desde la fase 22) |
+| Tests nuevos | `PublicPagesTest`: 22 casos — las once páginas sin sesión, `/` con sesión redirige al panel, `/dashboard` sigue cerrado, precios desde el catálogo, plan sin precio, catálogo vacío, envío de contacto con correo real, rechazo sin consentimiento, límite de cinco mensajes, sitemap, robots y JSON-LD de preguntas |
+| PHPStan nivel 8 | Sin errores |
+| `php-cs-fixer` | Sin cambios pendientes (807 ficheros) |
+| `lint:container` / `lint:twig` / `lint:yaml --parse-tags` | Sin errores (87 plantillas, 38 YAML) |
+| `doctrine:schema:validate` | Mapeo y esquema sincronizados |
+| `debug:router` | Las 13 rutas públicas registradas |
+| HTTP real | Las once páginas, el sitemap y el robots responden 200; el CSS se sirve con digest |
+
+**Verificación de la fase:** un visitante sin sesión recorre las once páginas, ve los precios
+reales del catálogo —incluida la rebaja anual calculada— y llega al alta; envía el formulario de
+contacto y el correo aparece en el buzón de la web con `Reply-To`; con sesión, `/` sigue llevando
+al panel; y `sitemap.xml` lista las once URLs públicas sin una sola privada.
+
+**Pendiente bloqueante antes de publicar.** Las tres páginas legales llevan marcadores
+(`[RAZÓN SOCIAL]`, `[NIF]`, `[DOMICILIO]`, `[REGISTRO Y TOMO]`) y un aviso rojo que solo se pinta
+fuera de `prod`. Sustituirlos **no es una tarea de estilo**: publicar con marcadores es publicar un
+aviso legal falso.
 
 ## Fase 24 — Checkout con Stripe (planificada)
 

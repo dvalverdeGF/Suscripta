@@ -55,7 +55,7 @@ final class DashboardTest extends WebTestCase
 
     public function testAnEmptyDashboardInvitesTheUserToConnectAMailbox(): void
     {
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/dashboard');
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('h1', 'Panel');
@@ -68,7 +68,7 @@ final class DashboardTest extends WebTestCase
         $this->createService('OVH VPS', 1199, BillingPeriod::MONTHLY);
         $this->createService('Dominio .com', 1200, BillingPeriod::ANNUAL);
 
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/dashboard');
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.bo-metric__label', 'Coste mensual equivalente');
@@ -84,7 +84,7 @@ final class DashboardTest extends WebTestCase
         $paused->pause();
         $this->repository()->save($paused);
 
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/dashboard');
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.bo-metric__value', '11,99');
@@ -97,7 +97,7 @@ final class DashboardTest extends WebTestCase
         $service->setNextChargeAt(new DateTimeImmutable('2026-10-12'));
         $this->repository()->save($service);
 
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/dashboard');
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.bo-timeline__label', 'OVH VPS');
@@ -110,7 +110,7 @@ final class DashboardTest extends WebTestCase
         $service->setRenewalAt(new DateTimeImmutable('2026-10-20'));
         $this->repository()->save($service);
 
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/dashboard');
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.bo-timeline__label', 'Dominio .com');
@@ -123,7 +123,7 @@ final class DashboardTest extends WebTestCase
         $service->changePrice(Money::of(1499, Currency::EUR), new DateTimeImmutable('2026-10-01'), ServiceSource::MANUAL, 'Subida de tarifa');
         $this->repository()->save($service);
 
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/dashboard');
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.bo-main', 'Qué ha cambiado');
@@ -135,7 +135,7 @@ final class DashboardTest extends WebTestCase
         $this->createService('OVH VPS', 1199, BillingPeriod::MONTHLY);
         $this->createService('GitHub', 400, BillingPeriod::MONTHLY, Currency::USD);
 
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/dashboard');
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.bo-metric__value', '2 monedas');
@@ -148,7 +148,7 @@ final class DashboardTest extends WebTestCase
         $this->createService('OVH VPS', 1199, BillingPeriod::MONTHLY);
         $this->createService('GitHub', 400, BillingPeriod::MONTHLY, Currency::USD);
 
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/dashboard');
 
         self::assertResponseIsSuccessful();
 
@@ -170,7 +170,7 @@ final class DashboardTest extends WebTestCase
         $this->createService('Hetzner', 500, BillingPeriod::MONTHLY, categoryId: $hosting->getId());
         $this->createService('GitHub', 400, BillingPeriod::MONTHLY, categoryId: $software->getId());
 
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/dashboard');
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.bo-main', 'En qué se te va el dinero');
@@ -184,7 +184,7 @@ final class DashboardTest extends WebTestCase
         $this->createService('Dominio .com', 1200, BillingPeriod::ANNUAL);
         $this->createService('OVH VPS', 1199, BillingPeriod::MONTHLY);
 
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/dashboard');
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.bo-main', 'Los que más cuestan');
@@ -204,7 +204,7 @@ final class DashboardTest extends WebTestCase
         $paused->pause();
         $this->repository()->save($paused);
 
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/dashboard');
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.bo-main', 'Servicios por estado');
@@ -225,7 +225,7 @@ final class DashboardTest extends WebTestCase
         $later->setNextChargeAt(new DateTimeImmutable('2026-12-15'));
         $this->repository()->save($later);
 
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/dashboard');
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.card-footer', 'Total en 30 días');

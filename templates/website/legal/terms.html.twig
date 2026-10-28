@@ -1,0 +1,138 @@
+{% extends 'website/base.html.twig' %}
+
+{#
+    CONDICIONES DEL SERVICIO
+
+    Sin promesas que no se puedan cumplir: no hay acuerdo de nivel de servicio con
+    compensación económica, y decirlo aquí es mejor que insinuar lo contrario en
+    la portada. Los datos del prestador van como marcadores, igual que en el
+    aviso legal.
+#}
+
+{% block title %}Condiciones del servicio — Suscripta{% endblock %}
+
+{% block description %}Cómo se contrata y se cancela Suscripta, qué incluye cada plan, qué se espera de quien lo usa y cómo se tratan los datos de la cuenta.{% endblock %}
+
+{% block body %}
+    <section class="section">
+        <div class="container">
+            <div class="prose">
+                <p class="eyebrow">Legal</p>
+                <h1>Condiciones del servicio</h1>
+                <p class="prose__meta">Última actualización: 28 de octubre de 2026</p>
+
+                {% if app.environment != 'prod' %}
+                    <div class="notice notice--error">
+                        <span class="notice__icon" aria-hidden="true">!</span>
+                        <span>
+                            <strong>Pendiente antes de publicar:</strong> sustituir los
+                            marcadores <span class="mono">[…]</span> y revisar las cláusulas
+                            de facturación con el asesoramiento legal correspondiente.
+                        </span>
+                    </div>
+                {% endif %}
+
+                <h2>1. Quién presta el servicio y qué se contrata</h2>
+                <p>
+                    El servicio lo presta <span class="mono">[RAZÓN SOCIAL]</span>, con NIF
+                    <span class="mono">[NIF]</span> y domicilio en
+                    <span class="mono">[DOMICILIO]</span>. Contratar un plan da derecho a
+                    usar la aplicación con los límites de ese plan, tal como se describen
+                    en la <a href="{{ path('app_site_pricing') }}">página de precios</a>.
+                </p>
+                <p>
+                    Los límites publicados son los que la aplicación aplica. Si un plan
+                    cambia de límites, el cambio no se aplica al periodo ya pagado.
+                </p>
+
+                <h2>2. Cuenta y planes</h2>
+                <ul>
+                    <li>Para usar el servicio hay que crear una cuenta con datos veraces y mantener la contraseña a salvo.</li>
+                    <li>Una cuenta puede agrupar varias organizaciones; cada una tiene su propio inventario y sus propios límites.</li>
+                    <li>El plan gratuito no exige medio de pago y no tiene límite de tiempo.</li>
+                    <li>Los planes de pago se cobran por adelantado, según la periodicidad elegida.</li>
+                </ul>
+
+                <h2>3. Uso aceptable</h2>
+                <p>No se puede usar el servicio para:</p>
+                <ul>
+                    <li>Acceder a correo o a documentos que no te pertenecen o para los que no tienes autorización.</li>
+                    <li>Enviar comunicaciones no solicitadas ni usar las direcciones de ingesta como origen de spam.</li>
+                    <li>Intentar vulnerar el aislamiento entre organizaciones, la autenticación o los límites del servicio.</li>
+                    <li>Revender el servicio sin un acuerdo escrito, o automatizar la creación masiva de cuentas.</li>
+                </ul>
+                <p>
+                    El incumplimiento permite suspender la cuenta. Cuando la suspensión no
+                    sea urgente, se avisa antes y se da un plazo para corregirlo.
+                </p>
+
+                <h2>4. Qué se puede esperar del servicio</h2>
+                <p>
+                    El servicio se presta con la diligencia razonable, pero <strong>no se
+                    ofrece un acuerdo de nivel de servicio con compensación económica</strong>
+                    en el plan actual. Se intenta estar disponible siempre y avisar de las
+                    ventanas de mantenimiento, sin prometer un porcentaje que luego haya que
+                    matizar.
+                </p>
+                <p>
+                    La extracción de datos es automática y puede equivocarse. Por eso nada
+                    entra en el inventario sin confirmación: la responsabilidad de lo que
+                    hay en el inventario es de quien lo confirma. Los datos de la aplicación
+                    no sustituyen a la contabilidad ni al asesoramiento fiscal.
+                </p>
+
+                <h2>5. Datos de la cuenta</h2>
+                <p>
+                    Los datos que subes siguen siendo tuyos. Se usan solo para prestarte el
+                    servicio y se tratan según la
+                    <a href="{{ path('app_site_privacy') }}">política de privacidad</a>. Se
+                    pueden exportar en cualquier momento y borrar cuando quieras.
+                </p>
+                <p>
+                    Al cancelar, la cuenta pasa a modo lectura durante el periodo de gracia
+                    y después se borra. Si necesitas los datos antes de irte, expórtalos
+                    durante ese periodo.
+                </p>
+
+                <h2>6. Precios, facturación y cancelación</h2>
+                <ul>
+                    <li>Los precios se muestran en euros y el IVA se añade según el país de la cuenta.</li>
+                    <li>La suscripción se renueva automáticamente al final de cada periodo, salvo cancelación previa.</li>
+                    <li>Se puede cancelar en cualquier momento desde el panel; el acceso se mantiene hasta el final del periodo pagado.</li>
+                    <li>Los cambios de plan se aplican al periodo siguiente, con el importe proporcional que corresponda.</li>
+                    <li>Si un cobro falla, se avisa y se da un plazo antes de suspender el servicio.</li>
+                </ul>
+
+                <h2>7. Responsabilidad</h2>
+                <p>
+                    Salvo dolo o negligencia grave, la responsabilidad total por cualquier
+                    reclamación derivada del servicio se limita al importe pagado por el
+                    plan en los doce meses anteriores. No se responde de lucro cesante ni de
+                    daños indirectos.
+                </p>
+                <p>
+                    Esta limitación no se aplica a los daños que la ley no permite limitar,
+                    en particular los derivados de la normativa de protección de datos.
+                </p>
+
+                <h2>8. Cambios en las condiciones</h2>
+                <p>
+                    Los cambios sustanciales se comunican en el panel con antelación
+                    razonable. Si no estás de acuerdo, puedes cancelar antes de que entren
+                    en vigor.
+                </p>
+
+                <h2>9. Ley aplicable</h2>
+                <p>
+                    Estas condiciones se rigen por la legislación española. Para
+                    controversias, las partes se someten a los juzgados y tribunales del
+                    domicilio del prestador, salvo que la ley establezca otro fuero.
+                </p>
+
+                <p class="mt-4">
+                    <a class="btn btn--ghost" href="{{ path('app_site_contact') }}">Preguntar algo de estas condiciones</a>
+                </p>
+            </div>
+        </div>
+    </section>
+{% endblock %}

@@ -36,7 +36,7 @@ final class HealthTest extends WebTestCase
     public function testAnonymousVisitorIsRedirectedToLogin(): void
     {
         $client = self::createClient();
-        $client->request('GET', '/');
+        $client->request('GET', '/dashboard');
 
         self::assertResponseRedirects();
         self::assertStringEndsWith('/login', (string) $client->getResponse()->headers->get('Location'));

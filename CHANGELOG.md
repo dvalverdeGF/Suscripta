@@ -13,9 +13,59 @@ cerrada, verificada y commiteada. El detalle de lo que queda pendiente está en
 
 ### Pendiente
 
-- Fase 23 — Web corporativa (once páginas). Planificada.
 - Fase 24 — Checkout con Stripe. Planificada.
 - Fase 25 — CSRF unificado con el gestor de sesión. Planificada.
+- **Antes de publicar:** sustituir los marcadores de las tres páginas legales
+  (`[RAZÓN SOCIAL]`, `[NIF]`, `[DOMICILIO]`, `[REGISTRO Y TOMO]`).
+
+---
+
+## [Fase 23] — 2026-10-28 — Web corporativa
+
+La raíz del dominio vende el producto. Antes, `/` redirigía al login y no había una sola página
+pública. Commit de cierre: `PENDING_SHA`.
+
+### Añadido
+
+- **Módulo `Website`** dentro de la misma aplicación (D-83), con las cuatro capas del resto del
+  proyecto: `Application` (`PlanCard`, `BuildPricingPage`, `Faq`, `SendContactMessage`),
+  `UI/Form`, `UI/Controller` y sus plantillas.
+- **Once páginas públicas**: inicio, producto, cómo funciona, precios, integraciones, seguridad,
+  preguntas frecuentes, contacto, aviso legal, privacidad y condiciones.
+- **`GET /` bifurca por sesión**: portada sin sesión, redirección a `/dashboard` con ella. El panel
+  se muda de `/` a `/dashboard`, con una sola URL por pantalla.
+- **Precios leídos del catálogo** de la fase 22, con la rebaja anual calculada en el servidor y
+  «A consultar» cuando un plan no tiene precio. Los límites salen de `entitlements.yaml` (D-64).
+- **`sitemap.xml` y `robots.txt`** generados desde la tabla de rutas, con `%app.site.url%` y no con
+  el host de la petición.
+- **JSON-LD** de `Organization` en todas las páginas, `SoftwareApplication` en la portada y
+  `FAQPage` en las preguntas frecuentes, generado desde el mismo `Faq` que pinta el HTML.
+- **Formulario de contacto** con validación, `Reply-To` de quien escribe, límite de cinco mensajes
+  por hora e IP y correo al buzón de la web. No guarda nada en la base de datos.
+- **`assets/styles/site.css`**: hoja propia de ~1 400 líneas con propiedades CSS como variables,
+  sin SCSS ni build (D-85). La web no carga Bootstrap ni una línea de JavaScript.
+- **Tema de formularios propio** (`form/site_theme.html.twig`) y dos globales de Twig
+  (`site_url`, `site_contact_email`).
+- **`PublicPagesTest`**, 22 casos: las once páginas sin sesión, `/` con sesión, `/dashboard`
+  cerrado, precios del catálogo, plan sin precio, catálogo vacío, envío real de contacto, rechazo
+  sin consentimiento, límite de frecuencia, sitemap, robots y JSON-LD.
+
+### Corregido
+
+- **El envío del formulario de contacto daba 500**: `TemplatedEmail` no admite `email` en el
+  contexto porque es una variable reservada. La dirección pasa a `sender`.
+- **El limitador de contacto hacía fallar la segunda ejecución de la suite**: vive en caché y la
+  caché sobrevive. Los tests fijan una IP distinta por prueba en lugar de bajar el límite.
+- **Diez ficheros de test pedían `/` esperando el panel**, que ahora es la portada.
+- **Acentos escapados** (`\u00e9`) que quedaron literales en una plantilla por un heredoc con
+  comillas.
+
+### Decidido
+
+- **D-83** — la web vive en la misma aplicación y `/` redirige al panel cuando hay sesión.
+- **D-84** — las páginas públicas se declaran una a una en `access_control` y un test las recorre
+  todas sin sesión.
+- **D-85** — CSS plano escrito a mano para la web, frente al SCSS compilado del panel.
 
 ---
 

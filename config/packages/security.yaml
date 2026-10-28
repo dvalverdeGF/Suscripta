@@ -77,6 +77,29 @@ security:
         - { path: ^/api/doc, roles: PUBLIC_ACCESS }
         - { path: ^/api/v1, methods: [OPTIONS], roles: PUBLIC_ACCESS }
         - { path: ^/api/v1, roles: IS_AUTHENTICATED_FULLY }
+        # ── Web corporativa (Fase 23) ────────────────────────────────────
+        # Cada pagina publica se lista **una por una** a proposito. La regla
+        # general de abajo exige ROLE_USER, asi que lo que no esta aqui es
+        # privado: olvidar una pagina da un 403 visible en el primer test, y
+        # olvidar una regla `deny` daria una pagina privada expuesta. El
+        # defecto seguro es el que cierra.
+        #
+        # `tests/Functional/Website/PublicPagesTest.php` recorre todas las rutas
+        # `app_site_*` sin sesion, de modo que anadir una pagina y olvidar esta
+        # lista rompe la suite (D-84).
+        - { path: ^/$, roles: PUBLIC_ACCESS }
+        - { path: ^/producto$, roles: PUBLIC_ACCESS }
+        - { path: ^/como-funciona$, roles: PUBLIC_ACCESS }
+        - { path: ^/precios$, roles: PUBLIC_ACCESS }
+        - { path: ^/integraciones$, roles: PUBLIC_ACCESS }
+        - { path: ^/seguridad$, roles: PUBLIC_ACCESS }
+        - { path: ^/preguntas-frecuentes$, roles: PUBLIC_ACCESS }
+        - { path: ^/contacto$, roles: PUBLIC_ACCESS }
+        - { path: ^/aviso-legal$, roles: PUBLIC_ACCESS }
+        - { path: ^/privacidad$, roles: PUBLIC_ACCESS }
+        - { path: ^/condiciones$, roles: PUBLIC_ACCESS }
+        - { path: ^/sitemap\.xml$, roles: PUBLIC_ACCESS }
+        - { path: ^/robots\.txt$, roles: PUBLIC_ACCESS }
         - { path: ^/, roles: ROLE_USER }
 
 when@test:

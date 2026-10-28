@@ -1,0 +1,107 @@
+{% extends 'website/base.html.twig' %}
+
+{#
+    AVISO LEGAL
+
+    Los datos registrales de la sociedad no están en el repositorio —y no deben
+    estarlo, porque cambian sin desplegar—, así que van como marcadores
+    evidentes. El aviso de «pendiente» solo se pinta fuera de producción: un
+    visitante no tiene por qué ver las tripas del sitio, pero un despliegue a
+    producción con marcadores sin sustituir tiene que doler en el primer
+    `curl` de la revisión.
+#}
+
+{% block title %}Aviso legal — Suscripta{% endblock %}
+
+{% block description %}Datos del titular del sitio, condiciones de uso, propiedad intelectual y responsabilidad.{% endblock %}
+
+{% block body %}
+    <section class="section">
+        <div class="container">
+            <div class="prose">
+                <p class="eyebrow">Legal</p>
+                <h1>Aviso legal</h1>
+                <p class="prose__meta">Última actualización: 28 de octubre de 2026</p>
+
+                {% if app.environment != 'prod' %}
+                    <div class="notice notice--error">
+                        <span class="notice__icon" aria-hidden="true">!</span>
+                        <span>
+                            <strong>Pendiente antes de publicar:</strong> sustituir los
+                            marcadores <span class="mono">[…]</span> por los datos
+                            registrales reales del titular. Este aviso solo se ve fuera de
+                            producción.
+                        </span>
+                    </div>
+                {% endif %}
+
+                <h2>1. Titular del sitio</h2>
+                <p>
+                    Este sitio es la web corporativa de <strong>Suscripta</strong>, un
+                    servicio de descubrimiento y control de suscripciones de empresa.
+                </p>
+                <ul>
+                    <li>Denominación social: <span class="mono">[RAZÓN SOCIAL]</span></li>
+                    <li>NIF: <span class="mono">[NIF]</span></li>
+                    <li>Domicilio social: <span class="mono">[DOMICILIO]</span></li>
+                    <li>Correo de contacto: <a href="mailto:{{ site_contact_email }}">{{ site_contact_email }}</a></li>
+                    <li>Datos de inscripción registral: <span class="mono">[REGISTRO Y TOMO]</span></li>
+                </ul>
+
+                <h2>2. Objeto</h2>
+                <p>
+                    El sitio informa sobre el servicio, publica sus planes y precios y
+                    permite abrir una cuenta. El uso del servicio, una vez creada la
+                    cuenta, se rige además por las
+                    <a href="{{ path('app_site_terms') }}">condiciones del servicio</a>.
+                </p>
+
+                <h2>3. Condiciones de uso del sitio</h2>
+                <p>
+                    El acceso a las páginas públicas es libre y gratuito. Quien las usa se
+                    compromete a no realizar acciones que dañen el sitio, impidan su
+                    funcionamiento normal o permitan acceder a áreas reservadas sin
+                    autorización.
+                </p>
+                <p>
+                    Los precios publicados son informativos y se corresponden con el
+                    catálogo vigente en el momento de la visita. El precio aplicable a un
+                    contrato es el que figure en el momento de la contratación.
+                </p>
+
+                <h2>4. Propiedad intelectual</h2>
+                <p>
+                    Los textos, el diseño, el código y las marcas de este sitio pertenecen
+                    a su titular o se usan con autorización. No se permite su reproducción
+                    total o parcial sin permiso expreso, salvo para citar o enlazar
+                    indicando la fuente.
+                </p>
+                <p>
+                    Los nombres y logotipos de los servicios de terceros que aparecen en el
+                    sitio son marcas de sus respectivos titulares y se usan únicamente para
+                    identificar los servicios de los que puede haber suscripciones.
+                </p>
+
+                <h2>5. Responsabilidad</h2>
+                <p>
+                    La información del sitio se ofrece con la diligencia razonable, pero
+                    puede contener errores o quedar desactualizada. El titular no responde
+                    de los daños derivados del uso del sitio cuando este uso sea contrario
+                    a estas condiciones o a la ley.
+                </p>
+                <p>
+                    El sitio puede contener enlaces a páginas de terceros. El titular no
+                    controla su contenido ni responde de él.
+                </p>
+
+                <h2>6. Legislación aplicable</h2>
+                <p>
+                    Estas condiciones se rigen por la legislación española. Para cualquier
+                    controversia sobre el sitio, las partes se someten a los juzgados y
+                    tribunales del domicilio del titular, salvo que la ley establezca otro
+                    fuero para el consumidor.
+                </p>
+            </div>
+        </div>
+    </section>
+{% endblock %}

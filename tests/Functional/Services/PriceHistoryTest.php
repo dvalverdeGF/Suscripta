@@ -89,7 +89,7 @@ final class PriceHistoryTest extends WebTestCase
         $service = $this->createService('OVH VPS', '10,00');
         $this->changePrice($service, '15,00', '2026-08-01');
 
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/dashboard');
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.bo-main', 'Evolución del gasto');

@@ -43,7 +43,7 @@ final class OrganizationSwitchTest extends WebTestCase
     {
         $this->login('ada@example.com');
 
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/dashboard');
 
         self::assertResponseIsSuccessful();
         self::assertSelectorNotExists('#active-organization');
@@ -54,7 +54,7 @@ final class OrganizationSwitchTest extends WebTestCase
         $user = $this->login('ada@example.com');
         $this->addOrganization($user, 'Suscripta Labs');
 
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/dashboard');
 
         self::assertSelectorExists('#active-organization');
         self::assertSelectorTextContains('#active-organization', 'Suscripta Labs');
@@ -80,7 +80,7 @@ final class OrganizationSwitchTest extends WebTestCase
             'organization' => $second->getId()->toRfc4122(),
         ]);
 
-        self::assertResponseRedirects('/');
+        self::assertResponseRedirects('/dashboard');
 
         $this->client->request('GET', '/services');
         self::assertSelectorTextContains('body', 'Servicio de la segunda organización');
@@ -105,7 +105,7 @@ final class OrganizationSwitchTest extends WebTestCase
             'organization' => $foreign->getOrganization()->getId()->toRfc4122(),
         ]);
 
-        self::assertResponseRedirects('/');
+        self::assertResponseRedirects('/dashboard');
         $this->client->followRedirect();
         self::assertSelectorTextContains('.alert-danger', 'No perteneces a esa organización');
 
@@ -126,7 +126,7 @@ final class OrganizationSwitchTest extends WebTestCase
             'organization' => 'no-soy-un-uuid',
         ]);
 
-        self::assertResponseRedirects('/');
+        self::assertResponseRedirects('/dashboard');
         $this->client->followRedirect();
         self::assertSelectorTextContains('.alert-danger', 'no es válida');
     }
@@ -188,7 +188,7 @@ final class OrganizationSwitchTest extends WebTestCase
      */
     private function switchToken(): string
     {
-        $crawler = $this->client->request('GET', '/');
+        $crawler = $this->client->request('GET', '/dashboard');
 
         $token = $crawler
             ->filter('form[action="/organizations/switch"] input[name="_token"]')

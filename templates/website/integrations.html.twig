@@ -1,0 +1,154 @@
+{% extends 'website/base.html.twig' %}
+
+{% block title %}Integraciones — API y webhooks de Suscripta{% endblock %}
+
+{% block description %}Entrada de facturas por reenvío de correo o IMAP, API REST con claves por organización y webhooks firmados para que tu sistema se entere de los cambios.{% endblock %}
+
+{% block body %}
+    <section class="section">
+        <div class="container">
+            <div class="section-head">
+                <p class="eyebrow">Integraciones</p>
+                <h1>Tres formas de meter datos. Una de sacarlos.</h1>
+                <p class="lead">
+                    Suscripta no pretende ser el centro de todo. Entra la información por
+                    donde ya llega, y sale por donde la necesites: pantalla, exportación,
+                    API o webhook.
+                </p>
+            </div>
+
+            <div class="grid grid--2">
+                <div class="tile tile--teal">
+                    <h3 class="tile__title">Reenvío de correo</h3>
+                    <p class="tile__text">
+                        Cada organización tiene una dirección propia. Una regla en tu
+                        cliente de correo reenvía ahí solo lo que quieras vigilar, sin dar
+                        acceso al buzón completo. Es la vía más rápida y la que menos
+                        permisos pide.
+                    </p>
+                </div>
+                <div class="tile tile--teal">
+                    <h3 class="tile__title">Cuenta por IMAP</h3>
+                    <p class="tile__text">
+                        Si prefieres que se lea directamente, se conecta la cuenta por IMAP:
+                        Gmail, Microsoft 365 o cualquier proveedor que hable IMAP. Se puede
+                        lanzar una sincronización a mano desde el panel o esperar a la
+                        programada.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section section--paper">
+        <div class="container">
+            <div class="section-head">
+                <p class="eyebrow">API</p>
+                <h2>Una API REST para tu propio sistema</h2>
+                <p>
+                    Se autentica con claves por organización que se crean y se revocan
+                    desde el panel, y cada clave lleva su alcance: lectura o lectura y
+                    escritura. Una clave de lectura no puede cambiar nada aunque se filtre.
+                </p>
+            </div>
+
+            <div class="grid grid--2">
+                <div class="tile">
+                    <h3 class="tile__title">Qué se puede leer</h3>
+                    <ul class="checks mt-1">
+                        <li>Servicios del inventario, con importe y renovación</li>
+                        <li>Documentos y facturas con su archivo</li>
+                        <li>Propuestas pendientes de revisar</li>
+                        <li>Cobros próximos y alertas</li>
+                        <li>Métricas del periodo y plan contratado</li>
+                    </ul>
+                </div>
+                <div class="tile">
+                    <h3 class="tile__title">Qué se puede escribir</h3>
+                    <ul class="checks mt-1">
+                        <li>Crear un servicio desde tu ERP</li>
+                        <li>Dar de alta un documento</li>
+                        <li>Confirmar una propuesta</li>
+                        <li>Lanzar la sincronización de una cuenta de correo</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3 class="mt-6">Autenticación</h3>
+            <p class="text-muted measure">
+                La clave viaja en la cabecera estándar <code>Authorization: Bearer</code>,
+                o en <code>X-Api-Key</code> si tu intermediario borra la primera. Las dos
+                formas son equivalentes.
+            </p>
+
+            <pre class="code"><code>curl https://suscripta.app/api/v1/services \
+  -H "Authorization: Bearer sk_live_…" \
+  -H "Accept: application/json"</code></pre>
+
+            <p class="mt-3">
+                <a class="btn btn--primary" href="{{ path('app.swagger_ui') }}">Ver la referencia completa</a>
+            </p>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="container">
+            <div class="section-head">
+                <p class="eyebrow">Webhooks</p>
+                <h2>Que tu sistema se entere sin preguntar</h2>
+                <p>
+                    Cinco hechos, ni uno más. Cada evento que se publica hay que
+                    mantenerlo y no romperlo, así que solo se anuncian los que no se pueden
+                    averiguar con una consulta.
+                </p>
+            </div>
+
+            <div class="grid grid--3">
+                <div class="tile">
+                    <h3 class="tile__title"><code>service.created</code></h3>
+                    <p class="tile__text">Se ha dado de alta un servicio en el inventario.</p>
+                </div>
+                <div class="tile">
+                    <h3 class="tile__title"><code>proposal.created</code></h3>
+                    <p class="tile__text">Hay un descubrimiento esperando revisión.</p>
+                </div>
+                <div class="tile">
+                    <h3 class="tile__title"><code>proposal.confirmed</code></h3>
+                    <p class="tile__text">Una propuesta se ha confirmado y es un servicio.</p>
+                </div>
+                <div class="tile">
+                    <h3 class="tile__title"><code>charge.detected</code></h3>
+                    <p class="tile__text">Se ha registrado un cobro nuevo en un servicio.</p>
+                </div>
+                <div class="tile">
+                    <h3 class="tile__title"><code>ai.budget_exhausted</code></h3>
+                    <p class="tile__text">La organización ha agotado su presupuesto de IA.</p>
+                </div>
+                <div class="tile">
+                    <h3 class="tile__title">Firma y reintentos</h3>
+                    <p class="tile__text">
+                        Cada entrega va firmada con HMAC en
+                        <code>X-Suscripta-Signature</code> y se reintenta con espera
+                        creciente si tu servidor no contesta.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section section--ink">
+        <div class="container cta-band">
+            <div>
+                <h2 class="mb-0">¿Necesitas una integración que no está?</h2>
+                <p class="lead mt-2">
+                    Cuéntanos qué sistema usas y qué tendría que pasar entre los dos. La
+                    API ya cubre leer y escribir lo importante; lo demás se puede mirar.
+                </p>
+            </div>
+            <div class="actions">
+                <a class="btn btn--on-ink btn--lg" href="{{ path('app_site_contact') }}">Escribirnos</a>
+                <a class="btn btn--ghost-on-ink btn--lg" href="{{ path('app.swagger_ui') }}">Documentación</a>
+            </div>
+        </div>
+    </section>
+{% endblock %}

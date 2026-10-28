@@ -1,0 +1,58 @@
+{#
+    Pie de la web.
+
+    Los enlaces legales van aqui y no en la cabecera: son obligatorios, no son
+    parte del recorrido de venta, y en la cabecera le quitarian el sitio a lo
+    que si importa.
+#}
+<footer class="site-footer">
+    <div class="container">
+        <div class="site-footer__grid">
+            <div>
+                <a class="brand" href="{{ path('app_home') }}">
+                    <span class="brand__mark" aria-hidden="true">S</span>
+                    Suscripta
+                </a>
+                <p class="site-footer__claim">
+                    Las suscripciones de tu empresa, encontradas en el correo y
+                    contadas en un solo sitio. Sin hojas de cálculo y sin
+                    sorpresas en la factura.
+                </p>
+            </div>
+
+            <div>
+                <p class="site-footer__title">Producto</p>
+                <ul class="site-footer__list">
+                    <li><a href="{{ path('app_site_product') }}">Qué hace</a></li>
+                    <li><a href="{{ path('app_site_how_it_works') }}">Cómo funciona</a></li>
+                    <li><a href="{{ path('app_site_pricing') }}">Precios</a></li>
+                    <li><a href="{{ path('app_site_integrations') }}">Integraciones</a></li>
+                </ul>
+            </div>
+
+            <div>
+                <p class="site-footer__title">Recursos</p>
+                <ul class="site-footer__list">
+                    <li><a href="{{ path('app_site_faq') }}">Preguntas frecuentes</a></li>
+                    <li><a href="{{ path('app_site_security') }}">Seguridad</a></li>
+                    <li><a href="{{ path('app.swagger_ui') }}">Documentación de la API</a></li>
+                    <li><a href="{{ path('app_site_contact') }}">Contacto</a></li>
+                </ul>
+            </div>
+
+            <div>
+                <p class="site-footer__title">Legal</p>
+                <ul class="site-footer__list">
+                    <li><a href="{{ path('app_site_legal_notice') }}">Aviso legal</a></li>
+                    <li><a href="{{ path('app_site_privacy') }}">Privacidad</a></li>
+                    <li><a href="{{ path('app_site_terms') }}">Condiciones</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="site-footer__bottom">
+            <span>© {{ 'now'|date('Y') }} Suscripta. Hecho en España.</span>
+            <span class="mono">Los datos de tu correo son tuyos: se exportan y se borran cuando lo pidas.</span>
+        </div>
+    </div>
+</footer>

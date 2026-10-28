@@ -10,6 +10,12 @@ parameters:
     # Dominio de las direcciones de ingesta por reenvío (D-21).
     app.mail.forwarding_domain: '%env(MAIL_FORWARDING_DOMAIN)%'
 
+    # ── Web corporativa (Fase 23) ────────────────────────────────────────
+    # URL publica del sitio y buzon que recibe el formulario de contacto. Las
+    # dos son entorno y no constantes: en local no son las de produccion.
+    app.site.url: '%env(SITE_URL)%'
+    app.site.contact_email: '%env(SITE_CONTACT_EMAIL)%'
+
     # ── API publica (Fase 18) ────────────────────────────────────────────
     # Secreto de reserva para firmar las claves de API. Si se define
     # `API_KEY_PEPPER` en el entorno, manda ese valor.

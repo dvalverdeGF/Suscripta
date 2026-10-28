@@ -1,0 +1,142 @@
+{% extends 'website/base.html.twig' %}
+
+{% block title %}Cómo funciona Suscripta — del correo al inventario{% endblock %}
+
+{% block description %}El recorrido completo: cómo llega una factura, qué filtros pasa, cómo se extraen los datos, qué decides tú y cuándo te avisa el panel.{% endblock %}
+
+{% block body %}
+    <section class="section">
+        <div class="container">
+            <div class="section-head">
+                <p class="eyebrow">Cómo funciona</p>
+                <h1>Del correo al inventario, sin pasos manuales</h1>
+                <p class="lead">
+                    Este es el recorrido completo de una factura dentro de Suscripta, con
+                    lo que pasa en cada tramo y lo que decides tú. Si algo de aquí no te
+                    cuadra, es mejor saberlo antes de contratar que después.
+                </p>
+            </div>
+
+            <div class="grid grid--2">
+                <div class="step">
+                    <p class="step__num">01 · Alta</p>
+                    <h3 class="step__title">Creas la organización</h3>
+                    <p class="step__text">
+                        Una cuenta, una organización y un plan. El plan gratuito se activa
+                        sin tarjeta y con sus tres servicios disponibles desde el primer
+                        minuto.
+                    </p>
+                </div>
+                <div class="step">
+                    <p class="step__num">02 · Entrada</p>
+                    <h3 class="step__title">Le das una vía al correo</h3>
+                    <p class="step__text">
+                        Dos maneras. La dirección de reenvío de la organización: una regla
+                        en tu correo manda ahí solo lo que quieras vigilar. O la cuenta
+                        conectada por IMAP, si prefieres que se lea directamente.
+                    </p>
+                </div>
+                <div class="step">
+                    <p class="step__num">03 · Filtro</p>
+                    <h3 class="step__title">Se descarta casi todo</h3>
+                    <p class="step__text">
+                        La ingesta solo deja pasar lo que parece una factura: remitentes
+                        conocidos o mensajes con pinta de recibo. El resto se descarta sin
+                        extraer nada, y el panel te dice cuántos mensajes se miraron y
+                        cuántos se descartaron.
+                    </p>
+                </div>
+                <div class="step">
+                    <p class="step__num">04 · Extracción</p>
+                    <h3 class="step__title">Se sacan los datos</h3>
+                    <p class="step__text">
+                        Primero reglas deterministas: importes, fechas, nombres de proveedor
+                        y periodicidad. Si el documento es raro y el plan tiene IA, se
+                        escala a un modelo, con el texto ya redactado y un presupuesto
+                        mensual que no se rebasa.
+                    </p>
+                </div>
+                <div class="step">
+                    <p class="step__num">05 · Decisión</p>
+                    <h3 class="step__title">Tú confirmas o descartas</h3>
+                    <p class="step__text">
+                        El resultado llega como propuesta con su nivel de confianza. Nada
+                        entra en el inventario sin tu visto bueno, y lo que descartas
+                        enseña al sistema para la próxima vez.
+                    </p>
+                </div>
+                <div class="step">
+                    <p class="step__num">06 · Rutina</p>
+                    <h3 class="step__title">El panel hace el resto</h3>
+                    <p class="step__text">
+                        Renovaciones de la semana, servicios vencidos, cambios de precio y
+                        cargos que no cuadran. Todo se puede leer en pantalla, exportar o
+                        recibir por webhook en tu propio sistema.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section section--paper">
+        <div class="container">
+            <div class="section-head">
+                <p class="eyebrow">Lo que no hace</p>
+                <h2>Y lo que Suscripta no hace, para que no haya dudas</h2>
+                <p>
+                    Un producto se entiende mejor por lo que deja fuera. Esto no es una
+                    lista de carencias: es el límite del diseño.
+                </p>
+            </div>
+
+            <div class="prose">
+                <ul>
+                    <li>
+                        <strong>No se conecta a tu banco.</strong> No pide credenciales
+                        bancarias ni agregadores de cuentas. La fuente es el correo, que es
+                        donde llega la factura con su concepto y su fecha.
+                    </li>
+                    <li>
+                        <strong>No lee el buzón entero.</strong> Solo se procesan los
+                        mensajes que superan los filtros de la ingesta. La dirección de
+                        reenvío existe precisamente para eso: decidir qué entra.
+                    </li>
+                    <li>
+                        <strong>No paga ni cancela nada por ti.</strong> Detecta, avisa y
+                        documenta. La baja de un servicio se hace donde se contrató.
+                    </li>
+                    <li>
+                        <strong>No sustituye a tu contabilidad.</strong> Guarda la factura y
+                        sus datos, y los puede exportar para que entren en el sistema que
+                        lleve las cuentas.
+                    </li>
+                    <li>
+                        <strong>No inventa datos que no puede leer.</strong> Si un documento
+                        no dice la periodicidad, la suscripción se queda sin ella y se marca
+                        para que la revises, en vez de suponer «mensual» y estropear el
+                        cálculo de renovaciones.
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="container">
+            <div class="section-head">
+                <p class="eyebrow">Integración</p>
+                <h2>Si ya tienes un sistema, no hace falta que mires el panel</h2>
+                <p>
+                    La misma información está disponible por API: leer servicios, facturas
+                    y documentos, y crear o actualizar servicios desde tu ERP. Con claves
+                    por organización y webhooks firmados para los cambios.
+                </p>
+            </div>
+
+            <div class="actions">
+                <a class="btn btn--primary" href="{{ path('app.swagger_ui') }}">Leer la documentación de la API</a>
+                <a class="btn btn--ghost" href="{{ path('app_site_integrations') }}">Ver las integraciones</a>
+            </div>
+        </div>
+    </section>
+{% endblock %}

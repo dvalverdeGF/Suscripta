@@ -69,3 +69,15 @@ framework:
             policy: 'sliding_window'
             limit: 300
             interval: '1 minute'
+
+        # Formulario de contacto de la web corporativa (Fase 23).
+        #
+        # Es el unico formulario publico que manda correo a una direccion
+        # nuestra, asi que es el unico que puede convertir la bandeja de
+        # entrada en un basurero. El limite es por IP y generoso: quien
+        # escribe de verdad manda uno o dos mensajes, y quien manda veinte no
+        # esta escribiendo, esta probando.
+        contact_form:
+            policy: 'sliding_window'
+            limit: 5
+            interval: '1 hour'

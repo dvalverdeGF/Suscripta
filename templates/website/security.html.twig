@@ -1,0 +1,181 @@
+{% extends 'website/base.html.twig' %}
+
+{% block title %}Seguridad y privacidad — Suscripta{% endblock %}
+
+{% block description %}Cómo trata Suscripta el correo y los datos de tu empresa: solo lectura, aislamiento por organización, credenciales cifradas, exportación y borrado.{% endblock %}
+
+{% block body %}
+    <section class="section">
+        <div class="container">
+            <div class="section-head">
+                <p class="eyebrow">Seguridad y privacidad</p>
+                <h1>Un producto que lee tu correo tiene que explicarse</h1>
+                <p class="lead">
+                    Esta página no dice que seamos «100 % seguros», porque eso no lo puede
+                    decir nadie. Dice qué hace el sistema, con qué mecanismo y qué se puede
+                    comprobar. Lo que no está aquí es que no está.
+                </p>
+            </div>
+
+            <div class="grid grid--2">
+                <div class="tile tile--teal">
+                    <h3 class="tile__title">El correo se lee, no se toca</h3>
+                    <p class="tile__text">
+                        La conexión IMAP se abre en modo lectura y nunca se ejecuta una
+                        operación de escritura: ni marcar como leído, ni mover, ni borrar, ni
+                        enviar. Del mensaje se guardan los datos que hacen falta para leer un
+                        importe, no el cuerpo entero.
+                    </p>
+                </div>
+                <div class="tile tile--teal">
+                    <h3 class="tile__title">Cada organización, aislada</h3>
+                    <p class="tile__text">
+                        El aislamiento no depende de que cada consulta se acuerde de filtrar:
+                        hay un filtro a nivel de base de datos que añade la organización a
+                        toda consulta, y la autenticación de la API fija ese contexto antes
+                        de que se ejecute nada.
+                    </p>
+                </div>
+                <div class="tile tile--teal">
+                    <h3 class="tile__title">Credenciales cifradas</h3>
+                    <p class="tile__text">
+                        Las contraseñas de aplicación IMAP se guardan cifradas con
+                        <code>libsodium</code>, con la clave fuera de la base de datos y con
+                        identificador de clave para poder rotarla. Nunca aparecen en un log,
+                        en un mensaje de error ni en una traza.
+                    </p>
+                </div>
+                <div class="tile tile--teal">
+                    <h3 class="tile__title">Claves de API que no sirven si se filtran</h3>
+                    <p class="tile__text">
+                        La base de datos guarda una huella con un secreto del servidor, no la
+                        clave. Cada clave tiene alcance —lectura, o lectura y escritura—, se
+                        puede revocar y se le puede poner caducidad.
+                    </p>
+                </div>
+                <div class="tile tile--teal">
+                    <h3 class="tile__title">Webhooks sin puertas abiertas</h3>
+                    <p class="tile__text">
+                        La URL de un webhook la elige el cliente, así que se valida antes de
+                        usarla para que no pueda apuntar a la red interna. Cada entrega va
+                        firmada con HMAC y sello de tiempo, y se reintenta si falla.
+                    </p>
+                </div>
+                <div class="tile tile--teal">
+                    <h3 class="tile__title">La IA, con presupuesto y con permiso</h3>
+                    <p class="tile__text">
+                        Cuando se usa un modelo, el texto va antes por un redactado que quita
+                        lo que no hace falta para leer un importe. Hay un tope mensual que no
+                        se puede rebasar, y la IA se puede apagar sin dejar de usar el
+                        producto.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section section--paper">
+        <div class="container">
+            <div class="section-head">
+                <p class="eyebrow">En la aplicación</p>
+                <h2>Lo que protege al visitante y al usuario</h2>
+            </div>
+
+            <div class="grid grid--3">
+                <div class="tile">
+                    <h3 class="tile__title">Contraseñas</h3>
+                    <p class="tile__text">
+                        Hasheadas con el algoritmo que PHP recomienda en cada versión, nunca
+                        cifradas de forma reversible.
+                    </p>
+                </div>
+                <div class="tile">
+                    <h3 class="tile__title">Sesiones</h3>
+                    <p class="tile__text">
+                        Cookies de sesión con <code>HttpOnly</code> y <code>SameSite</code>,
+                        y formularios protegidos contra envíos cruzados.
+                    </p>
+                </div>
+                <div class="tile">
+                    <h3 class="tile__title">Cabeceras</h3>
+                    <p class="tile__text">
+                        Política de contenido con nonce por petición, <code>nosniff</code>,
+                        sin <code>iframe</code>, sin referencias externas y HSTS sobre HTTPS.
+                    </p>
+                </div>
+                <div class="tile">
+                    <h3 class="tile__title">Acceso por rol</h3>
+                    <p class="tile__text">
+                        Propietario, administrador y miembro, más un rol de operación para
+                        quien atiende el servicio sin ver los datos de negocio.
+                    </p>
+                </div>
+                <div class="tile">
+                    <h3 class="tile__title">Límite de frecuencia</h3>
+                    <p class="tile__text">
+                        En el formulario de contacto, en la subida de documentos y en las
+                        rutas de la API: un pico de peticiones no puede tumbar el servicio ni
+                        llenar un buzón.
+                    </p>
+                </div>
+                <div class="tile">
+                    <h3 class="tile__title">Registro de lo importante</h3>
+                    <p class="tile__text">
+                        Quién confirma una propuesta, quién cambia un plan y quién revoca una
+                        clave queda registrado. Lo que no se registra no se puede auditar.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="container">
+            <div class="section-head">
+                <p class="eyebrow">Tus derechos</p>
+                <h2>Los datos son de quien los pone</h2>
+            </div>
+
+            <div class="prose">
+                <ul>
+                    <li>
+                        <strong>Exportar.</strong> Toda la información de la organización se
+                        puede exportar en cualquier plan, incluido el gratuito.
+                    </li>
+                    <li>
+                        <strong>Borrar.</strong> Documentos, cuentas de correo y la
+                        organización entera se pueden borrar. Al desconectar una cuenta se
+                        eliminan sus credenciales; no se desactivan.
+                    </li>
+                    <li>
+                        <strong>Rectificar.</strong> Si un dato extraído está mal, se corrige
+                        desde el panel y la corrección queda como historial.
+                    </li>
+                    <li>
+                        <strong>Saber qué se guarda.</strong> La política de privacidad
+                        detalla qué se guarda de cada tipo de dato y durante cuánto tiempo.
+                    </li>
+                </ul>
+
+                <p class="mt-3">
+                    <a class="btn btn--ghost" href="{{ path('app_site_privacy') }}">Leer la política de privacidad</a>
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section class="section section--ink">
+        <div class="container cta-band">
+            <div>
+                <h2 class="mb-0">¿Has visto algo que no te cuadra?</h2>
+                <p class="lead mt-2">
+                    Si encuentras un fallo de seguridad, escríbenos antes de contarlo en
+                    público. Te contestamos y lo arreglamos.
+                </p>
+            </div>
+            <div class="actions">
+                <a class="btn btn--on-ink btn--lg" href="{{ path('app_site_contact') }}">Escribirnos</a>
+            </div>
+        </div>
+    </section>
+{% endblock %}

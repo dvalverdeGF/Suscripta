@@ -2712,3 +2712,123 @@ solo afecta al vigente **del mismo periodo y moneda**.
    precios se quedan para poder explicar las facturas de quien lo contrató.
 4. **Las características sí se borran.** Son texto de presentación: no sostienen ninguna factura
    y equivocarse con ellas no cuesta dinero.
+
+---
+
+## D-83 — La web corporativa vive en la misma aplicación y `/` bifurca por sesión
+
+**Estado:** aceptada.
+
+**Contexto.** La portada tenía que vender el producto y hoy `/` redirige al login. Había dos
+caminos: un segundo proyecto (estático o su propio Symfony) o un módulo dentro de esta
+aplicación.
+
+**Decisión.** La web es el módulo `src/Website/` de esta misma aplicación. `GET /` sirve la
+portada si no hay sesión y **redirige** a `/dashboard` si la hay.
+
+**Por qué en la misma aplicación.** La página de precios lee `PlanPrice` en cada petición y el
+alta necesita la sesión que abre el panel. Un proyecto aparte habría necesitado su propia copia
+del catálogo —o una API interna para preguntarlo—, su propio despliegue y su propio diseño, y el
+día que cambiara un precio habría dos sitios que actualizar.
+
+**Por qué redirección y no renderizar el panel en `/`.** Para que cada pantalla tenga una sola
+URL. Si `/` pintara el panel, habría dos direcciones para lo mismo, `path('app_dashboard')`
+seguiría siendo la buena y el botón «atrás» devolvería a una portada que ya no toca. Redirigir
+deja el panel donde estaba y no rompe ni un enlace.
+
+**Consecuencias.**
+
+1. **Las páginas públicas se listan una por una** en `access_control` (D-84). El defecto sigue
+   siendo «lo no listado es privado».
+2. **El layout del backoffice no se reutiliza.** La web tiene su `base.html.twig` y su hoja de
+   estilos: cargar Bootstrap en la portada habría metido 200 KB de CSS para una página sin
+   formularios complejos.
+3. **Un solo despliegue y un solo `composer install`.** La web se publica cuando se publica el
+   panel, sin coordinación entre dos pipelines.
+
+**Alternativas descartadas.**
+
+- *Un repositorio aparte con sitio estático.* Descartada: los precios dejarían de venir del
+  catálogo o habría que regenerar el sitio en cada cambio de precio.
+- *Un subdominio con la misma base de código y otro `APP_ENV`.* Descartada: dos despliegues del
+  mismo código para servir once páginas.
+- *Pintar el panel en `/` cuando hay sesión.* Descartada por lo dicho arriba: dos URLs para la
+  misma pantalla.
+
+---
+
+## D-84 — Las páginas públicas se declaran una a una y un test las recorre todas
+
+**Estado:** aceptada.
+
+**Contexto.** `security.yaml` acaba con `- { path: ^/, roles: ROLE_USER }`: todo es privado salvo
+lo que se exceptúa antes. Añadir once páginas públicas es añadir once excepciones, y olvidar una
+no da un error de compilación: da un 403 que nadie ve hasta que un cliente llama.
+
+**Decisión.** Las rutas públicas se listan **una por una** en `access_control`, con
+`PUBLIC_ACCESS`, y `tests/Functional/Website/PublicPagesTest` recorre las once más `sitemap.xml` y
+`robots.txt` **sin sesión**, comprobando un 200 y el `<h1>` esperado.
+
+**Por qué una por una y no `^/(precios|producto|…)`.** Una expresión regular con alternativas es
+más corta y también más fácil de romper: un paréntesis mal puesto abre una rama que nadie quería.
+Once líneas se leen de un vistazo y el `git diff` de una página nueva enseña exactamente una línea
+nueva.
+
+**Por qué el test y no confiar en la lista.** La lista y las rutas son dos sitios distintos: se
+puede añadir un controlador y olvidar la regla. El test cierra ese hueco en la única dirección que
+importa —«esta ruta pública responde sin sesión»— y de paso comprueba que el panel sigue cerrado.
+
+**Consecuencias.**
+
+1. **Añadir una página pública toca dos ficheros**: el controlador y `security.yaml`. El test falla
+   si solo se toca uno.
+2. **El test también fija el `<h1>`.** Un cambio de titular que rompa la página se ve en la suite,
+   no en producción.
+3. **`robots.txt` y `sitemap.xml` se generan desde la tabla de rutas**, así que una página nueva
+   aparece en el sitemap sin tocar `SeoController::PAGES`… salvo la prioridad, que es una decisión
+   editorial y por eso sigue siendo una lista.
+
+**Alternativas descartadas.**
+
+- *Marcar las rutas públicas con un atributo propio y generar `access_control` desde ahí.*
+  Descartada: `access_control` se evalúa antes del routing y no puede leer atributos del
+  controlador. Sería un `RequestListener` propio haciendo lo que el componente ya hace.
+- *Un `PUBLIC_ACCESS` para todo lo que no empiece por `/dashboard`, `/api`…* Descartada: invierte
+  el defecto. Un módulo nuevo quedaría público por olvido en vez de privado.
+
+---
+
+## D-85 — La web usa CSS plano escrito a mano; el panel sigue con SCSS compilado
+
+**Estado:** aceptada.
+
+**Contexto.** El backoffice se estiliza con `assets/styles/backoffice.scss`, que AssetMapper
+compila. La web podía seguir el mismo camino o llevar su propia hoja.
+
+**Decisión.** `assets/styles/site.css`, CSS plano, escrito a mano, sin SCSS, sin `@use`, sin
+variables de compilación. Las variables son propiedades CSS (`--ink`, `--paper`, `--teal`).
+
+**Por qué.** La web tiene **una** hoja y **un** consumidor. El SCSS del panel se justifica porque
+hay partials por pantalla y mixins compartidos; aquí no hay nada que anidar que no se lea mejor
+plano. Las propiedades CSS dan lo que se buscaba de SCSS —paleta y medidas en un sitio— sin
+depender de un paso de compilación que hay que recordar ejecutar.
+
+**Por qué no se reutiliza la hoja del panel.** El panel carga Bootstrap y una retícula de
+componentes de aplicación; la web es una pieza editorial con otra tipografía (serif en los
+titulares) y otra densidad. Compartir hoja habría obligado a que cada regla del panel conviviera
+con las de la web, que es como se acaba con `!important` en un sitio y en el otro.
+
+**Consecuencias.**
+
+1. **Dos sistemas visuales que mantener.** Se acepta: son dos productos distintos —una web que se
+   lee y un panel en el que se trabaja— y el día que uno cambie no tiene por qué arrastrar al otro.
+2. **La hoja se sirve con digest de AssetMapper** (`/assets/styles/site-<hash>.css`), así que el
+   navegador no se queda con una versión vieja tras un despliegue.
+3. **Sin build, el CSS se edita y se recarga.** No hay `npm run watch` que se olvide arrancar.
+
+**Alternativas descartadas.**
+
+- *SCSS como el panel.* Descartada: un paso de compilación para una hoja sin anidamiento real.
+- *Tailwind.* Descartada: añade un build, un `content` que escanear y clases en el HTML que la
+  plantilla no puede leer como un sistema.
+- *Reutilizar `backoffice.scss`.* Descartada por lo dicho arriba.

@@ -1,0 +1,181 @@
+{% extends 'website/base.html.twig' %}
+
+{#
+    POLÍTICA DE PRIVACIDAD
+
+    Es el documento que más se lee de una web que lee correo, así que está escrito
+    para ser entendido y no para cubrirse las espaldas: qué se guarda de cada
+    cosa, para qué y cuánto tiempo. Los datos del responsable van como
+    marcadores, igual que en el aviso legal, y el aviso de «pendiente» solo se
+    pinta fuera de producción.
+#}
+
+{% block title %}Política de privacidad — Suscripta{% endblock %}
+
+{% block description %}Qué datos trata Suscripta, con qué finalidad, durante cuánto tiempo y cómo ejercer tus derechos.{% endblock %}
+
+{% block body %}
+    <section class="section">
+        <div class="container">
+            <div class="prose">
+                <p class="eyebrow">Legal</p>
+                <h1>Política de privacidad</h1>
+                <p class="prose__meta">Última actualización: 28 de octubre de 2026</p>
+
+                {% if app.environment != 'prod' %}
+                    <div class="notice notice--error">
+                        <span class="notice__icon" aria-hidden="true">!</span>
+                        <span>
+                            <strong>Pendiente antes de publicar:</strong> sustituir los
+                            marcadores <span class="mono">[…]</span> y revisar la lista de
+                            encargados del tratamiento con los proveedores realmente
+                            contratados.
+                        </span>
+                    </div>
+                {% endif %}
+
+                <h2>1. Responsable del tratamiento</h2>
+                <ul>
+                    <li><span class="mono">[RAZÓN SOCIAL]</span>, con NIF <span class="mono">[NIF]</span> y domicilio en <span class="mono">[DOMICILIO]</span>.</li>
+                    <li>Contacto para cualquier cuestión de privacidad: <a href="mailto:{{ site_contact_email }}">{{ site_contact_email }}</a>.</li>
+                </ul>
+
+                <h2>2. Qué datos tratamos</h2>
+                <p>
+                    El servicio se alimenta de correo electrónico, así que conviene
+                    distinguir tres cosas que no se tratan igual: el correo que llega, los
+                    documentos que se extraen de él y los datos estructurados que resultan.
+                </p>
+
+                <h3>Datos de la cuenta</h3>
+                <ul>
+                    <li>Nombre, dirección de correo y contraseña (guardada como hash, nunca en claro).</li>
+                    <li>Organización a la que perteneces, tu rol en ella y el plan contratado.</li>
+                    <li>Registro de accesos y de acciones relevantes, para poder auditar.</li>
+                </ul>
+
+                <h3>Correo reenviado o leído por IMAP</h3>
+                <ul>
+                    <li>
+                        De los mensajes que superan los filtros de la ingesta se guardan
+                        cabeceras y la parte del contenido necesaria para identificar
+                        proveedor, importe, moneda, fechas y periodicidad.
+                    </li>
+                    <li>
+                        <strong>No se guarda el cuerpo completo del mensaje.</strong> El
+                        cuerpo se procesa en memoria y se descarta.
+                    </li>
+                    <li>
+                        Los mensajes que no parecen una factura se descartan sin extraer
+                        nada. El panel indica cuántos se miraron y cuántos se descartaron.
+                    </li>
+                    <li>
+                        Las credenciales de las cuentas conectadas se guardan cifradas y se
+                        eliminan al desconectar la cuenta.
+                    </li>
+                </ul>
+
+                <h3>Documentos y datos estructurados</h3>
+                <ul>
+                    <li>Los archivos que se adjuntan a una factura, con su importe y su fecha.</li>
+                    <li>Los servicios detectados, sus importes, su periodicidad y su historial de cambios.</li>
+                    <li>Las propuestas pendientes de confirmar y la decisión que tomas sobre ellas.</li>
+                </ul>
+
+                <h3>Uso del sitio web</h3>
+                <ul>
+                    <li>El formulario de contacto guarda lo que escribes y tu dirección, para poder contestarte.</li>
+                    <li>No se usan cookies de publicidad ni de analítica de terceros.</li>
+                </ul>
+
+                <h2>3. Para qué y con qué base legal</h2>
+                <ul>
+                    <li>
+                        <strong>Prestar el servicio</strong> (ejecución de un contrato):
+                        leer el correo que autorizas, extraer los datos, mostrar el
+                        inventario y avisarte de las renovaciones.
+                    </li>
+                    <li>
+                        <strong>Facturar y cobrar</strong> (ejecución de un contrato y
+                        obligación legal): gestionar el plan, emitir facturas y conservarlas
+                        durante los plazos fiscales.
+                    </li>
+                    <li>
+                        <strong>Atenderte</strong> (interés legítimo y, si hay consentimiento,
+                        el que prestas al escribirnos): responder a tus mensajes.
+                    </li>
+                    <li>
+                        <strong>Seguridad y abuso</strong> (interés legítimo): detectar
+                        accesos anómalos, limitar la frecuencia de peticiones y evitar que el
+                        servicio se use para enviar spam.
+                    </li>
+                </ul>
+
+                <h2>4. Inteligencia artificial y terceros</h2>
+                <p>
+                    La extracción empieza por reglas deterministas. Solo cuando las reglas no
+                    bastan se puede usar un modelo de lenguaje, y en ese caso:
+                </p>
+                <ul>
+                    <li>El texto pasa antes por un redactado que quita los datos que no hacen falta para leer un importe.</li>
+                    <li>Se envía únicamente el fragmento necesario, no el buzón ni el historial.</li>
+                    <li>La función se puede apagar desde el panel, y el producto sigue funcionando sin ella.</li>
+                    <li>Hay un presupuesto mensual que acota cuántas llamadas se hacen.</li>
+                </ul>
+                <p>
+                    Además de los proveedores de IA, el servicio usa proveedores de
+                    alojamiento, de envío de correo y de pago. La lista concreta de
+                    encargados del tratamiento, con su ubicación y las garantías aplicables,
+                    se facilita a quien la solicite en el correo de contacto. Cuando un
+                    proveedor está fuera del Espacio Económico Europeo, la transferencia se
+                    ampara en las cláusulas contractuales tipo de la Comisión Europea.
+                </p>
+
+                <h2>5. Cuánto tiempo se guarda</h2>
+                <ul>
+                    <li><strong>Correo en bruto:</strong> no se conserva el cuerpo; los datos extraídos se guardan mientras la cuenta esté activa.</li>
+                    <li><strong>Documentos:</strong> mientras la cuenta esté activa o hasta que los borres.</li>
+                    <li><strong>Datos de facturación:</strong> los plazos que exige la normativa fiscal.</li>
+                    <li><strong>Registros técnicos:</strong> un periodo limitado, suficiente para investigar un incidente.</li>
+                    <li><strong>Mensajes de contacto:</strong> el tiempo necesario para atenderlos y, después, el mínimo legal.</li>
+                </ul>
+
+                <h2>6. Tus derechos</h2>
+                <p>
+                    Puedes ejercer los derechos de acceso, rectificación, supresión,
+                    oposición, limitación y portabilidad escribiendo al correo de contacto
+                    desde la dirección de tu cuenta. Además, el panel permite:
+                </p>
+                <ul>
+                    <li>Exportar toda la información de la organización, en cualquier plan.</li>
+                    <li>Borrar documentos, cuentas de correo y la organización entera.</li>
+                    <li>Desconectar una cuenta de correo, lo que elimina sus credenciales.</li>
+                </ul>
+                <p>
+                    Si consideras que no se han atendido tus derechos, puedes reclamar ante
+                    la Agencia Española de Protección de Datos.
+                </p>
+
+                <h2>7. Seguridad</h2>
+                <p>
+                    El detalle de las medidas técnicas está en la página de
+                    <a href="{{ path('app_site_security') }}">seguridad</a>. En resumen:
+                    aislamiento por organización, cifrado de credenciales, acceso de solo
+                    lectura al correo y registro de las acciones relevantes.
+                </p>
+
+                <h2>8. Menores</h2>
+                <p>
+                    El servicio está dirigido a empresas y profesionales. No se recogen
+                    conscientemente datos de menores de 14 años.
+                </p>
+
+                <h2>9. Cambios</h2>
+                <p>
+                    Si esta política cambia de forma sustancial, se avisa en el panel antes
+                    de que el cambio sea efectivo.
+                </p>
+            </div>
+        </div>
+    </section>
+{% endblock %}
