@@ -285,7 +285,8 @@ final class IntegrationConfigWriterTest extends TestCase
         self::assertTrue($registry->knows('openai'));
         self::assertTrue($registry->knows('anthropic'));
         self::assertTrue($registry->knows('ollama'));
+        self::assertTrue($registry->knows('stripe'));
         self::assertFalse($registry->knows('inventada'));
-        self::assertCount(4, $registry->all());
+        self::assertCount(5, $registry->all());
     }
 }

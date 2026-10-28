@@ -1,0 +1,47 @@
+{#
+    Vuelta del pago.
+
+    Recibe `confirmed`: si la pasarela ha confirmado la sesión y la suscripción
+    ha quedado aplicada. Cuando es `false` no se dice que el pago esté hecho,
+    porque puede no estarlo: se dice que se está confirmando y se invita a
+    mirar la facturación en un minuto.
+#}
+{% extends 'backoffice/base.html.twig' %}
+
+{% block title %}{{ confirmed ? 'Pago confirmado' : 'Confirmando el pago' }} — Suscripta{% endblock %}
+
+{% block content %}
+    <div class="card">
+        <div class="card-body">
+            <div class="bo-empty">
+                {% if confirmed %}
+                    <p class="bo-empty__title">
+                        <i class="fa-solid fa-circle-check text-success me-2" aria-hidden="true"></i>
+                        Pago confirmado
+                    </p>
+                    <p class="bo-empty__text">
+                        Tu plan ya está activo. Tienes el recibo en facturación y puedes
+                        cambiar de plan o cancelar cuando quieras.
+                    </p>
+                    <div class="d-flex flex-wrap align-items-center justify-content-end gap-2">
+                        <a class="btn btn-outline-secondary" href="{{ path('app_billing_index') }}">Ver facturación</a>
+                        <a class="btn btn-primary" href="{{ path('app_dashboard') }}">Ir al panel</a>
+                    </div>
+                {% else %}
+                    <p class="bo-empty__title">
+                        <i class="fa-solid fa-clock text-secondary me-2" aria-hidden="true"></i>
+                        Estamos confirmando el pago
+                    </p>
+                    <p class="bo-empty__text">
+                        La pasarela todavía no nos ha confirmado el cobro. Suele tardar unos
+                        segundos; si al minuto no ves tu plan activo, escríbenos y lo miramos.
+                    </p>
+                    <div class="d-flex flex-wrap align-items-center justify-content-end gap-2">
+                        <a class="btn btn-outline-secondary" href="{{ path('app_billing_index') }}">Ver facturación</a>
+                        <a class="btn btn-primary" href="{{ path('app_dashboard') }}">Ir al panel</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+{% endblock %}

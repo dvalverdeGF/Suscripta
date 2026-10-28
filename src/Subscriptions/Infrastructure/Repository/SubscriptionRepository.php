@@ -119,6 +119,36 @@ final class SubscriptionRepository extends DoctrineRepository implements Subscri
         return $subscriptions;
     }
 
+    public function findByExternalReference(string $externalReference): ?Subscription
+    {
+        return $this->entityManager
+            ->createQueryBuilder()
+            ->select('s')
+            ->from(Subscription::class, 's')
+            ->where('s.externalReference = :reference')
+            ->setParameter('reference', $externalReference)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    public function findBillable(): array
+    {
+        /** @var list<Subscription> $subscriptions */
+        $subscriptions = $this->entityManager
+            ->createQueryBuilder()
+            ->select('s')
+            ->from(Subscription::class, 's')
+            ->where('s.externalReference IS NOT NULL')
+            ->andWhere('s.status != :canceled')
+            ->setParameter('canceled', SubscriptionStatus::CANCELED)
+            ->orderBy('s.currentPeriodEnd', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $subscriptions;
+    }
+
     public function save(Subscription $subscription): void
     {
         $this->persist($subscription, true);

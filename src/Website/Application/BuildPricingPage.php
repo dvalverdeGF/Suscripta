@@ -57,6 +57,7 @@ final readonly class BuildPricingPage
             $monthly = null;
             $quarterly = null;
             $annual = null;
+            $purchases = [];
 
             foreach ($this->prices->findCurrentForPlan($plan->getId()) as $price) {
                 match ($price->getBillingPeriod()) {
@@ -65,6 +66,18 @@ final readonly class BuildPricingPage
                     BillingPeriod::ANNUAL => $annual = $price,
                     default => null,
                 };
+
+                // Solo se ofrece contratar lo que se puede cobrar: un precio a
+                // cero es el plan gratuito y un periodo no recurrente no es una
+                // suscripción.
+                if (!$price->getAmount()->isZero() && $price->getBillingPeriod()->isRecurring()) {
+                    $purchases[] = [
+                        'priceId' => $price->getId()->toRfc4122(),
+                        'period' => $price->getBillingPeriod()->value,
+                        'label' => $price->getBillingPeriod()->label(),
+                        'amount' => $price->getAmount()->format(),
+                    ];
+                }
             }
 
             $features = [];
@@ -73,6 +86,7 @@ final readonly class BuildPricingPage
             }
 
             $cards[] = new PlanCard(
+                planId: $plan->getId(),
                 name: $plan->getName(),
                 tagline: $plan->getTagline(),
                 description: $plan->getDescription(),
@@ -83,6 +97,7 @@ final readonly class BuildPricingPage
                 annualSavingPercent: $this->savingPercent($monthly, $annual),
                 features: $features,
                 limits: $this->limits($plan->getCode()),
+                purchases: $purchases,
             );
         }
 

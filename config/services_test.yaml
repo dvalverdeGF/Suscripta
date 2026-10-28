@@ -39,3 +39,13 @@ services:
     test.clock:
         alias: clock
         public: true
+
+    # La pasarela de pago no se puede llamar de verdad en una tanda de tests:
+    # abriría sesiones de cobro reales en una cuenta real. Este doble implementa
+    # el mismo puerto, así que el checkout, el webhook y la conciliación se
+    # ejecutan como en producción y el test solo cambia lo que la pasarela
+    # «sabe» (Fase 24).
+    App\Tests\Support\Billing\FakeStripeGateway:
+        public: true
+
+    App\Billing\Domain\Port\PaymentGatewayInterface: '@App\Tests\Support\Billing\FakeStripeGateway'

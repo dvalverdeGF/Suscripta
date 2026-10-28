@@ -1,0 +1,99 @@
+{#
+    Facturación de Suscripta.
+
+    Recibe `invoices` (facturas de venta de la organización), `current` (la
+    suscripción del plan contratado, o `null`) y `paidThisYear` (lo cobrado en
+    el año, en céntimos).
+
+    No se mezcla con `/facturas`, que enseña las facturas de los proveedores
+    del cliente: una la emite Suscripta y las otras las recibe el cliente.
+#}
+{% extends 'backoffice/base.html.twig' %}
+
+{% block title %}Facturación — Suscripta{% endblock %}
+
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">Facturación</h1>
+            <p class="bo-page-header__subtitle">Tu plan de Suscripta y los recibos de lo que has pagado.</p>
+        </div>
+        <div class="bo-page-header__actions">
+            <a class="btn btn-outline-secondary" href="{{ path('app_site_pricing') }}">Ver planes</a>
+        </div>
+    </div>
+
+    <div class="bo-metrics mb-4">
+        <div class="bo-metric">
+            <span class="bo-metric__label">Plan actual</span>
+            {% if current is not null %}
+                <span class="bo-metric__value">{{ current.name }}</span>
+                <span class="bo-metric__hint">
+                    {{ current.status.label() }}
+                    {%- if current.currentPeriodEnd %} · renueva el {{ current.currentPeriodEnd|date('d/m/Y') }}{% endif %}
+                </span>
+            {% else %}
+                <span class="bo-metric__value">Sin plan de pago</span>
+                <span class="bo-metric__hint">Estás en el plan gratuito.</span>
+            {% endif %}
+        </div>
+        <div class="bo-metric">
+            <span class="bo-metric__label">Pagado este año</span>
+            <span class="bo-metric__value">{{ paidThisYear|money('EUR') }}</span>
+            <span class="bo-metric__hint">Solo facturas cobradas.</span>
+        </div>
+    </div>
+
+    {% if invoices is empty %}
+        <div class="card">
+            <div class="card-body">
+                <div class="bo-empty">
+                    <p class="bo-empty__title">Todavía no hay recibos</p>
+                    <p class="bo-empty__text">
+                        Cuando contrates un plan de pago, cada cobro aparecerá aquí con su
+                        importe y su enlace al recibo.
+                    </p>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="table-responsive">
+            <table class="table bo-table bo-table--stack align-middle">
+                <thead>
+                    <tr>
+                        <th scope="col">Fecha</th>
+                        <th scope="col">Número</th>
+                        <th scope="col">Importe</th>
+                        <th scope="col">Estado</th>
+                        <th scope="col" class="text-end">Recibo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for invoice in invoices %}
+                        <tr>
+                            <td data-label="Fecha">{{ invoice.issuedAt|date('d/m/Y') }}</td>
+                            <td data-label="Número">{{ invoice.number ?? '—' }}</td>
+                            <td data-label="Importe">{{ invoice.amount.format() }}</td>
+                            <td data-label="Estado">
+                                <span class="badge text-bg-{{ invoice.status.badge() }}">{{ invoice.status.label() }}</span>
+                            </td>
+                            <td data-label="Recibo" class="text-end">
+                                {% if invoice.hostedUrl %}
+                                    <a class="btn btn-sm btn-outline-secondary" href="{{ invoice.hostedUrl }}" rel="noopener" target="_blank">
+                                        Ver <span class="visually-hidden">recibo del {{ invoice.issuedAt|date('d/m/Y') }}</span>
+                                    </a>
+                                {% elseif invoice.pdfUrl %}
+                                    <a class="btn btn-sm btn-outline-secondary" href="{{ invoice.pdfUrl }}" rel="noopener" target="_blank">
+                                        PDF <span class="visually-hidden">del {{ invoice.issuedAt|date('d/m/Y') }}</span>
+                                    </a>
+                                {% else %}
+                                    <span class="text-secondary">—</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+{% endblock %}

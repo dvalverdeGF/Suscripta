@@ -986,6 +986,15 @@ code {
     width: 100%;
 }
 
+/* Cuando la tarjeta vende varios periodos, los botones se apilan y el del
+   periodo destacado queda primero por orden de lectura, no por tamaño: dos
+   botones del mismo ancho compitiendo en la misma tarjeta no dejan claro
+   cuál es el camino normal. */
+.plan__buy {
+    display: grid;
+    gap: 0.5rem;
+}
+
 .pricing-note {
     margin-top: clamp(1.75rem, 3vw, 2.5rem);
     padding: 1.25rem 1.5rem;

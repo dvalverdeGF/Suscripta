@@ -30,6 +30,7 @@ final class IntegrationRegistry
     public const string KEY_OPENAI = 'openai';
     public const string KEY_ANTHROPIC = 'anthropic';
     public const string KEY_OLLAMA = 'ollama';
+    public const string KEY_STRIPE = 'stripe';
 
     /**
      * @var array<string, IntegrationDefinition>
@@ -49,6 +50,10 @@ final class IntegrationRegistry
         $definitions = [];
 
         foreach (self::aiProviderDefinitions() as $definition) {
+            $definitions[$definition->key] = $definition;
+        }
+
+        foreach (self::paymentDefinitions() as $definition) {
             $definitions[$definition->key] = $definition;
         }
 
@@ -206,6 +211,49 @@ final class IntegrationRegistry
                 requiresBaseUrl: true,
                 icon: ['fa-solid', 'fa-server'],
                 isAiProvider: true,
+            ),
+        ];
+    }
+
+    /**
+     * Pasarelas de pago.
+     *
+     * Van aparte de los proveedores de IA porque no se eligen por necesidad:
+     * hay una y cobra. Separarlas deja el selector de IA sin una opción que no
+     * es una IA, que es lo que pasaría si compartieran la misma lista.
+     *
+     * @return list<IntegrationDefinition>
+     */
+    private static function paymentDefinitions(): array
+    {
+        return [
+            IntegrationDefinition::of(
+                key: self::KEY_STRIPE,
+                label: 'Stripe',
+                help: 'Cobra los planes de Suscripta. Requiere la clave secreta de api.stripe.com y el secreto de firma del webhook.',
+                credentialFields: [
+                    IntegrationField::secret(
+                        name: 'secret_key',
+                        label: 'Clave secreta',
+                        required: true,
+                        hint: 'Empieza por sk_. Se guarda cifrada y no vuelve a mostrarse.',
+                    ),
+                    IntegrationField::secret(
+                        name: 'webhook_secret',
+                        label: 'Secreto de firma del webhook',
+                        required: true,
+                        hint: 'Empieza por whsec_. Es lo que permite comprobar que un aviso viene de Stripe.',
+                    ),
+                ],
+                settingsFields: [
+                    IntegrationField::text(
+                        name: 'currency',
+                        label: 'Moneda de cobro',
+                        placeholder: 'EUR',
+                        hint: 'Código ISO de tres letras. Si se deja vacío se usa la del catálogo.',
+                    ),
+                ],
+                icon: ['fa-brands', 'fa-stripe-s'],
             ),
         ];
     }

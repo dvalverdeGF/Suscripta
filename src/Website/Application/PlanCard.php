@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Website\Application;
 
 use App\Subscriptions\Domain\Entity\PlanPrice;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Una tarjeta de la página de precios, ya resuelta.
@@ -18,10 +19,12 @@ use App\Subscriptions\Domain\Entity\PlanPrice;
 final readonly class PlanCard
 {
     /**
-     * @param list<array{label: string, included: bool}> $features
-     * @param list<array{label: string, value: string}>  $limits
+     * @param list<array{label: string, included: bool}>                                  $features
+     * @param list<array{label: string, value: string}>                                   $limits
+     * @param list<array{priceId: string, period: string, label: string, amount: string}> $purchases
      */
     public function __construct(
+        public Uuid $planId,
         public string $name,
         public ?string $tagline,
         public ?string $description,
@@ -32,6 +35,15 @@ final readonly class PlanCard
         public ?int $annualSavingPercent,
         public array $features,
         public array $limits,
+        /**
+         * Los precios que se pueden contratar desde la web, ya en texto.
+         *
+         * Va aparte de `monthly`/`quarterly`/`annual` porque una tarjeta puede
+         * enseñar el precio mensual y ofrecer además el anual: son dos cosas
+         * distintas —qué se destaca y qué se puede comprar— y mezclarlas haría
+         * que la tarjeta solo dejara contratar lo que enseña en grande.
+         */
+        public array $purchases = [],
     ) {
     }
 

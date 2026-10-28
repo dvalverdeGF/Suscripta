@@ -52,12 +52,14 @@ final class PublicPagesTest extends WebTestCase
         $this->client->setServerParameter('HTTP_ORIGIN', 'https://localhost');
 
         // El limitador del formulario de contacto se guarda en caché, que
-        // sobrevive entre ejecuciones de la suite. Con una IP distinta por test
-        // cada prueba empieza con el contador a cero sin bajar el límite real.
-        $this->client->setServerParameter('REMOTE_ADDR', sprintf(
-            '198.51.100.%d',
-            random_int(1, 254),
-        ));
+        // sobrevive entre ejecuciones de la suite: una ejecución anterior con
+        // la misma IP dejaría el contador a medias y el test fallaría por
+        // motivos que no tienen que ver con el código. Se usa una IP propia y
+        // se pone su contador a cero antes de empezar.
+        $ip = sprintf('198.51.100.%d', random_int(1, 254));
+        $this->client->setServerParameter('REMOTE_ADDR', $ip);
+
+        self::getContainer()->get('limiter.contact_form')->create($ip)->reset();
     }
 
     /**

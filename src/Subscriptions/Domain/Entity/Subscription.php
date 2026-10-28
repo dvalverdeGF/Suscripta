@@ -472,6 +472,56 @@ class Subscription implements TenantAwareInterface
     }
 
     /**
+     * Copia el estado y el periodo que dicta la pasarela (fase 24).
+     *
+     * No se reutilizan `activate()`, `cancel()` ni `renew()` porque todos ellos
+     * **calculan** el periodo a partir del estado local, y aquí el periodo no se
+     * calcula: se copia. Quien cobra sabe cuándo empieza y cuándo acaba el
+     * periodo pagado —un prorrateo, un aplazamiento o un cambio de plan en el
+     * panel de Stripe lo cambian—, y una suscripción que dijera una fecha
+     * distinta de la del cobro dejaría de servir para reclamar nada.
+     *
+     * Los estados finales sí fijan `canceledAt`/`endsAt` si no vienen dados: una
+     * suscripción cancelada sin fecha de cancelación no se puede auditar.
+     */
+    public function syncWithGateway(
+        SubscriptionStatus $status,
+        DateTimeImmutable $currentPeriodStart,
+        DateTimeImmutable $currentPeriodEnd,
+        ?DateTimeImmutable $canceledAt = null,
+        ?DateTimeImmutable $endsAt = null,
+        ?string $externalReference = null,
+    ): void {
+        if ($currentPeriodEnd <= $currentPeriodStart) {
+            throw new InvalidArgumentException('El periodo que dicta la pasarela termina antes de empezar.');
+        }
+
+        $this->status = $status;
+        $this->currentPeriodStart = $currentPeriodStart;
+        $this->currentPeriodEnd = $currentPeriodEnd;
+
+        if (null !== $externalReference && '' !== trim($externalReference)) {
+            $this->externalReference = trim($externalReference);
+        }
+
+        if ($status->isFinal()) {
+            $this->canceledAt = $canceledAt ?? $this->canceledAt ?? new DateTimeImmutable('today');
+            // El servicio se mantiene hasta el final del periodo pagado, que es
+            // lo que la pasarela acaba de decir.
+            $this->endsAt = $endsAt ?? $currentPeriodEnd;
+        } else {
+            $this->canceledAt = null;
+            $this->endsAt = $endsAt;
+        }
+
+        if (SubscriptionStatus::TRIALING !== $status) {
+            $this->trialEndsAt = null;
+        }
+
+        $this->touch();
+    }
+
+    /**
      * Días que quedan de periodo. Negativo si ya venció.
      */
     public function daysLeft(?DateTimeImmutable $today = null): int

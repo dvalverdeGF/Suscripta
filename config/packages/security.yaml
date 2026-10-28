@@ -98,6 +98,13 @@ security:
         - { path: ^/aviso-legal$, roles: PUBLIC_ACCESS }
         - { path: ^/privacidad$, roles: PUBLIC_ACCESS }
         - { path: ^/condiciones$, roles: PUBLIC_ACCESS }
+        # ── Webhook de la pasarela (Fase 24) ─────────────────────────────
+        # Publico porque quien llama es Stripe, que no tiene sesion. Lo que
+        # impide que cualquiera active un plan gratis es la firma HMAC del
+        # cuerpo, que se verifica antes de tocar la base de datos
+        # (`StripeSignatureVerifier`). Sin esta regla el endpoint devolveria
+        # 302 al login y la pasarela reintentaria durante dias.
+        - { path: ^/webhooks/stripe$, roles: PUBLIC_ACCESS }
         - { path: ^/sitemap\.xml$, roles: PUBLIC_ACCESS }
         - { path: ^/robots\.txt$, roles: PUBLIC_ACCESS }
         - { path: ^/, roles: ROLE_USER }

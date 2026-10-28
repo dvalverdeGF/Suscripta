@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Website\UI\Controller;
 
+use App\Billing\Domain\Port\PaymentGatewayInterface;
 use App\Website\Application\BuildPricingPage;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
@@ -28,7 +29,7 @@ use Symfony\Component\Routing\Attribute\Route;
 final class HomepageController extends AbstractController
 {
     #[Route('/', name: 'app_home', methods: ['GET'])]
-    public function __invoke(BuildPricingPage $pricing): Response
+    public function __invoke(BuildPricingPage $pricing, PaymentGatewayInterface $gateway): Response
     {
         if (null !== $this->getUser()) {
             return $this->redirectToRoute('app_dashboard');
@@ -36,6 +37,7 @@ final class HomepageController extends AbstractController
 
         return $this->render('website/home.html.twig', [
             'plans' => $pricing(),
+            'checkoutEnabled' => $gateway->isConfigured(),
         ]);
     }
 }

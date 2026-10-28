@@ -42,6 +42,27 @@ interface SubscriptionRepositoryInterface
      */
     public function findWithoutPlan(): array;
 
+    /**
+     * Busca por la referencia de la pasarela, **sin** limitarse al inquilino
+     * actual.
+     *
+     * La usa el webhook de cobro, que llega sin sesión y solo sabe un
+     * `sub_…`: tiene que encontrar la suscripción antes de saber de qué
+     * organización es. Es la segunda consulta del módulo que se salta el
+     * filtro, y por el mismo motivo que la primera: no hay organización en
+     * contexto, así que el filtro no restringe (D-80).
+     */
+    public function findByExternalReference(string $externalReference): ?Subscription;
+
+    /**
+     * Suscripciones cobradas por una pasarela y todavía no cerradas, de todas
+     * las organizaciones. Es la lista que recorre la conciliación
+     * (`app:billing:reconcile`) para preguntar por cada una.
+     *
+     * @return list<Subscription>
+     */
+    public function findBillable(): array;
+
     public function save(Subscription $subscription): void;
 
     public function remove(Subscription $subscription): void;
