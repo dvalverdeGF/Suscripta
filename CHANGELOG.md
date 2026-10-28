@@ -23,7 +23,7 @@ cerrada, verificada y commiteada. El detalle de lo que queda pendiente está en
 ## [Fase 23] — 2026-10-28 — Web corporativa
 
 La raíz del dominio vende el producto. Antes, `/` redirigía al login y no había una sola página
-pública. Commit de cierre: `PENDING_SHA`.
+pública. Commit de cierre: `bb643c4`.
 
 ### Añadido
 

@@ -90,7 +90,7 @@ en su apartado correspondiente.
 | 20 | Webhooks de salida | ✅ Completada | `bd646a8` | 29 tests nuevos; firma HMAC, 8 envíos, panel con prueba |
 | 21 | `Subscription` como entidad propia | ✅ Completada | `4c71499` | Servicios y suscripciones como listas distintas |
 | 22 | Catálogo comercial en el backoffice | ✅ Completada | `5e983b0` | Un plan con dos precios publicado sin desplegar |
-| 23 | Web corporativa (11 páginas) | ✅ Completada | `PENDING_SHA` | Once páginas sin sesión, precios desde el catálogo, contacto con correo real |
+| 23 | Web corporativa (11 páginas) | ✅ Completada | `bb643c4` | Once páginas sin sesión, precios desde el catálogo, contacto con correo real |
 | 24 | Checkout con Stripe | ⬜ Planificada | — | Alta, cobro en modo test, webhook y estado reflejado |
 | 25 | CSRF unificado con el gestor de sesión | ⬜ Planificada | — | Ningún `POST` con token sin estado |
 
@@ -2292,7 +2292,7 @@ cobro es la fase 24.
 
 ## Fase 23 — Web corporativa
 
-> **Estado:** ✅ **Completada.** Commit de cierre: `PENDING_SHA`.
+> **Estado:** ✅ **Completada.** Commit de cierre: `bb643c4`.
 
 **Objetivo:** que la raíz del dominio venda el producto. Antes de esta fase, `/` redirigía al
 login y no había ni una página pública: el producto no se podía enseñar sin dar de alta una
