@@ -2764,3 +2764,48 @@ respuesta sin que nadie haya desplegado nada.
 El cobro lo hace Stripe en su dominio. Suscripta no ve, no recibe y no almacena datos de tarjeta:
 solo guarda el identificador de la suscripción y el del recibo, más las URLs alojadas por Stripe.
 No hay nada que PCI-DSS tenga que auditar en este servidor.
+
+## 21. CSRF: un solo mecanismo (Fase 25)
+
+### 21.1 Qué había
+
+Symfony 8 trae CSRF **sin estado** por defecto y el proyecto arrastraba además el gestor de sesión
+en los formularios que lo necesitaban de verdad. Dos mecanismos convivían: cada `POST` nuevo tenía
+que elegir, y elegir mal no rompe nada visible hasta que un usuario pierde un formulario.
+
+### 21.2 Qué hay
+
+`config/packages/csrf.yaml` deja el gestor de sesión como único:
+
+```yaml
+framework:
+    form:
+        csrf_protection:
+            token_id: submit
+
+    csrf_protection: ~
+```
+
+Sin `stateless_token_ids` no se registran `security.csrf.same_origin_token_manager` ni su listener,
+y `csrf_token()`, el token de formulario (`submit`), el de login, el de logout y todos los
+`isCsrfTokenValid()` de los controladores pasan por `security.csrf.token_manager`, que guarda el
+valor en la sesión bajo `_csrf/<propósito>`.
+
+Se eliminan `config/packages/ux_turbo.yaml` y `assets/controllers/csrf_protection_controller.js`:
+los dos existían solo para la receta sin estado (cabecera `X-CSRF-Token` en peticiones Turbo y
+doble-submit cookie).
+
+### 21.3 Cómo se comprueba
+
+`tests/Functional/Identity/CsrfUnificationTest.php` fija las cuatro garantías que importan:
+
+| Garantía | Cómo |
+|---|---|
+| El token vive en la sesión | La clave `_csrf/resend_verification` existe tras renderizar |
+| No hay token sin estado | No se emite la cookie `csrf-token` |
+| Un formulario abierto hace rato sigue valiendo | Token leído, una petición de por medio, `POST` → 302 |
+| Los tokens son por propósito | El token de logout en el endpoint de reenvío → 403; uno inventado → 403 |
+
+**El token no se compara entre páginas.** `CsrfTokenManager` enmascara el valor con una clave
+aleatoria en cada render (`clave.valor`), de modo que dos renders seguidos dan cadenas distintas
+aunque el token sea el mismo. Comparar HTML no demuestra nada; mirar la sesión, sí.

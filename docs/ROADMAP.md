@@ -1,8 +1,8 @@
 # Roadmap
 
-> Estado: **fases 0 a 24 cerradas** (1 603 tests, PHPStan nivel 8 limpio). Queda **una fase
-> planificada**, la 25 (CSRF unificado), decidida con el usuario y sin preguntas abiertas que la
-> bloqueen; la deuda técnica conocida está listada al final. Fases pequeñas y verificables: cada
+> Estado: **fases 0 a 25 cerradas** (1 609 tests, PHPStan nivel 8 limpio). **No queda ninguna fase
+> planificada**: el roadmap está completo y lo que sigue es deuda técnica conocida —listada al
+> final— y las preguntas de negocio que no bloquean código. Fases pequeñas y verificables: cada
 > fase termina con algo demostrable y con criterios de aceptación explícitos.
 
 ## Criterios de ordenación
@@ -45,8 +45,8 @@ en su apartado correspondiente.
 | Documento | Para qué |
 |---|---|
 | [`PRODUCT.md`](PRODUCT.md) | Qué es el producto, para quién y qué problema resuelve. |
-| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Cómo está construido, módulo por módulo. §17 = la API, §18 = los webhooks, §19 = la web, §20 = los cobros. |
-| [`DECISIONS.md`](DECISIONS.md) | Por qué se hizo así. D-71 y D-72 = la API; D-73 a D-76 = los webhooks; D-77 = la guarda anti-SSRF; D-78 y D-79 = la suscripción como entidad propia; D-80 a D-82 = el catálogo comercial; D-83 a D-85 = la web; D-86 a D-90 = los cobros. |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Cómo está construido, módulo por módulo. §17 = la API, §18 = los webhooks, §19 = la web, §20 = los cobros, §21 = el CSRF. |
+| [`DECISIONS.md`](DECISIONS.md) | Por qué se hizo así. D-71 y D-72 = la API; D-73 a D-76 = los webhooks; D-77 = la guarda anti-SSRF; D-78 y D-79 = la suscripción como entidad propia; D-80 a D-82 = el catálogo comercial; D-83 a D-85 = la web; D-86 a D-90 = los cobros; D-91 = el CSRF unificado. |
 | [`ROADMAP.md`](ROADMAP.md) | Este documento: qué está hecho y qué falta. |
 | [`SECURITY.md`](SECURITY.md) | Modelo de amenazas y medidas. |
 | [`operations.md`](operations.md) | Runbook del día a día: desplegar, copiar, restaurar, vigilar. |
@@ -92,9 +92,9 @@ en su apartado correspondiente.
 | 22 | Catálogo comercial en el backoffice | ✅ Completada | `5e983b0` | Un plan con dos precios publicado sin desplegar |
 | 23 | Web corporativa (11 páginas) | ✅ Completada | `bb643c4` | Once páginas sin sesión, precios desde el catálogo, contacto con correo real |
 | 24 | Checkout con Stripe | ✅ Completada | `5b32389` | 53 tests nuevos, 4 defectos de producción corregidos; cobro, webhook idempotente y conciliación |
-| 25 | CSRF unificado con el gestor de sesión | ⬜ Planificada | — | Ningún `POST` con token sin estado |
+| 25 | CSRF unificado con el gestor de sesión | ✅ Completada | `a5b1207` | Un solo mecanismo; 6 tests nuevos y la receta sin estado eliminada |
 
-**Lectura rápida de la tabla:** las fases 0 a 24 están **cerradas, commiteadas y verificadas**.
+**Lectura rápida de la tabla:** las fases 0 a 25 están **cerradas, commiteadas y verificadas**.
 La fase 18 se cerró corrigiendo los seis defectos que aparecieron al verificarla —dos de
 comportamiento en la API, uno de arranque en el entorno, uno de contrato y dos que impedían
 usar el panel de claves—, todos con test. La fase 19 cerró la documentación de entrega: el
@@ -103,10 +103,11 @@ README de producto, el CHANGELOG por fase y la guía del primer despliegue.
 La fase 20 cerró los webhooks de salida, que eran lo único que la fase 19 había dejado como
 «idea documentada». La 21 separó la suscripción del servicio detectado, la 22 puso el catálogo
 comercial, la 23 la web que lo vende y la 24 el cobro: **el producto ya se vende y se cobra solo**.
-Queda **una fase planificada** (25, CSRF unificado), decidida con el usuario, sin preguntas que la
-bloqueen. Lo único diferido conscientemente de la fase 19 son las **capturas de pantalla** del
-README: no se ha añadido ningún binario al repositorio y se prefiere que envejezcan mal fuera de
-él antes que versionar imágenes que se quedan obsoletas a la primera fase.
+La fase 25 cerró la última deuda de configuración: un solo mecanismo CSRF, el de sesión, y fuera la
+receta sin estado. **El roadmap no tiene fases pendientes.** Lo único diferido conscientemente de la
+fase 19 son las **capturas de pantalla** del README: no se ha añadido ningún binario al repositorio
+y se prefiere que envejezcan mal fuera de él antes que versionar imágenes que se quedan obsoletas a
+la primera fase.
 
 ## Fase 0 — Base del proyecto
 
@@ -2471,23 +2472,72 @@ cancelada tras la siguiente pasada de `app:billing:reconcile`.
 (`https://<host>/webhooks/stripe`) con los seis tipos de `GatewayEvent::HANDLED_TYPES`, pegar el
 `whsec_…` en integraciones y añadir el cron de conciliación. Está en `docs/operations.md` §8.
 
-## Fase 25 — CSRF unificado con el gestor de sesión (planificada)
+## Fase 25 — CSRF unificado con el gestor de sesión
 
-> **Estado:** ⬜ **Planificada.** Decidida con el usuario: **unificar**.
+> **Estado:** ✅ **Completada.** Decidida con el usuario: **unificar**.
 
-**Objetivo:** que todas las comprobaciones CSRF usen el mismo mecanismo.
+**Objetivo:** que todas las comprobaciones CSRF usen el mismo mecanismo, el gestor de sesión.
 
-**Por qué.** Hoy conviven dos: los formularios que dependen de la sesión (confirmar/descartar
-descubrimiento, probar buzón) usan el gestor con sesión, y el resto tokens sin estado —el valor
-por defecto de Symfony 8—. Dos mecanismos son dos formas de equivocarse, y en los tests se nota:
-hay que leer el token de la página para cada POST manual.
+**Qué había.** Symfony 8 trae CSRF **sin estado** por defecto —el token se deriva de una cookie que
+pone el navegador— y el proyecto arrastraba además el gestor de sesión en los formularios que lo
+necesitaban. Dos mecanismos convivían: cada `POST` nuevo tenía que elegir cuál tocar, y elegir mal
+no rompe nada visible hasta que un usuario pierde un formulario. En los tests se notaba igual: cada
+`POST` a mano tenía que leer el token del HTML con la estrategia correcta.
 
-**Alcance.** Configurar `framework.csrf_protection` con el gestor de sesión para toda la
-aplicación, ajustar los formularios que hoy dependen del token sin estado y actualizar los tests
-funcionales que hacen POST a mano.
+**Qué se hizo.**
 
-**Verificación:** ningún formulario ni acción `POST` usa ya el token sin estado; la suite entera
-en verde.
+- `config/packages/csrf.yaml` deja el gestor de sesión como único: `framework.csrf_protection: ~`,
+  sin `stateless_token_ids`, con `form.csrf_protection.token_id: submit` para los formularios.
+- Se borran `config/packages/ux_turbo.yaml` y `assets/controllers/csrf_protection_controller.js`,
+  que existían solo para la receta sin estado (cabecera `X-CSRF-Token` para Turbo y doble-submit
+  cookie). Con tokens de sesión no hacen falta.
+- No hubo que tocar ni una plantilla ni un controlador: los 45 `csrf_token()` y los ~20
+  `isCsrfTokenValid()` ya pasaban por `security.csrf.token_manager`, que es justo el que ahora queda.
+
+**La decisión** (D-91): una sola forma de equivocarse. Con dos mecanismos, «el token no vale» tiene
+dos causas y dos arreglos; con uno, el diagnóstico es siempre el mismo. Además, el token de sesión
+vale mientras exista la sesión, no mientras el navegador quiera mandar una cookie —modo privado,
+bloqueo de terceros, un `fetch` sin `credentials`—. El backoffice no es una SPA: son formularios
+HTML, el caso para el que el gestor de sesión está pensado.
+
+**Lo que sorprendió al escribir el test.** `CsrfTokenManager` enmascaró el token a partir de
+Symfony 8: guarda un valor en la sesión y sirve `clave.valor` con una clave aleatoria, así que **el
+mismo token da cadenas distintas en cada render**. El primer test que se escribió comparaba el HTML
+de dos peticiones y fallaba con el mecanismo correcto. La comprobación buena es mirar la sesión y
+comprobar que el token sigue sirviendo después de otras peticiones.
+
+**Tests de la fase.** 6 casos nuevos en `tests/Functional/Identity/CsrfUnificationTest.php`:
+
+| Caso | Qué fija |
+|---|---|
+| `testTheTokenIsStoredInTheSession` | `_csrf/resend_verification` existe en la sesión tras renderizar |
+| `testNoStatelessCookieIsIssued` | No se emite la cookie `csrf-token` del gestor sin estado |
+| `testATokenFromAnEarlierPageStillWorksAfterOtherRequests` | Un formulario abierto hace rato sigue valiendo (302) |
+| `testTheTokenOfTheSamePurposeIsAccepted` | El camino feliz del mismo propósito |
+| `testATokenOfAnotherPurposeIsRejected` | El token de logout no sirve para reenviar el correo (403) |
+| `testAnInventedTokenIsRejected` | Un token inventado no vale (403) |
+
+**Lo que se decidió no hacer.**
+
+- **Dejar los dos mecanismos y documentar cuál toca.** La documentación no impide que el siguiente
+  formulario elija el equivocado.
+- **Pasar todo a sin estado.** Rompe los formularios de sesión existentes, obliga a mantener el
+  controlador Stimulus para Turbo y ata la validez del token a una cookie del cliente.
+
+**Verificación de cierre**
+
+| Comprobación | Resultado |
+|---|---|
+| Suite completa | **1 609 tests**, 6 464 aserciones, en verde (+6 desde la fase 24) |
+| PHPStan nivel 8 | Sin errores |
+| `php-cs-fixer` | Sin cambios pendientes (849 ficheros) |
+| `lint:container` / `lint:twig` | Sin errores (89 plantillas) |
+| `debug:config framework csrf_protection` | `stateless_token_ids: {}`, `check_header: false` |
+
+**Verificación de la fase:** cualquier formulario del backoffice —login, perfil, cambio de
+organización, lote de descubrimientos, reenvío de confirmación— se envía con el token de la página y
+funciona; un token de otro propósito o inventado devuelve 403; y en la sesión aparece la clave
+`_csrf/<propósito>`.
 
 ## Deuda técnica conocida
 

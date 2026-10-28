@@ -260,7 +260,10 @@ secretos ni contenido de correo.
   soporta argon2). Verificación de email en el registro.
 - **Sesiones:** cookies `HttpOnly`, `Secure`, `SameSite=Lax`; regeneración de ID al
   autenticar; cierre de sesión invalidando la sesión.
-- **CSRF:** protección activa en todos los formularios.
+- **CSRF:** un solo mecanismo para toda la aplicación, el **gestor de sesión** (D-91): el token se
+  guarda en `_csrf/<propósito>` y se enmascara en cada render, así que el HTML nunca lleva el
+  secreto literal. Los tokens son por propósito —el de cambiar de organización no vale para
+  reenviar la confirmación de correo— y hay tests que fijan las dos cosas.
 - **XSS:** escape por defecto de Twig; `|raw` prohibido salvo justificación revisada.
 - **Inyección SQL:** Doctrine/DBAL con parámetros vinculados. Sin SQL concatenado.
 - **SSRF:** las URLs de proveedores y de almacenamiento se validan contra una lista permitida.

@@ -13,9 +13,34 @@ cerrada, verificada y commiteada. El detalle de lo que queda pendiente está en
 
 ### Pendiente
 
-- Fase 25 — CSRF unificado con el gestor de sesión. Planificada.
 - **Antes de publicar:** sustituir los marcadores de las tres páginas legales
   (`[RAZÓN SOCIAL]`, `[NIF]`, `[DOMICILIO]`, `[REGISTRO Y TOMO]`).
+
+---
+
+## [Fase 25] — 2026-10-29 — Un solo CSRF
+
+Toda la aplicación comprueba el CSRF con el gestor de sesión. Desaparece la receta sin estado que
+Symfony 8 trae por defecto y que convivía con él. Commit de cierre: `a5b1207`.
+
+### Cambiado
+
+- **`framework.csrf_protection` sin `stateless_token_ids`**: los tokens se guardan en la sesión bajo
+  `_csrf/<propósito>` y se enmascaran en cada render. Los formularios usan `token_id: submit`. No
+  hubo que tocar plantillas ni controladores: los 45 `csrf_token()` y los ~20
+  `isCsrfTokenValid()` ya iban por el gestor de sesión.
+
+### Eliminado
+
+- **`config/packages/ux_turbo.yaml`** y **`assets/controllers/csrf_protection_controller.js`**: solo
+  existían para la receta sin estado (cabecera `X-CSRF-Token` en peticiones Turbo y doble-submit
+  cookie). Con tokens de sesión sobran.
+
+### Añadido
+
+- **`tests/Functional/Identity/CsrfUnificationTest`** (6 casos): el token está en la sesión, no se
+  emite la cookie del gestor sin estado, un formulario abierto hace rato sigue valiendo, los tokens
+  son por propósito y uno inventado devuelve 403.
 
 ---
 
@@ -48,6 +73,9 @@ recibo aparece en el panel de la organización. Commit de cierre: `5b32389`.
 - **`stripe` en el panel de integraciones**: clave secreta y secreto de firma del webhook, cifrados
   por organización.
 - **Migración `Version20261028233512`** con `payment_event` y `sales_invoice`.
+- **Contratar desde la web**: los precios de `/precios` y de la portada llevan al checkout cuando la
+  pasarela está configurada y el plan tiene precio de venta, con un botón por periodo para no
+  esconder el anual. El menú del backoffice gana la entrada de **Facturación**.
 
 ### Corregido
 

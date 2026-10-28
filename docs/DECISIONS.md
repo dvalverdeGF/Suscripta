@@ -3014,3 +3014,51 @@ Una intención de pagar no es un contrato.
   limpieza siempre se olvida.
 - *No comprobar duplicados y confiar en Stripe.* Descartada: dos clics dejan dos cobros recurrentes
   y devolver uno es trabajo manual.
+
+---
+
+## D-91 — Un solo mecanismo CSRF: el gestor de sesión
+
+**Estado:** aceptada (fase 25).
+
+**Contexto.** Symfony 8 trae CSRF **sin estado** por defecto: el token se deriva de una cookie que
+pone el navegador y no se guarda nada en el servidor. Como los formularios de sesión del proyecto
+(confirmar un descubrimiento, probar un buzón) usaban el gestor de sesión, en la aplicación convivían
+los dos mecanismos. Funcionaba, pero cada `POST` nuevo obligaba a decidir cuál de los dos tocaba y
+cada test manual tenía que leer el token del HTML con la estrategia correcta.
+
+**Decisión.** Toda la aplicación usa el gestor de sesión: `framework.csrf_protection: ~`, sin
+`stateless_token_ids`. Se borran la configuración de Turbo con `check_header` y el controlador
+Stimulus `csrf_protection_controller.js`, que eran parte de la receta sin estado.
+
+**Por qué.**
+
+1. **Una sola forma de equivocarse.** Con dos mecanismos, «el token no vale» tiene dos causas
+   distintas y dos arreglos distintos. Con uno, el diagnóstico es siempre el mismo.
+2. **El token sobrevive a la pestaña.** El de sesión vale mientras la sesión exista; el sin estado
+   depende de una cookie que el navegador puede no mandar (modo privado, bloqueo de terceros,
+   petición desde `fetch` sin `credentials`).
+3. **Los formularios ya lo usaban.** El backoffice no es una SPA: los `POST` son formularios HTML
+   normales, que es exactamente el caso para el que el gestor de sesión está pensado.
+
+**Consecuencias.**
+
+1. **El token se enmascara en cada render.** Desde Symfony 8, `CsrfTokenManager` guarda un valor en
+   la sesión (`_csrf/<id>`) y sirve `clave.valor` con una clave aleatoria: el HTML nunca lleva el
+   secreto literal y dos renders seguidos dan cadenas distintas. Por eso un test **no** puede
+   comparar tokens entre páginas; lo que se comprueba es que el token sirve después de otras
+   peticiones y que está en la sesión. Está en `tests/Functional/Identity/CsrfUnificationTest.php`.
+2. **Cada usuario necesita sesión para enviar un formulario.** Es lo que ya pasaba: el backoffice
+   entero está detrás del login.
+3. **Los tokens son por propósito, no un pase único.** `switch_organization` no vale para
+   `resend_verification`, y hay un test que lo fija.
+4. **Turbo ya no necesita cabecera de CSRF.** Con tokens de sesión el token viaja en el formulario;
+   se elimina `config/packages/ux_turbo.yaml` y el controlador Stimulus asociado, que solo existían
+   para la receta sin estado.
+
+**Alternativas descartadas.**
+
+- *Dejar los dos y documentar cuál toca.* Descartada: la documentación no impide que el siguiente
+  formulario elija el mecanismo equivocado.
+- *Todo sin estado.* Descartada: rompe los formularios de sesión existentes, obliga a un controlador
+  Stimulus para Turbo y ata la validez del token a una cookie del cliente.
