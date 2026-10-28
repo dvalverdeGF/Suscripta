@@ -24,6 +24,7 @@ cerrada, verificada y commiteada. El detalle de lo que queda pendiente está en
 ## [Fase 20] — 2026-10-28 — Webhooks de salida
 
 Un integrador deja de tener que preguntar: Suscripta le avisa cuando pasa algo, firmado.
+Commit de cierre: `bd646a8`.
 
 ### Añadido
 
@@ -52,6 +53,11 @@ Un integrador deja de tener que preguntar: Suscripta le avisa cuando pasa algo, 
   `RENEWAL_NOTICE` antes que `INVOICE`, de modo que una factura que menciona «se renovará» se
   tipaba como `OTHER`. El orden pasa a `PRICE_CHANGE → PLAN_CHANGE → INVOICE → RECEIPT →
   RENEWAL_NOTICE → UNKNOWN`: el tipo del documento lo decide lo que **es**, no lo que anuncia.
+- **El transporte `webhooks` no lo consumía ningún worker.** Estaba declarado en
+  `messenger.yaml` y las entregas se encolaban, pero ni el worker de desarrollo ni el de
+  producción lo tenían en su lista de `messenger:consume`: en producción se habrían quedado en
+  `PENDING` para siempre. Añadido a los dos, al `Makefile` (con `make worker-webhooks`) y al cron
+  documentado en `docs/operations.md`.
 - **Recuento de intentos de una entrega.** `abandon()` no incrementaba el contador, así que tras
   ocho envíos el registro decía siete. Ahora el intento que provoca el abandono también cuenta, y
   `maxAttempts()` pasa a llamarse `maxRetries()` con un `maxDeliveries()` explícito al lado: el

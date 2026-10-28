@@ -87,7 +87,7 @@ en su apartado correspondiente.
 | 17 | Preparación SaaS | ✅ Completada | `9504ff6` | 1385 tests, planes, cuotas, onboarding, backups |
 | 18 | API pública | ✅ Completada | `d840174` + `ffa7127` | 15 casos E2E y **35 tests** de API en verde; 6 defectos corregidos |
 | 19 | Cierre de documentación y publicación | ✅ Completada | `5821de0` | README de producto, CHANGELOG por fase, guía de despliegue, 1 420 tests |
-| 20 | Webhooks de salida | ✅ Completada | (ver cierre) | 29 tests nuevos; firma HMAC, 8 envíos, panel con prueba |
+| 20 | Webhooks de salida | ✅ Completada | `bd646a8` | 29 tests nuevos; firma HMAC, 8 envíos, panel con prueba |
 | 21 | `Subscription` como entidad propia | ⬜ Planificada | — | Servicios y suscripciones como listas distintas |
 | 22 | Catálogo comercial en el backoffice | ⬜ Planificada | — | Un plan con dos precios publicado sin desplegar |
 | 23 | Web corporativa (11 páginas) | ⬜ Planificada | — | `/` pública sin sesión, precios desde el catálogo |
@@ -2108,7 +2108,7 @@ a diferencia de la clave de API) y **D-76** (el aviso de presupuesto, una vez po
 
 | Comprobación | Resultado |
 |---|---|
-| Suite completa | **1 450 tests**, 5 850 aserciones, en verde |
+| Suite completa | **1 450 tests**, 5 843 aserciones, en verde |
 | Tests nuevos | 6 del firmante, 4 de la política, 7 de la entrega, 11 del panel, 1 del aviso de presupuesto |
 | PHPStan nivel 8 | Sin errores |
 | `php-cs-fixer --dry-run` | Sin cambios pendientes |
