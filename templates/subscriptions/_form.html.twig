@@ -1,0 +1,35 @@
+{#
+    El formulario lleva `id` porque el boton de guardar vive en la barra de
+    acciones del pie y se le asocia con el atributo HTML `form`.
+#}
+{{ form_start(form, {attr: {id: form_id|default('subscription-form'), class: 'form'}}) }}
+    {{ form_errors(form) }}
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="card-title">Qué has contratado</h2>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                {{ form_row(form.name) }}
+                {{ form_row(form.serviceId) }}
+                {{ form_row(form.externalReference) }}
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="card-title">Cómo se cobra</h2>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                {{ form_row(form.currency) }}
+                {{ form_row(form.billingPeriod) }}
+                {{ form_row(form.billingIntervalCount) }}
+                {{ form_row(form.startedAt) }}
+            </div>
+        </div>
+    </div>
+
+{{ form_end(form) }}

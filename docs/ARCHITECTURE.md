@@ -84,6 +84,7 @@ src/
 ├── Identity/          # User, Organization, Membership, autenticación
 ├── Catalog/           # Provider, Category, ProviderIdentity, ProviderParser (conocimiento global)
 ├── Services/          # Service, ServicePrice, ServiceEvent + read model  ← núcleo del producto
+├── Subscriptions/     # Subscription: el contrato recurrente (plan, periodo, estado de cobro)
 ├── Documents/         # Document, Invoice
 ├── Mailbox/           # EmailAccount, EmailMessage, EmailSyncCursor, EmailSyncRun, IMAP, reenvío
 ├── Processing/        # Pipeline: BillingClassifier, extractores, validación, estados, MailboxKnowledge
@@ -187,6 +188,49 @@ parser de código conviva con patrones configurados y con conocimiento aprendido
 **`Renewal` no es una entidad en v1.** La renovación es un conjunto de propiedades del
 `Service` (`renewalAt`, `noticePeriodDays`, `autoRenews`, `commitmentEndAt`) más un evento
 generado. Ver `DECISIONS.md` (D-03).
+
+### 4.3.1 Suscripción: el contrato (Fase 21)
+
+`Service` responde a *«¿qué estoy pagando?»*. `Subscription` responde a *«¿qué contrato
+sostiene ese cobro?»*. Son dos preguntas distintas y por eso son dos entidades (D-78).
+
+| Entidad | Campos clave |
+|---|---|
+| `Subscription` | id, organizationId, planId (nullable), serviceId (nullable), name, status, currency, billingPeriod, billingIntervalCount, startedAt, currentPeriodStart, currentPeriodEnd, trialEndsAt (nullable), canceledAt (nullable), endsAt (nullable), externalReference (nullable), createdByUserId, createdAt, updatedAt |
+
+**`Subscription.status`**: `trialing`, `active`, `past_due`, `paused`, `canceled`. No se
+reutiliza `ServiceStatus`: `past_due` es un estado de **cobro** que un servicio descubierto en
+el correo nunca tendrá, y `pending_review` es un estado de **revisión** que una suscripción
+nunca tendrá.
+
+| Transición | Método | Regla |
+|---|---|---|
+| `* → trialing` | `startTrial()` | Solo con fin posterior a hoy y si no está cancelada. |
+| `trialing → active` | `activate()` | El periodo **empieza hoy**: la prueba no se cobra. |
+| `* → active` | `activate()` | Limpia `trialEndsAt` y `endsAt`. Una cancelada no vuelve. |
+| `* → past_due` | `markPastDue()` | Sigue viva: se da servicio mientras se reintenta el cobro. |
+| `* → paused` | `pause()` | Idempotente. El periodo **no** avanza. |
+| `paused → active` | `resume()` | El periodo **se reinicia hoy**: los días de pausa no se cobraron. |
+| `* → canceled` | `cancel()` | Idempotente. `endsAt` = fin del periodo pagado; no corta el acceso hoy. |
+| `active → active` | `renew()` | Solo lo activo se renueva. Si el periodo venció, el nuevo empieza hoy. |
+
+**El periodo se calcula con `BillingPeriod::advance()`**, no sumando días: una suscripción
+mensual del 31 de enero renueva el 28 de febrero. `changeBillingPeriod()` recalcula el final
+del periodo en curso **desde su inicio**, así que pasar de mensual a anual alarga el periodo
+actual en lugar de dejarlo a medias.
+
+**El nombre está congelado en la suscripción**, no se lee del plan: si el catálogo renombra el
+producto, quien ya lo contrató sigue viendo el nombre con el que lo contrató (D-79).
+
+**No hay columna de importe.** El precio vive en el catálogo (Fase 22) y en las facturas del
+cobro (Fase 24). Congelarlo aquí obligaría a decidir hoy qué pasa con las subidas de precio, y
+esa decisión se toma con la pasarela delante.
+
+**`planId` y `serviceId` son UUID sueltos, sin clave ajena.** `Plan` vivirá en `Catalog` y
+`Service` en `Services`; los módulos no se referencian por FK, igual que `Service::$providerId`
+y `$categoryId`. La relación con el servicio es **opcional y explícita**: un servicio detectado
+en una factura no es una suscripción del catálogo, y confundirlos es el error que esta fase
+evita.
 
 ### 4.4 Documentos y facturas
 

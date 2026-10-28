@@ -119,6 +119,13 @@
                 </a>
             </li>
 
+            <li class="bo-menu__item {{ app.request.attributes.get('_route') starts with 'app_subscriptions' ? 'bo-menu__item--active' : '' }}">
+                <a href="{{ path('app_subscriptions_index') }}" class="bo-menu__link">
+                    <i class="fa-solid fa-arrows-rotate bo-menu__icon"></i>
+                    <span>Suscripciones</span>
+                </a>
+            </li>
+
             <li class="bo-menu__item {{ app.request.attributes.get('_route') starts with 'app_discoveries' ? 'bo-menu__item--active' : '' }}">
                 <a href="{{ path('app_discoveries_index') }}" class="bo-menu__link">
                     <i class="fa-solid fa-compass bo-menu__icon"></i>

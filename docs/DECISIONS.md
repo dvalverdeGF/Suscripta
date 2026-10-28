@@ -2489,3 +2489,85 @@ un comprobador de disponibilidad, es un cortafuegos.
 - *Usar `FILTER_VALIDATE_URL` y fiarse.* Descartada: no mira direcciones, solo sintaxis.
 - *Una lista negra de nombres (`localhost`, `metadata.google.internal`…).* Descartada: los nombres
   son infinitos y las direcciones no.
+
+---
+
+## D-78 — `Subscription` es una entidad propia y no un `Service` con más campos
+
+**Estado:** aceptada.
+
+**Contexto.** Hasta la Fase 21, `Service` era el término único del dominio: lo que se paga y el
+contrato que lo sostiene eran la misma fila. Eso funcionaba mientras el producto solo miraba hacia
+atrás —descubrir en el correo lo que ya se paga—, pero el catálogo comercial (Fase 22) y el cobro
+con pasarela (Fase 24) necesitan dos cosas que `Service` no puede dar:
+
+- Un **plan** puede cambiar de precio sin tocar a quien ya lo contrató, y la suscripción de cada
+  cliente apunta a un plan del catálogo, no a un texto libre.
+- Una suscripción tiene **estado de cobro** (`past_due`), que un servicio detectado en una factura
+  nunca tendrá, y un servicio descubierto tiene **estado de revisión** (`pending_review`), que una
+  suscripción nunca tendrá.
+
+**Decisión.** `Subscription` es una entidad del módulo `Subscriptions`, con su propio estado, su
+periodo y sus fechas. Se enlaza con `Service` mediante `serviceId`, **opcional y explícito**: un
+servicio detectado en el correo no se convierte en suscripción por el hecho de existir.
+
+`planId` y `serviceId` son **UUID sueltos, sin clave ajena**. `Plan` vivirá en `Catalog` y
+`Service` en `Services`, y los módulos no se referencian por FK en este proyecto (igual que
+`Service::$providerId` y `$categoryId`). La consecuencia práctica es que el módulo `Subscriptions`
+no arrastra el grafo de `Services` y que `planId` puede estar vacío mientras no exista catálogo.
+
+**Consecuencias.**
+
+1. **Dos listas en el backoffice.** Servicios y suscripciones se ven por separado; el enlace es un
+   desplegable en el alta y un enlace en la ficha.
+2. **`ServiceStatus` no se reutiliza.** Son dos ciclos de vida con estados que no se solapan; una
+   unión habría obligado a que cada pantalla filtrase los estados del otro.
+3. **La migración no rellena datos.** El plan preveía enlazar los servicios `MANUAL` con su plan
+   del catálogo, pero el catálogo es la Fase 22 y todavía no existe: no hay nada con lo que
+   emparejarlos. El relleno se hace allí.
+4. **La API pública no cambia en esta fase.** El contrato se amplía en la Fase 24, cuando el cobro
+   dé a la suscripción algo que ofrecer.
+
+**Alternativas descartadas.**
+
+- *Añadir `planId` y `status` de cobro a `Service`.* Descartada: mete dos ciclos de vida en una
+  tabla y obliga a que todo lo que hoy lee servicios —dashboard, alertas, exportación, API— filtre
+  las filas que no son servicios.
+- *Hacer `Subscription` una tabla de unión `(organizationId, planId)`.* Descartada: pierde el
+  periodo, el estado y las fechas, que es justo lo que hay que guardar.
+- *FK real a `service`.* Descartada por coherencia con el resto del proyecto y porque obliga a
+  decidir el orden de borrado entre dos módulos.
+
+---
+
+## D-79 — El nombre de la suscripción se congela; el precio, no se guarda
+
+**Estado:** aceptada.
+
+**Contexto.** Una suscripción apunta a un plan del catálogo, y ese plan puede renombrarse o
+cambiar de precio. Hay que decidir qué ve el cliente que ya lo tenía contratado.
+
+**Decisión.** La suscripción guarda una **copia del nombre** en el momento del alta
+(`Subscription::$name`), y no guarda ningún importe.
+
+**Por qué el nombre sí.** Es lo que el cliente reconoce en su panel y en sus facturas. Si se
+leyera del plan, renombrar «Plan Pro» a «Plan Business» cambiaría el histórico de todos los
+clientes a la vez, y una factura de enero dejaría de coincidir con lo que se ve hoy en pantalla.
+El nombre es un dato del contrato, no del producto. `changePlan()` acepta un nombre nuevo porque
+un cambio de plan sí es un cambio de contrato, pero **no toca el periodo ni el estado**: cambiar
+de plan no es un cobro.
+
+**Por qué el importe no.** El precio de una suscripción depende de tres cosas que todavía no
+están decididas: el precio del plan en el momento del alta, la moneda, y qué pasa cuando el
+catálogo sube el precio de un plan que ya tiene clientes (¿se respeta el precio antiguo?, ¿se
+avisa?, ¿cuándo?). Guardar un importe ahora obliga a responder eso hoy, y la respuesta sensata
+—prorratear, respetar hasta la renovación, avisar con antelación— se decide en la Fase 24 con la
+pasarela delante, que es la que ya sabe hacerlo. Hasta entonces el importe vive donde ya vive: en
+`ServicePrice` para lo detectado y en el catálogo para lo vendido.
+
+**Consecuencias.**
+
+1. Renombrar un plan del catálogo **no** reescribe las suscripciones vivas.
+2. La ficha de la suscripción no enseña importe; enseña periodo, estado y periodicidad.
+3. Cuando la Fase 24 traiga el cobro, el importe entra por la factura de la pasarela, no por un
+   campo nuevo en `Subscription`.

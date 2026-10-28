@@ -1,0 +1,143 @@
+{% extends 'backoffice/base.html.twig' %}
+
+{% block title %}{{ subscription.name }} — Suscripta{% endblock %}
+
+{% block content %}
+    {% set id = subscription.id.toRfc4122() %}
+    {% set token = csrf_token('subscription_lifecycle_' ~ id) %}
+
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">{{ subscription.name }}</h1>
+            <p class="bo-page-header__subtitle">
+                {% if service %}
+                    Enlazada con <a href="{{ path('app_services_show', {id: service.id.toRfc4122()}) }}">{{ service.name }}</a>
+                {% else %}
+                    Sin enlazar con ningún servicio del inventario
+                {% endif %}
+            </p>
+            <div class="bo-page-header__meta">
+                <span class="badge text-bg-{{ subscription.status.badge() }}">{{ subscription.status.label() }}</span>
+                {% if subscription.externalReference %}
+                    <span class="badge text-bg-light">{{ subscription.externalReference }}</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="bo-page-header__actions">
+            <a class="btn btn-outline-secondary" href="{{ path('app_subscriptions_edit', {id: id}) }}">
+                <i class="fa-solid fa-pen-to-square me-1"></i> Editar
+            </a>
+        </div>
+    </div>
+
+    <div class="bo-metrics mb-4">
+        <div class="bo-metric">
+            <span class="bo-metric__label">Periodo en curso</span>
+            <span class="bo-metric__value">
+                {{ subscription.currentPeriodStart|date('d/m/Y') }} – {{ subscription.currentPeriodEnd|date('d/m/Y') }}
+            </span>
+            <span class="bo-metric__hint">Desde el alta el {{ subscription.startedAt|date('d/m/Y') }}</span>
+        </div>
+        <div class="bo-metric">
+            <span class="bo-metric__label">Próxima renovación</span>
+            <span class="bo-metric__value">
+                {% if subscription.status.isFinal() %}—{% else %}{{ subscription.currentPeriodEnd|date('d/m/Y') }}{% endif %}
+            </span>
+            {% if not subscription.status.isFinal() %}
+                {% set left = subscription.daysLeft() %}
+                <span class="bo-metric__hint">
+                    {% if left > 0 %}Quedan {{ left }} días{% elseif 0 == left %}Se renueva hoy{% else %}Vencida hace {{ left|abs }} días{% endif %}
+                </span>
+            {% endif %}
+        </div>
+        <div class="bo-metric">
+            <span class="bo-metric__label">Periodicidad</span>
+            <span class="bo-metric__value">{{ subscription.billingPeriod.label() }}</span>
+            <span class="bo-metric__hint">
+                {% if subscription.billingIntervalCount > 1 %}Cada {{ subscription.billingIntervalCount }} periodos{% else %}Cada periodo{% endif %}
+                · {{ subscription.currency.value }}
+            </span>
+        </div>
+        <div class="bo-metric">
+            <span class="bo-metric__label">Alta</span>
+            <span class="bo-metric__value">{{ subscription.createdAt|date('d/m/Y') }}</span>
+            {% if subscription.canceledAt %}
+                <span class="bo-metric__hint">Cancelada el {{ subscription.canceledAt|date('d/m/Y') }}</span>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if subscription.endsAt %}
+        <div class="alert alert-warning mb-4">
+            <p class="m-0">
+                No se renovará. La suscripción sigue viva hasta el
+                <strong>{{ subscription.endsAt|date('d/m/Y') }}</strong>.
+            </p>
+        </div>
+    {% endif %}
+
+    {% if subscription.planId %}
+        <div class="card mb-4">
+            <div class="card-body">
+                <p class="m-0 text-muted small">
+                    Plan del catálogo: <code>{{ subscription.planId.toRfc4122() }}</code>
+                </p>
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Ciclo de vida</h2>
+        </div>
+        <div class="card-body">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                {% if subscription.status.value == 'active' %}
+                    <form method="post" action="{{ path('app_subscriptions_status', {id: id, status: 'paused'}) }}">
+                        <input type="hidden" name="_token" value="{{ token }}">
+                        <button type="submit" class="btn btn-outline-secondary">Pausar</button>
+                    </form>
+                {% elseif subscription.status.value == 'paused' %}
+                    <form method="post" action="{{ path('app_subscriptions_status', {id: id, status: 'active'}) }}">
+                        <input type="hidden" name="_token" value="{{ token }}">
+                        <button type="submit" class="btn btn-outline-secondary">Reactivar</button>
+                    </form>
+                {% elseif subscription.status.value == 'trialing' %}
+                    <form method="post" action="{{ path('app_subscriptions_status', {id: id, status: 'active'}) }}">
+                        <input type="hidden" name="_token" value="{{ token }}">
+                        <button type="submit" class="btn btn-outline-secondary">Activar</button>
+                    </form>
+                {% elseif subscription.status.value == 'past_due' %}
+                    <form method="post" action="{{ path('app_subscriptions_status', {id: id, status: 'active'}) }}">
+                        <input type="hidden" name="_token" value="{{ token }}">
+                        <button type="submit" class="btn btn-outline-secondary">Marcar como al día</button>
+                    </form>
+                {% endif %}
+
+                {% if not subscription.status.isFinal() %}
+                    <form method="post" action="{{ path('app_subscriptions_renew', {id: id}) }}">
+                        <input type="hidden" name="_token" value="{{ token }}">
+                        <button type="submit" class="btn btn-outline-secondary">Renovar ahora</button>
+                    </form>
+
+                    <form method="post" action="{{ path('app_subscriptions_cancel', {id: id}) }}">
+                        <input type="hidden" name="_token" value="{{ token }}">
+                        <button type="submit" class="btn btn-outline-secondary">No renovar</button>
+                    </form>
+                {% endif %}
+            </div>
+            <p class="text-muted small mt-3">
+                Renovar adelanta el periodo hasta hoy y lo deja activo. «No renovar» no corta el
+                acceso: la suscripción sigue viva hasta que termine el periodo pagado.
+            </p>
+        </div>
+        <div class="card-footer">
+            <form method="post" action="{{ path('app_subscriptions_delete', {id: id}) }}"
+                  data-controller="confirm"
+                  data-confirm-message-value="Se borrará la suscripción y su periodo en curso. Esta acción no se puede deshacer.">
+                <input type="hidden" name="_token" value="{{ csrf_token('subscription_delete_' ~ id) }}">
+                <button type="submit" class="btn btn-danger">Eliminar definitivamente</button>
+            </form>
+        </div>
+    </div>
+{% endblock %}

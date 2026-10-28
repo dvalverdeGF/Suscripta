@@ -1,0 +1,32 @@
+{% extends 'backoffice/base.html.twig' %}
+
+{% block title %}Editar {{ subscription.name }} — Suscripta{% endblock %}
+
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">Editar suscripción</h1>
+            <p class="bo-page-header__subtitle">{{ subscription.name }}</p>
+        </div>
+    </div>
+
+    <div class="alert alert-info mb-4">
+        <p class="m-0">
+            Cambiar la periodicidad recalcula el periodo en curso desde hoy. El estado no se
+            cambia desde aquí: usa las acciones de ciclo de vida en la ficha.
+        </p>
+    </div>
+
+    {% include 'subscriptions/_form.html.twig' with {
+        form: form,
+        form_id: 'subscription-form',
+    } only %}
+{% endblock %}
+
+{% block page_actions %}
+    {{ include('backoffice/_form_actions.html.twig', {
+        form_id: 'subscription-form',
+        submit_label: 'Guardar cambios',
+        back_path: path('app_subscriptions_show', {id: subscription.id.toRfc4122()}),
+    }) }}
+{% endblock %}

@@ -13,11 +13,45 @@ cerrada, verificada y commiteada. El detalle de lo que queda pendiente está en
 
 ### Pendiente
 
-- Fase 21 — `Subscription` como entidad propia. Planificada.
-- Fase 22 — Catálogo comercial en el backoffice. Planificada.
+- Fase 22 — Catálogo comercial en el backoffice. Planificada (incluye enlazar con su plan las
+  suscripciones creadas en la fase 21).
 - Fase 23 — Web corporativa (once páginas). Planificada.
 - Fase 24 — Checkout con Stripe. Planificada.
 - Fase 25 — CSRF unificado con el gestor de sesión. Planificada.
+
+---
+
+## [Fase 21] — 2026-10-28 — `Subscription` como entidad propia
+
+El producto ya distingue lo que se paga del contrato que lo sostiene. Commit de cierre: pendiente
+de anotar.
+
+### Añadido
+
+- **Módulo `Subscriptions`** con la entidad `Subscription`: plan, periodo en curso, estado de
+  cobro, fechas de alta y baja, y referencia externa del cobrador.
+- **Panel `/subscriptions`**: alta, edición, ficha y ciclo de vida (activar, pausar, reanudar,
+  renovar, no renovar, eliminar), con filtros por estado y búsqueda por nombre.
+- **`SubscriptionStatus`** (`trialing`, `active`, `past_due`, `paused`, `canceled`) con
+  `isLive()`, `isPaid()` y `isFinal()`. No se reutiliza `ServiceStatus`: `past_due` es un estado
+  de cobro que un servicio descubierto en el correo nunca tendrá (D-78).
+- **Periodo calculado con aritmética de calendario**: una suscripción mensual del 31 de enero
+  renueva el 28 de febrero, no el 2 de marzo.
+- **Enlace opcional con un servicio del inventario**, por UUID suelto y sin clave ajena: un
+  servicio detectado en una factura no se convierte en suscripción por existir.
+- Tabla `subscription` con tres índices (migración `Version20261028224739`).
+- Entrada «Suscripciones» en el menú de operación del backoffice.
+
+### Decisiones
+
+- **D-78** — `Subscription` es una entidad propia y no un `Service` con más campos.
+- **D-79** — El nombre de la suscripción se congela en el alta; el importe no se guarda.
+
+### Notas
+
+- La migración **no rellena datos**: el plan de la fase preveía enlazar los servicios `MANUAL` con
+  su plan del catálogo, pero el catálogo es la fase 22. El relleno se hace allí.
+- La API pública no cambia en esta fase; el contrato se amplía en la 24.
 
 ---
 

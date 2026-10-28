@@ -1,0 +1,128 @@
+{% extends 'backoffice/base.html.twig' %}
+
+{% block title %}Suscripciones — Suscripta{% endblock %}
+
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">Suscripciones</h1>
+            <p class="bo-page-header__subtitle">Los contratos recurrentes que tienes en marcha y cuándo se renuevan.</p>
+        </div>
+        <div class="bo-page-header__actions">
+            <a class="btn btn-primary" href="{{ path('app_subscriptions_new') }}">
+                <i class="fa-solid fa-plus me-1"></i> Añadir suscripción
+            </a>
+        </div>
+    </div>
+
+    {% if counts is not empty %}
+        <div class="bo-metrics mb-4">
+            {% for status in statuses %}
+                {% if counts[status.value] is defined %}
+                    <div class="bo-metric">
+                        <span class="bo-metric__label">{{ status.label() }}</span>
+                        <span class="bo-metric__value">{{ counts[status.value] }}</span>
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <form class="card mb-4" method="get" action="{{ path('app_subscriptions_index') }}">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="mb-3">
+                    <label class="form-label" for="filter-q">Buscar</label>
+                    <input class="form-control" type="search" id="filter-q" name="q" value="{{ filters.search }}" placeholder="Nombre o referencia">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="filter-status">Estado</label>
+                    <select class="form-select" id="filter-status" name="status">
+                        <option value="">Todos</option>
+                        {% for status in statuses %}
+                            <option value="{{ status.value }}" {% if filters.status == status %}selected{% endif %}>{{ status.label() }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="filter-sort">Ordenar por</label>
+                    <select class="form-select" id="filter-sort" name="sort">
+                        <option value="renewal" {% if filters.normalizedSort() == 'renewal' %}selected{% endif %}>Próxima renovación</option>
+                        <option value="name" {% if filters.normalizedSort() == 'name' %}selected{% endif %}>Nombre</option>
+                        <option value="created" {% if filters.normalizedSort() == 'created' %}selected{% endif %}>Más recientes</option>
+                    </select>
+                </div>
+            </div>
+            <div class="d-flex flex-wrap gap-2 mt-3">
+                <button type="submit" class="btn btn-outline-secondary">Filtrar</button>
+                <a class="btn btn-outline-secondary" href="{{ path('app_subscriptions_index') }}">Limpiar</a>
+            </div>
+        </div>
+    </form>
+
+    {% if subscriptions is empty %}
+        <div class="card">
+            <div class="card-body">
+                <div class="bo-empty">
+                    <p class="bo-empty__title">Todavía no hay suscripciones</p>
+                    <p class="bo-empty__text">
+                        Una suscripción es el contrato que hay detrás de un cobro recurrente: su plan,
+                        su periodo y su estado. Añádela aquí o enlázala con un servicio de tu inventario.
+                    </p>
+                    <div class="d-flex flex-wrap align-items-center justify-content-end gap-2">
+                        <a class="btn btn-primary" href="{{ path('app_subscriptions_new') }}">Añadir suscripción</a>
+                        {% if route_exists('app_services_index') %}
+                            <a class="btn btn-outline-secondary" href="{{ path('app_services_index') }}">Ver servicios</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="table-responsive">
+            <table class="table bo-table bo-table--stack align-middle">
+                <caption class="visually-hidden">Listado de suscripciones</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Suscripción</th>
+                        <th scope="col">Estado</th>
+                        <th scope="col">Periodo en curso</th>
+                        <th scope="col">Renovación</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for subscription in subscriptions %}
+                        <tr>
+                            <td data-label="Suscripción">
+                                <a href="{{ path('app_subscriptions_show', {id: subscription.id.toRfc4122()}) }}">{{ subscription.name }}</a>
+                                {% if subscription.serviceId %}
+                                    {% set serviceName = serviceNames[subscription.serviceId.toRfc4122()]|default(null) %}
+                                    {% if serviceName %}
+                                        <span class="text-muted small">· {{ serviceName }}</span>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                            <td data-label="Estado">
+                                <span class="badge text-bg-{{ subscription.status.badge() }}">{{ subscription.status.label() }}</span>
+                            </td>
+                            <td data-label="Periodo en curso">
+                                {{ subscription.currentPeriodStart|date('d/m/Y') }} – {{ subscription.currentPeriodEnd|date('d/m/Y') }}
+                            </td>
+                            <td data-label="Renovación">
+                                {% if subscription.status.isFinal() %}
+                                    <span class="text-secondary">—</span>
+                                {% else %}
+                                    <time datetime="{{ subscription.currentPeriodEnd|date('Y-m-d') }}">{{ subscription.currentPeriodEnd|date('d/m/Y') }}</time>
+                                    {% set left = subscription.daysLeft() %}
+                                    {% if left <= 7 and left >= 0 %}
+                                        <span class="badge text-bg-warning">{{ left }} días</span>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+{% endblock %}

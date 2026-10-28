@@ -1,0 +1,26 @@
+{% extends 'backoffice/base.html.twig' %}
+
+{% block title %}Nueva suscripción — Suscripta{% endblock %}
+
+{% block content %}
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">Nueva suscripción</h1>
+            <p class="bo-page-header__subtitle">El contrato que sostiene un cobro recurrente.</p>
+        </div>
+    </div>
+
+    {% include 'subscriptions/_form.html.twig' with {
+        form: form,
+        form_id: 'subscription-form',
+    } only %}
+{% endblock %}
+
+{% block page_actions %}
+    {{ include('backoffice/_form_actions.html.twig', {
+        form_id: 'subscription-form',
+        submit_label: 'Añadir suscripción',
+        submit_icon: 'fa-plus',
+        back_path: path('app_subscriptions_index'),
+    }) }}
+{% endblock %}

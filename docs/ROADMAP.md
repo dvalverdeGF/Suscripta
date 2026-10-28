@@ -1,6 +1,6 @@
 # Roadmap
 
-> Estado: **fases 0 a 20 cerradas** (1 483 tests, PHPStan nivel 8 limpio). Las fases 21 a 25
+> Estado: **fases 0 a 21 cerradas** (1 512 tests, PHPStan nivel 8 limpio). Las fases 22 a 25
 > están planificadas y decididas con el usuario, sin empezar; la deuda técnica conocida está
 > listada al final. Fases pequeñas y verificables: cada fase termina con algo demostrable y con
 > criterios de aceptación explícitos.
@@ -46,7 +46,7 @@ en su apartado correspondiente.
 |---|---|
 | [`PRODUCT.md`](PRODUCT.md) | Qué es el producto, para quién y qué problema resuelve. |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | Cómo está construido, módulo por módulo. §17 = la API, §18 = los webhooks. |
-| [`DECISIONS.md`](DECISIONS.md) | Por qué se hizo así. D-71 y D-72 = la API; D-73 a D-76 = los webhooks; D-77 = la guarda anti-SSRF. |
+| [`DECISIONS.md`](DECISIONS.md) | Por qué se hizo así. D-71 y D-72 = la API; D-73 a D-76 = los webhooks; D-77 = la guarda anti-SSRF; D-78 y D-79 = la suscripción como entidad propia. |
 | [`ROADMAP.md`](ROADMAP.md) | Este documento: qué está hecho y qué falta. |
 | [`SECURITY.md`](SECURITY.md) | Modelo de amenazas y medidas. |
 | [`operations.md`](operations.md) | Runbook del día a día: desplegar, copiar, restaurar, vigilar. |
@@ -2146,29 +2146,75 @@ vez, pulsa «Enviar prueba» y ve el código de respuesta de su endpoint; a part
 servicio o confirmar una propuesta le llega firmado, con `Idempotency-Key`, y se reintenta solo
 durante algo menos de dos días antes de abandonarse.
 
-## Fase 21 — `Subscription` como entidad propia (planificada)
+## Fase 21 — `Subscription` como entidad propia
 
-> **Estado:** ⬜ **Planificada.** Decidida con el usuario; no empezada.
+> **Estado:** ✅ **Completada.**
 
 **Objetivo:** separar «servicio contratado» de «suscripción» sin romper lo que ya funciona.
 
-**Por qué ahora.** `Service` es hoy el término único del dominio (D-22 lo decidió así a
-propósito). El catálogo comercial de la fase 22 y el cobro de la fase 24 necesitan distinguir el
-**producto** que se vende de la **suscripción** que un cliente tiene a ese producto: un plan puede
-cambiar de precio sin tocar las suscripciones vivas, y una suscripción tiene estado propio
-(activa, impagada, cancelada) que no es el estado de un servicio detectado en el correo.
+**Por qué ahora.** `Service` era el término único del dominio (D-22 lo decidió así a propósito).
+El catálogo comercial de la fase 22 y el cobro de la fase 24 necesitan distinguir el **producto**
+que se vende de la **suscripción** que un cliente tiene a ese producto: un plan puede cambiar de
+precio sin tocar las suscripciones vivas, y una suscripción tiene estado propio (activa, impagada,
+cancelada) que no es el estado de un servicio detectado en el correo.
 
-**Alcance.**
+**Qué se ha construido.** Un módulo nuevo, `src/Subscriptions/`, con las cuatro capas del resto
+del proyecto. Nada de `Services` cambia: la relación es un UUID suelto y opcional, así que las dos
+listas conviven sin tocarse.
 
-- Entidad `Subscription` con `organizationId`, `planId`, estado, periodo, fechas de alta y baja.
-- Relación con `Service` **opcional y explícita**: un servicio detectado en una factura no es una
-  suscripción del catálogo, y confundirlos es el error que esta fase evita.
-- Migración con relleno de datos: los servicios con `source = MANUAL` que correspondan a un plan
-  del catálogo se enlazan; el resto se quedan como están.
-- Sin cambios en la API pública todavía (el contrato se amplía en la fase 24).
+| Capa | Piezas |
+|---|---|
+| `Domain/Enum` | `SubscriptionStatus`: `trialing`, `active`, `past_due`, `paused`, `canceled`, con `label()`, `isLive()`, `isPaid()`, `isFinal()` y `badge()`. |
+| `Domain/Entity` | `Subscription`: periodo calculado con `BillingPeriod::advance()`, nombre congelado y diez transiciones (`startTrial`, `activate`, `markPastDue`, `pause`, `resume`, `cancel`, `renew`, `changePlan`, `linkService`, `changeBillingPeriod`). |
+| `Domain/Repository` | `SubscriptionRepositoryInterface` + `SubscriptionFilters` (estado, plan, búsqueda, orden). |
+| `Infrastructure/Repository` | `SubscriptionRepository`: filtro de tenant automático, `findLiveForService()` y `countByStatus()`. |
+| `Application` | `CreateSubscription`, `UpdateSubscription`, `ChangeSubscriptionStatus`, `CancelSubscription`, `RenewSubscription` + `SubscriptionInput`. |
+| `UI` | `SubscriptionController` (8 rutas), `SubscriptionFormType`, `SubscriptionFormData` y 5 plantillas. |
+| Migración | `Version20261028224739`: tabla `subscription` con 3 índices. |
 
-**Verificación:** el backoffice enseña servicios y suscripciones como dos listas distintas; los
-tests existentes de `Service` siguen pasando sin tocarlos.
+**Las reglas del ciclo de vida**, que es donde está el valor de la fase:
+
+| Transición | Regla |
+|---|---|
+| `trialing → active` | El periodo **empieza hoy**: la prueba no se cobra y arrastrarla dejaría un periodo medio consumido. |
+| `paused → active` | El periodo **se reinicia hoy**: los días de pausa no se cobraron, así que tampoco se deben. |
+| `active → canceled` | `endsAt` = fin del periodo pagado. No corta el acceso hoy: el cliente ya lo ha pagado. |
+| `active → active` (renovar) | Solo lo activo se renueva, y si el periodo ya venció el nuevo empieza **hoy**, no en la fecha teórica: si no, un worker parado dos meses generaría dos periodos pasados. |
+| `* → canceled` | Idempotente: cancelar dos veces no reescribe la fecha de baja. |
+| `canceled → *` | Prohibido. Una suscripción cancelada no vuelve: se crea otra. |
+
+**Lo que se decidió no hacer.**
+
+- **Rellenar datos en la migración.** El plan de la fase preveía enlazar los servicios `MANUAL`
+  con su plan del catálogo. El catálogo es la fase 22 y todavía no existe, así que no hay nada con
+  lo que emparejarlos: la tabla nace vacía y el relleno se hace allí.
+- **Guardar el importe en la suscripción.** Depende de decisiones que se toman con la pasarela
+  delante (qué pasa cuando el catálogo sube el precio de un plan que ya tiene clientes). El
+  importe vive en `ServicePrice` para lo detectado y en el catálogo para lo vendido (D-79).
+- **Tocar la API pública.** El contrato se amplía en la fase 24, cuando el cobro dé a la
+  suscripción algo que ofrecer.
+
+**Decisiones registradas:** **D-78** (`Subscription` es una entidad propia y no un `Service` con
+más campos; `planId` y `serviceId` son UUID sueltos) y **D-79** (el nombre se congela; el precio
+no se guarda).
+
+**Verificación de cierre**
+
+| Comprobación | Resultado |
+|---|---|
+| Suite completa | **1 512 tests**, 6 044 aserciones, en verde (+29 desde la fase 20) |
+| Tests nuevos | 15 unitarios de la entidad (periodo, renovación, pausa, cancelación idempotente, prueba) y 14 funcionales (alta, edición, enlace con servicio, ciclo de vida, listas separadas, aislamiento entre organizaciones) |
+| PHPStan nivel 8 | Sin errores |
+| `php-cs-fixer --dry-run` | Sin cambios pendientes (764 ficheros) |
+| `lint:container` / `lint:twig` / `lint:yaml --parse-tags` | Sin errores (61 plantillas, 38 YAML) |
+| `doctrine:schema:validate` | Mapeo y esquema sincronizados |
+| Migración | Aplicada en `dev` y en `test` (21 migraciones) |
+| `debug:router` | Las 8 rutas del panel registradas |
+
+**Verificación de la fase:** el backoffice enseña servicios y suscripciones como dos listas
+distintas —una suscripción no aparece en `/services` y un servicio no aparece en `/subscriptions`—,
+una suscripción se enlaza opcionalmente con un servicio, y los tests de `Service` siguen pasando
+sin haberlos tocado.
 
 ## Fase 22 — Catálogo comercial en el backoffice (planificada)
 
@@ -2185,9 +2231,13 @@ características— sin tocar código.
 - Precios con historial: cambiar un precio **no** reescribe las suscripciones vivas.
 - Los límites del plan (`config/packages/entitlements.yaml`) siguen siendo la fuente de verdad de
   las capacidades; el catálogo comercial no los duplica.
+- **Relleno que la fase 21 dejó pendiente:** ahora que existen planes, enlazar (`planId`) las
+  suscripciones creadas antes y los servicios `MANUAL` que correspondan a un plan del catálogo.
+  Es una migración con datos, no un cambio de esquema, y va al final de la fase.
 
 **Verificación:** se crea un plan con dos precios, se publica y aparece en la web corporativa
-(fase 23) sin desplegar.
+(fase 23) sin desplegar; una suscripción creada en la fase 21 queda enlazada a su plan sin
+intervención manual.
 
 ## Fase 23 — Web corporativa (planificada)
 
