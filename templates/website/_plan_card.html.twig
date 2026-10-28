@@ -72,15 +72,38 @@
         </dl>
     {% endif %}
 
-    <p class="plan__cta">
+    <div class="plan__cta">
         {% if card.isFree %}
             <a class="btn {{ card.highlighted ? 'btn--primary' : 'btn--ghost' }}" href="{{ path('app_register') }}">
                 Empezar gratis
             </a>
+        {% elseif checkout|default(false) and card.purchases is not empty %}
+            {#
+                Contratar lleva al pago, no al registro: quien ya tiene cuenta
+                paga y quien no la tiene vuelve aquí tras crearla. Se ofrece un
+                botón por periodo porque la misma tarjeta puede vender mensual y
+                anual, y esconder el anual detrás de otra pantalla pierde la
+                venta del que venía a pagar el año.
+            #}
+            {% if card.purchases|length == 1 %}
+                <a class="btn {{ card.highlighted ? 'btn--primary' : 'btn--ghost' }}"
+                   href="{{ path('app_checkout', { priceId: card.purchases|first.priceId }) }}">
+                    Contratar
+                </a>
+            {% else %}
+                <div class="plan__buy">
+                    {% for purchase in card.purchases %}
+                        <a class="btn {{ card.highlighted ? 'btn--primary' : 'btn--ghost' }}"
+                           href="{{ path('app_checkout', { priceId: purchase.priceId }) }}">
+                            Contratar {{ purchase.label|lower }}
+                        </a>
+                    {% endfor %}
+                </div>
+            {% endif %}
         {% else %}
             <a class="btn {{ card.highlighted ? 'btn--primary' : 'btn--ghost' }}" href="{{ path('app_register') }}">
                 Crear cuenta
             </a>
         {% endif %}
-    </p>
+    </div>
 </article>

@@ -288,7 +288,7 @@
             {% else %}
                 <div class="plans">
                     {% for card in plans %}
-                        {% include 'website/_plan_card.html.twig' with { card: card } only %}
+                        {% include 'website/_plan_card.html.twig' with { card: card, checkout: checkoutEnabled } only %}
                     {% endfor %}
                 </div>
             {% endif %}
