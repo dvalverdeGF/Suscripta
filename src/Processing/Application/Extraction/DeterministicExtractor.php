@@ -291,12 +291,22 @@ final readonly class DeterministicExtractor
         // ("Factura OVH"), así que la comparación tiene que ser insensible.
         $haystack = mb_strtolower($haystack);
 
+        // El orden decide qué gana cuando un mensaje encaja en varios sitios, y
+        // las facturas reales encajan en varios: casi todas avisan de que se
+        // renovarán. Por eso `INVOICE` va **antes** que `RENEWAL_NOTICE`.
+        //
+        // Tipar de factura un mensaje que menciona la renovación no pierde la
+        // señal de cobro futuro: `renewalDate` se extrae del cuerpo por su
+        // cuenta, no de la clasificación. Lo que sí se pierde al revés es el
+        // hecho: un documento tipado `OTHER` no cuenta como factura ni entra en
+        // el historial de precios, y la renovación queda registrada de un
+        // documento que el producto no considera un cobro.
         return match (true) {
             $this->containsAny($haystack, self::PRICE_CHANGE_MARKERS) => MessageClassification::PRICE_CHANGE,
             $this->containsAny($haystack, self::PLAN_CHANGE_MARKERS) => MessageClassification::PLAN_CHANGE,
-            $this->containsAny($haystack, self::RENEWAL_NOTICE_MARKERS) => MessageClassification::RENEWAL_NOTICE,
-            $this->containsAny($haystack, self::RECEIPT_MARKERS) => MessageClassification::RECEIPT,
             $this->containsAny($haystack, self::INVOICE_MARKERS) => MessageClassification::INVOICE,
+            $this->containsAny($haystack, self::RECEIPT_MARKERS) => MessageClassification::RECEIPT,
+            $this->containsAny($haystack, self::RENEWAL_NOTICE_MARKERS) => MessageClassification::RENEWAL_NOTICE,
             default => MessageClassification::UNKNOWN,
         };
     }

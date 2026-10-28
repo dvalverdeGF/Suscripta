@@ -99,16 +99,35 @@ final class DeterministicExtractorTest extends TestCase
     }
 
     /**
-     * Un aviso de renovación gana a la mención de "factura": describe un cobro
-     * futuro, que es la señal más accionable de las dos.
+     * Una factura que además avisa de la renovación **sigue siendo una factura**.
+     *
+     * Es el caso normal, no el raro: casi toda factura de suscripción dice
+     * cuándo se renueva. Si el aviso de renovación ganara, el documento se
+     * tiparía `OTHER` y no contaría como factura ni alimentaría el historial de
+     * precios. La fecha de renovación no se pierde por clasificarlo así: se
+     * extrae del cuerpo por su cuenta.
      */
-    public function testRenewalNoticeWinsOverAnInvoiceMention(): void
+    public function testAnInvoiceThatAlsoAnnouncesItsRenewalIsStillAnInvoice(): void
     {
         $this->knownProvider('OVH', 'ovh.com');
 
         $document = $this->extractor()->extract(
             $this->header('Factura OVH 2026-10', 'facturacion@ovh.com'),
             "Factura nº: FRA-2026-10-0042\nTotal: 29,90 €\nSe renovará el 2026-11-03.",
+        );
+
+        self::assertSame(DocumentType::INVOICE, $document->documentType);
+        self::assertSame('2026-11-03', $document->renewalDate?->format('Y-m-d'));
+    }
+
+    /**
+     * Un aviso de renovación que **no** es una factura sigue siendo un aviso.
+     */
+    public function testARenewalNoticeWithoutAnInvoiceIsStillARenewalNotice(): void
+    {
+        $document = $this->extractor()->extract(
+            $this->header('Aviso de renovación', 'no-responder@example.com'),
+            'Tu suscripción se renovará automáticamente el 2026-11-03 por 29,90 €.',
         );
 
         self::assertSame(DocumentType::OTHER, $document->documentType);
