@@ -1877,6 +1877,7 @@ significa «probé el camino que recorrí».
 ### Guarda anti-SSRF (D-77)
 
 La deuda técnica número uno del proyecto, cerrada al terminar la fase en lugar de esperar a la 24.
+Commit: `4ed28dd`.
 La URL de un suscriptor ya no puede apuntar a la red interna del servidor: ni al loopback, ni a
 `10.0.0.0/8`, ni a `169.254.169.254` (los metadatos de la nube, que es donde están las credenciales
 de la máquina), ni a una IPv4 escondida dentro de una IPv6.

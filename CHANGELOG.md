@@ -65,7 +65,7 @@ Commit de cierre: `bd646a8`.
 
 ### Seguridad
 
-- **Guarda anti-SSRF en las URLs de webhook** (D-77). El webhook hace la petición desde dentro de
+- **Guarda anti-SSRF en las URLs de webhook** (D-77, commit `4ed28dd`). El webhook hace la petición desde dentro de
   la red del servidor, así que la URL que configura un administrador era un cliente HTTP
   arbitrario: `https://10.0.0.5/`, `https://169.254.169.254/` (metadatos de la nube) o
   `https://localhost/`. Ahora se comprueba el esquema, **todas** las direcciones a las que resuelve
