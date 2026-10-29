@@ -30,17 +30,19 @@ $bo-topbar-height: 56px;
 // ---------------------------------------------------------------------------
 // Escala de superficies
 // ---------------------------------------------------------------------------
-$bo-canvas: #f5f6f7;      // fondo de la pagina
-$bo-sunken: #eceef1;      // huecos: campos, zonas hundidas dentro de una tarjeta
-$bo-surface: #ffffff;    // contenido: tarjetas, paneles, cabeceras de tabla
-$bo-line: #dfe3e8;       // bordes: separan superficies
+$bo-canvas: #f5f6f7; // fondo de la pagina
+$bo-sunken: #eceef1; // huecos: campos, zonas hundidas dentro de una tarjeta
+$bo-surface: #ffffff; // contenido: tarjetas, paneles, cabeceras de tabla
+$bo-line: #dfe3e8; // bordes: separan superficies
 $bo-line-strong: #b9c2cc; // bordes de controles interactivos
 
 $bo-body-bg: $bo-canvas;
 $bo-body-color: #16202b;
 $bo-body-color-muted: #5a6773;
 $bo-heading-color: #0a1a26;
-$bo-card-shadow: 0 1px 2px rgba(10, 26, 38, 0.04), 0 1px 3px rgba(10, 26, 38, 0.06);
+$bo-card-shadow:
+  0 1px 2px rgba(10, 26, 38, 0.04),
+  0 1px 3px rgba(10, 26, 38, 0.06);
 $bo-card-shadow-hover: 0 4px 12px rgba(10, 26, 38, 0.08);
 $bo-transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 
@@ -60,7 +62,13 @@ $warning: #a16207;
 $danger: #b3261e;
 $info: #4cc9d4;
 
-$font-family-base: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+$font-family-base:
+  'IBM Plex Sans',
+  system-ui,
+  -apple-system,
+  'Segoe UI',
+  Roboto,
+  sans-serif;
 $border-radius: $bo-radius;
 $border-radius-sm: 2px;
 $border-radius-lg: 3px;

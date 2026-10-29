@@ -87,6 +87,9 @@ fi
 
 if [[ "$LIMPIO" -eq 1 ]]; then
     log "Soltando y recreando la base de datos…"
+    # Las comillas simples son a propósito: esas variables las expande el shell
+    # de dentro del contenedor, no este.
+    # shellcheck disable=SC2016
     $COMPOSE exec -T database sh -c \
         'psql -U "$POSTGRES_USER" -d postgres -v ON_ERROR_STOP=1 \
             -c "DROP DATABASE IF EXISTS \"$POSTGRES_DB\" WITH (FORCE);" \
@@ -94,6 +97,7 @@ if [[ "$LIMPIO" -eq 1 ]]; then
 fi
 
 log "Restaurando la base de datos…"
+# shellcheck disable=SC2016
 if ! gunzip -c "$DUMP" | $COMPOSE exec -T database sh -c \
     'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner --no-privileges --exit-on-error'; then
     error "Falló la restauración de la base de datos."

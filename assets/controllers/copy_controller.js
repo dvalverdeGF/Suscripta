@@ -42,7 +42,7 @@ export default class extends Controller {
             try {
                 await navigator.clipboard.writeText(value);
                 return true;
-            } catch (error) {
+            } catch {
                 // Cae al plan B: el portapapeles puede estar bloqueado por
                 // permisos y eso no debe dejar al operador sin poder copiar.
             }
@@ -64,7 +64,7 @@ export default class extends Controller {
 
         try {
             copied = document.execCommand('copy');
-        } catch (error) {
+        } catch {
             copied = false;
         }
 

@@ -14,8 +14,25 @@ indent_size = 4
 [**/{Dockerfile,Caddyfile,*.sh}]
 indent_style = tab
 
+# Los scripts de bin/ se escribieron con cuatro espacios y sus cadenas
+# multilínea dependen de esa indentación: pasarlos a tabuladores cambiaría el
+# contenido de lo que se envía a `sh -c` dentro del contenedor.
+[bin/*.sh]
+indent_style = space
+indent_size = 4
+
 [{compose.*yaml,.devcontainer/compose.*yaml,.github/**/*.yaml}]
 indent_size = 2
+
+# CSS y SCSS van a dos espacios, como el resto del ecosistema front.
+[*.{css,scss}]
+indent_size = 2
+
+# En XML los atributos se alinean con la etiqueta de apertura, no con un
+# múltiplo fijo de espacios.
+[*.xml]
+indent_size = unset
+indent_style = unset
 
 [**.md]
 indent_size = unset

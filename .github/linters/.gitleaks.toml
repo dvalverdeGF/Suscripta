@@ -1,0 +1,18 @@
+title = "gitleaks config"
+
+[extend]
+# Hereda las reglas por defecto de gitleaks y añade debajo lo que este repo
+# publica a propósito: los secretos de mentira de los entornos de desarrollo,
+# los ejemplos de la documentación de la API y los dobles de los tests.
+useDefault = true
+
+[[allowlists]]
+description = "Secretos de ejemplo: .env de desarrollo, ejemplos de la API y dobles de test"
+paths = [
+  '''^\.env$''',
+  '''^\.env\.dev$''',
+  '''^\.env\.test$''',
+  '''^README\.md$''',
+  '''^docs/api/.*\.md$''',
+  '''^tests/Unit/Webhooks/.*\.php$''',
+]

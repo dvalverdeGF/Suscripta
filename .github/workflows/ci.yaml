@@ -74,6 +74,16 @@ jobs:
         uses: super-linter/super-linter/slim@v8
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Lo vendorizado a mano (Bootstrap, FontAwesome) y lo que genera
+          # `importmap:install` es código de terceros: ni se formatea ni se
+          # revisa aquí, y sin esta exclusión sus minificados llenan el
+          # informe con miles de avisos.
+          FILTER_REGEX_EXCLUDE: '(^|/)assets/vendor/'
+          # dotenv-linter no admite desactivar reglas por fichero y aquí las
+          # comillas son obligatorias: Dotenv se come las dobles, así que
+          # `API_CORS_ALLOWED_ORIGINS` y `APP_SECRET` van entre simples a
+          # propósito (ver los comentarios de .env.dev y .env.test).
+          DOTENV_LINTER_IGNORE_CHECKS: QuoteCharacter
           VALIDATE_CHECKOV: false
           VALIDATE_TRIVY: false
           VALIDATE_BIOME_FORMAT: false

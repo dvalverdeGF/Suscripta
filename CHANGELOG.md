@@ -17,6 +17,20 @@ cerrada, verificada y commiteada. El detalle de lo que queda pendiente está en
   servicios, avisos y precios) tomadas contra la cuenta de demostración. Se regeneran con
   `make screenshots` (`tools/screenshots.py`, Playwright), así que no envejecen a mano.
 
+### Cambiado
+
+- **El job `Lint` de la CI pasa a estar en verde**: super-linter instalaba Composer (y abortaba:
+  a su imagen le faltan `fileinfo`, `sodium` y `xml`) en cuanto veía un `.php`; los validadores de
+  PHP quedan desactivados porque `Tests` ya cubre ese terreno. El resto de lo que señalaba se ha
+  arreglado, no silenciado: `assets/vendor/` queda fuera del análisis (son ficheros de terceros),
+  `.github/linters/.stylelintrc.json` describe el BEM que ya usábamos
+  (`bloque__elemento--modificador`), `.github/linters/.gitleaks.toml` acota los secretos de
+  mentira de `.env*`, `README.md`, `docs/api/` y los tests de webhooks, `dotenv-linter` no exige
+  comillas donde son carga semántica (`APP_SECRET`, `API_CORS_ALLOWED_ORIGINS`) y `.editorconfig`
+  recoge el estilo real (scripts de `bin/` a 4 espacios, CSS/SCSS a 2, XML sin sangrado forzado).
+  `assets/.prettierrc.json` fija el formato del front (`printWidth` 100, comillas simples) para
+  poder aplicar `npx prettier --write` sin pelearse con el resto del repo.
+
 ### Corregido
 
 - **La CI estaba roja en `main` y un clon limpio devolvía 500 en todo el backoffice**: las
@@ -28,6 +42,12 @@ cerrada, verificada y commiteada. El detalle de lo que queda pendiente está en
   de nombres de parámetro no token en `symfony/mime`). `composer audit` queda sin avisos.
 - **PHPStan fallaba de forma intermitente** al agotar los 128 MB del `php.ini`: `make phpstan` y
   la CI pasan ahora `--memory-limit=1G`.
+- **`bin/backup.sh` y `bin/restore.sh`** ordenaban las copias con `ls -1t` (shellcheck SC2016/SC2012
+  mediante): ahora usan `find -printf '%T@ %p' | sort -rn`, que no se rompe con nombres raros.
+  Los `$VAR` entre comillas simples que se expanden dentro del contenedor llevan directiva
+  `# shellcheck disable=SC2016` y su justificación.
+- Dos `catch (error)` sin usar en `assets/controllers/copy_controller.js` y una variable muerta en
+  `assets/stimulus_bootstrap.js`, señalados por ESLint.
 - El README anunciaba «fases 0 a 19», 1 420 tests y 19 migraciones: ahora refleja el estado real
   (fases 0–25, 1 609 tests, 23 migraciones) e incluye el cobro con Stripe.
 - `docs/deployment.md` seguía diciendo «las 19 migraciones» en el orden de arranque.

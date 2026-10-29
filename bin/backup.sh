@@ -73,6 +73,9 @@ log "Volcando la base de datos…"
 # El dump se hace dentro del contenedor de base de datos: es el único sitio
 # donde hay pg_dump. El formato custom permite restaurar tablas sueltas con
 # pg_restore si algún día hace falta.
+# Las comillas simples son a propósito: esas variables las expande el shell de
+# dentro del contenedor, no este.
+# shellcheck disable=SC2016
 if ! $COMPOSE exec -T database sh -c \
     'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom --no-owner --no-privileges' \
     | gzip -9 > "$DUMP"; then
@@ -126,7 +129,8 @@ log "Copia lista: $DUMP (${PESOS_DUMP})"
 
 # Poda: se conservan las N copias más recientes.
 if [[ "$CONSERVAR" =~ ^[0-9]+$ ]] && [[ "$CONSERVAR" -gt 0 ]]; then
-    mapfile -t VIEJAS < <(ls -1t "${DESTINO}"/suscripta-*.manifest.json 2>/dev/null | tail -n "+$((CONSERVAR + 1))")
+    mapfile -t VIEJAS < <(find "$DESTINO" -maxdepth 1 -name 'suscripta-*.manifest.json' \
+        -printf '%T@ %p\n' 2>/dev/null | sort -rn | tail -n "+$((CONSERVAR + 1))" | cut -d' ' -f2-)
     for MANIFESTO_VIEJO in "${VIEJAS[@]:-}"; do
         [[ -n "$MANIFESTO_VIEJO" ]] || continue
         BASE="$(basename "$MANIFESTO_VIEJO" .manifest.json)"

@@ -34,9 +34,10 @@ export default class extends Controller {
         const selected = this.selectedCount;
 
         if (this.hasCounterTarget) {
-            this.counterTarget.textContent = selected === 1
-                ? '1 propuesta seleccionada'
-                : `${selected} propuestas seleccionadas`;
+            this.counterTarget.textContent =
+                selected === 1
+                    ? '1 propuesta seleccionada'
+                    : `${selected} propuestas seleccionadas`;
         }
 
         if (this.hasToolbarTarget) {
@@ -46,7 +47,8 @@ export default class extends Controller {
         if (this.hasToggleTarget) {
             // El interruptor queda a medias cuando solo hay una parte marcada:
             // es la única forma de decir "todas" sin mentir.
-            this.toggleTarget.indeterminate = selected > 0 && selected < this.checkboxTargets.length;
+            this.toggleTarget.indeterminate =
+                selected > 0 && selected < this.checkboxTargets.length;
         }
     }
 
