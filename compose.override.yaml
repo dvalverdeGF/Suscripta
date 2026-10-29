@@ -75,4 +75,11 @@ services:
     depends_on:
       database:
         condition: service_healthy
+      # El worker no ejecuta el `docker-entrypoint.sh` (su `command` no es
+      # `frankenphp`), así que no es él quien crea `messenger_messages`: eso lo
+      # hace el arranque de `php`. Sin esta dependencia el worker se pone a
+      # consumir antes de que la tabla exista, entra en bucle de reinicio y
+      # `docker compose up --wait` lo declara unhealthy.
+      php:
+        condition: service_healthy
     tty: true

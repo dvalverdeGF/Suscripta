@@ -49,3 +49,7 @@ services:
     depends_on:
       database:
         condition: service_healthy
+      # Ver la nota en `compose.override.yaml`: `messenger_messages` la crea el
+      # arranque de `php`, no el worker, así que hay que esperarle.
+      php:
+        condition: service_healthy

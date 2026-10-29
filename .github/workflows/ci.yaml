@@ -41,6 +41,9 @@ jobs:
             *.cache-to=type=gha,scope=${{github.ref}},mode=max
       - name: Start services
         run: docker compose up --wait --no-build
+      - name: Dump container logs
+        if: failure()
+        run: docker compose logs --no-color --tail=200
       - name: Check HTTPS reachability
         run: curl -v --insecure --fail-with-body https://localhost/health
       - name: Check Mercure reachability
