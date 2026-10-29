@@ -10,6 +10,15 @@ services:
       APP_SECRET: ${APP_SECRET}
       MERCURE_PUBLISHER_JWT_KEY: ${CADDY_MERCURE_JWT_SECRET}
       MERCURE_SUBSCRIBER_JWT_KEY: ${CADDY_MERCURE_JWT_SECRET}
+      # OAuth2 de correo (D-93). Vacías a propósito: sin ellas la aplicación
+      # arranca igual, solo que sin los botones de Google y Microsoft. Se
+      # declaran aquí porque el `.env` que se hornea en la imagen es el del
+      # repositorio, y los secretos reales viven en el `.env` del servidor.
+      MAIL_OAUTH_GOOGLE_CLIENT_ID: ${MAIL_OAUTH_GOOGLE_CLIENT_ID:-}
+      MAIL_OAUTH_GOOGLE_CLIENT_SECRET: ${MAIL_OAUTH_GOOGLE_CLIENT_SECRET:-}
+      MAIL_OAUTH_MICROSOFT_CLIENT_ID: ${MAIL_OAUTH_MICROSOFT_CLIENT_ID:-}
+      MAIL_OAUTH_MICROSOFT_CLIENT_SECRET: ${MAIL_OAUTH_MICROSOFT_CLIENT_SECRET:-}
+      MAIL_OAUTH_MICROSOFT_TENANT: ${MAIL_OAUTH_MICROSOFT_TENANT:-consumers}
 
   # Consumidor de la cola asíncrona (Messenger). Ver ARCHITECTURE.md §6.
   worker:
@@ -30,6 +39,13 @@ services:
     environment:
       APP_SECRET: ${APP_SECRET}
       MESSENGER_TRANSPORT_DSN: doctrine://default?auto_setup=0
+      # El worker también renueva los tokens OAuth2 al sincronizar, así que
+      # necesita el mismo par de credenciales que el servicio web (D-93).
+      MAIL_OAUTH_GOOGLE_CLIENT_ID: ${MAIL_OAUTH_GOOGLE_CLIENT_ID:-}
+      MAIL_OAUTH_GOOGLE_CLIENT_SECRET: ${MAIL_OAUTH_GOOGLE_CLIENT_SECRET:-}
+      MAIL_OAUTH_MICROSOFT_CLIENT_ID: ${MAIL_OAUTH_MICROSOFT_CLIENT_ID:-}
+      MAIL_OAUTH_MICROSOFT_CLIENT_SECRET: ${MAIL_OAUTH_MICROSOFT_CLIENT_SECRET:-}
+      MAIL_OAUTH_MICROSOFT_TENANT: ${MAIL_OAUTH_MICROSOFT_TENANT:-consumers}
     depends_on:
       database:
         condition: service_healthy

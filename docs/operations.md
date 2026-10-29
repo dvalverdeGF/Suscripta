@@ -449,6 +449,13 @@ _Autenticación_ → _URI de redirección_ se añade la URL de `callback/microso
 El permiso que se usa es `https://outlook.office.com/IMAP.AccessAsUser.All` (delegado); no hay que
 concederlo en el portal, lo pide el propio flujo y lo consiente el usuario.
 
+**Dónde van en producción.** El `.env` que viaja dentro de la imagen es el del repositorio, con
+las cinco variables vacías. Los valores reales se ponen en el `.env` **del servidor** (el mismo
+del que `docker compose` lee `APP_SECRET`), y `compose.prod.yaml` los pasa a `php` y a `worker`:
+el worker también renueva tokens al sincronizar, así que si solo se inyectan en `php` la
+sincronización en segundo plano acaba fallando con `invalid_client`. Después del cambio,
+`docker compose up -d php worker` para recrear los contenedores.
+
 **Rotación.** El secreto de cliente se rota en el portal (crear el nuevo, actualizar la variable,
 reiniciar `php`, retirar el viejo). Los tokens de los usuarios **no** se invalidan: siguen
 funcionando hasta que caducan y se renuevan con el secreto nuevo. Si se rota el secreto sin
