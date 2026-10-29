@@ -11,7 +11,12 @@
 
 ###> symfony/asset-mapper ###
 /public/assets/
-/assets/vendor/
+# `assets/vendor/` mezcla dos cosas: lo que genera `importmap:install` (se ignora)
+# y las librerías vendorizadas a mano que sí se versionan, porque sin ellas un
+# clon limpio devuelve 500 en todo el backoffice.
+/assets/vendor/*
+!/assets/vendor/bootstrap/
+!/assets/vendor/fontawesome/
 ###< symfony/asset-mapper ###
 
 ###> friendsofphp/php-cs-fixer ###

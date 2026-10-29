@@ -16,6 +16,7 @@ help: ## Muestra esta ayuda
 .PHONY: up
 up: ## Levanta el entorno de desarrollo
 	$(DC) up --wait
+	$(EXEC) bin/console importmap:install
 
 .PHONY: down
 down: ## Detiene el entorno

@@ -19,6 +19,10 @@ cerrada, verificada y commiteada. El detalle de lo que queda pendiente está en
 
 ### Corregido
 
+- **La CI estaba roja en `main` y un clon limpio devolvía 500 en todo el backoffice**: las
+  librerías vendorizadas (`bootstrap` 5.3.8 y `fontawesome` 7.1.0) vivían en `assets/vendor/`,
+  que estaba ignorado por git, y ningún script las descargaba. Ahora se versionan; el resto de
+  `assets/vendor/` —lo que genera `importmap:install`— sigue ignorado y `make up` lo reinstala.
 - **Dependencias**: Symfony 8.1.7/8.1.8 → **8.1.10**, que corrige
   [CVE-2026-45070](https://symfony.com/cve-2026-45070) (inyección de cabeceras de correo a través
   de nombres de parámetro no token en `symfony/mime`). `composer audit` queda sin avisos.
