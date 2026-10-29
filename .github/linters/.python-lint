@@ -1,0 +1,17 @@
+[MASTER]
+
+# Use multiple processes to speed up Pylint.
+jobs=0
+
+[MESSAGES CONTROL]
+
+# Ignoring Import Errors is desired as super-linter
+# does not support installing dependencies as it runs
+disable=import-error
+
+[FORMAT]
+
+# El ancho de Python del proyecto es 120: es el que usan ruff y flake8, así
+# que pylint no puede ser más estricto (una línea de 104 caracteres es
+# correcta para ruff y ruff-format la vuelve a juntar si se parte).
+max-line-length=120

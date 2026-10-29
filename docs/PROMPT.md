@@ -20,24 +20,24 @@ El usuario podrá conectar una cuenta de correo utilizada para recibir facturas 
 
 Inicialmente debe contemplarse:
 
-* IMAP como mecanismo genérico de acceso.
-* Arquitectura preparada para incorporar posteriormente proveedores específicos mediante OAuth, como Gmail o Microsoft.
-* Acceso exclusivamente de lectura.
-* Nunca enviar, modificar o eliminar correos.
-* Credenciales y tokens almacenados de forma segura y cifrada.
-* Posibilidad de desconectar una cuenta y eliminar sus credenciales.
-* Procesamiento asíncrono de los mensajes.
+- IMAP como mecanismo genérico de acceso.
+- Arquitectura preparada para incorporar posteriormente proveedores específicos mediante OAuth, como Gmail o Microsoft.
+- Acceso exclusivamente de lectura.
+- Nunca enviar, modificar o eliminar correos.
+- Credenciales y tokens almacenados de forma segura y cifrada.
+- Posibilidad de desconectar una cuenta y eliminar sus credenciales.
+- Procesamiento asíncrono de los mensajes.
 
 El sistema analizará los mensajes y adjuntos buscando:
 
-* Facturas.
-* Recibos.
-* Confirmaciones de pago.
-* Renovaciones.
-* Cambios de precio.
-* Cambios de plan.
-* Avisos de vencimiento.
-* Comunicaciones relacionadas con servicios recurrentes.
+- Facturas.
+- Recibos.
+- Confirmaciones de pago.
+- Renovaciones.
+- Cambios de precio.
+- Cambios de plan.
+- Avisos de vencimiento.
+- Comunicaciones relacionadas con servicios recurrentes.
 
 No queremos convertir el producto inicialmente en un gestor contable completo.
 
@@ -108,19 +108,19 @@ Diseña un modelo de dominio adecuado, evitando sobrediseño.
 
 Como punto de partida, contempla conceptos como:
 
-* User
-* Organization / Workspace, si consideras que merece la pena desde el inicio
-* Service
-* Provider
-* Subscription / Contract
-* Invoice / Receipt
-* Payment
-* Renewal
-* EmailAccount
-* EmailMessage
-* Document
-* Discovery
-* Notification
+- User
+- Organization / Workspace, si consideras que merece la pena desde el inicio
+- Service
+- Provider
+- Subscription / Contract
+- Invoice / Receipt
+- Payment
+- Renewal
+- EmailAccount
+- EmailMessage
+- Document
+- Discovery
+- Notification
 
 Pero NO implementes entidades innecesarias únicamente porque aparezcan en esta lista.
 
@@ -128,22 +128,22 @@ Determina qué conceptos deben existir realmente y cuáles pueden ser propiedade
 
 La aplicación debe poder representar como mínimo:
 
-* Proveedor.
-* Servicio.
-* Plan.
-* Categoría.
-* Precio.
-* Moneda.
-* Periodicidad.
-* Próximo cobro.
-* Fecha de renovación.
-* Fecha de contratación.
-* Historial de precios.
-* Documentos/facturas relacionados.
-* Cuenta de correo de origen.
-* Estado: activo, cancelado, pausado, pendiente de revisión.
-* Notas.
-* Método de pago, cuando pueda conocerse.
+- Proveedor.
+- Servicio.
+- Plan.
+- Categoría.
+- Precio.
+- Moneda.
+- Periodicidad.
+- Próximo cobro.
+- Fecha de renovación.
+- Fecha de contratación.
+- Historial de precios.
+- Documentos/facturas relacionados.
+- Cuenta de correo de origen.
+- Estado: activo, cancelado, pausado, pendiente de revisión.
+- Notas.
+- Método de pago, cuando pueda conocerse.
 
 ## 5. Funcionalidad principal
 
@@ -175,11 +175,11 @@ Total próximo mes: 87,39 €
 
 Mostrar:
 
-* Coste mensual equivalente.
-* Coste anual estimado.
-* Coste por categoría.
-* Evolución del gasto.
-* Servicios más caros.
+- Coste mensual equivalente.
+- Coste anual estimado.
+- Coste por categoría.
+- Evolución del gasto.
+- Servicios más caros.
 
 Por ejemplo:
 
@@ -194,16 +194,16 @@ Anual:   2.846,40 €
 
 El sistema debe poder detectar y avisar sobre situaciones como:
 
-* Próxima renovación.
-* Próximo cobro.
-* Aumento de precio.
-* Cambio de plan.
-* Nueva suscripción detectada.
-* Servicio aparentemente duplicado.
-* Factura recurrente que deja de recibirse.
-* Servicio cuyo coste ha cambiado.
-* Renovación anual próxima.
-* Servicio sin actividad/documentación reciente, cuando pueda determinarse razonablemente.
+- Próxima renovación.
+- Próximo cobro.
+- Aumento de precio.
+- Cambio de plan.
+- Nueva suscripción detectada.
+- Servicio aparentemente duplicado.
+- Factura recurrente que deja de recibirse.
+- Servicio cuyo coste ha cambiado.
+- Renovación anual próxima.
+- Servicio sin actividad/documentación reciente, cuando pueda determinarse razonablemente.
 
 No inventes conclusiones.
 
@@ -247,13 +247,13 @@ Las facturas y documentos encontrados en el correo deben poder asociarse al serv
 
 El sistema debe poder conservar:
 
-* Fecha.
-* Nombre del fichero.
-* Tipo.
-* Tamaño.
-* Origen.
-* Servicio asociado.
-* Factura asociada.
+- Fecha.
+- Nombre del fichero.
+- Tipo.
+- Tamaño.
+- Origen.
+- Servicio asociado.
+- Factura asociada.
 
 La arquitectura debe permitir almacenamiento local inicialmente y facilitar posteriormente S3/Backblaze u otro almacenamiento compatible.
 
@@ -277,12 +277,12 @@ Debe ser posible utilizar posteriormente diferentes proveedores.
 
 La IA debe utilizarse para:
 
-* Clasificación.
-* Extracción de datos.
-* Detección de proveedor.
-* Detección de servicio.
-* Detección de recurrencia.
-* Detección de cambios.
+- Clasificación.
+- Extracción de datos.
+- Detección de proveedor.
+- Detección de servicio.
+- Detección de recurrencia.
+- Detección de cambios.
 
 Pero las reglas de negocio críticas deben permanecer en código determinista siempre que sea posible.
 
@@ -292,33 +292,33 @@ No utilices IA simplemente porque pueda utilizarse.
 
 Si el repositorio no establece otra cosa, utiliza:
 
-* PHP 8.4
-* Symfony 8
-* Doctrine ORM
-* PostgreSQL
-* Symfony Messenger
-* Twig para la primera interfaz web
-* Symfony Security
-* Symfony Validator
-* Symfony UID
-* UUIDv7
-* Docker
+- PHP 8.4
+- Symfony 8
+- Doctrine ORM
+- PostgreSQL
+- Symfony Messenger
+- Twig para la primera interfaz web
+- Symfony Security
+- Symfony Validator
+- Symfony UID
+- UUIDv7
+- Docker
 
 Utiliza las versiones estables actuales disponibles en el proyecto.
 
 Preferencias arquitectónicas:
 
-* Código en inglés.
-* Comentarios y PHPDoc en español cuando sean necesarios.
-* Mensajes de validación en español.
-* Doctrine mediante Attributes.
-* UUIDv7 para identificadores.
-* SOLID.
-* DRY.
-* Boy Scout Rule.
-* Arquitectura limpia cuando aporte valor real.
-* No crear capas abstractas sin necesidad.
-* No implementar patrones por dogma.
+- Código en inglés.
+- Comentarios y PHPDoc en español cuando sean necesarios.
+- Mensajes de validación en español.
+- Doctrine mediante Attributes.
+- UUIDv7 para identificadores.
+- SOLID.
+- DRY.
+- Boy Scout Rule.
+- Arquitectura limpia cuando aporte valor real.
+- No crear capas abstractas sin necesidad.
+- No implementar patrones por dogma.
 
 Para operaciones de negocio complejas, prioriza servicios de aplicación / casos de uso y procesamiento asíncrono con Messenger antes que controladores personalizados con lógica de negocio.
 
@@ -348,11 +348,11 @@ DiscoveryCreation
 
 Debe ser:
 
-* Reintentable.
-* Idempotente.
-* Observable.
-* Tolerante a fallos.
-* Capaz de procesar grandes cantidades de mensajes sin bloquear la aplicación.
+- Reintentable.
+- Idempotente.
+- Observable.
+- Tolerante a fallos.
+- Capaz de procesar grandes cantidades de mensajes sin bloquear la aplicación.
 
 Evita descargar/procesar indefinidamente el buzón completo en cada sincronización.
 
@@ -366,18 +366,18 @@ La aplicación tendrá acceso a información financiera y potencialmente sensibl
 
 Diseña desde el principio:
 
-* Acceso mínimo.
-* Solo lectura del correo.
-* Cifrado de credenciales.
-* Separación estricta de usuarios/organizaciones.
-* No almacenar mensajes completos si no son necesarios.
-* Política clara de retención.
-* Posibilidad de eliminar documentos.
-* Posibilidad de eliminar una cuenta de correo.
-* Auditoría de acciones sensibles.
-* Protección frente a acceso cruzado entre tenants.
-* No enviar documentos a proveedores externos de IA sin una decisión explícita y documentada.
-* Abstracción de proveedores de IA.
+- Acceso mínimo.
+- Solo lectura del correo.
+- Cifrado de credenciales.
+- Separación estricta de usuarios/organizaciones.
+- No almacenar mensajes completos si no son necesarios.
+- Política clara de retención.
+- Posibilidad de eliminar documentos.
+- Posibilidad de eliminar una cuenta de correo.
+- Auditoría de acciones sensibles.
+- Protección frente a acceso cruzado entre tenants.
+- No enviar documentos a proveedores externos de IA sin una decisión explícita y documentada.
+- Abstracción de proveedores de IA.
 
 No almacenar contraseñas de correo en texto plano.
 
@@ -399,10 +399,10 @@ No introduzcas complejidad empresarial innecesaria.
 
 El usuario deberá poder configurar avisos sobre:
 
-* Renovaciones.
-* Próximos cobros.
-* Cambios de precio.
-* Nuevos servicios detectados.
+- Renovaciones.
+- Próximos cobros.
+- Cambios de precio.
+- Nuevos servicios detectados.
 
 Inicialmente puede bastar con email y notificaciones dentro de la aplicación.
 
@@ -452,11 +452,11 @@ No implementes todavía pagos, planes ni facturación del SaaS.
 
 Pero diseña la aplicación teniendo en cuenta que posteriormente puede existir:
 
-* Plan gratuito limitado.
-* Plan profesional.
-* Límites por número de servicios.
-* Límites de cuentas de correo.
-* Límites de documentos/procesamiento.
+- Plan gratuito limitado.
+- Plan profesional.
+- Límites por número de servicios.
+- Límites de cuentas de correo.
+- Límites de documentos/procesamiento.
 
 No hagas que estos límites contaminen el dominio desde el principio.
 
@@ -476,41 +476,41 @@ Antes de modificar código, crea:
 
 Explicar:
 
-* Problema.
-* Usuario objetivo.
-* Propuesta de valor.
-* Funcionalidades.
-* Qué NO es el producto.
-* Flujo principal.
-* Diferenciación.
-* Casos de uso.
+- Problema.
+- Usuario objetivo.
+- Propuesta de valor.
+- Funcionalidades.
+- Qué NO es el producto.
+- Flujo principal.
+- Diferenciación.
+- Casos de uso.
 
 ### ARCHITECTURE.md
 
 Explicar:
 
-* Arquitectura.
-* Módulos.
-* Entidades.
-* Casos de uso.
-* Messenger.
-* Persistencia.
-* Integraciones.
-* Multi-tenancy.
-* Seguridad.
+- Arquitectura.
+- Módulos.
+- Entidades.
+- Casos de uso.
+- Messenger.
+- Persistencia.
+- Integraciones.
+- Multi-tenancy.
+- Seguridad.
 
 ### SECURITY.md
 
 Explicar especialmente:
 
-* Acceso al correo.
-* Credenciales.
-* Tokens.
-* Documentos.
-* IA.
-* aislamiento de tenants.
-* eliminación de datos.
-* retención.
+- Acceso al correo.
+- Credenciales.
+- Tokens.
+- Documentos.
+- IA.
+- aislamiento de tenants.
+- eliminación de datos.
+- retención.
 
 ### ROADMAP.md
 
@@ -542,11 +542,11 @@ Registrar decisiones arquitectónicas relevantes y su motivo.
 
 Antes de fijar definitivamente el producto, identifica también:
 
-* Qué soluciones similares existen.
-* Qué hacen.
-* A qué público se dirigen.
-* Qué funcionalidades ofrecen.
-* Qué hueco podría ocupar nuestro producto.
+- Qué soluciones similares existen.
+- Qué hacen.
+- A qué público se dirigen.
+- Qué funcionalidades ofrecen.
+- Qué hueco podría ocupar nuestro producto.
 
 No quiero que inventes una diferenciación simplemente porque suene bien.
 
@@ -558,14 +558,14 @@ El objetivo es encontrar un producto pequeño que pueda competir por **simplicid
 
 MUY IMPORTANTE:
 
-* No empieces implementando funcionalidades todavía.
-* Primero inspecciona el repositorio.
-* No instales paquetes sin justificarlo.
-* No modifiques configuración existente salvo que sea necesario para documentar una decisión.
-* No generes código de infraestructura todavía.
-* No crees entidades todavía.
-* No hagas migraciones.
-* No hagas un frontend todavía.
+- No empieces implementando funcionalidades todavía.
+- Primero inspecciona el repositorio.
+- No instales paquetes sin justificarlo.
+- No modifiques configuración existente salvo que sea necesario para documentar una decisión.
+- No generes código de infraestructura todavía.
+- No crees entidades todavía.
+- No hagas migraciones.
+- No hagas un frontend todavía.
 
 Primero quiero documentación y arquitectura.
 
@@ -590,11 +590,11 @@ La conexión al correo es una **ventaja de automatización**, no el producto en 
 
 Evita convertirlo en:
 
-* ERP.
-* Programa de contabilidad.
-* Gestor documental genérico.
-* Cliente de correo.
-* CRM.
-* Plataforma de facturación.
+- ERP.
+- Programa de contabilidad.
+- Gestor documental genérico.
+- Cliente de correo.
+- CRM.
+- Plataforma de facturación.
 
 Si una funcionalidad no contribuye directamente a controlar servicios, costes, renovaciones o cambios, cuestiona si debe existir.

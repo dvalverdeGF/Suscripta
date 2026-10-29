@@ -14,10 +14,7 @@
     "postCreateCommand": "npm install -g intelephense",
     "customizations": {
         "vscode": {
-            "extensions": [
-                "bmewburn.vscode-intelephense-client",
-                "xdebug.php-debug"
-            ],
+            "extensions": ["bmewburn.vscode-intelephense-client", "xdebug.php-debug"],
             "settings": {
                 "launch": {
                     "version": "0.2.0",

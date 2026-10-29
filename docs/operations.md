@@ -18,12 +18,12 @@ encargada de que la aplicación siga en pie no tenga que leer el código.
 
 ## 1. Qué hay en producción
 
-| Proceso | Contenedor | Qué hace | Cómo se vigila |
-|---|---|---|---|
-| Servidor web | `php` | Sirve el backoffice y la API con FrankenPHP + Caddy. | `GET /health` devuelve `200`. |
-| Worker | `worker` | Consume las colas `mail_sync`, `mail_processing`, `ocr`, `ai` y `notifications`. | El proceso debe estar vivo; el contenedor reinicia solo si muere. |
-| Base de datos | `database` | PostgreSQL 16. Todo el estado del producto. | `pg_isready` y el healthcheck del contenedor. |
-| Caddy | dentro de `php` | TLS, HTTP/3 y Mercure. | Renovación de certificados automática. |
+| Proceso       | Contenedor      | Qué hace                                                                         | Cómo se vigila                                                    |
+| ------------- | --------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Servidor web  | `php`           | Sirve el backoffice y la API con FrankenPHP + Caddy.                             | `GET /health` devuelve `200`.                                     |
+| Worker        | `worker`        | Consume las colas `mail_sync`, `mail_processing`, `ocr`, `ai` y `notifications`. | El proceso debe estar vivo; el contenedor reinicia solo si muere. |
+| Base de datos | `database`      | PostgreSQL 16. Todo el estado del producto.                                      | `pg_isready` y el healthcheck del contenedor.                     |
+| Caddy         | dentro de `php` | TLS, HTTP/3 y Mercure.                                                           | Renovación de certificados automática.                            |
 
 Lo que vive **dentro** de la base de datos: organizaciones, servicios, facturas,
 avisos, descubrimientos, correos, mensajes extraídos, uso de IA, integraciones
@@ -86,11 +86,11 @@ docker compose -f compose.yaml -f compose.prod.yaml logs --tail=50 worker
 
 ### Qué se guarda
 
-| Parte | Dónde | Script |
-|---|---|---|
-| Base de datos (volcado `pg_dump` en formato custom) | `var/backups/suscripta-AAAAMMDD-HHMMSS.dump.sql.gz` | `bin/backup.sh` |
-| Documentos subidos (`var/storage`) | `var/backups/suscripta-AAAAMMDD-HHMMSS.storage.tar.gz` | `bin/backup.sh` |
-| Manifiesto con sumas SHA-256, revisión de código y fecha | `var/backups/suscripta-AAAAMMDD-HHMMSS.manifest.json` | `bin/backup.sh` |
+| Parte                                                    | Dónde                                                  | Script          |
+| -------------------------------------------------------- | ------------------------------------------------------ | --------------- |
+| Base de datos (volcado `pg_dump` en formato custom)      | `var/backups/suscripta-AAAAMMDD-HHMMSS.dump.sql.gz`    | `bin/backup.sh` |
+| Documentos subidos (`var/storage`)                       | `var/backups/suscripta-AAAAMMDD-HHMMSS.storage.tar.gz` | `bin/backup.sh` |
+| Manifiesto con sumas SHA-256, revisión de código y fecha | `var/backups/suscripta-AAAAMMDD-HHMMSS.manifest.json`  | `bin/backup.sh` |
 
 **No se guarda** y hay que custodiar aparte: `.env.local`, `APP_SECRET`, la
 clave de Mercure, la contraseña de PostgreSQL y las claves de los proveedores
@@ -112,11 +112,11 @@ el manifiesto y **poda** las copias antiguas según `--keep` (14 por defecto).
 
 ### Retención recomendada
 
-| Copia | Cada cuánto | Cuánto se guarda |
-|---|---|---|
-| Diaria | 1 al día | 14 días |
-| Semanal | 1 a la semana | 8 semanas |
-| Mensual | 1 al mes | 12 meses |
+| Copia   | Cada cuánto   | Cuánto se guarda |
+| ------- | ------------- | ---------------- |
+| Diaria  | 1 al día      | 14 días          |
+| Semanal | 1 a la semana | 8 semanas        |
+| Mensual | 1 al mes      | 12 meses         |
 
 ### Reglas de custodia
 
@@ -151,7 +151,7 @@ y deja claro que la copia no depende del estado previo de la base de datos.
 
 La salida del script es la evidencia de que la restauración funcionó:
 
-```
+```console
 [restore] Suma verificada.
 [restore] Soltando y recreando la base de datos…
 [restore] Restaurando la base de datos…
@@ -214,11 +214,11 @@ organización activa y permite elegir el periodo (24 h, 7 días, 30 días).
 Cuando aparece el cartel rojo «Hay algo que revisar», el motivo está escrito
 justo debajo:
 
-| Síntoma | Dónde mirar | Qué hacer |
-|---|---|---|
+| Síntoma                       | Dónde mirar                            | Qué hacer                                                                              |
+| ----------------------------- | -------------------------------------- | -------------------------------------------------------------------------------------- |
 | «N sincronizaciones fallidas» | `email_sync_run` con `status = failed` | Revisar el mensaje de error y probar la conexión IMAP desde el panel de integraciones. |
-| «N llamadas a la IA fallidas» | `ai_usage` con estado de error | Mirar el error de la llamada; si es el presupuesto, el panel de IA lo indica. |
-| Avisos abiertos | Panel de avisos | Son renewing/cobros que hay que revisar; no son fallos del sistema. |
+| «N llamadas a la IA fallidas» | `ai_usage` con estado de error         | Mirar el error de la llamada; si es el presupuesto, el panel de IA lo indica.          |
+| Avisos abiertos               | Panel de avisos                        | Son renewing/cobros que hay que revisar; no son fallos del sistema.                    |
 
 ### Salud de la aplicación
 
@@ -315,13 +315,13 @@ proveedor; lo segundo es rotar aquí.
 
 ## 7. Rotación de secretos
 
-| Secreto | Dónde vive | Cómo se rota | Efecto |
-|---|---|---|---|
-| `APP_SECRET` | `.env.local` o el almacén de secretos | Cambiar el valor y `cache:clear` | Cierra las sesiones y firma las cookies; se avisa a los usuarios. |
-| Contraseña de PostgreSQL | `.env.local` + variable del contenedor `database` | Cambiar en ambos y `ALTER USER` | Reinicio del contenedor de base de datos. |
-| Clave de Mercure | `CADDY_MERCURE_JWT_SECRET` | Cambiar la variable y reiniciar `php` | Las suscripciones se reconectan solas. |
-| Claves de proveedores de IA | Panel de integraciones | Editar la integración y «Probar» | Nada; la siguiente llamada usa la clave nueva. |
-| Claves de la API pública | Panel de integraciones → API | Revocar la clave y crear otra | La clave revocada deja de funcionar de inmediato. |
+| Secreto                     | Dónde vive                                        | Cómo se rota                          | Efecto                                                            |
+| --------------------------- | ------------------------------------------------- | ------------------------------------- | ----------------------------------------------------------------- |
+| `APP_SECRET`                | `.env.local` o el almacén de secretos             | Cambiar el valor y `cache:clear`      | Cierra las sesiones y firma las cookies; se avisa a los usuarios. |
+| Contraseña de PostgreSQL    | `.env.local` + variable del contenedor `database` | Cambiar en ambos y `ALTER USER`       | Reinicio del contenedor de base de datos.                         |
+| Clave de Mercure            | `CADDY_MERCURE_JWT_SECRET`                        | Cambiar la variable y reiniciar `php` | Las suscripciones se reconectan solas.                            |
+| Claves de proveedores de IA | Panel de integraciones                            | Editar la integración y «Probar»      | Nada; la siguiente llamada usa la clave nueva.                    |
+| Claves de la API pública    | Panel de integraciones → API                      | Revocar la clave y crear otra         | La clave revocada deja de funcionar de inmediato.                 |
 
 Procedimiento para una clave de proveedor:
 
@@ -335,19 +335,19 @@ Procedimiento para una clave de proveedor:
 
 ## 8. Tareas de mantenimiento
 
-| Tarea | Comando | Cuándo |
-|---|---|---|
-| Sincronizar buzones | `app:mail:sync -v` | A demanda; el worker lo hace solo. |
-| Recalcular avisos | `app:alerts:generate -v` | Después de cambios de precios o vencimientos. |
-| Detectar cambios de inventario | `app:changes:detect` | Semanal. |
-| Detectar recurrencias | `app:recurrence:detect` | Semanal, sobre facturas nuevas. |
-| Caducar descubrimientos antiguos | `app:discoveries:expire` | Diario. |
-| Podar conocimiento sin uso | `app:knowledge:prune` | Mensual. |
-| Purgar datos por retención | `app:privacy:purge` | Mensual (política de retención en `SECURITY.md` §6). |
-| Liberar correos aplazados por presupuesto | `app:ai:release-deferred` | Al subir el presupuesto. |
-| Reencolar entregas de webhook vencidas | `app:webhooks:maintain` | **Cada 5 minutos** (ver abajo). |
-| Conciliar cobros con la pasarela | `app:billing:reconcile -v` | **Cada hora** (ver abajo). |
-| Sembrar la demostración | `app:demo:seed` | Solo en desarrollo. |
+| Tarea                                     | Comando                    | Cuándo                                               |
+| ----------------------------------------- | -------------------------- | ---------------------------------------------------- |
+| Sincronizar buzones                       | `app:mail:sync -v`         | A demanda; el worker lo hace solo.                   |
+| Recalcular avisos                         | `app:alerts:generate -v`   | Después de cambios de precios o vencimientos.        |
+| Detectar cambios de inventario            | `app:changes:detect`       | Semanal.                                             |
+| Detectar recurrencias                     | `app:recurrence:detect`    | Semanal, sobre facturas nuevas.                      |
+| Caducar descubrimientos antiguos          | `app:discoveries:expire`   | Diario.                                              |
+| Podar conocimiento sin uso                | `app:knowledge:prune`      | Mensual.                                             |
+| Purgar datos por retención                | `app:privacy:purge`        | Mensual (política de retención en `SECURITY.md` §6). |
+| Liberar correos aplazados por presupuesto | `app:ai:release-deferred`  | Al subir el presupuesto.                             |
+| Reencolar entregas de webhook vencidas    | `app:webhooks:maintain`    | **Cada 5 minutos** (ver abajo).                      |
+| Conciliar cobros con la pasarela          | `app:billing:reconcile -v` | **Cada hora** (ver abajo).                           |
+| Sembrar la demostración                   | `app:demo:seed`            | Solo en desarrollo.                                  |
 
 Las tareas que se ejecutan a diario y semanalmente se programan con el
 cron del servidor (o con un `cron` en el contenedor `php`). Todas son
@@ -393,12 +393,12 @@ suscribirse a los cientos que ofrece Stripe.
 
 **Qué significa cada respuesta del webhook**, por si hay que mirar los registros de Stripe:
 
-| Código | Cuándo | Qué hacer |
-|---|---|---|
-| `200` | Evento aplicado, duplicado o ignorado | Nada: los tres casos son correctos. |
-| `400` | Firma inválida o cabecera malformada | Revisar que el `whsec_…` del panel coincide con el del endpoint. |
-| `500` | Error al aplicar | Nada: la reserva se ha soltado y Stripe reintenta. |
-| `503` | No hay secreto de webhook configurado | Pegar el `whsec_…` en integraciones. |
+| Código | Cuándo                                | Qué hacer                                                        |
+| ------ | ------------------------------------- | ---------------------------------------------------------------- |
+| `200`  | Evento aplicado, duplicado o ignorado | Nada: los tres casos son correctos.                              |
+| `400`  | Firma inválida o cabecera malformada  | Revisar que el `whsec_…` del panel coincide con el del endpoint. |
+| `500`  | Error al aplicar                      | Nada: la reserva se ha soltado y Stripe reintenta.               |
+| `503`  | No hay secreto de webhook configurado | Pegar el `whsec_…` en integraciones.                             |
 
 **`app:billing:reconcile` es la red de seguridad.** Stripe reintenta una entrega durante tres días
 y después se rinde; cuando se rinde, la suscripción local se queda con el estado de hace una

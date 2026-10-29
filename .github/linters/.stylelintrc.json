@@ -24,10 +24,7 @@
         "property-no-vendor-prefix": [
             true,
             {
-                "ignoreProperties": [
-                    "-webkit-text-size-adjust",
-                    "text-size-adjust"
-                ]
+                "ignoreProperties": ["-webkit-text-size-adjust", "text-size-adjust"]
             }
         ],
         "rule-empty-line-before": null,

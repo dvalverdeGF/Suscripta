@@ -5,8 +5,8 @@
 
 ## 1. Principios rectores
 
-1. **Un producto, una cosa bien hecha.** Todo lo que no contribuya a *descubrir y controlar
-   servicios recurrentes, costes, renovaciones y cambios* queda fuera (ver `PRODUCT.md`).
+1. **Un producto, una cosa bien hecha.** Todo lo que no contribuya a _descubrir y controlar
+   servicios recurrentes, costes, renovaciones y cambios_ queda fuera (ver `PRODUCT.md`).
 2. **Monolito modular.** Una sola aplicación Symfony desplegable, dividida en módulos con
    límites explícitos. No microservicios, no event sourcing, no CQRS de framework.
 3. **Determinista primero, IA después.** Las reglas de negocio críticas (cálculo de
@@ -19,7 +19,7 @@
    rápido y determinista** que pueda resolverlo, y solo se escala al siguiente nivel cuando
    el anterior no alcanza el umbral de confianza. El sistema **aprende del propio buzón**
    para que el uso de IA decrezca con el tiempo. La regla que gobierna todo el pipeline es:
-   *la IA debe resolver incertidumbre, no sustituir a la lógica de negocio* (§13).
+   _la IA debe resolver incertidumbre, no sustituir a la lógica de negocio_ (§13).
 5. **La IA propone; el sistema decide.** Ninguna salida de un modelo se persiste sin pasar
    por el `Validator` de Symfony y por las reglas de negocio. Un importe negativo, una fecha
    incoherente o una periodicidad imposible se rechazan aunque el modelo los devuelva con
@@ -49,25 +49,25 @@
 
 ## 2. Stack técnico
 
-| Pieza | Elección | Notas |
-|---|---|---|
-| Lenguaje | PHP 8.5 | La imagen base del repositorio es `dunglas/frankenphp:1-php8.5`. Ver `DECISIONS.md` (D-01). |
-| Framework | Symfony 8.x | Instalado vía `composer create-project symfony/skeleton` en el primer arranque. |
-| Servidor | FrankenPHP + Caddy | Ya configurado en el repositorio (worker mode, HTTPS automático, Mercure). |
-| ORM | Doctrine ORM 3 + Migrations | Mapeo por **Attributes**. |
-| Base de datos | PostgreSQL 16+ | `compose.yaml` fija `POSTGRES_VERSION=16` por defecto. |
-| Mensajería | Symfony Messenger | Transporte Doctrine, varios transports + `failed`. |
-| Texto de PDF | `smalot/pdfparser` (capa de texto) | Extracción determinista, sin salir del sistema. |
-| OCR | Tesseract vía `thiagoalessio/tesseract_ocr` | **Opcional**, solo para PDF/imagen sin capa de texto. Se activa por configuración. |
-| IA | `symfony/http-client` + `AiProviderInterface` | Proveedores intercambiables (económico y avanzado). Desactivada por defecto. Ver §13. |
-| Vistas | Twig (SSR) + Turbo + Stimulus | Sin SPA. Ver §12 y `DECISIONS.md` (D-17). |
-| Assets | **AssetMapper** (sin Node/npm) | `symfony/asset-mapper`. Evita un toolchain Node en la imagen Docker. |
-| Tiempo real | **Mercure** | Ya incluido en la plantilla FrankenPHP. Progreso de sincronización en vivo. |
-| Seguridad | Symfony Security | Form login + sesión. OAuth de correo es aparte. |
-| Validación | Symfony Validator | Mensajes en español. |
-| Identificadores | `symfony/uid` — **UUIDv7** | Ordenables temporalmente, buenos para índices. |
-| Cifrado | `ext-sodium` (libsodium) | Cifrado de credenciales de correo. |
-| Contenedores | Docker / Docker Compose | Ya presente. |
+| Pieza           | Elección                                      | Notas                                                                                       |
+| --------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Lenguaje        | PHP 8.5                                       | La imagen base del repositorio es `dunglas/frankenphp:1-php8.5`. Ver `DECISIONS.md` (D-01). |
+| Framework       | Symfony 8.x                                   | Instalado vía `composer create-project symfony/skeleton` en el primer arranque.             |
+| Servidor        | FrankenPHP + Caddy                            | Ya configurado en el repositorio (worker mode, HTTPS automático, Mercure).                  |
+| ORM             | Doctrine ORM 3 + Migrations                   | Mapeo por **Attributes**.                                                                   |
+| Base de datos   | PostgreSQL 16+                                | `compose.yaml` fija `POSTGRES_VERSION=16` por defecto.                                      |
+| Mensajería      | Symfony Messenger                             | Transporte Doctrine, varios transports + `failed`.                                          |
+| Texto de PDF    | `smalot/pdfparser` (capa de texto)            | Extracción determinista, sin salir del sistema.                                             |
+| OCR             | Tesseract vía `thiagoalessio/tesseract_ocr`   | **Opcional**, solo para PDF/imagen sin capa de texto. Se activa por configuración.          |
+| IA              | `symfony/http-client` + `AiProviderInterface` | Proveedores intercambiables (económico y avanzado). Desactivada por defecto. Ver §13.       |
+| Vistas          | Twig (SSR) + Turbo + Stimulus                 | Sin SPA. Ver §12 y `DECISIONS.md` (D-17).                                                   |
+| Assets          | **AssetMapper** (sin Node/npm)                | `symfony/asset-mapper`. Evita un toolchain Node en la imagen Docker.                        |
+| Tiempo real     | **Mercure**                                   | Ya incluido en la plantilla FrankenPHP. Progreso de sincronización en vivo.                 |
+| Seguridad       | Symfony Security                              | Form login + sesión. OAuth de correo es aparte.                                             |
+| Validación      | Symfony Validator                             | Mensajes en español.                                                                        |
+| Identificadores | `symfony/uid` — **UUIDv7**                    | Ordenables temporalmente, buenos para índices.                                              |
+| Cifrado         | `ext-sodium` (libsodium)                      | Cifrado de credenciales de correo.                                                          |
+| Contenedores    | Docker / Docker Compose                       | Ya presente.                                                                                |
 
 ## 3. Estructura de módulos
 
@@ -123,11 +123,11 @@ organización traverse siete módulos sin que el agregador conozca ninguno de el
 Las **lecturas** no cargan la entidad de escritura `Service`. El módulo `Services` publica un
 **read model** en `src/Services/Domain/Dto/`:
 
-| DTO | Qué aporta |
-|---|---|
-| `ServiceView` | Ficha del servicio con su precio actual, periodicidad, estado y próximo cobro. |
-| `ServicePriceView` | Historial de precios aplanado, con su rango de fechas. |
-| `ServiceEventView` | Eventos del servicio en forma plana, para la línea de tiempo. |
+| DTO                | Qué aporta                                                                     |
+| ------------------ | ------------------------------------------------------------------------------ |
+| `ServiceView`      | Ficha del servicio con su precio actual, periodicidad, estado y próximo cobro. |
+| `ServicePriceView` | Historial de precios aplanado, con su rango de fechas.                         |
+| `ServiceEventView` | Eventos del servicio en forma plana, para la línea de tiempo.                  |
 
 Se leen con `ServiceViewRepositoryInterface` (`findOne()`, `findAll()`,
 `findForOrganization()`), que devuelve DTOs y no entidades. Motivo: atar las pantallas y los
@@ -140,37 +140,37 @@ necesita consultar. Ver D-50.
 
 ### 4.1 Identidad y tenancy
 
-| Entidad | Campos clave | Notas |
-|---|---|---|
-| `User` | id, email (único), passwordHash, roles, locale, timezone, notificationSettings, createdAt, lastLoginAt | |
-| `Organization` | id, name, slug, ownerId, createdAt | Tenant. Se crea automáticamente al registrar un usuario. |
-| `Membership` | userId, organizationId, role (`owner`/`admin`/`member`), createdAt | En v1 siempre un único `owner`. La tabla existe para no migrar después. |
+| Entidad        | Campos clave                                                                                           | Notas                                                                   |
+| -------------- | ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| `User`         | id, email (único), passwordHash, roles, locale, timezone, notificationSettings, createdAt, lastLoginAt |                                                                         |
+| `Organization` | id, name, slug, ownerId, createdAt                                                                     | Tenant. Se crea automáticamente al registrar un usuario.                |
+| `Membership`   | userId, organizationId, role (`owner`/`admin`/`member`), createdAt                                     | En v1 siempre un único `owner`. La tabla existe para no migrar después. |
 
 **Decisión:** `Organization` existe desde v1 aunque en la primera versión sea 1:1 con el
 usuario. Motivo y alternativas en `DECISIONS.md` (D-02).
 
 ### 4.2 Catálogo
 
-| Entidad | Campos clave | Notas |
-|---|---|---|
-| `Provider` | id, organizationId (nullable), name, slug, aliases (json), website, logoPath, defaultCategoryId, isSystem | `organizationId = null` → catálogo global (OVH, Microsoft, GitHub…). No nulo → proveedor propio del tenant. |
-| `Category` | id, organizationId (nullable), name, slug, color, icon, isSystem | Categorías por defecto: Software, Hosting, Telecomunicaciones, Seguros, Suministros, Marketing, Formación, Otros. |
-| `ProviderIdentity` | id, providerId, type, value, confidence, source, hitCount, lastSeenAt, createdAt | **Cómo reconocemos a un proveedor.** `type`: `domain`, `sender`, `subject_pattern`, `attachment_pattern`. `source`: `seed`, `learned`, `user`. `UNIQUE (type, value)`. |
-| `ProviderParser` | id, providerId, key, version, enabled, config (json), successCount, failureCount, lastUsedAt | **Cómo extraemos de un proveedor.** `key` referencia un parser de código (`ovh`, `github`, `microsoft`); `config` permite patrones declarativos sin tocar código. |
+| Entidad            | Campos clave                                                                                              | Notas                                                                                                                                                                  |
+| ------------------ | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Provider`         | id, organizationId (nullable), name, slug, aliases (json), website, logoPath, defaultCategoryId, isSystem | `organizationId = null` → catálogo global (OVH, Microsoft, GitHub…). No nulo → proveedor propio del tenant.                                                            |
+| `Category`         | id, organizationId (nullable), name, slug, color, icon, isSystem                                          | Categorías por defecto: Software, Hosting, Telecomunicaciones, Seguros, Suministros, Marketing, Formación, Otros.                                                      |
+| `ProviderIdentity` | id, providerId, type, value, confidence, source, hitCount, lastSeenAt, createdAt                          | **Cómo reconocemos a un proveedor.** `type`: `domain`, `sender`, `subject_pattern`, `attachment_pattern`. `source`: `seed`, `learned`, `user`. `UNIQUE (type, value)`. |
+| `ProviderParser`   | id, providerId, key, version, enabled, config (json), successCount, failureCount, lastUsedAt              | **Cómo extraemos de un proveedor.** `key` referencia un parser de código (`ovh`, `github`, `microsoft`); `config` permite patrones declarativos sin tocar código.      |
 
-**Conocimiento de proveedores separado del catálogo.** `Provider` responde *quién es*; 
-`ProviderIdentity` responde *cómo lo reconocemos* (un proveedor puede facturar desde varios
-dominios y direcciones); `ProviderParser` responde *cómo extraemos sus datos*. Esta separación
+**Conocimiento de proveedores separado del catálogo.** `Provider` responde _quién es_;
+`ProviderIdentity` responde _cómo lo reconocemos_ (un proveedor puede facturar desde varios
+dominios y direcciones); `ProviderParser` responde _cómo extraemos sus datos_. Esta separación
 es la que permite que el sistema **aprenda** un proveedor nuevo sin crear código, y que un
 parser de código conviva con patrones configurados y con conocimiento aprendido (§13.7, D-33).
 
 ### 4.3 Núcleo: servicios y precios
 
-| Entidad | Campos clave |
-|---|---|
-| `Service` | id, organizationId, providerId (nullable), name, planName (nullable), categoryId (nullable), status, currency, billingPeriod, billingIntervalCount, startedAt, nextChargeAt, renewalAt, noticePeriodDays, autoRenews, commitmentEndAt, cancelledAt, paymentMethodLabel, notes, source, createdByUserId, createdAt, updatedAt |
-| `ServicePrice` | id, serviceId, amountMinor, currency, billingPeriod, billingIntervalCount, validFrom, validTo (nullable), source, invoiceId (nullable), note, createdAt |
-| `ServiceEvent` | id, serviceId, type, occurredAt, data (json), actorUserId (nullable), createdAt |
+| Entidad        | Campos clave                                                                                                                                                                                                                                                                                                                 |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Service`      | id, organizationId, providerId (nullable), name, planName (nullable), categoryId (nullable), status, currency, billingPeriod, billingIntervalCount, startedAt, nextChargeAt, renewalAt, noticePeriodDays, autoRenews, commitmentEndAt, cancelledAt, paymentMethodLabel, notes, source, createdByUserId, createdAt, updatedAt |
+| `ServicePrice` | id, serviceId, amountMinor, currency, billingPeriod, billingIntervalCount, validFrom, validTo (nullable), source, invoiceId (nullable), note, createdAt                                                                                                                                                                      |
+| `ServiceEvent` | id, serviceId, type, occurredAt, data (json), actorUserId (nullable), createdAt                                                                                                                                                                                                                                              |
 
 **`Service.status`**: `active`, `paused`, `cancelled`, `pending_review`.
 **`Service.source`**: `manual`, `email_discovery`.
@@ -180,10 +180,10 @@ parser de código conviva con patrones configurados y con conocimiento aprendido
 **El precio es histórico, nunca un campo mutable.** El precio vigente es la fila de
 `ServicePrice` con `validTo IS NULL`. Un cambio de precio cierra la fila anterior
 (`validTo = fecha del cambio`) e inserta una nueva. Esto permite responder
-*"este servicio ha subido un 19,8 % en el último año"* sin cálculos frágiles.
+_"este servicio ha subido un 19,8 % en el último año"_ sin cálculos frágiles.
 
 **`ServiceEvent` es un log append-only** del ciclo de vida del servicio. Alimenta la pregunta
-*"¿qué ha cambiado?"* del dashboard y sirve de base para las alertas de cambio.
+_"¿qué ha cambiado?"_ del dashboard y sirve de base para las alertas de cambio.
 
 **`Renewal` no es una entidad en v1.** La renovación es un conjunto de propiedades del
 `Service` (`renewalAt`, `noticePeriodDays`, `autoRenews`, `commitmentEndAt`) más un evento
@@ -191,11 +191,11 @@ generado. Ver `DECISIONS.md` (D-03).
 
 ### 4.3.1 Suscripción: el contrato (Fase 21)
 
-`Service` responde a *«¿qué estoy pagando?»*. `Subscription` responde a *«¿qué contrato
-sostiene ese cobro?»*. Son dos preguntas distintas y por eso son dos entidades (D-78).
+`Service` responde a _«¿qué estoy pagando?»_. `Subscription` responde a _«¿qué contrato
+sostiene ese cobro?»_. Son dos preguntas distintas y por eso son dos entidades (D-78).
 
-| Entidad | Campos clave |
-|---|---|
+| Entidad        | Campos clave                                                                                                                                                                                                                                                                                                     |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Subscription` | id, organizationId, planId (nullable), serviceId (nullable), name, status, currency, billingPeriod, billingIntervalCount, startedAt, currentPeriodStart, currentPeriodEnd, trialEndsAt (nullable), canceledAt (nullable), endsAt (nullable), externalReference (nullable), createdByUserId, createdAt, updatedAt |
 
 **`Subscription.status`**: `trialing`, `active`, `past_due`, `paused`, `canceled`. No se
@@ -203,16 +203,16 @@ reutiliza `ServiceStatus`: `past_due` es un estado de **cobro** que un servicio 
 el correo nunca tendrá, y `pending_review` es un estado de **revisión** que una suscripción
 nunca tendrá.
 
-| Transición | Método | Regla |
-|---|---|---|
-| `* → trialing` | `startTrial()` | Solo con fin posterior a hoy y si no está cancelada. |
-| `trialing → active` | `activate()` | El periodo **empieza hoy**: la prueba no se cobra. |
-| `* → active` | `activate()` | Limpia `trialEndsAt` y `endsAt`. Una cancelada no vuelve. |
-| `* → past_due` | `markPastDue()` | Sigue viva: se da servicio mientras se reintenta el cobro. |
-| `* → paused` | `pause()` | Idempotente. El periodo **no** avanza. |
-| `paused → active` | `resume()` | El periodo **se reinicia hoy**: los días de pausa no se cobraron. |
-| `* → canceled` | `cancel()` | Idempotente. `endsAt` = fin del periodo pagado; no corta el acceso hoy. |
-| `active → active` | `renew()` | Solo lo activo se renueva. Si el periodo venció, el nuevo empieza hoy. |
+| Transición          | Método          | Regla                                                                   |
+| ------------------- | --------------- | ----------------------------------------------------------------------- |
+| `* → trialing`      | `startTrial()`  | Solo con fin posterior a hoy y si no está cancelada.                    |
+| `trialing → active` | `activate()`    | El periodo **empieza hoy**: la prueba no se cobra.                      |
+| `* → active`        | `activate()`    | Limpia `trialEndsAt` y `endsAt`. Una cancelada no vuelve.               |
+| `* → past_due`      | `markPastDue()` | Sigue viva: se da servicio mientras se reintenta el cobro.              |
+| `* → paused`        | `pause()`       | Idempotente. El periodo **no** avanza.                                  |
+| `paused → active`   | `resume()`      | El periodo **se reinicia hoy**: los días de pausa no se cobraron.       |
+| `* → canceled`      | `cancel()`      | Idempotente. `endsAt` = fin del periodo pagado; no corta el acceso hoy. |
+| `active → active`   | `renew()`       | Solo lo activo se renueva. Si el periodo venció, el nuevo empieza hoy.  |
 
 **El periodo se calcula con `BillingPeriod::advance()`**, no sumando días: una suscripción
 mensual del 31 de enero renueva el 28 de febrero. `changeBillingPeriod()` recalcula el final
@@ -234,21 +234,21 @@ error que esta fase evita.
 
 ### 4.3.2 Catálogo comercial: lo que se vende (Fase 22)
 
-El catálogo de §4.2 responde *qué proveedores conocemos*; este responde *qué vendemos nosotros*.
+El catálogo de §4.2 responde _qué proveedores conocemos_; este responde _qué vendemos nosotros_.
 Son dos cosas distintas y por eso son dos módulos: `Catalog` describe el mundo (OVH, Microsoft,
 GitHub…, con sus dominios y sus parsers) y no se factura; `Subscriptions` describe el producto
 que Suscripta pone a la venta. Meter ambos en el mismo módulo habría dejado un `Plan` que no es
 un proveedor codeándose con `Provider`, y un panel de operador que tendría que filtrar la mitad
 de las tablas.
 
-| Entidad | Campos clave | Notas |
-|---|---|---|
-| `Plan` | id, code (enum `OrganizationPlan`, único), name, slug (único), tagline, description, isActive, isHighlighted, sortOrder, createdAt, updatedAt | `code` es el **puente** con `entitlements.yaml`: no hay dos catálogos, hay uno con límites en configuración (D-64, D-81). |
-| `PlanPrice` | id, planId, amountMinor, currency, billingPeriod, validFrom, validTo (nullable), externalPriceId (nullable), createdAt | Vigente = `validTo IS NULL`. Nunca se sobrescribe: se cierra y se abre otro (D-13, D-82). |
-| `PlanFeature` | id, planId, label, included, sortOrder | Texto de presentación de la tarjeta de precios. `included = false` sirve para enseñar tachado lo que **no** entra. |
+| Entidad       | Campos clave                                                                                                                                  | Notas                                                                                                                     |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `Plan`        | id, code (enum `OrganizationPlan`, único), name, slug (único), tagline, description, isActive, isHighlighted, sortOrder, createdAt, updatedAt | `code` es el **puente** con `entitlements.yaml`: no hay dos catálogos, hay uno con límites en configuración (D-64, D-81). |
+| `PlanPrice`   | id, planId, amountMinor, currency, billingPeriod, validFrom, validTo (nullable), externalPriceId (nullable), createdAt                        | Vigente = `validTo IS NULL`. Nunca se sobrescribe: se cierra y se abre otro (D-13, D-82).                                 |
+| `PlanFeature` | id, planId, label, included, sortOrder                                                                                                        | Texto de presentación de la tarjeta de precios. `included = false` sirve para enseñar tachado lo que **no** entra.        |
 
 **El catálogo es global, no por tenant.** Un `Plan` no implementa `TenantAwareInterface`: los
-precios de Suscripta son los mismos para todos. Lo que sí es por tenant es la *suscripción* a
+precios de Suscripta son los mismos para todos. Lo que sí es por tenant es la _suscripción_ a
 un plan, que es la Fase 21.
 
 **El panel exige `ROLE_OPERATOR`**, un rol que **no se hereda de ningún plan** y se concede a
@@ -276,10 +276,10 @@ lo dice.
 
 ### 4.4 Documentos y facturas
 
-| Entidad | Campos clave |
-|---|---|
-| `Document` | id, organizationId, serviceId (nullable), invoiceId (nullable), originalFilename, storageDriver, storageKey, mimeType, sizeBytes, checksumSha256, type, source, emailMessageId (nullable), createdAt, deletedAt |
-| `Invoice` | id, organizationId, serviceId (nullable), providerId (nullable), documentId (nullable), number (nullable), issuedAt, totalAmountMinor, currency, periodStart, periodEnd, paidAt (nullable), status, source, createdAt |
+| Entidad    | Campos clave                                                                                                                                                                                                          |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Document` | id, organizationId, serviceId (nullable), invoiceId (nullable), originalFilename, storageDriver, storageKey, mimeType, sizeBytes, checksumSha256, type, source, emailMessageId (nullable), createdAt, deletedAt       |
+| `Invoice`  | id, organizationId, serviceId (nullable), providerId (nullable), documentId (nullable), number (nullable), issuedAt, totalAmountMinor, currency, periodStart, periodEnd, paidAt (nullable), status, source, createdAt |
 
 **`Document.type`**: `invoice`, `receipt`, `contract`, `other`.
 **`Document.source`**: `email_attachment`, `email_body`, `manual_upload`.
@@ -300,14 +300,14 @@ entidad `EmailAttachment` separada.
 
 ### 4.5 Correo
 
-| Entidad | Campos clave |
-|---|---|
-| `EmailAccount` | id, organizationId, provider, emailAddress, displayName, status, credentialsEncrypted, oauthTokenEncrypted (nullable), imapHost, imapPort, imapEncryption, imapUsername, forwardingAddress (nullable), forwardingSenders (json), forwardingEnabled, lastSyncAt, lastSyncStatus, lastSyncError, createdAt, updatedAt, deletedAt |
-| `EmailSyncCursor` | id, organizationId, emailAccountId, folder, uidValidity, lastSeenUid, backfillCursor (nullable), lastSyncAt, createdAt, updatedAt |
-| `EmailSyncRun` | id, emailAccountId, startedAt, finishedAt, status, messagesSeen, messagesProcessed, messagesSkipped, messagesBackfilled, discoveriesCreated, error |
-| `EmailMessage` | id, organizationId, emailAccountId, folder, uid (nullable), source, messageId, threadId, fromAddress, fromName, replyTo, senderDomain, toAddresses (json), subject, receivedAt, sizeBytes, contentType, hasAttachments, attachmentNames (json), attachmentTypes (json), bodyHash, contentHash, bodyExcerpt (nullable), billingScore, billingReasons (json), processingState, classification, classificationConfidence, extractionTier, extractorUsed, aiUsed, aiCostMinor, attempts, lastError, processedAt, createdAt |
-| `MessageProcessingEvent` | id, emailMessageId, fromState, toState, reason, extractor, tier, aiUsageId (nullable), durationMs, data (json), occurredAt |
-| `ExtractionCache` | id, organizationId, contentHash, document (json), tier, confidence, hitCount, lastUsedAt, createdAt |
+| Entidad                  | Campos clave                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EmailAccount`           | id, organizationId, provider, emailAddress, displayName, status, credentialsEncrypted, oauthTokenEncrypted (nullable), imapHost, imapPort, imapEncryption, imapUsername, forwardingAddress (nullable), forwardingSenders (json), forwardingEnabled, lastSyncAt, lastSyncStatus, lastSyncError, createdAt, updatedAt, deletedAt                                                                                                                                                                                         |
+| `EmailSyncCursor`        | id, organizationId, emailAccountId, folder, uidValidity, lastSeenUid, backfillCursor (nullable), lastSyncAt, createdAt, updatedAt                                                                                                                                                                                                                                                                                                                                                                                      |
+| `EmailSyncRun`           | id, emailAccountId, startedAt, finishedAt, status, messagesSeen, messagesProcessed, messagesSkipped, messagesBackfilled, discoveriesCreated, error                                                                                                                                                                                                                                                                                                                                                                     |
+| `EmailMessage`           | id, organizationId, emailAccountId, folder, uid (nullable), source, messageId, threadId, fromAddress, fromName, replyTo, senderDomain, toAddresses (json), subject, receivedAt, sizeBytes, contentType, hasAttachments, attachmentNames (json), attachmentTypes (json), bodyHash, contentHash, bodyExcerpt (nullable), billingScore, billingReasons (json), processingState, classification, classificationConfidence, extractionTier, extractorUsed, aiUsed, aiCostMinor, attempts, lastError, processedAt, createdAt |
+| `MessageProcessingEvent` | id, emailMessageId, fromState, toState, reason, extractor, tier, aiUsageId (nullable), durationMs, data (json), occurredAt                                                                                                                                                                                                                                                                                                                                                                                             |
+| `ExtractionCache`        | id, organizationId, contentHash, document (json), tier, confidence, hitCount, lastUsedAt, createdAt                                                                                                                                                                                                                                                                                                                                                                                                                    |
 
 **`EmailAccount.provider`**: `imap`, `forwarding`, `gmail`, `microsoft` (los dos últimos, reservados).
 **`EmailAccount.status`**: `pending`, `active`, `error`, `disabled`.
@@ -318,8 +318,8 @@ entidad `EmailAttachment` separada.
 **`EmailMessage.extractionTier`**: `deterministic`, `known_parser`, `ai_cheap`, `ai_advanced`.
 
 **`MessageProcessingEvent` es un log append-only** de las transiciones de estado de cada
-mensaje. Responde a *qué ocurrió, cuándo, con qué extractor, si intervino IA, con qué
-resultado y por qué se decidió* (§13.5, D-32). Es la base de la observabilidad del pipeline y
+mensaje. Responde a _qué ocurrió, cuándo, con qué extractor, si intervino IA, con qué
+resultado y por qué se decidió_ (§13.5, D-32). Es la base de la observabilidad del pipeline y
 de la explicación que se muestra al usuario.
 
 **`ExtractionCache` es la memoria de extracción.** Guarda el `ExtractedDocument` ya resuelto
@@ -359,8 +359,8 @@ así que la deduplicación no puede ser solo por cuenta:
 
 **Cursor de sincronización:** `EmailSyncCursor` guarda `uidValidity` + `lastSeenUid` por
 carpeta **y por cuenta**. Si `uidValidity` cambia, el cursor se invalida y se reprocesa la
-ventana acotada. Esto responde al requisito *"conocer hasta dónde se ha sincronizado cada
-cuenta"*. El detalle del algoritmo está en §13.2.
+ventana acotada. Esto responde al requisito _"conocer hasta dónde se ha sincronizado cada
+cuenta"_. El detalle del algoritmo está en §13.2.
 
 **`EmailMessage.uid` es nullable.** Un mensaje leído del buzón siempre tiene UID; uno recibido
 por reenvío no, porque nunca estuvo en una carpeta IMAP. La restricción
@@ -374,17 +374,17 @@ La vía de reenvío (D-21) existe para quien no quiere —o no puede— dar acce
 usuario activa el reenvío en su proveedor hacia una dirección que **generamos nosotros** y que
 solo acepta correo de los remitentes que él autorice.
 
-| Concepto | Decisión |
-|---|---|
-| Dirección | `inbox-<32 hex>@<dominio>`, generada con `random_bytes(16)`. Es un **secreto**: no se deriva de la cuenta ni de la organización, y por eso se puede rotar. |
-| Autorización | `forwardingSenders` es una lista de direcciones o de dominios (`@miempresa.com`). Sin lista, la dirección no acepta a nadie: sería un buzón abierto. |
-| Comparación | Por dirección completa o por dominio, con `str_ends_with` sobre el dominio normalizado. `@ovh.com` **no** autoriza `atacante@falso-ovh.com`. |
-| Rotación | Cambiar la dirección invalida la anterior de inmediato. |
-| Desactivación | `forwardingEnabled = false` basta: `findByForwardingAddress()` exige que esté activo. La dirección se conserva por si se vuelve a activar. |
-| Límite de tamaño | 25 MB por mensaje. |
-| Límite de caudal | *Rate limiter* `inbound_email` (ventana deslizante, 120/hora por cuenta). |
-| Respuesta | `200` para aceptado **y** duplicado (para que el proveedor no reintente), `202` para cualquier rechazo, `400` para un cuerpo inválido. El motivo real **no** se revela: sería un oráculo para descubrir direcciones válidas. Queda en el libro de auditoría. |
-| Procesamiento | El mensaje se **encola** en `mail_processing`; nunca se procesa dentro de la petición HTTP del proveedor. |
+| Concepto         | Decisión                                                                                                                                                                                                                                                     |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Dirección        | `inbox-<32 hex>@<dominio>`, generada con `random_bytes(16)`. Es un **secreto**: no se deriva de la cuenta ni de la organización, y por eso se puede rotar.                                                                                                   |
+| Autorización     | `forwardingSenders` es una lista de direcciones o de dominios (`@miempresa.com`). Sin lista, la dirección no acepta a nadie: sería un buzón abierto.                                                                                                         |
+| Comparación      | Por dirección completa o por dominio, con `str_ends_with` sobre el dominio normalizado. `@ovh.com` **no** autoriza `atacante@falso-ovh.com`.                                                                                                                 |
+| Rotación         | Cambiar la dirección invalida la anterior de inmediato.                                                                                                                                                                                                      |
+| Desactivación    | `forwardingEnabled = false` basta: `findByForwardingAddress()` exige que esté activo. La dirección se conserva por si se vuelve a activar.                                                                                                                   |
+| Límite de tamaño | 25 MB por mensaje.                                                                                                                                                                                                                                           |
+| Límite de caudal | _Rate limiter_ `inbound_email` (ventana deslizante, 120/hora por cuenta).                                                                                                                                                                                    |
+| Respuesta        | `200` para aceptado **y** duplicado (para que el proveedor no reintente), `202` para cualquier rechazo, `400` para un cuerpo inválido. El motivo real **no** se revela: sería un oráculo para descubrir direcciones válidas. Queda en el libro de auditoría. |
+| Procesamiento    | El mensaje se **encola** en `mail_processing`; nunca se procesa dentro de la petición HTTP del proveedor.                                                                                                                                                    |
 
 El cuerpo del mensaje viaja con el mensaje de la cola (`ProcessEmailMessageMessage::$body`)
 porque un reenvío no se puede volver a leer del buzón. Es un dato **transitorio**: no se
@@ -396,8 +396,8 @@ reenvío. Los servicios ya confirmados permanecen: son datos del usuario, no del
 
 **Conocimiento del buzón:**
 
-| Entidad | Campos clave |
-|---|---|
+| Entidad                 | Campos clave                                                                                     |
+| ----------------------- | ------------------------------------------------------------------------------------------------ |
 | `MailboxKnowledgeEntry` | id, emailAccountId, kind, key, value (json), confidence, source, hitCount, lastUsedAt, createdAt |
 
 `kind`: `sender_mapping` (dirección → proveedor), `subject_pattern`, `ignored_sender`,
@@ -413,15 +413,15 @@ editable por el usuario. No se introduce ML en v1 (D-39).
 
 ### 4.6 Descubrimientos
 
-| Entidad | Campos clave |
-|---|---|
-| `Discovery` | id, organizationId, type, status, confidence, confidenceScore, matchScore, matchReasons (json), proposedData (json), matchedServiceId (nullable), sourceEmailMessageId (nullable), extractionTier, aiUsed, detectedAt, reviewedAt, reviewedByUserId, resultingServiceId (nullable), notes |
-| `DiscoveryEvidence` | id, discoveryId, emailMessageId (nullable), documentId (nullable), weight |
+| Entidad             | Campos clave                                                                                                                                                                                                                                                                              |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Discovery`         | id, organizationId, type, status, confidence, confidenceScore, matchScore, matchReasons (json), proposedData (json), matchedServiceId (nullable), sourceEmailMessageId (nullable), extractionTier, aiUsed, detectedAt, reviewedAt, reviewedByUserId, resultingServiceId (nullable), notes |
+| `DiscoveryEvidence` | id, discoveryId, emailMessageId (nullable), documentId (nullable), weight                                                                                                                                                                                                                 |
 
 **`Discovery.matchScore` y `matchReasons`** guardan el resultado del `ServiceMatcher` (§13.10):
 la puntuación de coincidencia con servicios existentes y el desglose de por qué. Permiten
-explicar al usuario *"creemos que esto es el mismo servicio que ya tienes porque coincide el
-proveedor y el importe"*, y son la materia prima del aprendizaje (§13.12).
+explicar al usuario _"creemos que esto es el mismo servicio que ya tienes porque coincide el
+proveedor y el importe"_, y son la materia prima del aprendizaje (§13.12).
 
 **`Discovery.type`**: `new_service`, `price_change`, `plan_change`, `cancellation`, `duplicate`.
 **`Discovery.status`**: `pending`, `confirmed`, `edited`, `ignored`, `expired`.
@@ -431,16 +431,16 @@ proveedor y el importe"*, y son la materia prima del aprendizaje (§13.12).
 moneda, periodicidad, próximo cobro, categoría sugerida). Se usa JSON deliberadamente: es una
 propuesta en revisión, no una entidad de negocio, y su forma evolucionará con el extractor.
 
-`DiscoveryEvidence` permite mostrar al usuario *por qué* el sistema propone algo (correo y
+`DiscoveryEvidence` permite mostrar al usuario _por qué_ el sistema propone algo (correo y
 documentos de origen).
 
 ### 4.7 Alertas y notificaciones
 
-| Entidad | Campos clave |
-|---|---|
-| `Alert` | id, organizationId, serviceId (nullable), type, severity, title, message, data (json), isInference, status, detectedAt, resolvedAt |
-| `Notification` | id, organizationId, userId, alertId (nullable), channel, status, payload (json), sentAt, readAt, createdAt |
-| `NotificationPreference` | id, userId, alertType, channel, enabled |
+| Entidad                  | Campos clave                                                                                                                       |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `Alert`                  | id, organizationId, serviceId (nullable), type, severity, title, message, data (json), isInference, status, detectedAt, resolvedAt |
+| `Notification`           | id, organizationId, userId, alertId (nullable), channel, status, payload (json), sentAt, readAt, createdAt                         |
+| `NotificationPreference` | id, userId, alertType, channel, enabled                                                                                            |
 
 **`Alert.type`**: `upcoming_charge`, `upcoming_renewal`, `price_increase`, `plan_change`,
 `new_service_detected`, `possible_duplicate`, `missing_recurring_invoice`, `cost_changed`,
@@ -448,8 +448,8 @@ documentos de origen).
 **`Alert.status`**: `open`, `acknowledged`, `dismissed`, `resolved`.
 **`Notification.channel`**: `in_app`, `email` (ampliable a `push`, `slack`, `telegram`).
 
-**Separación detección / entrega:** `Alert` es *qué ha pasado*; `Notification` es *cómo y a
-quién se ha avisado*. Añadir un canal nuevo no toca el dominio: solo se registra un nuevo
+**Separación detección / entrega:** `Alert` es _qué ha pasado_; `Notification` es _cómo y a
+quién se ha avisado_. Añadir un canal nuevo no toca el dominio: solo se registra un nuevo
 `NotificationChannelInterface`.
 
 **`Alert.isInference`** marca las alertas que son sugerencias (duplicados, servicio inactivo,
@@ -457,11 +457,11 @@ cambio de precio inferido) para que la UI las presente explícitamente como tale
 
 ### 4.8 Auditoría y coste de IA
 
-| Entidad | Campos clave |
-|---|---|
-| `AuditLog` | id, organizationId (nullable), actorUserId (nullable), actorType, action, targetType, targetId, metadata (json), ipAddress, userAgent, createdAt |
-| `AiUsage` | id, organizationId, emailAccountId (nullable), emailMessageId (nullable), documentId (nullable), operation, provider, model, tier, inputTokens, outputTokens, estimatedCostMinor, currency, latencyMs, success, errorCode, metadata (json), createdAt |
-| `AiBudget` | id, organizationId, period, limitMinor, currency, hardStop, currentPeriodStart, currentSpendMinor, updatedAt |
+| Entidad    | Campos clave                                                                                                                                                                                                                                          |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AuditLog` | id, organizationId (nullable), actorUserId (nullable), actorType, action, targetType, targetId, metadata (json), ipAddress, userAgent, createdAt                                                                                                      |
+| `AiUsage`  | id, organizationId, emailAccountId (nullable), emailMessageId (nullable), documentId (nullable), operation, provider, model, tier, inputTokens, outputTokens, estimatedCostMinor, currency, latencyMs, success, errorCode, metadata (json), createdAt |
+| `AiBudget` | id, organizationId, period, limitMinor, currency, hardStop, currentPeriodStart, currentSpendMinor, updatedAt                                                                                                                                          |
 
 Append-only. `AuditLog` se escribe para acciones sensibles (ver `SECURITY.md`).
 
@@ -469,8 +469,8 @@ Append-only. `AuditLog` se escribe para acciones sensibles (ver `SECURITY.md`).
 avanzado— deja una fila, incluso si falla. Responde a dos preguntas de negocio que no se
 pueden contestar a posteriori si no se registran desde el primer día:
 
-- *¿Cuánto nos cuesta procesar el buzón de este usuario?*
-- *¿Cuánto cuesta de IA un usuario medio al mes?*
+- _¿Cuánto nos cuesta procesar el buzón de este usuario?_
+- _¿Cuánto cuesta de IA un usuario medio al mes?_
 
 `AiBudget` define el techo por organización y periodo. Cuando se alcanza, **no se hacen más
 llamadas de IA**: el pipeline continúa por reglas, el mensaje queda en `DEFERRED` y se
@@ -537,12 +537,12 @@ Se aplica en cascada, de lo más barato y determinista a lo más caro y difuso, 
 en cuanto hay suficiente confianza**. Esta sección resume el principio; el diseño completo
 del pipeline (niveles, estados, interfaces, coste y aprendizaje) está en **§13**.
 
-| Capa | Qué hace | Coste | Datos salen del sistema |
-|---|---|---|---|
-| 1. Determinista | Cabeceras, remitente, `message-id`, adjuntos, metadatos del PDF, texto embebido | Nulo | No |
-| 2. Reglas | Patrones de proveedor, plantillas de factura, expresiones de importe/periodicidad, diccionario de proveedores conocidos | Bajo | No |
-| 3. OCR | Solo cuando el documento es una imagen o un PDF sin capa de texto | Medio (CPU) | No |
-| 4. IA | Solo cuando las capas anteriores no alcanzan el umbral de confianza: texto libre, plantillas desconocidas | Alto | **Sí, si el proveedor es externo** |
+| Capa            | Qué hace                                                                                                                | Coste       | Datos salen del sistema            |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------- | ----------- | ---------------------------------- |
+| 1. Determinista | Cabeceras, remitente, `message-id`, adjuntos, metadatos del PDF, texto embebido                                         | Nulo        | No                                 |
+| 2. Reglas       | Patrones de proveedor, plantillas de factura, expresiones de importe/periodicidad, diccionario de proveedores conocidos | Bajo        | No                                 |
+| 3. OCR          | Solo cuando el documento es una imagen o un PDF sin capa de texto                                                       | Medio (CPU) | No                                 |
+| 4. IA           | Solo cuando las capas anteriores no alcanzan el umbral de confianza: texto libre, plantillas desconocidas               | Alto        | **Sí, si el proveedor es externo** |
 
 **Reglas de la capa de IA:**
 
@@ -564,18 +564,18 @@ ve el resultado de la extracción, no cómo se obtuvo.
 
 El brief de producto nombra conceptos que no todos son entidades. Este es el mapeo explícito:
 
-| Concepto | Representación en v1 | Notas |
-|---|---|---|
-| `EmailAccount` | Entidad | Cuenta de correo conectada (IMAP o reenvío). |
-| `EmailMessage` | Entidad | Metadatos del mensaje; **no se guarda el cuerpo completo**. |
-| `Document` | Entidad | Adjunto o documento conservado como evidencia. |
-| `Discovery` | Entidad | Propuesta pendiente de revisión. |
-| `Provider` | Entidad | Proveedor (OVH, Microsoft…), global o propio del tenant. |
-| `Service` | Entidad | **Núcleo del dominio.** Es el servicio recurrente que se paga. |
-| `Subscription` | **No es entidad separada** | Se modela como `Service` con `status = active` y periodicidad. Ver D-22. |
-| `Invoice` | Entidad | Factura o recibo detectado. |
-| `Payment` | **No es entidad en v1** | Un cobro es `Invoice` con `paidAt` + `status = paid`. Ver D-04. |
-| `Renewal` | **No es entidad en v1** | Propiedades de `Service` (`renewalAt`, `noticePeriodDays`, `autoRenews`, `commitmentEndAt`) + `ServiceEvent`. Ver D-03. |
+| Concepto       | Representación en v1       | Notas                                                                                                                   |
+| -------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `EmailAccount` | Entidad                    | Cuenta de correo conectada (IMAP o reenvío).                                                                            |
+| `EmailMessage` | Entidad                    | Metadatos del mensaje; **no se guarda el cuerpo completo**.                                                             |
+| `Document`     | Entidad                    | Adjunto o documento conservado como evidencia.                                                                          |
+| `Discovery`    | Entidad                    | Propuesta pendiente de revisión.                                                                                        |
+| `Provider`     | Entidad                    | Proveedor (OVH, Microsoft…), global o propio del tenant.                                                                |
+| `Service`      | Entidad                    | **Núcleo del dominio.** Es el servicio recurrente que se paga.                                                          |
+| `Subscription` | **No es entidad separada** | Se modela como `Service` con `status = active` y periodicidad. Ver D-22.                                                |
+| `Invoice`      | Entidad                    | Factura o recibo detectado.                                                                                             |
+| `Payment`      | **No es entidad en v1**    | Un cobro es `Invoice` con `paidAt` + `status = paid`. Ver D-04.                                                         |
+| `Renewal`      | **No es entidad en v1**    | Propiedades de `Service` (`renewalAt`, `noticePeriodDays`, `autoRenews`, `commitmentEndAt`) + `ServiceEvent`. Ver D-03. |
 
 **Por qué `Service` y no `Subscription`:** en el segmento objetivo (autónomos y pymes) el
 mismo objeto cubre suscripciones SaaS, hosting, dominios, seguros, suministros y cuotas
@@ -622,15 +622,15 @@ uso y renderizan. Las operaciones pesadas se delegan a Messenger.
 
 ### 6.1 Transports
 
-| Transport | Uso | Notas |
-|---|---|---|
-| `async` | Trabajo general | Transporte Doctrine. |
-| `mail_sync` | Sincronización de buzones | Concurrencia baja, respeta límites del servidor IMAP. |
-| `mail_processing` | Procesado por mensaje | Alto volumen, reintentable. |
-| `ocr` | OCR de documentos sin capa de texto | CPU-intensivo, concurrencia muy baja. |
-| `ai` | Llamadas a proveedores de IA | Concurrencia limitada, rate limit propio y guard de presupuesto. |
-| `notifications` | Entrega de avisos | Reintentos con backoff. |
-| `failed` | Mensajes agotados | Inspección manual + alerta a administración. |
+| Transport         | Uso                                 | Notas                                                            |
+| ----------------- | ----------------------------------- | ---------------------------------------------------------------- |
+| `async`           | Trabajo general                     | Transporte Doctrine.                                             |
+| `mail_sync`       | Sincronización de buzones           | Concurrencia baja, respeta límites del servidor IMAP.            |
+| `mail_processing` | Procesado por mensaje               | Alto volumen, reintentable.                                      |
+| `ocr`             | OCR de documentos sin capa de texto | CPU-intensivo, concurrencia muy baja.                            |
+| `ai`              | Llamadas a proveedores de IA        | Concurrencia limitada, rate limit propio y guard de presupuesto. |
+| `notifications`   | Entrega de avisos                   | Reintentos con backoff.                                          |
+| `failed`          | Mensajes agotados                   | Inspección manual + alerta a administración.                     |
 
 ### 6.2 Pipeline
 
@@ -711,12 +711,12 @@ tiempo, y ese trabajo se ejecuta como **comando de consola idempotente** para qu
 programarse con cualquier planificador (cron, systemd timer, un `CronJob` de Kubernetes o el
 `Scheduler` de Symfony) sin acoplar el dominio a ninguno de ellos.
 
-| Comando | Frecuencia sugerida | Qué hace | Idempotente |
-|---|---|---|---|
-| `app:mail:sync` | Cada 15–60 min | Sincroniza los buzones activos y encola el procesado. | Sí (dedup por `folder:uid`) |
-| `app:alerts:generate` | Diaria, de madrugada | Recalcula los avisos de cobros, renovaciones, plazos de preaviso y subidas de precio; resuelve los que ya no aplican. | Sí (clave de deduplicación por tipo + servicio + fecha) |
-| `app:discoveries:expire` | Diaria | Caduca las propuestas que nadie ha revisado. | Sí |
-| `app:data:purge` | Diaria | Aplica la retención de §SECURITY.md §6. | Sí |
+| Comando                  | Frecuencia sugerida  | Qué hace                                                                                                              | Idempotente                                             |
+| ------------------------ | -------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `app:mail:sync`          | Cada 15–60 min       | Sincroniza los buzones activos y encola el procesado.                                                                 | Sí (dedup por `folder:uid`)                             |
+| `app:alerts:generate`    | Diaria, de madrugada | Recalcula los avisos de cobros, renovaciones, plazos de preaviso y subidas de precio; resuelve los que ya no aplican. | Sí (clave de deduplicación por tipo + servicio + fecha) |
+| `app:discoveries:expire` | Diaria               | Caduca las propuestas que nadie ha revisado.                                                                          | Sí                                                      |
+| `app:data:purge`         | Diaria               | Aplica la retención de §SECURITY.md §6.                                                                               | Sí                                                      |
 
 **Por qué comandos y no un worker permanente.** Un planificador externo es más fácil de
 observar (código de salida, logs, alertas de «no se ha ejecutado»), no consume memoria entre
@@ -782,11 +782,11 @@ Cambiar la organización activa **no basta**: el filtro de Doctrine no se entera
 `TenantContext` publica cada cambio a través de `TenantFilterSynchronizerInterface`
 (implementado por `DoctrineTenantFilterSynchronizer`), y lo hace en **todos** los caminos:
 
-| Camino | Quién cambia el contexto | Cómo se publica |
-|---|---|---|
-| Petición HTTP | `ActiveOrganizationListener` | `setOrganizationId()` |
-| Comando de consola | `TenantContext::runAs()` | `setOrganizationId()` al entrar y al salir |
-| Worker de Messenger | el caso de uso (`ProcessEmailMessage`) | `runAs()` |
+| Camino              | Quién cambia el contexto               | Cómo se publica                            |
+| ------------------- | -------------------------------------- | ------------------------------------------ |
+| Petición HTTP       | `ActiveOrganizationListener`           | `setOrganizationId()`                      |
+| Comando de consola  | `TenantContext::runAs()`               | `setOrganizationId()` al entrar y al salir |
+| Worker de Messenger | el caso de uso (`ProcessEmailMessage`) | `runAs()`                                  |
 
 `runAs()` sincroniza **al entrar y al salir**, y restaura el contexto anterior incluso si el
 bloque lanza. Sin esto, un comando que recorre organizaciones (`app:alerts:generate`,
@@ -807,16 +807,16 @@ explícitos al operar sobre todas las organizaciones.
 
 Todas detrás de interfaces, con implementación por defecto y adaptadores alternativos.
 
-| Interfaz | v1 | Futuro |
-|---|---|---|
-| `MailboxProviderInterface` | IMAP genérico (cliente PHP puro) + **ingesta por reenvío** | Gmail API, Microsoft Graph (OAuth) |
-| `DocumentClassifierInterface` | Reglas deterministas (remitente, asunto, adjuntos) | Clasificador IA |
-| `InvoiceExtractorInterface` | Parser determinista de PDF/texto cuando sea fiable | Extractor IA |
-| `ServiceDiscoveryInterface` | Matching por proveedor + importe + periodicidad | Matching asistido por IA |
-| `RecurrenceDetectorInterface` | Determinista (intervalos entre facturas) | — |
-| `DocumentStorageInterface` | Local (`var/storage`) | S3 / Backblaze B2 / compatible |
-| `NotificationChannelInterface` | `in_app`, `email` | push, Slack, Telegram |
-| `AiProviderInterface` | Sin proveedor externo por defecto | OpenAI, Anthropic, Mistral, Ollama local |
+| Interfaz                       | v1                                                         | Futuro                                   |
+| ------------------------------ | ---------------------------------------------------------- | ---------------------------------------- |
+| `MailboxProviderInterface`     | IMAP genérico (cliente PHP puro) + **ingesta por reenvío** | Gmail API, Microsoft Graph (OAuth)       |
+| `DocumentClassifierInterface`  | Reglas deterministas (remitente, asunto, adjuntos)         | Clasificador IA                          |
+| `InvoiceExtractorInterface`    | Parser determinista de PDF/texto cuando sea fiable         | Extractor IA                             |
+| `ServiceDiscoveryInterface`    | Matching por proveedor + importe + periodicidad            | Matching asistido por IA                 |
+| `RecurrenceDetectorInterface`  | Determinista (intervalos entre facturas)                   | —                                        |
+| `DocumentStorageInterface`     | Local (`var/storage`)                                      | S3 / Backblaze B2 / compatible           |
+| `NotificationChannelInterface` | `in_app`, `email`                                          | push, Slack, Telegram                    |
+| `AiProviderInterface`          | Sin proveedor externo por defecto                          | OpenAI, Anthropic, Mistral, Ollama local |
 
 **Nota técnica (IMAP):** `ext-imap` dejó de formar parte del núcleo de PHP en 8.4. Se usará un
 cliente IMAP en PHP puro (p. ej. `webklex/php-imap`) para no depender de una extensión PECL.
@@ -907,7 +907,7 @@ Consultas de lectura agregadas, sin entidades propias. Responden a las preguntas
 7. **¿Qué gastos recurrentes han aumentado?** → variaciones de precio destacadas.
 8. **¿Qué servicios debería revisar?** → alertas abiertas + descubrimientos pendientes.
 
-Se implementan como *query handlers* con SQL/DBAL o DQL optimizado, no cargando agregados
+Se implementan como _query handlers_ con SQL/DBAL o DQL optimizado, no cargando agregados
 completos en memoria.
 
 ## 12. Frontend
@@ -917,14 +917,14 @@ JavaScript se usa solo donde aporta algo que el HTML no puede dar. Esto reduce c
 superficie de ataque y tiempo de construcción, y encaja con un producto cuyo valor está en los
 datos, no en la interacción.
 
-| Pieza | Elección | Motivo |
-|---|---|---|
-| Plantillas | **Twig** | Renderizado en servidor, escape automático (XSS), herencia de plantillas. |
-| Navegación y formularios | **Turbo** (Hotwired) | Navegación y envío de formularios sin recarga completa, sin escribir una SPA. |
-| Interacciones puntuales | **Stimulus** | Controladores pequeños y locales (filtros, diálogos, contadores). |
-| Assets | **AssetMapper** | Sin Node ni `npm`: no se añade un toolchain al Dockerfile. Versionado por *digest*. |
-| Tiempo real | **Mercure** | Ya disponible en la plantilla FrankenPHP. Empuja el progreso de sincronización. |
-| CSS | **CSS propio con tokens de diseño** | Sin preprocesador ni build step. Ver D-28. |
+| Pieza                    | Elección                            | Motivo                                                                              |
+| ------------------------ | ----------------------------------- | ----------------------------------------------------------------------------------- |
+| Plantillas               | **Twig**                            | Renderizado en servidor, escape automático (XSS), herencia de plantillas.           |
+| Navegación y formularios | **Turbo** (Hotwired)                | Navegación y envío de formularios sin recarga completa, sin escribir una SPA.       |
+| Interacciones puntuales  | **Stimulus**                        | Controladores pequeños y locales (filtros, diálogos, contadores).                   |
+| Assets                   | **AssetMapper**                     | Sin Node ni `npm`: no se añade un toolchain al Dockerfile. Versionado por _digest_. |
+| Tiempo real              | **Mercure**                         | Ya disponible en la plantilla FrankenPHP. Empuja el progreso de sincronización.     |
+| CSS                      | **CSS propio con tokens de diseño** | Sin preprocesador ni build step. Ver D-28.                                          |
 
 **Progreso de operaciones asíncronas.** La sincronización de correo y la extracción son
 asíncronas (`ARCHITECTURE.md` §6), así que la UI debe mostrar progreso sin bloquear:
@@ -945,7 +945,7 @@ moderno ya trae las herramientas que antes justificaban un framework.
 
 - **Mobile-first.** Los estilos base son para pantalla estrecha; los `@media` son
   `min-width`. Tres puntos de ruptura como máximo: **30rem** (480 px), **48rem** (768 px) y
-  **64rem** (1024 px). Si un componente necesita más, se resuelve con *container queries*, no
+  **64rem** (1024 px). Si un componente necesita más, se resuelve con _container queries_, no
   añadiendo breakpoints globales.
 - **Tipografía y espaciado fluidos** con `clamp()` sobre los tokens. Reduce el número de
   breakpoints necesarios y evita saltos bruscos entre tamaños.
@@ -953,7 +953,7 @@ moderno ya trae las herramientas que antes justificaban un framework.
   fila de cobro, badge). Un componente se adapta al ancho de **su contenedor**, no al de la
   ventana: así funciona igual en el dashboard a pantalla completa que dentro de una columna
   lateral. Es una ventaja real frente a un framework basado solo en breakpoints de viewport.
-- **Layout con Grid y Flexbox**, sin *floats* ni posicionamiento absoluto para maquetar.
+- **Layout con Grid y Flexbox**, sin _floats_ ni posicionamiento absoluto para maquetar.
 
 **El caso difícil: las tablas.** El dashboard, el historial de precios y la bandeja de
 descubrimientos son tablas, y una tabla ancha es lo que rompe el responsive. No es un problema
@@ -961,13 +961,13 @@ de framework —Tailwind tampoco lo resuelve— sino de diseño. Patrón adoptad
 
 - Por encima de **48rem**, `<table>` normal.
 - Por debajo, la misma tabla se convierte en **lista de tarjetas** con CSS puro: `display:
-  block` en `table`/`tr`/`td`, cada celda precedida de su etiqueta mediante `data-label` y
+block` en `table`/`tr`/`td`, cada celda precedida de su etiqueta mediante `data-label` y
   `::before`. **Un solo marcado en Twig**, sin duplicar plantillas ni ramas por dispositivo.
 - Las columnas secundarias (notas, categoría, método de pago) se ocultan en pantalla estrecha y
   quedan accesibles en la ficha del servicio.
 
 **Objetivos táctiles.** Mínimo **44 × 44 px** en cualquier elemento pulsable. Nada de acciones
-que solo funcionen con *hover*: en táctil no existe.
+que solo funcionen con _hover_: en táctil no existe.
 
 **Criterio de aceptación.** Ninguna pantalla produce **scroll horizontal a 320 px de ancho**.
 Se comprueba en cada fase del roadmap, no al final.
@@ -1050,17 +1050,17 @@ buzón nuevo puede requerir IA; el mismo buzón al mes siguiente, casi ninguna (
 **Orden de los niveles.** Cada nivel es más caro que el anterior en CPU, red, almacenamiento
 o dinero. El pipeline **nunca ejecuta un nivel si el anterior ya resolvió el mensaje**.
 
-| Nivel | Nombre | Coste | Sale del sistema |
-|---|---|---|---|
-| 0 | Ingesta y deduplicación | Nulo | No |
-| 1 | Metadatos (cabeceras) | Nulo | No |
-| 2 | Filtros deterministas + billing score | Nulo | No |
-| 3 | Extracción determinista | Bajo | No |
-| 4 | Conocimiento de proveedores y parsers | Bajo | No |
-| 5 | IA económica | Medio | **Sí** |
-| 6 | IA avanzada | Alto | **Sí** |
-| 7 | Validación | Nulo | No |
-| 8 | Service matching | Nulo | No |
+| Nivel | Nombre                                | Coste | Sale del sistema |
+| ----- | ------------------------------------- | ----- | ---------------- |
+| 0     | Ingesta y deduplicación               | Nulo  | No               |
+| 1     | Metadatos (cabeceras)                 | Nulo  | No               |
+| 2     | Filtros deterministas + billing score | Nulo  | No               |
+| 3     | Extracción determinista               | Bajo  | No               |
+| 4     | Conocimiento de proveedores y parsers | Bajo  | No               |
+| 5     | IA económica                          | Medio | **Sí**           |
+| 6     | IA avanzada                           | Alto  | **Sí**           |
+| 7     | Validación                            | Nulo  | No               |
+| 8     | Service matching                      | Nulo  | No               |
 
 ### 13.2 Nivel 0 — Ingesta, identidad estable y deduplicación
 
@@ -1070,12 +1070,12 @@ desperdicio de CPU: **puede costar dinero** si vuelve a pasar por IA.
 
 **Señales de identidad y sus límites:**
 
-| Señal | Estable entre sincronizaciones | Única globalmente | Disponible sin descargar | Problema |
-|---|---|---|---|---|
-| `folder` + `uid` | Sí, mientras no cambie `uidValidity` | **No** (los UID se repiten entre buzones) | Sí | El servidor puede renumerar |
-| `Message-ID` | Sí | Casi (puede faltar, repetirse o falsificarse) | Sí | Ausente en algunos envíos |
-| `contentHash` (SHA-256) | Sí | **No** (dos correos idénticos legítimos) | No (requiere el contenido) | Coste de descarga |
-| `emailAccountId` + `folder` + `uid` | Sí | **Sí**, dentro de la cuenta | Sí | — |
+| Señal                               | Estable entre sincronizaciones       | Única globalmente                             | Disponible sin descargar   | Problema                    |
+| ----------------------------------- | ------------------------------------ | --------------------------------------------- | -------------------------- | --------------------------- |
+| `folder` + `uid`                    | Sí, mientras no cambie `uidValidity` | **No** (los UID se repiten entre buzones)     | Sí                         | El servidor puede renumerar |
+| `Message-ID`                        | Sí                                   | Casi (puede faltar, repetirse o falsificarse) | Sí                         | Ausente en algunos envíos   |
+| `contentHash` (SHA-256)             | Sí                                   | **No** (dos correos idénticos legítimos)      | No (requiere el contenido) | Coste de descarga           |
+| `emailAccountId` + `folder` + `uid` | Sí                                   | **Sí**, dentro de la cuenta                   | Sí                         | —                           |
 
 **Estrategia adoptada:**
 
@@ -1098,8 +1098,8 @@ desperdicio de CPU: **puede costar dinero** si vuelve a pasar por IA.
 comprueba el estado actual antes de escribir y registra su transición en
 `MessageProcessingEvent`. Repetir un mensaje ya procesado es una operación de coste nulo.
 
-**Regla explícita:** *si el mismo correo vuelve a aparecer durante una sincronización, no
-debe volver a consumir IA.* Se garantiza comprobando, antes de cualquier llamada de IA, que
+**Regla explícita:** _si el mismo correo vuelve a aparecer durante una sincronización, no
+debe volver a consumir IA._ Se garantiza comprobando, antes de cualquier llamada de IA, que
 no exista ya un `ExtractedDocument` válido para ese `contentHash` (§13.14).
 
 **Caché de extracción.** La comprobación anterior se materializa en la tabla
@@ -1162,20 +1162,20 @@ en pasadas sucesivas, y el backfill es lo último que se completa.
 Antes de descargar o procesar contenido pesado se extraen **solo cabeceras**. IMAP permite
 pedir `BODY.PEEK[HEADER]` sin marcar el mensaje como leído y sin traer el cuerpo.
 
-| Campo | Uso en el pipeline |
-|---|---|
-| `From` | Identificación de proveedor, lista de ignorados |
-| `Reply-To` | Detección de remitentes de facturación enmascarados |
-| `To` | Detección de correo dirigido a la organización |
-| `Subject` | Palabras clave, patrones, nombre de servicio |
-| `Date` | Fecha de factura, orden temporal, periodicidad |
-| `Message-ID` | Identidad secundaria, deduplicación |
-| `IMAP UID` | Identidad primaria |
-| `Content-Type` | Detección de `multipart`, HTML vs texto |
-| Nombres de adjuntos | Patrón de factura, tipo de documento |
-| Tipos de adjuntos | PDF, imagen (candidata a OCR), XML (factura electrónica) |
-| Tamaño | Límite de descarga, coste estimado |
-| Dominio del remitente | Reconocimiento de proveedor, agrupación |
+| Campo                 | Uso en el pipeline                                       |
+| --------------------- | -------------------------------------------------------- |
+| `From`                | Identificación de proveedor, lista de ignorados          |
+| `Reply-To`            | Detección de remitentes de facturación enmascarados      |
+| `To`                  | Detección de correo dirigido a la organización           |
+| `Subject`             | Palabras clave, patrones, nombre de servicio             |
+| `Date`                | Fecha de factura, orden temporal, periodicidad           |
+| `Message-ID`          | Identidad secundaria, deduplicación                      |
+| `IMAP UID`            | Identidad primaria                                       |
+| `Content-Type`        | Detección de `multipart`, HTML vs texto                  |
+| Nombres de adjuntos   | Patrón de factura, tipo de documento                     |
+| Tipos de adjuntos     | PDF, imagen (candidata a OCR), XML (factura electrónica) |
+| Tamaño                | Límite de descarga, coste estimado                       |
+| Dominio del remitente | Reconocimiento de proveedor, agrupación                  |
 
 **Regla:** el cuerpo y los adjuntos **no se descargan** hasta que el nivel 2 decide que el
 mensaje es candidato. Esto reduce tráfico, almacenamiento, CPU y coste de IA (§13.14).
@@ -1197,18 +1197,18 @@ patrones conocidos, listas de remitentes ignorados, listas de proveedores conoci
 
 **Puntuación.** El resultado es un `billingScore` de 0 a 100, con los motivos desglosados:
 
-| Señal | Peso por defecto |
-|---|---|
-| Asunto con palabra clave de facturación | +25 |
-| Remitente o dominio en `ProviderIdentity` (proveedor conocido) | +20 |
-| Adjunto PDF | +15 |
-| Importe detectable en asunto o cuerpo | +15 |
-| Lenguaje de renovación o próximo cobro | +10 |
-| `local-part` de facturación (`invoice@`, `billing@`, `facturas@`) | +10 |
-| Nombre de adjunto con patrón de factura | +10 |
-| Remitente en lista de ignorados | −100 |
-| Boletín, `no-reply` de marketing, notificación social | −30 |
-| Respuesta o reenvío dentro de un hilo propio | −10 |
+| Señal                                                             | Peso por defecto |
+| ----------------------------------------------------------------- | ---------------- |
+| Asunto con palabra clave de facturación                           | +25              |
+| Remitente o dominio en `ProviderIdentity` (proveedor conocido)    | +20              |
+| Adjunto PDF                                                       | +15              |
+| Importe detectable en asunto o cuerpo                             | +15              |
+| Lenguaje de renovación o próximo cobro                            | +10              |
+| `local-part` de facturación (`invoice@`, `billing@`, `facturas@`) | +10              |
+| Nombre de adjunto con patrón de factura                           | +10              |
+| Remitente en lista de ignorados                                   | −100             |
+| Boletín, `no-reply` de marketing, notificación social             | −30              |
+| Respuesta o reenvío dentro de un hilo propio                      | −10              |
 
 **Umbral por defecto: `billingScore ≥ 40` → `CANDIDATE`.** Por debajo, el mensaje pasa a
 `IGNORED` y **no se descarga su contenido**.
@@ -1224,11 +1224,11 @@ pondera señales independientes en lugar de aplicar una lista de términos.
 **Formas de entrada en `ignored_senders`.** La lista de remitentes ignorados admite tres
 formas, porque en la práctica hacen falta las tres:
 
-| Entrada | Coincide con | Ejemplo |
-|---|---|---|
-| `facturas@proveedor.com` | Esa dirección exacta | `facturas@proveedor.com` |
-| `@proveedor.com` | Cualquier dirección de ese dominio | `avisos@proveedor.com` |
-| `proveedor.com` | El dominio del remitente | `mail.proveedor.com` |
+| Entrada                  | Coincide con                       | Ejemplo                  |
+| ------------------------ | ---------------------------------- | ------------------------ |
+| `facturas@proveedor.com` | Esa dirección exacta               | `facturas@proveedor.com` |
+| `@proveedor.com`         | Cualquier dirección de ese dominio | `avisos@proveedor.com`   |
+| `proveedor.com`          | El dominio del remitente           | `mail.proveedor.com`     |
 
 La comparación de dominios es **por etiquetas completas**, no por sufijo de cadena: se acepta
 `mail.linkedin.com` para la entrada `linkedin.com`, pero **no** `falsolinkedin.com` ni
@@ -1246,21 +1246,21 @@ buzón (§13.12) o por un doble en pruebas— sin tocar el orquestador.
 
 ### 13.5 Máquina de estados y trazabilidad
 
-Cada mensaje tiene un **estado explícito** que responde a *qué ocurrió, cuándo, con qué
-extractor, si intervino IA, con qué resultado y por qué*.
+Cada mensaje tiene un **estado explícito** que responde a _qué ocurrió, cuándo, con qué
+extractor, si intervino IA, con qué resultado y por qué_.
 
-| Estado | Significado | Transiciones |
-|---|---|---|
-| `RECEIVED` | Ingestado, identidad asignada, sin analizar | → `IGNORED`, `CANDIDATE`, `FAILED` |
-| `IGNORED` | Descartado por billing score o lista de exclusión | terminal (revisable a mano) |
-| `CANDIDATE` | Superó el filtro determinista; merece extracción | → `EXTRACTED`, `DEFERRED`, `FAILED` |
-| `EXTRACTED` | Datos extraídos y validados | → `CLASSIFIED`, `REQUIRES_REVIEW`, `FAILED` |
-| `CLASSIFIED` | Tipo de documento determinado con confianza suficiente | → `MATCHED`, `DISCOVERY`, `REQUIRES_REVIEW` |
-| `MATCHED` | Asociado a un `Service` existente con confianza alta | terminal |
-| `DISCOVERY` | Generó un `Discovery` pendiente de revisión | terminal (el `Discovery` sigue su ciclo) |
-| `REQUIRES_REVIEW` | Confianza insuficiente o datos contradictorios | → `EXTRACTED`, `IGNORED` |
-| `DEFERRED` | Sin presupuesto de IA o fallo transitorio | → `CANDIDATE`, `EXTRACTED`, `FAILED` |
-| `FAILED` | Error permanente | terminal |
+| Estado            | Significado                                            | Transiciones                                |
+| ----------------- | ------------------------------------------------------ | ------------------------------------------- |
+| `RECEIVED`        | Ingestado, identidad asignada, sin analizar            | → `IGNORED`, `CANDIDATE`, `FAILED`          |
+| `IGNORED`         | Descartado por billing score o lista de exclusión      | terminal (revisable a mano)                 |
+| `CANDIDATE`       | Superó el filtro determinista; merece extracción       | → `EXTRACTED`, `DEFERRED`, `FAILED`         |
+| `EXTRACTED`       | Datos extraídos y validados                            | → `CLASSIFIED`, `REQUIRES_REVIEW`, `FAILED` |
+| `CLASSIFIED`      | Tipo de documento determinado con confianza suficiente | → `MATCHED`, `DISCOVERY`, `REQUIRES_REVIEW` |
+| `MATCHED`         | Asociado a un `Service` existente con confianza alta   | terminal                                    |
+| `DISCOVERY`       | Generó un `Discovery` pendiente de revisión            | terminal (el `Discovery` sigue su ciclo)    |
+| `REQUIRES_REVIEW` | Confianza insuficiente o datos contradictorios         | → `EXTRACTED`, `IGNORED`                    |
+| `DEFERRED`        | Sin presupuesto de IA o fallo transitorio              | → `CANDIDATE`, `EXTRACTED`, `FAILED`        |
+| `FAILED`          | Error permanente                                       | terminal                                    |
 
 **Trazabilidad.** Cada transición escribe una fila en `MessageProcessingEvent` (append-only)
 con: estado origen, estado destino, motivo, extractor utilizado, nivel de extracción, si
@@ -1337,11 +1337,11 @@ desconocido** (cualquier remitente que todavía no sabemos identificar).
 **Modelo adoptado.** El conocimiento de proveedores se separa en tres piezas, porque
 responden a tres preguntas distintas:
 
-| Entidad | Pregunta que responde | Ámbito |
-|---|---|---|
-| `Provider` | *¿Quién es?* | Global o del tenant |
-| `ProviderIdentity` | *¿Cómo lo reconocemos?* | Global |
-| `ProviderParser` | *¿Cómo extraemos sus datos?* | Global |
+| Entidad            | Pregunta que responde        | Ámbito              |
+| ------------------ | ---------------------------- | ------------------- |
+| `Provider`         | _¿Quién es?_                 | Global o del tenant |
+| `ProviderIdentity` | _¿Cómo lo reconocemos?_      | Global              |
+| `ProviderParser`   | _¿Cómo extraemos sus datos?_ | Global              |
 
 `ProviderIdentity` permite que un proveedor tenga **varios** dominios y direcciones
 (`ovh.com`, `ovh.es`, `invoice@ovh.com`, `billing@ovh.com`) sin duplicar el proveedor.
@@ -1403,7 +1403,7 @@ Recibe **únicamente el contenido relevante**, nunca el correo completo:
   "service": "...",
   "plan": "...",
   "documentType": "invoice",
-  "amount": 29.90,
+  "amount": 29.9,
   "currency": "EUR",
   "billingPeriod": "monthly",
   "invoiceDate": "2026-10-03",
@@ -1485,7 +1485,7 @@ invocar al proveedor, de modo que un tope agotado no cuesta una llamada.
 
 ### 13.9 Nivel 7 — Validación posterior a la IA
 
-**La IA no es una fuente de verdad.** Su salida es una *propuesta* que atraviesa una cadena de
+**La IA no es una fuente de verdad.** Su salida es una _propuesta_ que atraviesa una cadena de
 validación antes de convertirse en dato:
 
 ```text
@@ -1541,26 +1541,26 @@ propone uno nuevo.
 
 **Puntuación ponderada:**
 
-| Señal | Peso |
-|---|---|
-| Proveedor coincide | +40 |
-| Dominio del remitente coincide | +20 |
-| Nombre del servicio coincide | +20 |
-| Moneda coincide | +5 |
-| Periodicidad coincide | +5 |
-| Importe similar (±10 %) | +5 |
-| Remitente exacto coincide | +5 |
+| Señal                          | Peso |
+| ------------------------------ | ---- |
+| Proveedor coincide             | +40  |
+| Dominio del remitente coincide | +20  |
+| Nombre del servicio coincide   | +20  |
+| Moneda coincide                | +5   |
+| Periodicidad coincide          | +5   |
+| Importe similar (±10 %)        | +5   |
+| Remitente exacto coincide      | +5   |
 
 **Umbrales (configurables):**
 
-| Puntuación | Resultado | Acción |
-|---|---|---|
-| ≥ 70 | **HIGH** | Asociación automática al `Service` existente → `MATCHED` |
-| 40–69 | **MEDIUM** | `Discovery` para revisión del usuario → `DISCOVERY` |
-| < 40 | **LOW** | `Discovery` de servicio nuevo → `DISCOVERY` |
+| Puntuación | Resultado  | Acción                                                   |
+| ---------- | ---------- | -------------------------------------------------------- |
+| ≥ 70       | **HIGH**   | Asociación automática al `Service` existente → `MATCHED` |
+| 40–69      | **MEDIUM** | `Discovery` para revisión del usuario → `DISCOVERY`      |
+| < 40       | **LOW**    | `Discovery` de servicio nuevo → `DISCOVERY`              |
 
 El desglose se guarda en `Discovery.matchScore` y `Discovery.matchReasons`, de modo que la
-interfaz puede explicar *por qué* el sistema cree que dos cosas son el mismo servicio.
+interfaz puede explicar _por qué_ el sistema cree que dos cosas son el mismo servicio.
 
 **Por qué ponderado y no reglas duras.** Un mismo servicio puede facturarse desde dominios
 distintos, con importes que cambian o con nombres ligeramente diferentes. Una regla dura
@@ -1574,7 +1574,7 @@ muestra:
 
 - proveedor y servicio propuestos;
 - importe, moneda y periodicidad;
-- **evidencia**: *"encontramos 4 documentos similares"*, con enlaces a los correos y
+- **evidencia**: _"encontramos 4 documentos similares"_, con enlaces a los correos y
   documentos de origen;
 - acciones: **[Confirmar]** · **[Editar]** · **[Ignorar]**.
 
@@ -1616,12 +1616,12 @@ añadiría opacidad, coste y riesgo.
 
 **Efecto esperado** (cifras ilustrativas del diseño, a validar con datos reales):
 
-| | Primera sincronización | Sincronizaciones posteriores |
-|---|---|---|
-| Mensajes vistos | 10.000 | 200 nuevos |
-| Candidatos (billing score) | 400 | 30 |
-| Requieren IA económica | 100 | 5 |
-| Requieren IA avanzada | 15 | 0 |
+|                            | Primera sincronización | Sincronizaciones posteriores |
+| -------------------------- | ---------------------- | ---------------------------- |
+| Mensajes vistos            | 10.000                 | 200 nuevos                   |
+| Candidatos (billing score) | 400                    | 30                           |
+| Requieren IA económica     | 100                    | 5                            |
+| Requieren IA avanzada      | 15                     | 0                            |
 
 La curva es el argumento económico del diseño: **el coste de IA por buzón decrece**, y el
 producto se vuelve más rentable cuanto más tiempo lleva un usuario.
@@ -1631,18 +1631,18 @@ producto se vuelve más rentable cuanto más tiempo lleva un usuario.
 El conocimiento vive en `MailboxKnowledgeEntry`, en `src/Processing/Domain/Entity/`, con una fila
 por regla y por buzón:
 
-| Columna | Para qué sirve |
-|---|---|
-| `email_account_id` | El buzón. Todo el conocimiento es **por buzón**, nunca por organización. |
-| `organization_id` | El tenant, para poder filtrar sin joins. |
-| `type` | `sender_mapping`, `provider_hint`, `subject_pattern`, `document_pattern`, `ignored_sender`. |
-| `value` | El dato: una dirección, un dominio o una **expresión regular** (patrones). |
-| `provider_id` | Proveedor del catálogo, si el tipo lo lleva. |
-| `document_type` / `billing_period` | Lo que el tipo permite ascertain. |
-| `source` | `observed`, `confirmation`, `user`, `promoted`: **de dónde** se aprendió. |
-| `confidence` | 0–100. Por encima de 60, un remitente ignorado **excluye** el mensaje. |
-| `hit_count` / `last_used_at` | Para la poda. |
-| `promoted_at` | Marca de que el usuario lo ha promovido al catálogo global. |
+| Columna                            | Para qué sirve                                                                              |
+| ---------------------------------- | ------------------------------------------------------------------------------------------- |
+| `email_account_id`                 | El buzón. Todo el conocimiento es **por buzón**, nunca por organización.                    |
+| `organization_id`                  | El tenant, para poder filtrar sin joins.                                                    |
+| `type`                             | `sender_mapping`, `provider_hint`, `subject_pattern`, `document_pattern`, `ignored_sender`. |
+| `value`                            | El dato: una dirección, un dominio o una **expresión regular** (patrones).                  |
+| `provider_id`                      | Proveedor del catálogo, si el tipo lo lleva.                                                |
+| `document_type` / `billing_period` | Lo que el tipo permite ascertain.                                                           |
+| `source`                           | `observed`, `confirmation`, `user`, `promoted`: **de dónde** se aprendió.                   |
+| `confidence`                       | 0–100. Por encima de 60, un remitente ignorado **excluye** el mensaje.                      |
+| `hit_count` / `last_used_at`       | Para la poda.                                                                               |
+| `promoted_at`                      | Marca de que el usuario lo ha promovido al catálogo global.                                 |
 
 **Las piezas:**
 
@@ -1684,8 +1684,8 @@ grande o un bucle de reintentos puede generar una factura ilimitada.
 **Registro obligatorio.** Cada llamada deja una fila en `AiUsage` (§4.8), incluso si falla.
 Esto permite responder a las dos preguntas que no se pueden contestar a posteriori:
 
-- *¿Cuánto nos cuesta procesar el buzón de este usuario?*
-- *¿Cuánto cuesta de IA un usuario medio al mes?*
+- _¿Cuánto nos cuesta procesar el buzón de este usuario?_
+- _¿Cuánto cuesta de IA un usuario medio al mes?_
 
 **Presupuesto.** `AiBudget` define un techo por organización y periodo, con `hardStop`
 configurable. Cuando se alcanza:
@@ -1711,11 +1711,11 @@ cifra se contradicen en cuanto una escritura falla (D-55).
 
 `AiBudgetGuard` es el guardián, y hace tres preguntas:
 
-| Método | Pregunta |
-|---|---|
-| `allowsCall()` | ¿Se puede llamar a un modelo ahora mismo? |
+| Método             | Pregunta                                        |
+| ------------------ | ----------------------------------------------- |
+| `allowsCall()`     | ¿Se puede llamar a un modelo ahora mismo?       |
 | `allowsTier(tier)` | ¿Se puede llamar a un modelo **de este nivel**? |
-| `status()` | ¿Cuánto he gastado, cuánto queda, y hay aviso? |
+| `status()`         | ¿Cuánto he gastado, cuánto queda, y hay aviso?  |
 
 El guard se comprueba **antes** de cada llamada, en `AiExtractionService` y también en
 `AdvancedAiDocumentExtractor` (que es el que decide si se escala al nivel caro).
@@ -1796,17 +1796,17 @@ proveedores utilizados no permitan sostenerlas (D-25).
 
 ### 13.16 Observabilidad
 
-| Pregunta | Dónde se responde |
-|---|---|
-| ¿Qué pasó con este mensaje? | `EmailMessage.processingState` + `MessageProcessingEvent` |
-| ¿Por qué se ignoró? | `EmailMessage.billingScore` + `billingReasons` |
-| ¿Qué extractor lo resolvió? | `EmailMessage.extractorUsed` + `extractionTier` |
-| ¿Intervino IA? | `EmailMessage.aiUsed` + `aiUsageId` en el evento |
-| ¿Cuánto costó? | `AiUsage.estimatedCostMinor` |
-| ¿Cuánto llevamos gastado este mes? | Suma de `ai_usage` del periodo (D-55) |
-| ¿Cómo va la sincronización? | `EmailSyncRun` + eventos Mercure |
-| ¿Cuántos mensajes se resuelven sin IA? | Agregado sobre `extractionTier` |
-| ¿Cuánto descarta el nivel 2? | `app:mail:stats` sobre `EmailMessageRepository::countByState()` |
+| Pregunta                               | Dónde se responde                                               |
+| -------------------------------------- | --------------------------------------------------------------- |
+| ¿Qué pasó con este mensaje?            | `EmailMessage.processingState` + `MessageProcessingEvent`       |
+| ¿Por qué se ignoró?                    | `EmailMessage.billingScore` + `billingReasons`                  |
+| ¿Qué extractor lo resolvió?            | `EmailMessage.extractorUsed` + `extractionTier`                 |
+| ¿Intervino IA?                         | `EmailMessage.aiUsed` + `aiUsageId` en el evento                |
+| ¿Cuánto costó?                         | `AiUsage.estimatedCostMinor`                                    |
+| ¿Cuánto llevamos gastado este mes?     | Suma de `ai_usage` del periodo (D-55)                           |
+| ¿Cómo va la sincronización?            | `EmailSyncRun` + eventos Mercure                                |
+| ¿Cuántos mensajes se resuelven sin IA? | Agregado sobre `extractionTier`                                 |
+| ¿Cuánto descarta el nivel 2?           | `app:mail:stats` sobre `EmailMessageRepository::countByState()` |
 
 **`app:mail:stats`.** Una decisión de coste que no se mide se degrada sola (D-36). El comando
 imprime, por organización, el embudo completo del pipeline: leídos, descartados, porcentaje de
@@ -1827,15 +1827,15 @@ distintas, y hacer eso en Twig es hacer una consulta por celda.
 
 La foto del mes:
 
-| Dato | De dónde sale |
-|---|---|
-| Coste total, llamadas, tokens, fallos | `ai_usage` del mes natural |
-| Coste por proveedor y por necesidad | `AiUsageRepository::costByProvider()` / `costByPurpose()` |
-| Llamadas y latencia media por nivel | `callsByTier()` / `durationByTier()` |
-| Presupuesto: tope, gastado, restante, modo | `AiBudgetGuard::status()` |
-| Mensajes resueltos sin IA | `EmailMessageRepository::extractionStats()` |
-| Tasa de escalado a IA avanzada | Llamadas de nivel avanzado ÷ llamadas totales |
-| Correos aplazados esperando presupuesto | `countByState()['deferred']` |
+| Dato                                       | De dónde sale                                             |
+| ------------------------------------------ | --------------------------------------------------------- |
+| Coste total, llamadas, tokens, fallos      | `ai_usage` del mes natural                                |
+| Coste por proveedor y por necesidad        | `AiUsageRepository::costByProvider()` / `costByPurpose()` |
+| Llamadas y latencia media por nivel        | `callsByTier()` / `durationByTier()`                      |
+| Presupuesto: tope, gastado, restante, modo | `AiBudgetGuard::status()`                                 |
+| Mensajes resueltos sin IA                  | `EmailMessageRepository::extractionStats()`               |
+| Tasa de escalado a IA avanzada             | Llamadas de nivel avanzado ÷ llamadas totales             |
+| Correos aplazados esperando presupuesto    | `countByState()['deferred']`                              |
 
 El periodo es el **mes natural**, el mismo que usa el presupuesto: las facturas de los
 proveedores de IA van por mes natural, así que el mes de Suscripta y el mes de la factura se
@@ -1850,7 +1850,7 @@ manual de `ReleaseDeferredMessages`. Es un no-op si el presupuesto sigue agotado
 de la pantalla lo dice: «No hay correos aplazados, o el presupuesto sigue agotado».
 
 **`/ai`** (ajustes de IA) incluye el tope —en euros, vacío significa «sin tope»— y el modo.
-Al subir el tope se sueltan los correos aplazados y se avisa por *flash* con cuántos han sido.
+Al subir el tope se sueltan los correos aplazados y se avisa por _flash_ con cuántos han sido.
 
 **Avisos de coste.** `GenerateCostAlerts` genera `ai_budget_warning` y `ai_budget_exceeded`, uno
 por mes (la clave de deduplicación incluye el último día del mes). No vive en el barrido general
@@ -1938,15 +1938,15 @@ El puerto que sí hace falta es el otro: `AiBudgetChangeHandlerInterface`, que e
 
 **Responsabilidades por módulo:**
 
-| Módulo | Responsabilidad en el pipeline | Lo que **no** hace |
-|---|---|---|
-| `Mailbox` | Ingesta (IMAP, reenvío), identidad del mensaje, cursores, `EmailSyncRun` | No interpreta el contenido |
-| `Processing` | Clasificación, extracción, validación, máquina de estados, conocimiento del buzón, liberación de aplazados | No conoce proveedores de IA concretos |
-| `Ai` | Adaptadores de proveedor, `AiUsage`, `AiBudget`, guard de presupuesto, informe de coste | No conoce el dominio ni los estados del pipeline |
-| `Catalog` | `Provider`, `ProviderIdentity`, `ProviderParser`: reconocimiento y parsers | No decide asociaciones |
-| `Documents` | `Document`, `Invoice`: persistencia del resultado | No extrae |
-| `Discovery` | `ServiceMatcher`, `Discovery`, recurrencia, cambios | No descarga correo |
-| `Notifications` | Alertas y entrega | No procesa correo |
+| Módulo          | Responsabilidad en el pipeline                                                                             | Lo que **no** hace                               |
+| --------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| `Mailbox`       | Ingesta (IMAP, reenvío), identidad del mensaje, cursores, `EmailSyncRun`                                   | No interpreta el contenido                       |
+| `Processing`    | Clasificación, extracción, validación, máquina de estados, conocimiento del buzón, liberación de aplazados | No conoce proveedores de IA concretos            |
+| `Ai`            | Adaptadores de proveedor, `AiUsage`, `AiBudget`, guard de presupuesto, informe de coste                    | No conoce el dominio ni los estados del pipeline |
+| `Catalog`       | `Provider`, `ProviderIdentity`, `ProviderParser`: reconocimiento y parsers                                 | No decide asociaciones                           |
+| `Documents`     | `Document`, `Invoice`: persistencia del resultado                                                          | No extrae                                        |
+| `Discovery`     | `ServiceMatcher`, `Discovery`, recurrencia, cambios                                                        | No descarga correo                               |
+| `Notifications` | Alertas y entrega                                                                                          | No procesa correo                                |
 
 **Regla de dependencia:** `Processing` puede depender de `Mailbox`, `Documents`, `Catalog` y
 `Ai`; **`Services` (dominio) no depende de ninguno de ellos** (§4.10). El dominio solo ve el
@@ -1967,12 +1967,12 @@ sospecha**.
 
 **Las dos clases de propuesta**
 
-| | Hecho | Inferencia |
-|---|---|---|
-| Origen | Un documento (factura, aviso de renovación) | El inventario de servicios |
-| Ejemplos | `NEW_SERVICE`, `PRICE_CHANGE`, `PLAN_CHANGE` | `DUPLICATE`, `MISSING_CHARGE`, `DORMANT` |
-| Confianza | Hasta `HIGH` | Recortada a la banda `LOW` (`≤ 54`) |
-| En la interfaz | Formulario de alta o de cambio | «Esto es una sugerencia, no un hecho» + dos salidas |
+|                | Hecho                                        | Inferencia                                          |
+| -------------- | -------------------------------------------- | --------------------------------------------------- |
+| Origen         | Un documento (factura, aviso de renovación)  | El inventario de servicios                          |
+| Ejemplos       | `NEW_SERVICE`, `PRICE_CHANGE`, `PLAN_CHANGE` | `DUPLICATE`, `MISSING_CHARGE`, `DORMANT`            |
+| Confianza      | Hasta `HIGH`                                 | Recortada a la banda `LOW` (`≤ 54`)                 |
+| En la interfaz | Formulario de alta o de cambio               | «Esto es una sugerencia, no un hecho» + dos salidas |
 
 La marca `is_inference` es una **columna**, no un dato del JSON `proposed_data`, porque la interfaz
 la usa para dos cosas a la vez: **filtrar** la bandeja (`?scope=facts` / `?scope=suggestions`) y
@@ -1985,7 +1985,7 @@ sobre toda la tabla (D-59).
 devuelve propuestas `Discovery` marcadas como inferencia, con su fuerza de señal en `matchScore` y
 su explicación en `matchReasons`.
 
-```
+```text
 DetectChanges
 ├── DetectDuplicates      → ¿dos servicios son el mismo?
 ├── DetectMissingCharges   → ¿falta un cobro que se esperaba?
@@ -2013,11 +2013,11 @@ ayer, la de hoy no vuelve a preguntarle lo mismo. Las claves son `serviceId|expe
 **Confirmar una inferencia no borra historia.** `ConfirmInference` aplica la acción que
 corresponde y **siempre** deja un rastro (`ServiceEvent::NOTE_ADDED`):
 
-| Inferencia | Qué hace | Qué deja |
-|---|---|---|
-| `DUPLICATE` | Cancela el servicio **más reciente** | Nota en los dos servicios |
-| `MISSING_CHARGE` | Adelanta `nextChargeAt` | Nota en el servicio |
-| `DORMANT` | Cancela el servicio | Nota en el servicio |
+| Inferencia       | Qué hace                             | Qué deja                  |
+| ---------------- | ------------------------------------ | ------------------------- |
+| `DUPLICATE`      | Cancela el servicio **más reciente** | Nota en los dos servicios |
+| `MISSING_CHARGE` | Adelanta `nextChargeAt`              | Nota en el servicio       |
+| `DORMANT`        | Cancela el servicio                  | Nota en el servicio       |
 
 El servicio cancelado conserva su historial completo. Cancelar no es borrar: es un estado más del
 servicio, y el evento dice qué pasó y cuándo.
@@ -2030,15 +2030,15 @@ aviso sigue vivo.
 
 **Dónde vive cada cosa**
 
-| Pieza | Ubicación | Nota |
-|---|---|---|
-| Marca de inferencia | `Discovery::$isInference` + columna `is_inference` | Filtro e interfaz |
-| Recorte de confianza | `Discovery::markAsInference()` | Tope `LOW->maxScore()` |
-| Detección de plan | `ServiceMatchResult::$servicePlanName` + `ServiceMatcher::scoreAgainst()` | El plan lo extrae el parser del proveedor |
-| Barrido | `src/Discovery/Application/Change/` | Un agregador y tres detectores |
-| Umbrales | `config/packages/discovery.yaml` → `ChangeSettings` | Decisiones de producto |
-| Confirmación | `Discovery\Application\ConfirmInference` | Único punto que muta el inventario |
-| Comando | `Discovery\UI\Command\DetectChangesCommand` | `app:changes:detect` |
+| Pieza                | Ubicación                                                                 | Nota                                      |
+| -------------------- | ------------------------------------------------------------------------- | ----------------------------------------- |
+| Marca de inferencia  | `Discovery::$isInference` + columna `is_inference`                        | Filtro e interfaz                         |
+| Recorte de confianza | `Discovery::markAsInference()`                                            | Tope `LOW->maxScore()`                    |
+| Detección de plan    | `ServiceMatchResult::$servicePlanName` + `ServiceMatcher::scoreAgainst()` | El plan lo extrae el parser del proveedor |
+| Barrido              | `src/Discovery/Application/Change/`                                       | Un agregador y tres detectores            |
+| Umbrales             | `config/packages/discovery.yaml` → `ChangeSettings`                       | Decisiones de producto                    |
+| Confirmación         | `Discovery\Application\ConfirmInference`                                  | Único punto que muta el inventario        |
+| Comando              | `Discovery\UI\Command\DetectChangesCommand`                               | `app:changes:detect`                      |
 
 ## 14. Riesgos arquitectónicos abiertos
 
@@ -2114,11 +2114,11 @@ src/Privacy/Application/                # los agregadores que coordinan los puer
 └── PurgeExpiredData
 ```
 
-| Agregador | Puertos que usa | Devuelve |
-|---|---|---|
-| `ExportOrganizationData` | `OrganizationDataProviderInterface` | `DataExport` (secciones + recuentos) |
-| `DeleteOrganizationData` | `OrganizationDataRemoverInterface` | `RemovalReport` (detalle por módulo) |
-| `PurgeExpiredData` | `RetentionPurgerInterface` | `PurgeReport` (detalle por categoría) |
+| Agregador                | Puertos que usa                     | Devuelve                              |
+| ------------------------ | ----------------------------------- | ------------------------------------- |
+| `ExportOrganizationData` | `OrganizationDataProviderInterface` | `DataExport` (secciones + recuentos)  |
+| `DeleteOrganizationData` | `OrganizationDataRemoverInterface`  | `RemovalReport` (detalle por módulo)  |
+| `PurgeExpiredData`       | `RetentionPurgerInterface`          | `PurgeReport` (detalle por categoría) |
 
 La política de retención vive en `config/packages/privacy.yaml` y se interpreta en
 `PrivacySettings`. Los plazos son **por categoría de dato**, no por módulo: el correo es
@@ -2178,13 +2178,13 @@ organización**. `OrganizationPlan` (enum) declara qué planes existen; los núm
 `config/packages/entitlements.yaml` (D-64). La pantalla `/plan` enseña el consumo real de la
 organización contra ese techo.
 
-| Capacidad | Tipo | Gratis | Profesional |
-|---|---|---|---|
-| `services` | límite | 3 | sin techo |
-| `email_accounts` | límite | 1 | 5 |
-| `documents` | límite | 20 | 500 |
-| `ai` | interruptor | no | sí |
-| `ai_budget_minor` | límite | 0 | 10 000 céntimos |
+| Capacidad         | Tipo        | Gratis | Profesional     |
+| ----------------- | ----------- | ------ | --------------- |
+| `services`        | límite      | 3      | sin techo       |
+| `email_accounts`  | límite      | 1      | 5               |
+| `documents`       | límite      | 20     | 500             |
+| `ai`              | interruptor | no     | sí              |
+| `ai_budget_minor` | límite      | 0      | 10 000 céntimos |
 
 ### 16.2 Límite y uso son dos cosas distintas
 
@@ -2253,7 +2253,7 @@ es un enlace que se puede mandar tal cual.
 > **Trampa de Doctrine ORM 3:** un enum mapeado con `enumType` vuelve de una agregación DQL
 > como **objeto**, y no puede usarse como clave de array (`TypeError`). Hay que convertirlo
 > explícitamente (D-69).
-
+>
 > **Trampa de coste de IA:** el coste se guarda en microcéntimos (`AiCost`, columna
 > `cost_micro`), no en céntimos. Un redondeo a céntimos borraría el gasto real (D-68).
 
@@ -2303,7 +2303,7 @@ Lo que **no** es:
 
 `src/Api/` sigue la misma estructura modular que el resto del proyecto:
 
-```
+```text
 src/Api/
 ├── Domain/          ApiKey (entidad), ApiScope (enumeración)
 ├── Application/     ApiKeyFactory, IssueApiKey, RevokeApiKey, ListApiKeys,
@@ -2329,7 +2329,7 @@ razones de diseño) está en `docs/ROADMAP.md` §Fase 18 y en `docs/api/`.
 
 Lo esencial para la arquitectura:
 
-```
+```text
 Petición  →  ApiKeyAuthenticator  →  busca por secret_hash (índice único)
            →  valida caducidad y revocación
            →  fija la organización en el TenantContext
@@ -2359,14 +2359,14 @@ La credencial se acepta en `Authorization: Bearer …` y en `X-Api-Key: …`.
 Este es el punto donde la API se encuentra con el núcleo de Symfony, y donde está el defecto que
 queda por corregir (Fase 18, defecto 1). Las prioridades en `KernelEvents::REQUEST`:
 
-| Prioridad | Listener | Efecto |
-|---|---|---|
-| 100 | `LocaleListener::setDefaultLocale` | Locale por defecto de la petición. |
-| **32** | `RouterListener::onKernelRequest` | Resuelve la ruta; **responde 405 si el método no existe**. |
-| 15 | `LocaleAwareListener` | Aplica el locale de la ruta. |
-| **9** | `ApiCorsListener` | Pretende responder al preflight. **Por debajo del router → nunca se ejecuta.** |
-| 8 | `Firewall::onKernelRequest` | Autenticación. |
-| -8 | `ApiRateLimitListener` | Límite de frecuencia. |
+| Prioridad | Listener                           | Efecto                                                                         |
+| --------- | ---------------------------------- | ------------------------------------------------------------------------------ |
+| 100       | `LocaleListener::setDefaultLocale` | Locale por defecto de la petición.                                             |
+| **32**    | `RouterListener::onKernelRequest`  | Resuelve la ruta; **responde 405 si el método no existe**.                     |
+| 15        | `LocaleAwareListener`              | Aplica el locale de la ruta.                                                   |
+| **9**     | `ApiCorsListener`                  | Pretende responder al preflight. **Por debajo del router → nunca se ejecuta.** |
+| 8         | `Firewall::onKernelRequest`        | Autenticación.                                                                 |
+| -8        | `ApiRateLimitListener`             | Límite de frecuencia.                                                          |
 
 `RequestEvent::setResponse()` llama a `stopPropagation()`: un listener que fija la respuesta
 corta el ciclo. Por eso un preflight CORS **debe** contestarse antes que el router (y por eso
@@ -2380,13 +2380,13 @@ El orden de los listeners de la API es, por tanto, **load-bearing**: no es decor
 
 La API no consulta entidades Doctrine. Consulta interfaces:
 
-| Interfaz | Implementación | Módulo |
-|---|---|---|
-| `ServiceViewRepositoryInterface` | `ServiceViewRepository` | `Services` |
-| `AlertViewRepositoryInterface` | `AlertViewRepository` | `Notifications` |
-| `DocumentViewRepositoryInterface` | `DocumentViewRepository` | `Documents` |
-| `DiscoveryViewRepositoryInterface` | `DiscoveryViewRepository` | `Discovery` |
-| `EmailAccountViewRepositoryInterface` | `EmailAccountViewRepository` | `Mailbox` |
+| Interfaz                              | Implementación               | Módulo          |
+| ------------------------------------- | ---------------------------- | --------------- |
+| `ServiceViewRepositoryInterface`      | `ServiceViewRepository`      | `Services`      |
+| `AlertViewRepositoryInterface`        | `AlertViewRepository`        | `Notifications` |
+| `DocumentViewRepositoryInterface`     | `DocumentViewRepository`     | `Documents`     |
+| `DiscoveryViewRepositoryInterface`    | `DiscoveryViewRepository`    | `Discovery`     |
+| `EmailAccountViewRepositoryInterface` | `EmailAccountViewRepository` | `Mailbox`       |
 
 El binding vive en `config/services.yaml` (`App\…\ViewRepositoryInterface: '@App\…\ViewRepository'`),
 así que **cada módulo declara su propia implementación** y la API no depende de cómo se
@@ -2447,16 +2447,16 @@ menores, UUIDv7, RFC 3339) y no tiene credenciales propias: el secreto de cada s
 
 ### 18.1 Capas
 
-| Capa | Contenido |
-|---|---|
-| `Domain/Entity` | `Webhook` (suscriptor) y `WebhookDelivery` (una fila por suscriptor y evento). |
-| `Domain/Service` | `WebhookSigner` (HMAC-SHA-256) y `RetryPolicy` (ocho envíos y abandono). |
-| `Domain/Repository` | `WebhookRepositoryInterface`, `WebhookDeliveryRepositoryInterface`. |
-| `Application` | `WebhookNotifier` (crea y encola), `DeliverWebhook` (un intento), `AbandonStaleDeliveries`, `WebhookSecretGenerator`, `WebhookUrlGuard` (anti-SSRF), mensaje y handler. |
-| `Application/Port` | `HostResolverInterface`: el DNS detrás de una interfaz, para que la guarda se pueda probar sin red. |
-| `Infrastructure/Http` | `DnsHostResolver`: A con `gethostbynamel`, AAAA con `dns_get_record`. |
-| `Infrastructure/Repository` | Implementaciones Doctrine. |
-| `UI` | `WebhookController` (`/webhooks`), `WebhookFormType`, `MaintainWebhookDeliveriesCommand`. |
+| Capa                        | Contenido                                                                                                                                                               |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Domain/Entity`             | `Webhook` (suscriptor) y `WebhookDelivery` (una fila por suscriptor y evento).                                                                                          |
+| `Domain/Service`            | `WebhookSigner` (HMAC-SHA-256) y `RetryPolicy` (ocho envíos y abandono).                                                                                                |
+| `Domain/Repository`         | `WebhookRepositoryInterface`, `WebhookDeliveryRepositoryInterface`.                                                                                                     |
+| `Application`               | `WebhookNotifier` (crea y encola), `DeliverWebhook` (un intento), `AbandonStaleDeliveries`, `WebhookSecretGenerator`, `WebhookUrlGuard` (anti-SSRF), mensaje y handler. |
+| `Application/Port`          | `HostResolverInterface`: el DNS detrás de una interfaz, para que la guarda se pueda probar sin red.                                                                     |
+| `Infrastructure/Http`       | `DnsHostResolver`: A con `gethostbynamel`, AAAA con `dns_get_record`.                                                                                                   |
+| `Infrastructure/Repository` | Implementaciones Doctrine.                                                                                                                                              |
+| `UI`                        | `WebhookController` (`/webhooks`), `WebhookFormType`, `MaintainWebhookDeliveriesCommand`.                                                                               |
 
 ### 18.2 El flujo de una entrega
 
@@ -2532,13 +2532,13 @@ por eso la fase dedica un test a recorrer **todas** las rutas públicas sin sesi
 
 ### 19.2 Capas
 
-| Capa | Contenido |
-|---|---|
-| `Application` | `PlanCard` (DTO de una tarjeta de precio), `BuildPricingPage` (catálogo + límites → tarjetas), `Faq` (seis preguntas, fuente única de la página y del JSON-LD), `SendContactMessage` (correo con `Reply-To`). |
-| `UI/Form` | `ContactMessageData` (DTO validado) y `ContactFormType`. |
-| `UI/Controller` | `HomepageController` (`/`), `PricingController` (`/precios`), `SiteController` (siete páginas), `ContactController` (`/contacto`, GET y POST) y `SeoController` (`/sitemap.xml`, `/robots.txt`). |
-| `templates/website` | `base`, `_header`, `_footer`, `_plan_card` y una plantilla por página, más `seo/sitemap.xml.twig`. |
-| `assets/styles/site.css` | Hoja de estilos propia, escrita a mano, sin SCSS ni build (D-85). |
+| Capa                     | Contenido                                                                                                                                                                                                     |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Application`            | `PlanCard` (DTO de una tarjeta de precio), `BuildPricingPage` (catálogo + límites → tarjetas), `Faq` (seis preguntas, fuente única de la página y del JSON-LD), `SendContactMessage` (correo con `Reply-To`). |
+| `UI/Form`                | `ContactMessageData` (DTO validado) y `ContactFormType`.                                                                                                                                                      |
+| `UI/Controller`          | `HomepageController` (`/`), `PricingController` (`/precios`), `SiteController` (siete páginas), `ContactController` (`/contacto`, GET y POST) y `SeoController` (`/sitemap.xml`, `/robots.txt`).              |
+| `templates/website`      | `base`, `_header`, `_footer`, `_plan_card` y una plantilla por página, más `seo/sitemap.xml.twig`.                                                                                                            |
+| `assets/styles/site.css` | Hoja de estilos propia, escrita a mano, sin SCSS ni build (D-85).                                                                                                                                             |
 
 ### 19.3 La portada bifurca, no adivina
 
@@ -2626,26 +2626,26 @@ desde la web, aplica lo que la pasarela confirma y deja el recibo a la vista de 
 
 ### 20.1 Capas
 
-| Capa | Contenido |
-|---|---|
-| `Domain/Port` | `PaymentGatewayInterface` — el puerto que aísla a la aplicación de Stripe. |
-| `Domain/ValueObject` | `CheckoutRequest`, `CheckoutSession`, `GatewayCheckoutSession`, `GatewayEvent`, `GatewayInvoice`, `GatewaySubscription`. Todos `readonly`. |
-| `Domain/Entity` | `PaymentEvent` (idempotencia) y `SalesInvoice` (recibo del cobro). |
-| `Domain/Exception` | `GatewayNotConfiguredException` (503), `InvalidSignatureException` (400), `GatewayRequestException` (502 con el estado de la pasarela). |
-| `Application` | `StartCheckout`, `CompleteCheckout`, `HandlePaymentEvent`, `ApplyGatewaySubscription`, `RecordSalesInvoice`, `ReconcileSubscriptions`. |
-| `Infrastructure/Stripe` | `StripeGateway` (HTTP + form-encoding + parseo) y `StripeSignatureVerifier` (HMAC). |
-| `Infrastructure/Repository` | `PaymentEventRepository`, `SalesInvoiceRepository`. |
-| `UI/Controller` | `CheckoutController` (`/checkout/{priceId}`), `BillingReturnController` (`/checkout/gracias`), `BillingController` (`/facturacion`), `StripeWebhookController` (`/webhooks/stripe`). |
-| `UI/Command` | `app:billing:reconcile`. |
+| Capa                        | Contenido                                                                                                                                                                            |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Domain/Port`               | `PaymentGatewayInterface` — el puerto que aísla a la aplicación de Stripe.                                                                                                           |
+| `Domain/ValueObject`        | `CheckoutRequest`, `CheckoutSession`, `GatewayCheckoutSession`, `GatewayEvent`, `GatewayInvoice`, `GatewaySubscription`. Todos `readonly`.                                           |
+| `Domain/Entity`             | `PaymentEvent` (idempotencia) y `SalesInvoice` (recibo del cobro).                                                                                                                   |
+| `Domain/Exception`          | `GatewayNotConfiguredException` (503), `InvalidSignatureException` (400), `GatewayRequestException` (502 con el estado de la pasarela).                                              |
+| `Application`               | `StartCheckout`, `CompleteCheckout`, `HandlePaymentEvent`, `ApplyGatewaySubscription`, `RecordSalesInvoice`, `ReconcileSubscriptions`.                                               |
+| `Infrastructure/Stripe`     | `StripeGateway` (HTTP + form-encoding + parseo) y `StripeSignatureVerifier` (HMAC).                                                                                                  |
+| `Infrastructure/Repository` | `PaymentEventRepository`, `SalesInvoiceRepository`.                                                                                                                                  |
+| `UI/Controller`             | `CheckoutController` (`/checkout/{priceId}`), `BillingReturnController` (`/checkout/gracias`), `BillingController` (`/facturacion`), `StripeWebhookController` (`/webhooks/stripe`). |
+| `UI/Command`                | `app:billing:reconcile`.                                                                                                                                                             |
 
 ### 20.2 Rutas
 
-| Método | Ruta | Quién | Qué hace |
-|---|---|---|---|
-| `GET` | `/checkout/{priceId}` | sesión | Abre la sesión de pago y redirige a Stripe. |
-| `GET` | `/checkout/gracias` | sesión | Consulta la sesión y aplica la suscripción sin esperar al webhook. |
-| `GET` | `/facturacion` | sesión | Plan actual y recibos de la organización. |
-| `POST` | `/webhooks/stripe` | pública | Recibe los eventos de Stripe, firmados. |
+| Método | Ruta                  | Quién   | Qué hace                                                           |
+| ------ | --------------------- | ------- | ------------------------------------------------------------------ |
+| `GET`  | `/checkout/{priceId}` | sesión  | Abre la sesión de pago y redirige a Stripe.                        |
+| `GET`  | `/checkout/gracias`   | sesión  | Consulta la sesión y aplica la suscripción sin esperar al webhook. |
+| `GET`  | `/facturacion`        | sesión  | Plan actual y recibos de la organización.                          |
+| `POST` | `/webhooks/stripe`    | pública | Recibe los eventos de Stripe, firmados.                            |
 
 `/webhooks/stripe` está en `PUBLIC_ACCESS` porque quien llama es Stripe, no un usuario: la
 autenticación es la firma HMAC, no una sesión.
@@ -2690,13 +2690,13 @@ cuando un cobro «no se ha reflejado».
 
 ### 20.5 Qué eventos se aplican y qué se ignora
 
-| Evento | Efecto |
-|---|---|
-| `checkout.session.completed` | Crea o sincroniza la suscripción. |
-| `customer.subscription.created` / `.updated` / `.deleted` | Sincroniza estado, periodo y cancelación. |
-| `invoice.paid` | Registra el recibo y resincroniza la suscripción. |
-| `invoice.payment_failed` | Marca el recibo como fallido. |
-| Cualquier otro | Se marca `ignored` y se responde 200. |
+| Evento                                                    | Efecto                                            |
+| --------------------------------------------------------- | ------------------------------------------------- |
+| `checkout.session.completed`                              | Crea o sincroniza la suscripción.                 |
+| `customer.subscription.created` / `.updated` / `.deleted` | Sincroniza estado, periodo y cancelación.         |
+| `invoice.paid`                                            | Registra el recibo y resincroniza la suscripción. |
+| `invoice.payment_failed`                                  | Marca el recibo como fallido.                     |
+| Cualquier otro                                            | Se marca `ignored` y se responde 200.             |
 
 Un evento que no está en `GatewayEvent::HANDLED_TYPES` se apunta y se olvida. Devolver un error
 haría que Stripe lo reintentara durante días por un tipo que no vamos a entender nunca.
@@ -2779,11 +2779,11 @@ que elegir, y elegir mal no rompe nada visible hasta que un usuario pierde un fo
 
 ```yaml
 framework:
-    form:
-        csrf_protection:
-            token_id: submit
+  form:
+    csrf_protection:
+      token_id: submit
 
-    csrf_protection: ~
+  csrf_protection: ~
 ```
 
 Sin `stateless_token_ids` no se registran `security.csrf.same_origin_token_manager` ni su listener,
@@ -2799,12 +2799,12 @@ doble-submit cookie).
 
 `tests/Functional/Identity/CsrfUnificationTest.php` fija las cuatro garantías que importan:
 
-| Garantía | Cómo |
-|---|---|
-| El token vive en la sesión | La clave `_csrf/resend_verification` existe tras renderizar |
-| No hay token sin estado | No se emite la cookie `csrf-token` |
-| Un formulario abierto hace rato sigue valiendo | Token leído, una petición de por medio, `POST` → 302 |
-| Los tokens son por propósito | El token de logout en el endpoint de reenvío → 403; uno inventado → 403 |
+| Garantía                                       | Cómo                                                                    |
+| ---------------------------------------------- | ----------------------------------------------------------------------- |
+| El token vive en la sesión                     | La clave `_csrf/resend_verification` existe tras renderizar             |
+| No hay token sin estado                        | No se emite la cookie `csrf-token`                                      |
+| Un formulario abierto hace rato sigue valiendo | Token leído, una petición de por medio, `POST` → 302                    |
+| Los tokens son por propósito                   | El token de logout en el endpoint de reenvío → 403; uno inventado → 403 |
 
 **El token no se compara entre páginas.** `CsrfTokenManager` enmascara el valor con una clave
 aleatoria en cada render (`clave.valor`), de modo que dos renders seguidos dan cadenas distintas

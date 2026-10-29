@@ -55,7 +55,7 @@ Una colección:
 
 ```json
 {
-  "data": [ { "id": "…", "name": "Adobe Creative Cloud", "…": "…" } ],
+  "data": [{ "id": "…", "name": "Adobe Creative Cloud", "…": "…" }],
   "meta": {
     "page": 1,
     "per_page": 25,
@@ -110,23 +110,23 @@ Todos requieren `read` salvo los marcados como `write`.
 
 ### Plan y consumo
 
-| Método | Ruta | Ámbito | Descripción |
-|---|---|---|---|
-| `GET` | `/api/v1/plan` | `read` | Plan de la organización y consumo frente a los límites. |
+| Método | Ruta           | Ámbito | Descripción                                             |
+| ------ | -------------- | ------ | ------------------------------------------------------- |
+| `GET`  | `/api/v1/plan` | `read` | Plan de la organización y consumo frente a los límites. |
 
 ### Servicios
 
-| Método | Ruta | Ámbito | Descripción |
-|---|---|---|---|
-| `GET` | `/api/v1/services` | `read` | Listado de servicios. |
-| `GET` | `/api/v1/services/{id}` | `read` | Un servicio. |
-| `POST` | `/api/v1/services` | `write` | Alta manual de un servicio. |
+| Método | Ruta                    | Ámbito  | Descripción                 |
+| ------ | ----------------------- | ------- | --------------------------- |
+| `GET`  | `/api/v1/services`      | `read`  | Listado de servicios.       |
+| `GET`  | `/api/v1/services/{id}` | `read`  | Un servicio.                |
+| `POST` | `/api/v1/services`      | `write` | Alta manual de un servicio. |
 
 ### Propuestas
 
-| Método | Ruta | Ámbito | Descripción |
-|---|---|---|---|
-| `GET` | `/api/v1/proposals` | `read` | Propuestas pendientes. |
+| Método | Ruta                             | Ámbito  | Descripción                                |
+| ------ | -------------------------------- | ------- | ------------------------------------------ |
+| `GET`  | `/api/v1/proposals`              | `read`  | Propuestas pendientes.                     |
 | `POST` | `/api/v1/proposals/{id}/confirm` | `write` | Confirma una propuesta y crea el servicio. |
 
 `match_reasons` es una **lista de objetos**, no de textos: cada razón explica por qué se
@@ -144,40 +144,40 @@ hay detalle que dar, la clave **no aparece** en lugar de venir vacía.
 
 ### Documentos
 
-| Método | Ruta | Ámbito | Descripción |
-|---|---|---|---|
-| `GET` | `/api/v1/documents` | `read` | Documentos procesados. |
+| Método | Ruta                | Ámbito  | Descripción            |
+| ------ | ------------------- | ------- | ---------------------- |
+| `GET`  | `/api/v1/documents` | `read`  | Documentos procesados. |
 | `POST` | `/api/v1/documents` | `write` | Carga de un documento. |
 
 ### Cobros y avisos
 
-| Método | Ruta | Ámbito | Descripción |
-|---|---|---|---|
-| `GET` | `/api/v1/charges/upcoming` | `read` | Próximos cobros. |
-| `GET` | `/api/v1/alerts` | `read` | Avisos de renovación y de presupuesto. |
+| Método | Ruta                       | Ámbito | Descripción                            |
+| ------ | -------------------------- | ------ | -------------------------------------- |
+| `GET`  | `/api/v1/charges/upcoming` | `read` | Próximos cobros.                       |
+| `GET`  | `/api/v1/alerts`           | `read` | Avisos de renovación y de presupuesto. |
 
 ### Correo
 
-| Método | Ruta | Ámbito | Descripción |
-|---|---|---|---|
-| `GET` | `/api/v1/mail/accounts` | `read` | Cuentas de correo conectadas y su estado. |
-| `POST` | `/api/v1/mail/accounts/{id}/sync` | `write` | Fuerza una sincronización. |
+| Método | Ruta                              | Ámbito  | Descripción                               |
+| ------ | --------------------------------- | ------- | ----------------------------------------- |
+| `GET`  | `/api/v1/mail/accounts`           | `read`  | Cuentas de correo conectadas y su estado. |
+| `POST` | `/api/v1/mail/accounts/{id}/sync` | `write` | Fuerza una sincronización.                |
 
 ### Métricas
 
-| Método | Ruta | Ámbito | Descripción |
-|---|---|---|---|
-| `GET` | `/api/v1/metrics` | `read` | Métricas del pipeline y coste de IA. |
+| Método | Ruta              | Ámbito | Descripción                          |
+| ------ | ----------------- | ------ | ------------------------------------ |
+| `GET`  | `/api/v1/metrics` | `read` | Métricas del pipeline y coste de IA. |
 
 ---
 
 ## 2.bis ¿Consultar o recibir avisos?
 
-| Si necesitas… | Usa |
-|---|---|
-| Los datos cuando tú quieras | La API (`GET /api/v1/…`). |
-| Enterarte de un cambio sin sondear cada minuto | Un [webhook](webhooks.md). |
-| Ambas cosas | Las dos, con **la misma clave de API** para consultar y **el secreto del webhook** para verificar la firma. Son credenciales distintas: la clave es irreversible y el secreto se puede volver a ver, porque hay que usarlo para firmar (D-75). |
+| Si necesitas…                                  | Usa                                                                                                                                                                                                                                            |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Los datos cuando tú quieras                    | La API (`GET /api/v1/…`).                                                                                                                                                                                                                      |
+| Enterarte de un cambio sin sondear cada minuto | Un [webhook](webhooks.md).                                                                                                                                                                                                                     |
+| Ambas cosas                                    | Las dos, con **la misma clave de API** para consultar y **el secreto del webhook** para verificar la firma. Son credenciales distintas: la clave es irreversible y el secreto se puede volver a ver, porque hay que usarlo para firmar (D-75). |
 
 ---
 
@@ -248,12 +248,12 @@ respuesta aunque el servidor devuelva `200`.
 
 ## 7. Documentos relacionados
 
-| Documento | Contenido |
-|---|---|
-| [`errors.md`](errors.md) | Catálogo de errores: cada código, cuándo ocurre, qué hacer. |
-| [`versioning.md`](versioning.md) | Qué es la versión estable y qué garantiza. |
-| [`deprecation.md`](deprecation.md) | Política de deprecación: cómo y cuándo se retira algo. |
-| [`webhooks.md`](webhooks.md) | **Webhooks de salida**: cuando prefieras que Suscripta te avise en vez de preguntar. |
-| [`../ARCHITECTURE.md` §17](../ARCHITECTURE.md) | Cómo está construida la API por dentro. |
-| [`../DECISIONS.md`](../DECISIONS.md) D-71, D-72 | Por qué HMAC y por qué read models. |
-| [`../ROADMAP.md`](../ROADMAP.md) | Estado del proyecto y qué está pendiente. |
+| Documento                                       | Contenido                                                                            |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------ |
+| [`errors.md`](errors.md)                        | Catálogo de errores: cada código, cuándo ocurre, qué hacer.                          |
+| [`versioning.md`](versioning.md)                | Qué es la versión estable y qué garantiza.                                           |
+| [`deprecation.md`](deprecation.md)              | Política de deprecación: cómo y cuándo se retira algo.                               |
+| [`webhooks.md`](webhooks.md)                    | **Webhooks de salida**: cuando prefieras que Suscripta te avise en vez de preguntar. |
+| [`../ARCHITECTURE.md` §17](../ARCHITECTURE.md)  | Cómo está construida la API por dentro.                                              |
+| [`../DECISIONS.md`](../DECISIONS.md) D-71, D-72 | Por qué HMAC y por qué read models.                                                  |
+| [`../ROADMAP.md`](../ROADMAP.md)                | Estado del proyecto y qué está pendiente.                                            |

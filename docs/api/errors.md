@@ -12,15 +12,15 @@ El cuerpo tiene siempre estos campos:
 }
 ```
 
-| Campo | Significado |
-|---|---|
-| `type` | URI estable del tipo de error. Se puede usar en un `switch` de tu cliente. |
-| `title` | Resumen corto y **traducido al español**. No lo uses para lógica: es para personas. |
-| `status` | El código HTTP, repetido dentro del cuerpo. |
-| `detail` | Explicación concreta de **esta** petición. |
-| `violations` | Solo en `422`: lista de campos que fallan. |
-| `retry_after` | Solo en `429`: segundos que hay que esperar. |
-| `capability`, `limit`, `usage` | Solo en `402`: qué límite del plan se ha superado. |
+| Campo                          | Significado                                                                         |
+| ------------------------------ | ----------------------------------------------------------------------------------- |
+| `type`                         | URI estable del tipo de error. Se puede usar en un `switch` de tu cliente.          |
+| `title`                        | Resumen corto y **traducido al español**. No lo uses para lógica: es para personas. |
+| `status`                       | El código HTTP, repetido dentro del cuerpo.                                         |
+| `detail`                       | Explicación concreta de **esta** petición.                                          |
+| `violations`                   | Solo en `422`: lista de campos que fallan.                                          |
+| `retry_after`                  | Solo en `429`: segundos que hay que esperar.                                        |
+| `capability`, `limit`, `usage` | Solo en `402`: qué límite del plan se ha superado.                                  |
 
 **Regla práctica:** decide con el **código HTTP** o con `type`, nunca con `detail` ni con
 `title`. Esos dos campos son para personas y pueden cambiar sin avisar.
@@ -91,7 +91,12 @@ escribir; necesitas una clave `write`. Se emite desde el panel de integraciones.
 ## 404 — Recurso no encontrado
 
 ```json
-{ "type": "…/not-found", "title": "No encontrado", "status": 404, "detail": "El recurso no existe." }
+{
+  "type": "…/not-found",
+  "title": "No encontrado",
+  "status": 404,
+  "detail": "El recurso no existe."
+}
 ```
 
 **Qué hacer:** comprueba el UUID. Si el recurso es de otra organización, **también** recibes
@@ -225,15 +230,15 @@ El `detail` **nunca** filtra información interna (peticiones SQL, rutas del ser
 
 ## Resumen rápido
 
-| Código | Significado | Reintentar |
-|---|---|---|
-| `400` | Cuerpo malformado | No, corrige la petición |
-| `401` | Credencial ausente/inválida/caducada/revocada | No, revisa la clave |
-| `403` | Ámbito insuficiente | No, pide una clave `write` |
-| `404` | No existe (o no es tuyo) | No |
-| `405` | Método no permitido | No, y en `OPTIONS` revisa CORS |
-| `402` | Límite del plan superado | No, cambia el plan |
-| `409` | Conflicto de estado | No, relee el recurso |
-| `422` | Validación fallida | No, lee `violations` |
-| `429` | Límite de frecuencia | **Sí**, tras `retry_after` |
-| `500` | Error del servidor | **Sí**, con espera |
+| Código | Significado                                   | Reintentar                     |
+| ------ | --------------------------------------------- | ------------------------------ |
+| `400`  | Cuerpo malformado                             | No, corrige la petición        |
+| `401`  | Credencial ausente/inválida/caducada/revocada | No, revisa la clave            |
+| `403`  | Ámbito insuficiente                           | No, pide una clave `write`     |
+| `404`  | No existe (o no es tuyo)                      | No                             |
+| `405`  | Método no permitido                           | No, y en `OPTIONS` revisa CORS |
+| `402`  | Límite del plan superado                      | No, cambia el plan             |
+| `409`  | Conflicto de estado                           | No, relee el recurso           |
+| `422`  | Validación fallida                            | No, lee `violations`           |
+| `429`  | Límite de frecuencia                          | **Sí**, tras `retry_after`     |
+| `500`  | Error del servidor                            | **Sí**, con espera             |

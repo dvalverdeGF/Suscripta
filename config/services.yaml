@@ -94,7 +94,7 @@ parameters:
 services:
     # default configuration for services in *this* file
     _defaults:
-        autowire: true      # Automatically injects dependencies in your services.
+        autowire: true # Automatically injects dependencies in your services.
         autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
 
     # Los canales de notificación se recogen por etiqueta: añadir uno nuevo
@@ -392,7 +392,7 @@ services:
     # módulo de negocio, solo sabe preguntar «cuánto se usa» por capacidad.
     App\Shared\Application\Entitlements\QuotaGuard:
         arguments:
-            $usageProviders: !tagged_locator { tag: 'app.entitlement_usage', index_by: 'capability' }
+            $usageProviders: !tagged_locator { tag: app.entitlement_usage, index_by: capability }
 
     # Los casos de uso hablan con el puerto, no con la implementación: así no
     # necesitan la configuración de planes para poder probarse, y el límite

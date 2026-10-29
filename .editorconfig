@@ -21,6 +21,13 @@ indent_style = tab
 indent_style = space
 indent_size = 4
 
+# shfmt lee estas propiedades de aquí. Son el estilo que ya tenían los
+# scripts: etiquetas del `case` indentadas y el operador al principio de la
+# línea de continuación.
+[*.sh]
+switch_case_indent = true
+binary_next_line = true
+
 [{compose.*yaml,.devcontainer/compose.*yaml,.github/**/*.yaml}]
 indent_size = 2
 

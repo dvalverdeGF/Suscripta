@@ -19,7 +19,7 @@
 
 Una ruta deprecada sigue funcionando, pero sus respuestas incluyen:
 
-```
+```http
 Deprecation: true
 Sunset: Tue, 01 Jul 2025 00:00:00 GMT
 Link: <https://suscripta.app/docs/api/v2>; rel="successor-version"
@@ -38,7 +38,9 @@ En el cuerpo de la respuesta, los **campos** deprecados vienen marcados:
     "id": "…",
     "name": "Adobe Creative Cloud",
     "legacy_external_id": "1234",
-    "_deprecated": { "legacy_external_id": "Se sustituye por `external_id`. Se retirará el 2026-01-01." }
+    "_deprecated": {
+      "legacy_external_id": "Se sustituye por `external_id`. Se retirará el 2026-01-01."
+    }
   }
 }
 ```
@@ -64,19 +66,19 @@ El proceso completo, en orden:
 
 ## Reglas por tipo de cambio
 
-| Tipo de cambio | ¿Periodo de aviso? | Cómo se anuncia |
-|---|---|---|
-| Campo nuevo en la respuesta | No | `CHANGELOG.md` |
-| Valor nuevo en un enum | No | `CHANGELOG.md` |
-| Corrección de bug | No | `CHANGELOG.md` |
-| Campo existente pasa a opcional | No | `CHANGELOG.md` |
-| Campo existente pasa a obligatorio | **Sí** | `_deprecated` + `CHANGELOG.md` |
-| Campo existente desaparece | **Sí** | `_deprecated` + `CHANGELOG.md` |
-| Ruta nueva | No | `CHANGELOG.md` + OpenAPI |
-| Ruta desaparece | **Sí** | Cabeceras `Deprecation`/`Sunset` + `CHANGELOG.md` |
-| Cambia el formato de `data`/`meta` | **Sí** | Versión nueva |
-| Cambia el significado de un campo | **Sí** | Versión nueva |
-| Se retira un código de error | **Sí** | `CHANGELOG.md` |
+| Tipo de cambio                     | ¿Periodo de aviso? | Cómo se anuncia                                   |
+| ---------------------------------- | ------------------ | ------------------------------------------------- |
+| Campo nuevo en la respuesta        | No                 | `CHANGELOG.md`                                    |
+| Valor nuevo en un enum             | No                 | `CHANGELOG.md`                                    |
+| Corrección de bug                  | No                 | `CHANGELOG.md`                                    |
+| Campo existente pasa a opcional    | No                 | `CHANGELOG.md`                                    |
+| Campo existente pasa a obligatorio | **Sí**             | `_deprecated` + `CHANGELOG.md`                    |
+| Campo existente desaparece         | **Sí**             | `_deprecated` + `CHANGELOG.md`                    |
+| Ruta nueva                         | No                 | `CHANGELOG.md` + OpenAPI                          |
+| Ruta desaparece                    | **Sí**             | Cabeceras `Deprecation`/`Sunset` + `CHANGELOG.md` |
+| Cambia el formato de `data`/`meta` | **Sí**             | Versión nueva                                     |
+| Cambia el significado de un campo  | **Sí**             | Versión nueva                                     |
+| Se retira un código de error       | **Sí**             | `CHANGELOG.md`                                    |
 
 ## Campos deprecados que ya no existen
 

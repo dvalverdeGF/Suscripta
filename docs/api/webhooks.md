@@ -26,37 +26,37 @@ Idempotency-Key: 0192f0c4-6b1e-7d2a-9f3c-0a1b2c3d4e5f
 {"id":"0192f0c4-…","event":"service.created","occurredAt":"2026-10-28T21:50:37+00:00","data":{…}}
 ```
 
-| Cabecera | Para qué |
-|---|---|
-| `Content-Type` | Siempre `application/json`. |
-| `User-Agent` | `Suscripta-Webhooks/1.0`. Sirve para reconocer el tráfico en tus registros. |
-| `X-Suscripta-Event` | El tipo de evento. Permite enrutar sin deserializar el cuerpo. |
-| `X-Suscripta-Signature` | Firma HMAC de `"{t}.{cuerpo}"`. Ver más abajo. |
-| `Idempotency-Key` | Identificador único de la entrega. **Es el mismo en todos los reintentos.** |
+| Cabecera                | Para qué                                                                    |
+| ----------------------- | --------------------------------------------------------------------------- |
+| `Content-Type`          | Siempre `application/json`.                                                 |
+| `User-Agent`            | `Suscripta-Webhooks/1.0`. Sirve para reconocer el tráfico en tus registros. |
+| `X-Suscripta-Event`     | El tipo de evento. Permite enrutar sin deserializar el cuerpo.              |
+| `X-Suscripta-Signature` | Firma HMAC de `"{t}.{cuerpo}"`. Ver más abajo.                              |
+| `Idempotency-Key`       | Identificador único de la entrega. **Es el mismo en todos los reintentos.** |
 
 ### El sobre
 
 Todos los eventos comparten la misma forma:
 
-| Campo | Tipo | Descripción |
-|---|---|---|
-| `id` | string (UUIDv7) | Identificador de **la entrega**, no del recurso. Cada suscriptor recibe el suyo. Coincide con `Idempotency-Key`. |
-| `event` | string | Uno de los tipos de la tabla de eventos. |
-| `occurredAt` | string (RFC 3339) | Cuándo ocurrió el hecho, en UTC. |
-| `data` | object | Carga propia del evento. |
+| Campo        | Tipo              | Descripción                                                                                                      |
+| ------------ | ----------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `id`         | string (UUIDv7)   | Identificador de **la entrega**, no del recurso. Cada suscriptor recibe el suyo. Coincide con `Idempotency-Key`. |
+| `event`      | string            | Uno de los tipos de la tabla de eventos.                                                                         |
+| `occurredAt` | string (RFC 3339) | Cuándo ocurrió el hecho, en UTC.                                                                                 |
+| `data`       | object            | Carga propia del evento.                                                                                         |
 
 `data` **crece con el tiempo**: se pueden añadir campos, nunca se quitan ni se cambia su
 significado. Ignora lo que no conozcas.
 
 ### Eventos
 
-| `event` | Cuándo se emite | `data` |
-|---|---|---|
-| `service.created` | Se da de alta un servicio, a mano o confirmando una propuesta | `serviceId`, `name`, `billingPeriod`, `currency`, `source`, `startedAt` |
-| `proposal.created` | El procesamiento de un correo crea una propuesta nueva | `discoveryId`, `type`, `providerName`, `planName`, `amountMinor`, `currency`, `matchScore`, `confidence` |
-| `proposal.confirmed` | Se confirma una propuesta | `discoveryId`, `type`, `serviceId`, `serviceName`, `matchedExistingService` |
-| `charge.detected` | Al confirmar una propuesta se detecta un cobro con importe | `serviceId`, `serviceName`, `amountMinor`, `currency`, `billingPeriod`, `source` |
-| `ai.budget_exhausted` | La organización agota su presupuesto de IA | `organizationId`, `budgetMinor`, `spentMinor`, `periodStart`, `periodEnd` |
+| `event`               | Cuándo se emite                                               | `data`                                                                                                   |
+| --------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `service.created`     | Se da de alta un servicio, a mano o confirmando una propuesta | `serviceId`, `name`, `billingPeriod`, `currency`, `source`, `startedAt`                                  |
+| `proposal.created`    | El procesamiento de un correo crea una propuesta nueva        | `discoveryId`, `type`, `providerName`, `planName`, `amountMinor`, `currency`, `matchScore`, `confidence` |
+| `proposal.confirmed`  | Se confirma una propuesta                                     | `discoveryId`, `type`, `serviceId`, `serviceName`, `matchedExistingService`                              |
+| `charge.detected`     | Al confirmar una propuesta se detecta un cobro con importe    | `serviceId`, `serviceName`, `amountMinor`, `currency`, `billingPeriod`, `source`                         |
+| `ai.budget_exhausted` | La organización agota su presupuesto de IA                    | `organizationId`, `budgetMinor`, `spentMinor`, `periodStart`, `periodEnd`                                |
 
 Los importes van en **unidades menores** (céntimos) y con la moneda aparte, igual que en la API
 REST. Nunca en coma flotante.
@@ -169,11 +169,11 @@ Usa `express.raw()` en esa ruta, como arriba.
 
 ## Qué tiene que devolver tu servidor
 
-| Respuesta | Qué significa para Suscripta |
-|---|---|
-| **Cualquier `2xx`** | Entrega correcta. No se reintenta. |
-| **Cualquier otro código**, un error de red o un timeout | Fallo. Se reintenta según la política. |
-| `410 Gone` | Se trata como un fallo más. Para dejar de recibir, borra o pausa el suscriptor en el panel. |
+| Respuesta                                               | Qué significa para Suscripta                                                                |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| **Cualquier `2xx`**                                     | Entrega correcta. No se reintenta.                                                          |
+| **Cualquier otro código**, un error de red o un timeout | Fallo. Se reintenta según la política.                                                      |
+| `410 Gone`                                              | Se trata como un fallo más. Para dejar de recibir, borra o pausa el suscriptor en el panel. |
 
 Se consideran **10 segundos** para responder y **20 segundos** como máximo de la petición
 completa. Contesta `2xx` en cuanto hayas validado la firma y guardado el evento: si tu lógica de
@@ -182,16 +182,16 @@ Suscripta y un reintento duplicado para ti.
 
 ## Reintentos e idempotencia
 
-| Intento | Espera desde el fallo anterior |
-|---|---|
-| 1 (primer envío) | — |
-| 2 | 30 s |
-| 3 | 2 min |
-| 4 | 10 min |
-| 5 | 1 h |
-| 6 | 6 h |
-| 7 | 24 h |
-| 8 (último) | 24 h |
+| Intento          | Espera desde el fallo anterior |
+| ---------------- | ------------------------------ |
+| 1 (primer envío) | —                              |
+| 2                | 30 s                           |
+| 3                | 2 min                          |
+| 4                | 10 min                         |
+| 5                | 1 h                            |
+| 6                | 6 h                            |
+| 7                | 24 h                           |
+| 8 (último)       | 24 h                           |
 
 Después del octavo fallo la entrega se marca como **abandonada** y no se vuelve a intentar. La
 secuencia suma algo menos de dos días, de modo que un corte de mantenimiento de una noche se
@@ -252,21 +252,21 @@ explica el problema en el campo) y **en cada entrega** (por si el DNS cambió de
 
 Se rechaza, con un mensaje que dice qué pasó:
 
-| Caso | Ejemplo | Por qué |
-|---|---|---|
-| No es `https` | `http://erp.example.com/hooks` | El cuerpo va firmado y con datos de facturación del cliente; en claro lo lee cualquiera. |
-| Loopback | `https://localhost/…`, `127.0.0.1`, `::1` | Es la propia máquina de Suscripta. |
-| Redes privadas | `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `fc00::/7` | Es la red interna del servidor. |
-| Link-local / metadatos | `169.254.169.254`, `fe80::/10` | Credenciales de la nube al alcance de un `GET`. |
-| Reservados y de prueba | `100.64.0.0/10`, `198.18.0.0/15`, `203.0.113.0/24`, `240.0.0.0/4`, `ff00::/8`… | No son servicios públicos a los que avisar. |
-| IPv4 escondida en IPv6 | `::ffff:10.0.0.1`, `64:ff9b::/96` | La forma habitual de esquivar una comprobación que solo mira IPv4. |
+| Caso                   | Ejemplo                                                                        | Por qué                                                                                  |
+| ---------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| No es `https`          | `http://erp.example.com/hooks`                                                 | El cuerpo va firmado y con datos de facturación del cliente; en claro lo lee cualquiera. |
+| Loopback               | `https://localhost/…`, `127.0.0.1`, `::1`                                      | Es la propia máquina de Suscripta.                                                       |
+| Redes privadas         | `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `fc00::/7`                    | Es la red interna del servidor.                                                          |
+| Link-local / metadatos | `169.254.169.254`, `fe80::/10`                                                 | Credenciales de la nube al alcance de un `GET`.                                          |
+| Reservados y de prueba | `100.64.0.0/10`, `198.18.0.0/15`, `203.0.113.0/24`, `240.0.0.0/4`, `ff00::/8`… | No son servicios públicos a los que avisar.                                              |
+| IPv4 escondida en IPv6 | `::ffff:10.0.0.1`, `64:ff9b::/96`                                              | La forma habitual de esquivar una comprobación que solo mira IPv4.                       |
 
 Tres detalles que importan si estás al otro lado:
 
 1. **Se comprueban todas las direcciones del nombre**, no solo la primera. Un host puede devolver
    una pública y una privada a la vez, y quedarse con la primera es cómo se cuela el ataque.
 2. **La dirección validada es la que se usa para conectar.** No se valida y luego se vuelve a
-   preguntar al DNS: entre las dos consultas cabe un cambio de respuesta (*DNS rebinding*) que
+   preguntar al DNS: entre las dos consultas cabe un cambio de respuesta (_DNS rebinding_) que
    convierte una URL pública en una privada. La entrega se ata a la IP comprobada.
 3. **Las redirecciones no se siguen** (`max_redirects: 0`). Un `302` desde un host público hacia
    `http://169.254.169.254/` sería el mismo ataque con un salto intermedio. Si tu endpoint

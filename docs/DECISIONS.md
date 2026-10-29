@@ -35,9 +35,10 @@ crea automáticamente una organización personal con una `Membership` de rol `ow
 de invitaciones ni de roles en v1.
 
 **Alternativas.**
-- *Solo `User` como tenant.* Más simple hoy, pero añadir `Organization` después obliga a
+
+- _Solo `User` como tenant._ Más simple hoy, pero añadir `Organization` después obliga a
   migrar la clave de aislamiento de **todas** las tablas y a reescribir el filtro de tenancy.
-- *`Organization` con equipos completos desde el inicio.* Complejidad empresarial innecesaria.
+- _`Organization` con equipos completos desde el inicio._ Complejidad empresarial innecesaria.
 
 **Consecuencias.** Coste actual: una tabla y una fila extra por usuario. Beneficio: el límite
 de tenant es estable desde el primer commit y el producto puede crecer a equipos sin migración
@@ -116,7 +117,7 @@ aplicación, no accediendo a entidades ajenas.
 
 **Consecuencias.** Despliegue y operación simples. Los límites permiten extraer un módulo a un
 servicio independiente si algún día hace falta (el candidato natural sería `Mailbox` por su
-carga). Sin la estructura modular, el monolito se convertiría en un *big ball of mud*.
+carga). Sin la estructura modular, el monolito se convertiría en un _big ball of mud_.
 
 ---
 
@@ -316,6 +317,7 @@ el progreso de las operaciones asíncronas. **Sin SPA y sin API pública en v1.*
 `ARCHITECTURE.md` §12.
 
 **Alternativas.**
+
 1. SPA con API REST/GraphQL. Más código, más superficie de ataque, dos despliegues y un
    toolchain Node en la imagen Docker, a cambio de una reactividad que este producto no
    necesita.
@@ -429,6 +431,7 @@ separada: se modela como un `Service` con `status = active` y periodicidad defin
 interfaz se habla de "servicios" y "gastos recurrentes", no de "suscripciones".
 
 **Alternativas.**
+
 1. `Subscription` como entidad principal y `Service` como su generalización (jerarquía de
    herencia). Añade complejidad de mapeo sin aportar nada en v1.
 2. Ambas entidades separadas. Duplica el modelo y obliga a decidir en cada caso a cuál
@@ -587,6 +590,7 @@ el buzón original). Por tanto:
   servicio.
 
 **Alternativas.**
+
 1. Una sola cuenta por organización. Más simple, pero excluye el caso real de varios buzones y
    obliga a reenviar todo a una única dirección.
 2. Varias cuentas sin deduplicación entre ellas. Genera descubrimientos duplicados y ruido en
@@ -616,10 +620,11 @@ diseño** como custom properties. Sin preprocesador, sin PostCSS, sin Tailwind e
   `.field`, `.alert`, `.empty-state`.
 - **Anidamiento CSS nativo** (soportado por todos los navegadores modernos desde 2023): no hace
   falta Sass.
-- AssetMapper sirve el fichero directamente, con *digest* para el cache-busting.
+- AssetMapper sirve el fichero directamente, con _digest_ para el cache-busting.
 
 **Alternativas.**
-1. **Tailwind vía `symfonycasts/tailwind-bundle`.** Descarga el binario *standalone* de
+
+1. **Tailwind vía `symfonycasts/tailwind-bundle`.** Descarga el binario _standalone_ de
    Tailwind, así que **no requiere Node**. Es una opción legítima y la mejor forma de usar
    Tailwind en este proyecto. Se descarta en v1 porque añade un binario y un paso de compilación
    a la imagen, y porque las clases utilitarias en las plantillas Twig hacen el marcado más
@@ -632,7 +637,7 @@ diseño** como custom properties. Sin preprocesador, sin PostCSS, sin Tailwind e
 
 **Consecuencias.** Cero dependencias de frontend y cero pasos de compilación. El coste es que
 la consistencia visual depende de usar los tokens y las clases de componente en lugar de
-inventar estilos por pantalla; se revisa en el *code review*.
+inventar estilos por pantalla; se revisa en el _code review_.
 
 **El responsive no es un motivo para cambiar de decisión.** El CSS moderno cubre lo que antes
 justificaba un framework: Grid y Flexbox para el layout, `clamp()` para tipografía y espaciado
@@ -677,7 +682,7 @@ Ingesta → Dedup → Metadatos → Filtros → Billing Score
 2. **Privacidad.** Enviar el buzón completo a un tercero es incompatible con el principio de
    minimización y con las expectativas del usuario europeo (`SECURITY.md`).
 3. **Explicabilidad.** "El modelo dijo 29,90 €" no es una respuesta aceptable para un gasto
-   recurrente. "El remitente es OVH, el asunto contiene *facture*, hay un PDF y el importe
+   recurrente. "El remitente es OVH, el asunto contiene _facture_, hay un PDF y el importe
    aparece en el texto" sí lo es.
 4. **Fiabilidad.** Un modelo alucina; una regex sobre una plantilla conocida, no. El dominio
    no puede depender de la estabilidad de un proveedor externo.
@@ -685,10 +690,11 @@ Ingesta → Dedup → Metadatos → Filtros → Billing Score
 
 **Por qué la IA no contiene lógica de negocio.** El cálculo de periodicidad, próximo cobro,
 comparación de precios, detección de duplicados y equivalencia mensual son **funciones puras
-testeables** en `Shared\Domain` / `Services\Domain`. Si vivieran en un *prompt*, no se podrían
+testeables** en `Shared\Domain` / `Services\Domain`. Si vivieran en un _prompt_, no se podrían
 testear, versionar ni explicar, y cambiarían de resultado sin que nadie toque el código.
 
 **Alternativas.**
+
 1. **Todo a IA.** Descartada por coste, privacidad, explicabilidad y fiabilidad.
 2. **Solo reglas, sin IA.** Descartada: hay facturas de proveedores desconocidos con
    maquetaciones libres que ninguna regla razonable cubre. Sin IA, el producto no arranca en
@@ -712,10 +718,10 @@ plantillas repetidas; unas pocas son PDF escaneados, multipágina o con maquetac
 
 **Decisión.** Dos niveles de modelo, con umbral de escalado **configurable**:
 
-| Nivel | Uso | Cuándo |
-|---|---|---|
-| 5 · económica | Extracción estándar | Por defecto, cuando reglas y parsers no bastan |
-| 6 · avanzada | Extracción difícil | Confianza insuficiente, campos contradictorios, proveedor desconocido con documento complejo, PDF difícil, información insuficiente |
+| Nivel         | Uso                 | Cuándo                                                                                                                              |
+| ------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| 5 · económica | Extracción estándar | Por defecto, cuando reglas y parsers no bastan                                                                                      |
+| 6 · avanzada  | Extracción difícil  | Confianza insuficiente, campos contradictorios, proveedor desconocido con documento complejo, PDF difícil, información insuficiente |
 
 **Por qué no usar siempre el modelo avanzado.** Cuesta entre 10 y 50 veces más por documento y
 no aporta nada en el 90 % de los casos. **Por qué no usar siempre el económico.** Falla en los
@@ -778,8 +784,8 @@ duración y datos adicionales.
 presupuesto", que son tres situaciones con acciones completamente distintas.
 
 **Consecuencias.** Una tabla más y más escritura. A cambio, cada mensaje tiene una respuesta
-consultable a *qué ocurrió, cuándo, con qué extractor, si intervino IA, con qué resultado y por
-qué*, que es exactamente lo que exige el requisito de observabilidad.
+consultable a _qué ocurrió, cuándo, con qué extractor, si intervino IA, con qué resultado y por
+qué_, que es exactamente lo que exige el requisito de observabilidad.
 
 ---
 
@@ -793,12 +799,12 @@ afectaría al de otro.
 
 **Decisión.** Tres entidades con ámbitos distintos:
 
-| Entidad | Pregunta | Ámbito |
-|---|---|---|
-| `Provider` | ¿Quién es? | Global o del tenant |
-| `ProviderIdentity` | ¿Cómo lo reconocemos? (dominio, remitente, patrón) | **Global** |
-| `ProviderParser` | ¿Cómo extraemos sus datos? | **Global** |
-| `MailboxKnowledgeEntry` | ¿Qué hemos aprendido de *este* buzón? | **Por cuenta de correo** |
+| Entidad                 | Pregunta                                           | Ámbito                   |
+| ----------------------- | -------------------------------------------------- | ------------------------ |
+| `Provider`              | ¿Quién es?                                         | Global o del tenant      |
+| `ProviderIdentity`      | ¿Cómo lo reconocemos? (dominio, remitente, patrón) | **Global**               |
+| `ProviderParser`        | ¿Cómo extraemos sus datos?                         | **Global**               |
+| `MailboxKnowledgeEntry` | ¿Qué hemos aprendido de _este_ buzón?              | **Por cuenta de correo** |
 
 **Por qué separar `Provider` de `ProviderIdentity`.** Un proveedor factura desde varios
 dominios y direcciones (`ovh.com`, `ovh.es`, `invoice@ovh.com`, `billing@ovh.com`). Modelarlo
@@ -860,11 +866,11 @@ obliga al usuario a introducir todo a mano, que es justo lo que el producto quie
 `Service` existente con una puntuación ponderada (proveedor +40, dominio +20, nombre del
 servicio +20, moneda +5, periodicidad +5, similitud de importe ±10 % +5, remitente exacto +5):
 
-| Puntuación | Resultado | Acción |
-|---|---|---|
-| ≥ 70 | HIGH | Asociación automática → `MATCHED` |
-| 40–69 | MEDIUM | `Discovery` para revisión → `DISCOVERY` |
-| < 40 | LOW | `Discovery` de servicio nuevo → `DISCOVERY` |
+| Puntuación | Resultado | Acción                                      |
+| ---------- | --------- | ------------------------------------------- |
+| ≥ 70       | HIGH      | Asociación automática → `MATCHED`           |
+| 40–69      | MEDIUM    | `Discovery` para revisión → `DISCOVERY`     |
+| < 40       | LOW       | `Discovery` de servicio nuevo → `DISCOVERY` |
 
 Umbrales configurables. El desglose se persiste en `Discovery.matchScore` y
 `Discovery.matchReasons`.
@@ -901,8 +907,8 @@ concurrencia limitada y rate limit propio. **Nunca hay llamadas ilimitadas duran
 sincronización.**
 
 **Por qué `AiUsage` es obligatorio y no opcional.** Hay dos preguntas de negocio que no se
-pueden contestar a posteriori si no se registran desde el primer día: *¿cuánto nos cuesta
-procesar el buzón de este usuario?* y *¿cuánto cuesta de IA un usuario medio al mes?* Sin esos
+pueden contestar a posteriori si no se registran desde el primer día: _¿cuánto nos cuesta
+procesar el buzón de este usuario?_ y _¿cuánto cuesta de IA un usuario medio al mes?_ Sin esos
 datos no se puede fijar el precio del producto.
 
 **Alternativas.** Sin límite, confiando en que el volumen sea bajo. Descartada: el modo de
@@ -926,11 +932,11 @@ mensaje puede reentregarse tras un fallo del worker. Reprocesar no es solo despe
 
 **Decisión.** Identidad estable por combinación de señales, porque ninguna basta sola:
 
-| Señal | Problema |
-|---|---|
-| `folder` + `uid` | Los UID se repiten entre buzones; se invalidan si cambia `uidValidity` |
-| `Message-ID` | Puede faltar, repetirse o falsificarse |
-| `contentHash` | Dos correos idénticos legítimos colisionan; requiere descargar el contenido |
+| Señal            | Problema                                                                    |
+| ---------------- | --------------------------------------------------------------------------- |
+| `folder` + `uid` | Los UID se repiten entre buzones; se invalidan si cambia `uidValidity`      |
+| `Message-ID`     | Puede faltar, repetirse o falsificarse                                      |
+| `contentHash`    | Dos correos idénticos legítimos colisionan; requiere descargar el contenido |
 
 1. **Clave primaria de deduplicación:** `emailAccountId + folder + uid` (única, estable y
    gratuita), guardada junto con `uidValidity`.
@@ -943,8 +949,8 @@ mensaje puede reentregarse tras un fallo del worker. Reprocesar no es solo despe
 **Antes de cualquier llamada de IA** se comprueba que no exista ya un `ExtractedDocument`
 válido para ese `contentHash`. Si existe, se reutiliza: coste cero.
 
-**Regla explícita:** *si el mismo correo vuelve a aparecer durante una sincronización, no debe
-volver a consumir IA.*
+**Regla explícita:** _si el mismo correo vuelve a aparecer durante una sincronización, no debe
+volver a consumir IA._
 
 **Implementación (fase 9).** La comprobación se materializa en la tabla `extraction_cache`,
 con clave única `(organization_id, content_hash)`. Guarda **solo el resultado estructurado**
@@ -1010,7 +1016,7 @@ prácticamente nulo.
 
 **Estado:** aceptada.
 
-**Contexto.** El sistema "aprende" del buzón. La palabra *aprender* sugiere ML: clasificadores
+**Contexto.** El sistema "aprende" del buzón. La palabra _aprender_ sugiere ML: clasificadores
 entrenados, embeddings, modelos propios.
 
 **Decisión.** **No se introduce machine learning en v1.** El aprendizaje se implementa como
@@ -1065,11 +1071,11 @@ formalidad y pasa a ser un control real.
 
 **Alternativas.**
 
-- *Bloqueo total hasta verificar.* Descartada por fricción en el momento de menor valor
+- _Bloqueo total hasta verificar._ Descartada por fricción en el momento de menor valor
   percibido.
-- *Sin verificación.* Descartada: permitiría registrar el correo de otra persona y, más
+- _Sin verificación._ Descartada: permitiría registrar el correo de otra persona y, más
   adelante, conectar buzones en su nombre.
-- *Token en base de datos.* Descartada: `UriSigner` ya resuelve caducidad e integridad sin
+- _Token en base de datos._ Descartada: `UriSigner` ya resuelve caducidad e integridad sin
   estado adicional que purgar.
 
 **Consecuencias.** Hay que recordar que la verificación es un requisito de la conexión de
@@ -1102,13 +1108,13 @@ otro. Poniendo la publicación dentro del propio cambio de contexto, cualquier c
 
 **Alternativas.**
 
-- *Sincronizar en cada punto de entrada.* Descartada: es la situación que produjo el fallo, y
+- _Sincronizar en cada punto de entrada._ Descartada: es la situación que produjo el fallo, y
   añade un punto de fallo por cada camino nuevo.
-- *Middleware de Messenger + sincronización en los comandos.* Descartada por lo mismo: sigue
+- _Middleware de Messenger + sincronización en los comandos._ Descartada por lo mismo: sigue
   habiendo varios sitios donde acordarse.
-- *Pasar el `organizationId` a mano en cada consulta.* Descartada: contradice D-11 y multiplica
+- _Pasar el `organizationId` a mano en cada consulta._ Descartada: contradice D-11 y multiplica
   las oportunidades de error.
-- *Row Level Security de PostgreSQL.* Sigue siendo la evolución deseable como capa adicional,
+- _Row Level Security de PostgreSQL._ Sigue siendo la evolución deseable como capa adicional,
   pero no sustituye a esta corrección.
 
 **Consecuencias.** `TenantContext` deja de ser un contenedor pasivo y pasa a tener un efecto:
@@ -1157,10 +1163,10 @@ de producto, pero su comparación es una decisión de seguridad.
 
 **Alternativas.**
 
-- *Comparar solo direcciones exactas.* Descartada: obliga a enumerar cada remitente de cada
+- _Comparar solo direcciones exactas._ Descartada: obliga a enumerar cada remitente de cada
   plataforma y se queda obsoleta en cuanto cambian.
-- *Comparar por sufijo de cadena.* Descartada por el vector de suplantación descrito arriba.
-- *Expresiones regulares en configuración.* Descartada: traslada a quien configura el riesgo de
+- _Comparar por sufijo de cadena._ Descartada por el vector de suplantación descrito arriba.
+- _Expresiones regulares en configuración._ Descartada: traslada a quien configura el riesgo de
   escribir un patrón demasiado laxo, y no es inspeccionable de un vistazo.
 
 **Consecuencias.** La lista de ignorados funciona por fin como está documentada, y las entradas
@@ -1255,10 +1261,10 @@ Quitar una credencial es una **acción explícita** con su propio botón y su pr
 
 **Alternativas.**
 
-- *Devolver el secreto enmascarado (`sk-••••abcd`).* Descartado: sigue siendo parte del
+- _Devolver el secreto enmascarado (`sk-••••abcd`)._ Descartado: sigue siendo parte del
   secreto en el DOM, y no aporta nada: nadie necesita el final de su token.
-- *Borrar cuando el campo viene vacío.* Descartado por el motivo anterior.
-- *Un botón de «borrar credenciales» en cada ficha.* Elegido: es explícito, reversible (se puede
+- _Borrar cuando el campo viene vacío._ Descartado por el motivo anterior.
+- _Un botón de «borrar credenciales» en cada ficha._ Elegido: es explícito, reversible (se puede
   volver a escribir) y no se confunde con «eliminar la integración».
 
 **Consecuencias.** El único sitio donde una credencial está en claro y se persiste es
@@ -1321,17 +1327,17 @@ su evidencia. Caducar no es borrar: es dejar de molestar.
 
 **Alternativas.**
 
-- *Veto permanente por clave de propuesta.* Descartado: envejece mal y no se puede deshacer.
-- *No suprimir nada, o suprimir solo mientras la propuesta siga viva.* Descartado: el usuario
+- _Veto permanente por clave de propuesta._ Descartado: envejece mal y no se puede deshacer.
+- _No suprimir nada, o suprimir solo mientras la propuesta siga viva._ Descartado: el usuario
   seguiría recibiendo la misma pregunta cada vez que llega una factura, que es exactamente lo
   que hace inservible la bandeja.
-- *Borrar la propuesta descartada.* Descartado: se pierde la evidencia y la explicación de por
+- _Borrar la propuesta descartada._ Descartado: se pierde la evidencia y la explicación de por
   qué el sistema dejó de proponerlo.
 
 **Consecuencias.** `DiscoverySettings` es política de producto, no constantes: vive en un
 parámetro de contenedor. La clave de supresión es la misma que identifica una propuesta
-(proveedor, importe, moneda y periodicidad), de modo que suprimir es por *servicio*, no por
-*remitente*.
+(proveedor, importe, moneda y periodicidad), de modo que suprimir es por _servicio_, no por
+_remitente_.
 
 ---
 
@@ -1356,10 +1362,10 @@ usuario: «3 confirmada(s). 1 no se ha podido confirmar».
 
 **Alternativas.**
 
-- *Propagar la primera excepción.* Descartado: un error puntual destruye el trabajo de veinte.
-- *Validar todo el lote antes de tocar nada (todo o nada).* Descartado: es peor; el usuario
+- _Propagar la primera excepción._ Descartado: un error puntual destruye el trabajo de veinte.
+- _Validar todo el lote antes de tocar nada (todo o nada)._ Descartado: es peor; el usuario
   pierde también las propuestas válidas y tiene que empezar de cero.
-- *Confirmar en silencio solo lo que funciona, sin avisar de los fallos.* Descartado: el usuario
+- _Confirmar en silencio solo lo que funciona, sin avisar de los fallos._ Descartado: el usuario
   no puede saber qué se perdió, y una propuesta que «desaparece» de la bandeja parece un error del
   sistema.
 
@@ -1396,12 +1402,12 @@ usuario a no fiarse del producto.
 
 **Alternativas.**
 
-- *La detección siempre pisa la declarada.* Descartado: un único cobro aislado puede convertir un
+- _La detección siempre pisa la declarada._ Descartado: un único cobro aislado puede convertir un
   plan trimestral en mensual y desordenar todas las alertas de cobro.
-- *No detectar nada nunca.* Descartado: la detección es el mecanismo que permite dar de alta un
+- _No detectar nada nunca._ Descartado: la detección es el mecanismo que permite dar de alta un
   servicio sin que el usuario declare su periodicidad a mano.
-- *Detectar siempre y guardar ambas.* Descartado: obliga al usuario a decidir entre dos
- _verdades_ que el sistema no sabe distinguir.
+- _Detectar siempre y guardar ambas._ Descartado: obliga al usuario a decidir entre dos
+  _verdades_ que el sistema no sabe distinguir.
 
 **Consecuencias.** `DetectRecurrence` solo toca el servicio si la detección es **confiable**
 (confianza ≥ 0,65) y registra el resultado en la línea de tiempo del servicio
@@ -1420,7 +1426,7 @@ cambiar estado) como las **lecturas** (panel, detalle, alertas, emparejamiento, 
 
 En la Fase 12 se movieron todas las lecturas al read model `ServiceView` y sus DTOs
 (`ServicePriceView`, `ServiceEventView`). El motivo no es purismo de capas: una entidad que se
-serializa en caché, se indexa o se exporta deja de ser «la entidad» y pasa a ser *una* forma de
+serializa en caché, se indexa o se exporta deja de ser «la entidad» y pasa a ser _una_ forma de
 la entidad. Cada consumidor atado a su forma interna se rompe en cuanto esa forma cambia, y el
 cambio se propaga a pantallas, cálculos y al pipeline.
 
@@ -1431,12 +1437,12 @@ del gasto— consumen DTOs. La entidad `Service` queda para el módulo que la es
 
 **Alternativas.**
 
-- *Un único modelo (entidad) para todo.* Descartado: es la causa del problema, no su solución.
-- *CQRS completo, con modelos separados de lectura y de escritura por módulo.* Descartado por
+- _Un único modelo (entidad) para todo._ Descartado: es la causa del problema, no su solución.
+- _CQRS completo, con modelos separados de lectura y de escritura por módulo._ Descartado por
   coste: no aporta nada aquí donde la operación de lectura es simple, y multiplica el trabajo sin
   un beneficio proporcional. El read model se aplica donde aporta: el servicio, que es la entidad
   más consultada y más inestable.
-- *Repositories de Doctrine filtrados sin read model.* Descartado: reproduce el problema con
+- _Repositories de Doctrine filtrados sin read model._ Descartado: reproduce el problema con
   menos código, no con más.
 
 **Consecuencias.** `ServiceViewRepositoryInterface` es la frontera: los controladores que solo
@@ -1451,7 +1457,7 @@ que el read model nunca escribe.
 **catálogo global** (`ProviderIdentity`, compartido por todos los buzones) y el **conocimiento del
 buzón** (`MailboxKnowledgeEntry`, privado de una cuenta de correo). Los dos existen porque
 responden a preguntas distintas: el catálogo dice «este remitente es este proveedor para todo el
-mundo», y el conocimiento del buzón dice «en *mi* correo, este remitente es *este* proveedor».
+mundo», y el conocimiento del buzón dice «en _mi_ correo, este remitente es _este_ proveedor».
 
 El conflicto es real: un usuario puede tener un correo de `facturacion@miempresa.com` que para el
 catálogo no es nadie y que en su buzón es su proveedor deIsso. O al revés: el catálogo dice que
@@ -1465,13 +1471,13 @@ punto de partida para buzones que no han aprendido nada, y para los buzones de o
 
 **Alternativas.**
 
-- *El catálogo global siempre gana.* Descartado: obligaría al usuario a corregir un catálogo que
+- _El catálogo global siempre gana._ Descartado: obligaría al usuario a corregir un catálogo que
   es de todos para resolver un problema que es suyo, y no offería ninguna forma de salir de
   ahí.
-- *Preguntar al usuario cuando chocan.* Descartado por coste: convertir cada correo ambiguo en
+- _Preguntar al usuario cuando chocan._ Descartado por coste: convertir cada correo ambiguo en
   una pregunta es exactamente lo que el producto evita. El desacuerdo se resuelve solo, a favor
   de lo específico, y el usuario puede corregirlo cuando quiera.
-- *Fusionar los dos.* Descartado: son datos de alcances distintos. Un patrón de asunto útil en un
+- _Fusionar los dos._ Descartado: son datos de alcances distintos. Un patrón de asunto útil en un
   buzón no es automáticamente útil en otro, y compartirlo automáticamente filtraría información
   de un usuario a los demás.
 
@@ -1498,13 +1504,13 @@ prioridad en la cadena de extracción:
 
 **Alternativas.**
 
-- *Usar la IA siempre que el documento no sea accionable.* Es lo que hacía el sistema antes de
+- _Usar la IA siempre que el documento no sea accionable._ Es lo que hacía el sistema antes de
   esta fase: correcto, pero caro. Con la periodicidad aprendida, la segunda factura del mismo
   proveedor se resuelve sin gastar un token.
-- *Aprender la periodicidad y aplicarla siempre, aunque el texto diga otra cosa.* Descartado:
+- _Aprender la periodicidad y aplicarla siempre, aunque el texto diga otra cosa._ Descartado:
   el texto es la fuente directa y un correo puede traer un plan distinto al habitual. Lo aprendido
   rellena huecos, no pisa lo que el correo dice.
-- *Guardar la periodicidad como un dato del servicio y no del buzón.* Descartado: el servicio es
+- _Guardar la periodicidad como un dato del servicio y no del buzón._ Descartado: el servicio es
   la conclusión, y la conclusión puede ser incorrecta. El buzón es donde vive la observación.
 
 **Consecuencias.** La memoria de extracción (`rawSignals`) registra `billingPeriodSource:
@@ -1527,11 +1533,11 @@ excluirlo de inmediato desde la pantalla de conocimiento, donde la confianza se 
 
 **Alternativas.**
 
-- *Excluir al primer descarte.* Descartado: castiga el error. Un solo descarte no es evidencia
+- _Excluir al primer descarte._ Descartado: castiga el error. Un solo descarte no es evidencia
   suficiente para dejar de leer el correo de un proveedor.
-- *Excluir siempre al primer descarte pero con la regla de los dos descartes.* Lo mismo que lo
+- _Excluir siempre al primer descarte pero con la regla de los dos descartes._ Lo mismo que lo
   anterior con más pasos.
-- *No contar los descartes.* Descartado: el usuario repetiría el gesto en cada correo del mismo
+- _No contar los descartes._ Descartado: el usuario repetiría el gesto en cada correo del mismo
   remitente sin que el sistema aprenda nada.
 
 **Consecuencias.** `RecordSenderRejection` es idempotente en la confianza (nunca baja sola) y
@@ -1542,7 +1548,7 @@ borrar la regla de ignorado devuelve el remitente al circuito.
 
 **Estado:** aceptada.
 
-**Contexto.** El conocimiento del buzón es privado: describes *tus* correos. El catálogo global es
+**Contexto.** El conocimiento del buzón es privado: describes _tus_ correos. El catálogo global es
 de todos. Saltar de uno a otro automáticamente filtraría información de un usuario a los demás:
 un remitente raro, una plantilla de adjunto, un dominio de una empresa concreta.
 
@@ -1558,11 +1564,11 @@ o `DOMAIN` (si es un dominio), con origen `USER`.
 
 **Alternativas.**
 
-- *Promover automáticamente lo que se repite.* Descartado: «se repite» no significa «vale para
+- _Promover automáticamente lo que se repite._ Descartado: «se repite» no significa «vale para
   los demás», y el coste de filtrar datos entre usuarios no se puede recuperar.
-- *Un interruptor «compartir lo que aprendo».* Descartado: es la misma promoción automática con
+- _Un interruptor «compartir lo que aprendo»._ Descartado: es la misma promoción automática con
   un interruptor, solo que más difícil de entender.
-- *Promover hacia el catálogo de la organización.* Descartado: no es el catálogo global, y
+- _Promover hacia el catálogo de la organización._ Descartado: no es el catálogo global, y
   mantener dos niveles de promoción multiplicaría el modelo sin necesidad.
 
 **Consecuencias.** `PromoteMailboxKnowledge` es la única puerta y rechaza con un error explícito
@@ -1591,11 +1597,11 @@ presupuesto de marzo y el de abril son dos filas, no una fila con dos columnas.
 
 **Alternativas.**
 
-- *Guardar el gasto en la fila de presupuesto.* Descartado: es una segunda verdad, y además
+- _Guardar el gasto en la fila de presupuesto._ Descartado: es una segunda verdad, y además
   obliga a actualizar una fila por cada llamada, que es justo lo que hace que se desincronice.
-- *Calcular el gasto contando filas sin agregar.* Descartado: es O(n) por llamada de IA, y el
+- _Calcular el gasto contando filas sin agregar._ Descartado: es O(n) por llamada de IA, y el
   número de llamadas crece con el uso.
-- *No guardar nada y calcular el presupuesto al vuelo.* Descartado: el tope es una **decisión**,
+- _No guardar nada y calcular el presupuesto al vuelo._ Descartado: el tope es una **decisión**,
   no un dato deducible. Sin fila, no hay política que guardar.
 
 **Consecuencias.** El guard de presupuesto lee dos cosas: la política (una fila) y el gasto (una
@@ -1631,15 +1637,15 @@ El guard se comprueba **antes** de cada llamada, nunca después: un `SOFT` agota
 
 **Alternativas.**
 
-- *Un solo comportamiento (parar siempre).* Descartado: una organización con un tope bajo
+- _Un solo comportamiento (parar siempre)._ Descartado: una organización con un tope bajo
   dejaría de detectar facturas, que es justo lo que ha pagado.
-- *Degradar siempre.* Descartado: quien fija un tope de 0 € quiere que no se gaste, y el
+- _Degradar siempre._ Descartado: quien fija un tope de 0 € quiere que no se gaste, y el
   sistema no puede inferir esa intención.
-- *Un tope único con el modo implícito en el importe.* Descartado: el importe no dice qué
+- _Un tope único con el modo implícito en el importe._ Descartado: el importe no dice qué
   hacer; un tope de 5 € y uno de 500 € pueden significar cosas distintas según la organización.
 
 **Consecuencias.** `AiBudgetMode` es parte de la política guardada. `AiBudgetGuard::allowsCall()`
-responde a «¿puedo llamar?» y `allowsTier()` a «¿puedo llamar a *este* nivel?», que es la
+responde a «¿puedo llamar?» y `allowsTier()` a «¿puedo llamar a _este_ nivel?», que es la
 pregunta que hace el nivel 6. El tope por defecto es 500 céntimos (5,00 €) en modo `SOFT`, y
 `0` significa «sin tope».
 
@@ -1659,28 +1665,28 @@ la misma pila que los casos que sí necesitan criterio humano.
 **Decisión.** La escalera de IA devuelve un `AiExtractionOutcome` con el documento (o no) y un
 `AiSkipReason` explícito:
 
-| Motivo | Significado | Qué hace el pipeline |
-|---|---|---|
-| `NONE` | Hay documento | Se usa |
-| `NOT_CONFIGURED` | No hay IA activada o no hay proveedor | Revisión manual |
-| `NO_TEXT` | El correo no tiene texto que analizar | Revisión manual |
-| `NOT_NEEDED` | La escalera no tenía nada que hacer | Revisión manual |
-| `FAILED` | Se llamó al proveedor y falló | Revisión manual |
-| `RATE_LIMITED` | Se pasó el límite de peticiones | Revisión manual (se reintentará) |
-| `BUDGET_EXHAUSTED` | No hay presupuesto | **`DEFERRED`** |
+| Motivo             | Significado                           | Qué hace el pipeline             |
+| ------------------ | ------------------------------------- | -------------------------------- |
+| `NONE`             | Hay documento                         | Se usa                           |
+| `NOT_CONFIGURED`   | No hay IA activada o no hay proveedor | Revisión manual                  |
+| `NO_TEXT`          | El correo no tiene texto que analizar | Revisión manual                  |
+| `NOT_NEEDED`       | La escalera no tenía nada que hacer   | Revisión manual                  |
+| `FAILED`           | Se llamó al proveedor y falló         | Revisión manual                  |
+| `RATE_LIMITED`     | Se pasó el límite de peticiones       | Revisión manual (se reintentará) |
+| `BUDGET_EXHAUSTED` | No hay presupuesto                    | **`DEFERRED`**                   |
 
 Solo `BUDGET_EXHAUSTED` aplaza el correo. Los demás van a revisión manual, que es lo que
 corresponde: son casos que necesitan una decisión.
 
 **Alternativas.**
 
-- *Devolver `null` y que el pipeline pregunte por separado si el presupuesto está agotado.*
+- _Devolver `null` y que el pipeline pregunte por separado si el presupuesto está agotado._
   Descartado: el pipeline tendría que consultar el guard, es decir, el módulo de IA, para
   distinguir dos `null` que significan cosas distintas. La razón tiene que viajar con el
   resultado.
-- *Añadir un estado `REQUIRES_REVIEW` con submotivo.* Descartado: el estado de la máquina dice
+- _Añadir un estado `REQUIRES_REVIEW` con submotivo._ Descartado: el estado de la máquina dice
   **dónde** está el correo, no **por qué**. Mezclarlos obliga a duplicar estados.
-- *Un estado nuevo `AWAITING_BUDGET`.* Descartado: `DEFERRED` ya dice exactamente eso, y el
+- _Un estado nuevo `AWAITING_BUDGET`._ Descartado: `DEFERRED` ya dice exactamente eso, y el
   motivo va en el evento de transición, que es donde se consulta cualquier historial.
 
 **Consecuencias.** `AiExtractionInterface::enrich()` devuelve `AiExtractionOutcome`, y
@@ -1721,12 +1727,12 @@ el ciclo que aparezca en el mapa de módulos se rompe con esta interfaz.
 
 **Alternativas.**
 
-- *Que `Ai` consulte el repositorio de mensajes.* Descartado: viola la regla de dependencias y
+- _Que `Ai` consulte el repositorio de mensajes._ Descartado: viola la regla de dependencias y
   además hace que el módulo de IA sepa qué es un estado de procesamiento.
-- *Que un comando de la aplicación sea el que avise a los dos.* Descartado: el aviso dejaría de
+- _Que un comando de la aplicación sea el que avise a los dos._ Descartado: el aviso dejaría de
   ser fiable (depende de que alguien ejecute el comando) y además seguiría haciendo falta una
   dependencia en algún sitio para preguntar «¿ha cambiado el presupuesto?».
-- *Un evento de Messenger (`BudgetRaised`).* Descartado por ahora: el evento es asíncrono y la
+- _Un evento de Messenger (`BudgetRaised`)._ Descartado por ahora: el evento es asíncrono y la
   liberación manual del panel necesita una respuesta inmediata («cuántos correos he puesto en
   cola»). Una llamada directa con puerto es más simple y predecible. Si más adelante hace falta
   desacoplar, el puerto ya es el sitio natural donde cambiar.
@@ -1767,12 +1773,12 @@ como hechos, el usuario pierde la confianza en el sistema entero.
 
 **Alternativas.**
 
-- *Confiar en el texto de la propuesta.* Descartado: el usuario lee el texto, pero el sistema tiene
+- _Confiar en el texto de la propuesta._ Descartado: el usuario lee el texto, pero el sistema tiene
   que poder **filtrar** y **priorizar**. La distinción tiene que ser consultable.
-- *Bajar la confianza a un número fijo (por ejemplo, 50).* Descartado: el recorte tiene que ser
+- _Bajar la confianza a un número fijo (por ejemplo, 50)._ Descartado: el recorte tiene que ser
   una **banda** con nombre, porque la banda es lo que la interfaz sabe pintar y lo que los filtros
   saben interpretar. Un número suelto se volvería a subir por accidente en la siguiente fase.
-- *No distinguir, y que el usuario lo adivine por el texto.* Descartado: es exactamente el
+- _No distinguir, y que el usuario lo adivine por el texto._ Descartado: es exactamente el
   problema. El sistema tiene que saber qué es deduced y qué es leído, y decirlo.
 
 **Consecuencias.** La bandeja tiene dos filtros («Familia»: todas / hechos / sugerencias) y las
@@ -1811,13 +1817,13 @@ la auditoría (`AuditAction::DISCOVERY_CONFIRMED`, con `metadata['inference'] = 
 
 **Alternativas.**
 
-- *Borrar el servicio duplicado y sus facturas.* Descartado: el usuario pierde el histórico de lo
+- _Borrar el servicio duplicado y sus facturas._ Descartado: el usuario pierde el histórico de lo
   que pagó y de lo que le cobraron. Es la clase de pérdida que hace que alguien deje de confiar en
   la herramienta.
-- *Cancelar el servicio más antiguo en vez del más reciente.* Descartado: el original es el que
+- _Cancelar el servicio más antiguo en vez del más reciente._ Descartado: el original es el que
   tiene los eventos, las facturas y el `nextChargeAt` acumulado. Cancelar el más antiguo tiraría
   justo la información que el usuario necesita.
-- *Un «deshacer» para el duplicado.* Descartado por ahora: no se ha pedido, y el historial ya
+- _Un «deshacer» para el duplicado._ Descartado por ahora: no se ha pedido, y el historial ya
   permite reconstruir qué pasó. Añadir un deshacer es una promesa de más complejidad; si se echa de menos,
   el evento `CANCELLED` es el punto de apoyo natural.
 
@@ -1857,13 +1863,13 @@ disponible **antes** del borrado, con limitador de frecuencia por organización.
 
 **Alternativas.**
 
-- *Borrar solo los datos y dejar la organización.* Descartado: deja credenciales y binarios
+- _Borrar solo los datos y dejar la organización._ Descartado: deja credenciales y binarios
   recuperables bajo un identificador que ya no apunta a nada, y el «borrado» solo sería cierto
   en la interfaz.
-- *Conservar los datos agregados (importes, conteos) para métricas.* Descartado: se conservan
+- _Conservar los datos agregados (importes, conteos) para métricas._ Descartado: se conservan
   los **importes agregados de uso de IA**, que no son personales y sí sirven para las métricas
   del panel. Las filas de detalle sí se borran.
-- *Reclamar la organización si el usuario tiene otras.* Descartado: complica el modelo de
+- _Reclamar la organización si el usuario tiene otras._ Descartado: complica el modelo de
   pertenencias sin ganar nada. Crear una organización nueva es una acción de un clic.
 
 **Consecuencias.** El borrado es irreversible y no admite «deshacer»: es lo que corresponde a
@@ -1888,23 +1894,23 @@ no de implementación: hay que poder cambiarlo sin tocar código y sin auditar u
 expira es la naturaleza del dato (evidencia temporal, producto, trazabilidad, caché), no el
 módulo donde vive.
 
-| Categoría | Plazo |
-|---|---|
+| Categoría                                    | Plazo    |
+| -------------------------------------------- | -------- |
 | Correo (mensajes y eventos de procesamiento) | 365 días |
-| Documentos (binario tras el borrado lógico) | 30 días |
-| Propuestas ignoradas | 90 días |
-| Avisos resueltos | 365 días |
-| Libro de auditoría | 730 días |
-| Uso de IA | 730 días |
-| Conocimiento del buzón | 365 días |
-| Caché de extracción | 30 días |
+| Documentos (binario tras el borrado lógico)  | 30 días  |
+| Propuestas ignoradas                         | 90 días  |
+| Avisos resueltos                             | 365 días |
+| Libro de auditoría                           | 730 días |
+| Uso de IA                                    | 730 días |
+| Conocimiento del buzón                       | 365 días |
+| Caché de extracción                          | 30 días  |
 
 **Alternativas.**
 
-- *Constantes en el código.* Descartado: cambia la política de retención exige un despliegue.
-- *Un plazo único para todo.* Descartado: o se purga antes de tiempo (se pierde trazabilidad) o
+- _Constantes en el código._ Descartado: cambia la política de retención exige un despliegue.
+- _Un plazo único para todo._ Descartado: o se purga antes de tiempo (se pierde trazabilidad) o
   se conserva demasiado (no se cumple la política).
-- *Plazos por módulo.* Descartado: el mismo tipo de dato (los correos) vive en dos módulos y
+- _Plazos por módulo._ Descartado: el mismo tipo de dato (los correos) vive en dos módulos y
   tendría dos plazos, que divergirían.
 
 **Consecuencias.** La purga se ejecuta con `app:privacy:purge`, es idempotente y va en lotes
@@ -1932,12 +1938,12 @@ conocen los puertos.
 
 **Alternativas.**
 
-- *El agregador importa los repositorios.* Descartado: crea un nodo que depende de todos los
+- _El agregador importa los repositorios._ Descartado: crea un nodo que depende de todos los
   módulos y que hay que tocar cada vez que se añade uno.
-- *Un evento de dominio «borrar organización» al que cada módulo se suscriba.* Descartado:
+- _Un evento de dominio «borrar organización» al que cada módulo se suscriba._ Descartado:
   introduce orden de ejecución implícito y difficulta de garantizar que todos los
   suscriptores se han ejecutado (y que han terminado) antes de responder.
-- *Un servicio de dominio gigante con un método por módulo.* Descartado: es el mismo problema
+- _Un servicio de dominio gigante con un método por módulo._ Descartado: es el mismo problema
   con otro nombre.
 
 **Consecuencias.** Añadir un módulo al sistema es añadir sus implementaciones de los puertos,
@@ -1955,7 +1961,7 @@ servicios`), porque es lo habitual. Pero un número de producto cambia: subir el
 plan o dar margen a un cliente no debería exigir un despliegue.
 
 **Decisión.** El plan es un **enum de nombres** (`OrganizationPlan::FREE`, `::PRO`) que dice
-*qué planes existen*, y los **límites viven en configuración**
+_qué planes existen_, y los **límites viven en configuración**
 (`config/packages/entitlements.yaml`). Cada capacidad se declara con su tipo:
 
 - `limit`: un número. `null` = sin techo; `0` = la capacidad no está disponible.
@@ -1968,13 +1974,13 @@ primer día, y no un límite que desaparece en silencio.
 
 **Alternativas.**
 
-- *Los números en el enum de PHP.* Descartado: cambiar un precio exigiría un despliegue, y
+- _Los números en el enum de PHP._ Descartado: cambiar un precio exigiría un despliegue, y
   el enum quedaría mezclando dos cosas que cambian por motivos distintos (el catálogo de
   planes y sus precios).
-- *Los números en la base de datos.* Descartado por ahora: haría falta una tabla de planes
+- _Los números en la base de datos._ Descartado por ahora: haría falta una tabla de planes
   editable en caliente, y no hay quien la edite. Cuando los planes se vendan en autoservicio,
   esta decisión se revisará (ver D-65).
-- *Sin planes, solo cuotas por organización.* Descartado: no permite distinguir «gratis» de
+- _Sin planes, solo cuotas por organización._ Descartado: no permite distinguir «gratis» de
   «pago» y obliga a codificar la lógica comercial en cada módulo.
 
 **Consecuencias.** Los límites se cambian sin desplegar. La configuración es la única fuente
@@ -2004,14 +2010,14 @@ los avisos; la organización simplemente no puede añadir más hasta que vuelva 
 
 **Alternativas.**
 
-- *Borrar lo que no cabe al bajar de plan.* Descartado: es una sorpresa muy desagradable
+- _Borrar lo que no cabe al bajar de plan._ Descartado: es una sorpresa muy desagradable
   (el cliente pierde datos por un cambio comercial que él no pidió) y sería irreversible sin
   un botón de «deshacer» que no existe.
-- *Dejar el plan editable desde el panel.* Descartado **por ahora**: en esta versión no hay
+- _Dejar el plan editable desde el panel._ Descartado **por ahora**: en esta versión no hay
   cobro, así que un botón «cambiar a profesional» sería regalar el plan de pago. El cambio lo
   hace el operador de la instalación con `app:plan:set`, y la pantalla `/plan` solo informa.
   Cuando exista el cobro, esta decisión se revisa.
-- *Guardar el historial de planes en una tabla aparte.* Descartado: el libro de auditoría ya
+- _Guardar el historial de planes en una tabla aparte._ Descartado: el libro de auditoría ya
   guarda el antes y el después, con actor y fecha.
 
 **Consecuencias.** El cambio de plan es auditable y no destructivo. En la interfaz web se ve
@@ -2036,13 +2042,13 @@ desde el panel (`app_dashboard`). El resto de pantallas siguen accesibles.
 
 **Alternativas.**
 
-- *Guardar el paso actual en la base de datos.* Descartado: mentiría en cuanto el usuario
+- _Guardar el paso actual en la base de datos._ Descartado: mentiría en cuanto el usuario
   conecta el buzón desde otra pantalla (o desde la API en el futuro). Un «paso 2 de 3» guardado
   es un dato que se queda viejo solo.
-- *Bloquear la aplicación hasta terminar la guía.* Descartado: un cliente que ya tiene sus
+- _Bloquear la aplicación hasta terminar la guía._ Descartado: un cliente que ya tiene sus
   datos cargados y solo quiere consultar una factura no podría ni mirar su factura. El
   objetivo de la guía es que el primer impacto sea una explicación, no un muro.
-- *Guardar los pasos en configuración.* Descartado: el contenido de la guía cambia con el
+- _Guardar los pasos en configuración._ Descartado: el contenido de la guía cambia con el
   producto (por ejemplo, el paso de la IA desaparece si el plan no la ofrece), y una lista
   configurable se desincroniza del código en cuanto se añade una capacidad.
 
@@ -2072,11 +2078,11 @@ que haya un servidor de correo de mentira.
 
 **Alternativas.**
 
-- *Un fixture de Doctrine.* Descartado: los fixtures no son idempotentes de forma útil (crean
+- _Un fixture de Doctrine._ Descartado: los fixtures no son idempotentes de forma útil (crean
   duplicados si se repiten) y no participan del aislamiento por organización, que en este
   producto no es opcional.
-- *Un script SQL.* Descartado: se desincroniza del esquema en cuanto cambia una entidad.
-- *Dejar la cuenta de demo en la base de datos de desarrollo.* Descartado: nadie sabe qué
+- _Un script SQL._ Descartado: se desincroniza del esquema en cuanto cambia una entidad.
+- _Dejar la cuenta de demo en la base de datos de desarrollo._ Descartado: nadie sabe qué
   datos son reales y cuáles son de mentira.
 
 **Consecuencias.** `bin/console app:demo:seed` deja la aplicación en un estado que se puede
@@ -2100,13 +2106,13 @@ resultado con la coma decimal española.
 
 **Alternativas.**
 
-- *Céntimos con decimales (NUMERIC).* Descartado: el producto guarda los importes en enteros
+- _Céntimos con decimales (NUMERIC)._ Descartado: el producto guarda los importes en enteros
   de céntimos por decisión anterior; tener dos representaciones del dinero en la misma base de
   datos es una fuente de errores de redondeo.
-- *Guardar el coste en la moneda del proveedor y convertir al presentar.* Descartado: los
+- _Guardar el coste en la moneda del proveedor y convertir al presentar._ Descartado: los
   proveedores cobran en varias monedas y el tipo de cambio cambia; el gasto registrado debe
   ser inmutable.
-- *Redondear a céntimos.* Descartado: pierde el dato justo en el rango que importa.
+- _Redondear a céntimos._ Descartado: pierde el dato justo en el rango que importa.
 
 **Consecuencias.** El panel de coste de IA y el de observabilidad enseñan el gasto real. La
 migración `Version20261023090000` convierte la columna y reescribe los importes existentes.
@@ -2125,11 +2131,11 @@ patrón se repite en `EmailMessageRepository` y en `BuildObservabilityReport`.
 
 **Alternativas.**
 
-- *Marcar la columna como `enumType` y esperar que DQL devuelva cadenas.* Descartado: es
+- _Marcar la columna como `enumType` y esperar que DQL devuelva cadenas._ Descartado: es
   exactamente lo que no hace; Doctrine devuelve la instancia del enum.
-- *Usar `->value` a ciegas.* Descartado: falla con el mismo `TypeError` cuando el valor llega
+- _Usar `->value` a ciegas._ Descartado: falla con el mismo `TypeError` cuando el valor llega
   como string, que es lo que ocurre en algunos caminos.
-- *Forzar el tipo en la consulta con un `CASE`.* Descartado: ensucia el DQL y esconde el
+- _Forzar el tipo en la consulta con un `CASE`._ Descartado: ensucia el DQL y esconde el
   problema en todas las consultas, no en una.
 
 **Consecuencias.** Es una trampa de Doctrine ORM 3, no un error del modelo de dominio, pero
@@ -2174,13 +2180,13 @@ final readonly class ServiceUsageProvider implements EntitlementUsageProviderInt
 
 **Alternativas.**
 
-- *Buscar el proveedor iterando el localizador y comparando `capability()`.* Descartado:
+- _Buscar el proveedor iterando el localizador y comparando `capability()`._ Descartado:
   convierte una búsqueda O(1) en un recorrido y, sobre todo, deja el contrato débil: el
   localizador tendría que contener algo que no cumple lo que promete.
-- *Declarar el localizador con claves fijas en el YAML* (`services: '@…ServiceUsageProvider'`).
+- _Declarar el localizador con claves fijas en el YAML_ (`services: '@…ServiceUsageProvider'`).
   Descartado: obliga a tocar el núcleo cada vez que un módulo publica un contador, que es
   justo lo que la etiqueta evita.
-- *Un método estático `getDefaultCapabilityName()` por proveedor.* Descartado: es la vía
+- _Un método estático `getDefaultCapabilityName()` por proveedor._ Descartado: es la vía
   **deprecada** en Symfony 8.1 y obliga a duplicar el nombre de la capacidad en dos sitios
   (el método estático y `capability()`).
 
@@ -2201,12 +2207,12 @@ decisión no es «qué rutas exponemos», sino **«qué credencial aceptamos»**
 eran: (a) reutilizar el login del backoffice con sesión, (b) OAuth2 de terceros (Google,
 Microsoft), (c) una clave propia emitida por la organización.
 
-(a) está descartada de entrada: la API debe ser *stateless*. Una sesión por petición significaría
+(a) está descartada de entrada: la API debe ser _stateless_. Una sesión por petición significaría
 cookies, estado en el servidor, y un integrador que no es un navegador (un cron, un servicio
 en Go, un script de shell) tendría que gestionar cookies, y además arrastraría la superficie de
 ataque del login con contraseñas. (b) es una integración enorme —proveedores, consentimientos,
 scopes de terceros, tokens OAuth— para resolver un problema que no tenemos: el integrador es
-*nuestro* cliente, con una relación comercial directa, no un usuario final arbitrario.
+_nuestro_ cliente, con una relación comercial directa, no un usuario final arbitrario.
 
 **Decisión.** Una **clave de API propia**, por organización, con **ámbitos** (`read`, `write`),
 caducidad opcional y revocación. Se emite desde el panel de claves de API del backoffice (`/api-keys`), se
@@ -2246,14 +2252,14 @@ mismo modelo que el pepper de contraseñas (D-32), aplicado a credenciales de us
 
 **Alternativas descartadas.**
 
-- *Reutilizar la contraseña del usuario con HTTP Basic.* Descartada: mezcla dos referencias
+- _Reutilizar la contraseña del usuario con HTTP Basic._ Descartada: mezcla dos referencias
   (usuario y organización), no se puede revocar sin cambiar la contraseña, y no soporta ámbitos.
-- *Bearer tokens firmados (JWT) sin estado.* Descartada: el beneficiario es «revocar una
+- _Bearer tokens firmados (JWT) sin estado._ Descartada: el beneficiario es «revocar una
   credencial concreta», y un JWT revocado exige una lista de revocación, que es una base de
   datos de lista negra — es decir, el estado que se quería evitar.
-- *Guardar la clave en claro y compararla.* Descartada: un volcado de la base de datos da
+- _Guardar la clave en claro y compararla._ Descartada: un volcado de la base de datos da
   acceso a la API de todos los clientes.
-- *OAuth2 como proveedor.* Descartada por coste y por alcance (ver arriba). Si algún día hace
+- _OAuth2 como proveedor._ Descartada por coste y por alcance (ver arriba). Si algún día hace
   falta, la API **no** habría que rehacerla: la clave propia puede convivir con un flujo OAuth
   como una segunda forma de autenticar.
 
@@ -2301,11 +2307,11 @@ misma fuente, y las escrituras necesitan las reglas, no un DTO.
 
 **Alternativas descartadas.**
 
-- *Serializar las entidades directamente.* Descartada: ata el contrato público al modelo interno.
-- *Un repositorio «de la API» central que consulta todas las tablas.* Descartada: convierte la
+- _Serializar las entidades directamente._ Descartada: ata el contrato público al modelo interno.
+- _Un repositorio «de la API» central que consulta todas las tablas._ Descartada: convierte la
   API en un segundo modelo de dominio, duplicaría las reglas de agregación y dejaría a los
   módulos con dos fuentes de verdad.
-- *Reutilizar los repositorios del backoffice tal cual.* Descartada: sirven para la interfaz
+- _Reutilizar los repositorios del backoffice tal cual._ Descartada: sirven para la interfaz
   (con relaciones eager y formatos pensados para plantillas), no para un contrato de integración.
 
 **Consecuencias para el código.** Las interfaces viven en el módulo que las publica
@@ -2340,9 +2346,9 @@ política de reintentos—, pero el cuerpo no cambia nunca.
 
 **Alternativas descartadas.**
 
-- *Reconstruir el cuerpo en cada intento.* Descartada por lo dicho: rompe la firma y la
+- _Reconstruir el cuerpo en cada intento._ Descartada por lo dicho: rompe la firma y la
   idempotencia.
-- *Firmar solo un `id` y que el receptor consulte la API.* Descartada: obliga al receptor a tener
+- _Firmar solo un `id` y que el receptor consulte la API._ Descartada: obliga al receptor a tener
   credenciales de la API y convierte cada webhook en dos peticiones.
 
 ## D-74 — Los reintentos los decide `RetryPolicy`, no Messenger
@@ -2367,7 +2373,7 @@ guarda el fallo en la fila y programa el siguiente intento según `RetryPolicy`.
 
 **Alternativas descartadas.**
 
-- *Dejar que Messenger reintente y usar el `RetryStrategy` de Messenger.* Descartada: la política
+- _Dejar que Messenger reintente y usar el `RetryStrategy` de Messenger._ Descartada: la política
   quedaría en configuración de infraestructura, no en el dominio, y el estado de la entrega
   (intentos, próximo intento, último error) no se podría enseñar en el panel.
 
@@ -2394,9 +2400,9 @@ no quede en el historial del navegador ni en un registro de peticiones.
 
 **Alternativas descartadas.**
 
-- *Guardar solo el HMAC y pedir el secreto al crear.* Descartada: no se puede firmar lo que no se
+- _Guardar solo el HMAC y pedir el secreto al crear._ Descartada: no se puede firmar lo que no se
   puede leer.
-- *Guardar el secreto en claro y confiar en el cifrado del disco.* Descartada: un `pg_dump` o una
+- _Guardar el secreto en claro y confiar en el cifrado del disco._ Descartada: un `pg_dump` o una
   copia de seguridad lo expondrían.
 
 ## D-76 — El aviso de presupuesto de IA se manda una vez por periodo, no por correo
@@ -2425,10 +2431,10 @@ vuelve a intentar y quien se suscriba a mitad de mes se entera.
 
 **Alternativas descartadas.**
 
-- *Una columna `budget_notified_period` en `AiBudget`.* Descartada por ahora: una migración y un
+- _Una columna `budget_notified_period` en `AiBudget`._ Descartada por ahora: una migración y un
   campo de estado para un aviso informativo. Si el ruido llega a molestar, es el sitio donde
   ponerlo.
-- *No emitir el evento.* Descartada: es el aviso más útil para un integrador que controla su gasto.
+- _No emitir el evento._ Descartada: es el aviso más útil para un integrador que controla su gasto.
 
 ## D-77 — La URL de un webhook se valida contra la red interna y la conexión se ata a la IP comprobada
 
@@ -2458,7 +2464,7 @@ se acuerde de mirarlos, el agujero volvería solo.
 
 **Por qué se «fija» la dirección.** Validar y luego conectar sin más deja una ventana de un
 segundo en la que el DNS puede contestar una dirección pública y, acto seguido, una privada
-(*DNS rebinding*). Por eso `pin()` devuelve la dirección validada y `DeliverWebhook` se la pasa al
+(_DNS rebinding_). Por eso `pin()` devuelve la dirección validada y `DeliverWebhook` se la pasa al
 cliente HTTP en la opción `resolve`: se conecta a esa IP concreta y no se vuelve a preguntar.
 Además la entrega va con `max_redirects: 0`, porque un `302` desde un host público hacia
 `http://169.254.169.254/` es el mismo ataque con un salto intermedio.
@@ -2482,12 +2488,12 @@ un comprobador de disponibilidad, es un cortafuegos.
 
 **Alternativas descartadas.**
 
-- *Validar solo en el alta.* Descartada: un dominio que hoy resuelve fuera puede resolver dentro
+- _Validar solo en el alta._ Descartada: un dominio que hoy resuelve fuera puede resolver dentro
   mañana, y el ataque consiste precisamente en controlar el DNS.
-- *Validar solo en la entrega.* Descartada por producto: el alta es donde el error se puede
+- _Validar solo en la entrega._ Descartada por producto: el alta es donde el error se puede
   explicar.
-- *Usar `FILTER_VALIDATE_URL` y fiarse.* Descartada: no mira direcciones, solo sintaxis.
-- *Una lista negra de nombres (`localhost`, `metadata.google.internal`…).* Descartada: los nombres
+- _Usar `FILTER_VALIDATE_URL` y fiarse._ Descartada: no mira direcciones, solo sintaxis.
+- _Una lista negra de nombres (`localhost`, `metadata.google.internal`…)._ Descartada: los nombres
   son infinitos y las direcciones no.
 
 ---
@@ -2530,12 +2536,12 @@ no arrastra el grafo de `Services` y que `planId` puede estar vacío mientras no
 
 **Alternativas descartadas.**
 
-- *Añadir `planId` y `status` de cobro a `Service`.* Descartada: mete dos ciclos de vida en una
+- _Añadir `planId` y `status` de cobro a `Service`._ Descartada: mete dos ciclos de vida en una
   tabla y obliga a que todo lo que hoy lee servicios —dashboard, alertas, exportación, API— filtre
   las filas que no son servicios.
-- *Hacer `Subscription` una tabla de unión `(organizationId, planId)`.* Descartada: pierde el
+- _Hacer `Subscription` una tabla de unión `(organizationId, planId)`._ Descartada: pierde el
   periodo, el estado y las fechas, que es justo lo que hay que guardar.
-- *FK real a `service`.* Descartada por coherencia con el resto del proyecto y porque obliga a
+- _FK real a `service`._ Descartada por coherencia con el resto del proyecto y porque obliga a
   decidir el orden de borrado entre dos módulos.
 
 ---
@@ -2611,10 +2617,10 @@ producción.
 
 **Alternativas descartadas.**
 
-- *`ROLE_ADMIN`.* Descartada: mezcla «administro mi organización» con «administro el producto».
-- *Una organización marcada como propietaria.* Descartada: el catálogo no es de ningún tenant, y
+- _`ROLE_ADMIN`._ Descartada: mezcla «administro mi organización» con «administro el producto».
+- _Una organización marcada como propietaria._ Descartada: el catálogo no es de ningún tenant, y
   haría que el propietario pudiera perder el acceso al cambiar de plan.
-- *Un parámetro `OPERATOR_EMAILS` en `.env`.* Descartada: los roles ya viven en la base de
+- _Un parámetro `OPERATOR_EMAILS` en `.env`._ Descartada: los roles ya viven en la base de
   datos, y un `.env` obliga a reiniciar para dar acceso.
 
 ---
@@ -2631,11 +2637,11 @@ anterior decía «`Plan` vivirá en `Catalog`», y esa frase había que confirma
 `OrganizationPlan` (el mismo enum que usa `entitlements.yaml`), con índice único `uniq_plan_code`,
 y **no** hay copia de los límites en la entidad.
 
-**Por qué `Subscriptions` y no `Catalog`.** `Catalog` responde *qué proveedores conocemos y cómo
-los reconocemos*: es conocimiento del mundo, no se factura, y sus entidades cuelgan de `Provider`.
+**Por qué `Subscriptions` y no `Catalog`.** `Catalog` responde _qué proveedores conocemos y cómo
+los reconocemos_: es conocimiento del mundo, no se factura, y sus entidades cuelgan de `Provider`.
 Un `Plan` ahí sería un objeto de venta codeándose con proveedores de los que no cobramos nada, y
 el panel de operador tendría que filtrar la mitad de las tablas del módulo. `Subscriptions`
-responde *qué contrata un cliente*, y el plan es exactamente eso: el objeto del contrato. Además
+responde _qué contrata un cliente_, y el plan es exactamente eso: el objeto del contrato. Además
 `Subscription::$planId` apunta a `Plan` sin FK, así que la cercanía no crea acoplamiento.
 
 **Por qué `code` es el enum y no una cadena libre.** Porque `entitlements.yaml` ya está indexado
@@ -2660,11 +2666,11 @@ la buena. La ficha los enseña en **solo lectura** y lo dice por escrito.
 
 **Alternativas descartadas.**
 
-- *`Plan` en `Catalog`.* Descartada por lo dicho arriba; obliga además a que `Subscriptions`
+- _`Plan` en `Catalog`._ Descartada por lo dicho arriba; obliga además a que `Subscriptions`
   dependa de `Catalog` para algo que no es conocimiento de proveedores.
-- *`code` como cadena libre con validación.* Descartada: dos fuentes de verdad y un error que solo
+- _`code` como cadena libre con validación._ Descartada: dos fuentes de verdad y un error que solo
   se ve en tiempo de ejecución.
-- *Copiar los límites en `Plan` «para que la ficha sea rápida».* Descartada: la ficha se abre una
+- _Copiar los límites en `Plan` «para que la ficha sea rápida»._ Descartada: la ficha se abre una
   vez al mes; leer el YAML es gratis y siempre correcto.
 
 ---
@@ -2748,11 +2754,11 @@ deja el panel donde estaba y no rompe ni un enlace.
 
 **Alternativas descartadas.**
 
-- *Un repositorio aparte con sitio estático.* Descartada: los precios dejarían de venir del
+- _Un repositorio aparte con sitio estático._ Descartada: los precios dejarían de venir del
   catálogo o habría que regenerar el sitio en cada cambio de precio.
-- *Un subdominio con la misma base de código y otro `APP_ENV`.* Descartada: dos despliegues del
+- _Un subdominio con la misma base de código y otro `APP_ENV`._ Descartada: dos despliegues del
   mismo código para servir once páginas.
-- *Pintar el panel en `/` cuando hay sesión.* Descartada por lo dicho arriba: dos URLs para la
+- _Pintar el panel en `/` cuando hay sesión._ Descartada por lo dicho arriba: dos URLs para la
   misma pantalla.
 
 ---
@@ -2790,10 +2796,10 @@ importa —«esta ruta pública responde sin sesión»— y de paso comprueba qu
 
 **Alternativas descartadas.**
 
-- *Marcar las rutas públicas con un atributo propio y generar `access_control` desde ahí.*
+- _Marcar las rutas públicas con un atributo propio y generar `access_control` desde ahí._
   Descartada: `access_control` se evalúa antes del routing y no puede leer atributos del
   controlador. Sería un `RequestListener` propio haciendo lo que el componente ya hace.
-- *Un `PUBLIC_ACCESS` para todo lo que no empiece por `/dashboard`, `/api`…* Descartada: invierte
+- _Un `PUBLIC_ACCESS` para todo lo que no empiece por `/dashboard`, `/api`…_ Descartada: invierte
   el defecto. Un módulo nuevo quedaría público por olvido en vez de privado.
 
 ---
@@ -2828,10 +2834,10 @@ con las de la web, que es como se acaba con `!important` en un sitio y en el otr
 
 **Alternativas descartadas.**
 
-- *SCSS como el panel.* Descartada: un paso de compilación para una hoja sin anidamiento real.
-- *Tailwind.* Descartada: añade un build, un `content` que escanear y clases en el HTML que la
+- _SCSS como el panel._ Descartada: un paso de compilación para una hoja sin anidamiento real.
+- _Tailwind._ Descartada: añade un build, un `content` que escanear y clases en el HTML que la
   plantilla no puede leer como un sistema.
-- *Reutilizar `backoffice.scss`.* Descartada por lo dicho arriba.
+- _Reutilizar `backoffice.scss`._ Descartada por lo dicho arriba.
 
 ---
 
@@ -2869,9 +2875,9 @@ organizaciones, no un fallo de estilo.
 
 **Alternativas descartadas.**
 
-- *Una sola entidad con un discriminador de tipo.* Descartada por lo dicho: columnas nulas y riesgo
+- _Una sola entidad con un discriminador de tipo._ Descartada por lo dicho: columnas nulas y riesgo
   de fuga.
-- *Llamar `Receipt` a la de venta.* Descartada: en España el recibo y la factura no son lo mismo, y
+- _Llamar `Receipt` a la de venta._ Descartada: en España el recibo y la factura no son lo mismo, y
   el nombre `SalesInvoice` deja claro de qué lado del negocio está.
 
 ---
@@ -2906,10 +2912,10 @@ la cierra en la base de datos, que es el único sitio donde se puede cerrar.
 
 **Alternativas descartadas.**
 
-- *`SELECT` y luego `INSERT`.* Descartada: condición de carrera.
-- *Guardar solo `event.id` en caché.* Descartada: la caché se pierde en un despliegue y la
+- _`SELECT` y luego `INSERT`._ Descartada: condición de carrera.
+- _Guardar solo `event.id` en caché._ Descartada: la caché se pierde en un despliegue y la
   idempotencia tiene que sobrevivir a un reinicio.
-- *Confiar en que Stripe no repite.* Descartada: repite por diseño, y está documentado que repite.
+- _Confiar en que Stripe no repite._ Descartada: repite por diseño, y está documentado que repite.
 
 ---
 
@@ -2947,9 +2953,9 @@ cabecera `Stripe-Version` (`2024-06-20`).
 
 **Alternativas descartadas.**
 
-- *`stripe/stripe-php`.* Descartada por lo dicho. Si algún día hacen falta pagos por transferencia,
+- _`stripe/stripe-php`._ Descartada por lo dicho. Si algún día hacen falta pagos por transferencia,
   disputas o varios métodos de pago, se replantea.
-- *Un servicio de terceros que envuelva a Stripe.* Descartada: una dependencia más y un salto de red
+- _Un servicio de terceros que envuelva a Stripe._ Descartada: una dependencia más y un salto de red
   más para lo mismo.
 
 ---
@@ -2980,8 +2986,8 @@ suscripción que está pagada.
 
 **Alternativas descartadas.**
 
-- *Calcular en casa con `billingPeriod`.* Descartada por lo dicho.
-- *Guardar las dos versiones y mostrar la local.* Descartada: dos verdades sobre lo mismo es cómo se
+- _Calcular en casa con `billingPeriod`._ Descartada por lo dicho.
+- _Guardar las dos versiones y mostrar la local._ Descartada: dos verdades sobre lo mismo es cómo se
   acaba discutiendo con un cliente que tiene la factura delante.
 
 ---
@@ -3010,9 +3016,9 @@ Una intención de pagar no es un contrato.
 
 **Alternativas descartadas.**
 
-- *Crear en estado `PENDING` y confirmar después.* Descartada: hay que limpiar los abandonados y la
+- _Crear en estado `PENDING` y confirmar después._ Descartada: hay que limpiar los abandonados y la
   limpieza siempre se olvida.
-- *No comprobar duplicados y confiar en Stripe.* Descartada: dos clics dejan dos cobros recurrentes
+- _No comprobar duplicados y confiar en Stripe._ Descartada: dos clics dejan dos cobros recurrentes
   y devolver uno es trabajo manual.
 
 ---
@@ -3058,7 +3064,78 @@ Stimulus `csrf_protection_controller.js`, que eran parte de la receta sin estado
 
 **Alternativas descartadas.**
 
-- *Dejar los dos y documentar cuál toca.* Descartada: la documentación no impide que el siguiente
+- _Dejar los dos y documentar cuál toca._ Descartada: la documentación no impide que el siguiente
   formulario elija el mecanismo equivocado.
-- *Todo sin estado.* Descartada: rompe los formularios de sesión existentes, obliga a un controlador
+- _Todo sin estado._ Descartada: rompe los formularios de sesión existentes, obliga a un controlador
   Stimulus para Turbo y ata la validez del token a una cookie del cliente.
+
+---
+
+## D-92 — Qué valida el job `Lint` y qué no
+
+**Estado:** aceptada.
+
+**Contexto.** El job `Lint` (super-linter) llevaba rojo desde el primer día, así que su informe no
+lo miraba nadie. Al ponerlo en verde aparecieron tres clases de hallazgos mezcladas: los que
+señalaban código realmente mal escrito, los que aplicaban el estilo de otro proyecto (una guía de
+estilo inglesa sobre documentación en español) y los que medían un artefacto en vez de su fuente.
+
+**Decisión.** El job valida **estructura, formato y seguridad**. Un validador solo se desactiva
+cuando su criterio no es el del proyecto, y el motivo queda escrito junto a la variable que lo
+apaga en `.github/workflows/ci.yaml`. Lo que se valida y lo que no:
+
+- **Shell**: `BASH`, `BASH_EXEC`, `SHELL_SHFMT` (shfmt lee su estilo de `.editorconfig`).
+- **Front**: `CSS`, `CSS_PRETTIER`, `JAVASCRIPT_ES`, `JAVASCRIPT_PRETTIER`. `backoffice.css` se
+  excluye porque es el artefacto de `backoffice.scss`.
+- **Markdown**: `MARKDOWN`, `MARKDOWN_PRETTIER`, con `.github/linters/.markdownlint.json`.
+- **YAML, JSON y XML**: `YAML`, `YAML_PRETTIER`, `JSON`, `JSON_PRETTIER`, `XML`. Los compose los
+  mantiene Symfony Flex y están en `.prettierignore`.
+- **Python**: `PYTHON_PYLINT`, `PYTHON_FLAKE8`, `PYTHON_ISORT`, `PYTHON_MYPY`, `PYTHON_RUFF` y
+  `PYTHON_RUFF_FORMAT`, con ancho 120 (`.github/linters/.python-lint`).
+- **Seguridad y CI**: `GITLEAKS`, `GITHUB_ACTIONS`, `GITHUB_ACTIONS_ZIZMOR`,
+  `DOCKERFILE_HADOLINT`, `ENV`, `EDITORCONFIG`, `GIT_MERGE_CONFLICT_MARKERS`, `PRE_COMMIT`.
+- **Duplicación**: `JSCPD`, con el umbral en el 2 % (ver abajo).
+- **Fuera, porque solo hablan inglés**: `SPELL_CODESPELL` y `NATURAL_LANGUAGE` marcan «fase»,
+  «historial» o piden «readme» en minúsculas.
+- **Fuera, porque el job `Tests` los corre sobre la imagen real**: `PHP_BUILTIN`, `PHP_PHPCS`,
+  `PHP_PHPSTAN` y `PHP_PSALM`.
+- **Fuera, porque no hay nada que revisar**: `CHECKOV` y `TRIVY` (no hay IaC), `BIOME_*` y
+  `PYTHON_BLACK` (el formato de Python lo fija `ruff format`).
+
+**Por qué.**
+
+1. **Un solo formateador.** prettier decide el formato de todo lo que sabe formatear
+   (`.prettierrc.json` en la raíz) y stylelint se queda solo con la corrección. Dos herramientas
+   opinando sobre el mismo espacio es lo que hacía imposible saber cuál tenía razón.
+2. **Se mide la fuente, no el artefacto.** `assets/styles/backoffice.css` es la compilación de
+   `backoffice.scss` con Bootstrap dentro: revisarlo producía 3 150 avisos y el único clon que
+   detectaba jscpd.
+3. **La duplicación es un trinquete, no una invitación a trocear.** El proyecto tiene código
+   simétrico a propósito (un repositorio por agregado, un detector por señal, tests espejo). Con
+   `minTokens` 100 y umbral del 2 % —el estado actual es 1,75 %— el job avisa si la duplicación
+   crece, sin pedir que se rompa el diseño para bajar el número.
+4. **El inglés no es el idioma del proyecto.** `codespell` y `textlint` traen diccionarios y guías
+   inglesas: sobre prosa española generan cientos de falsos positivos. Se apagan y la prosa se
+   revisa a mano; el markdown sigue validado en estructura y formato.
+
+**Consecuencias.**
+
+1. **`.editorconfig` es la fuente del estilo de shfmt.** `switch_case_indent` y `binary_next_line`
+   están ahí porque son el estilo que ya tenían los scripts; cambiarlos cambia el formateo.
+2. **markdownlint usa los valores por defecto de super-linter** (`MD013` a 400 caracteres) más
+   `MD024` con `siblings_only`, que es lo que necesita un changelog por fases.
+3. **pylint comparte el ancho de 120 de ruff y flake8.** Con 100, `ruff format` volvía a juntar una
+   línea de 104 y los dos validadores se peleaban en bucle.
+4. **Los compose quedan fuera de prettier** (`.prettierignore`): Flex reescribe sus marcas
+   `###> paquete ###` al margen y prettier las indentaría en cada actualización de receta. yamllint
+   los sigue validando.
+5. **Los documentos se reformatean con prettier** (tablas alineadas, listas y énfasis
+   normalizados). Es la primera vez que el markdown del proyecto pasa por un formateador; a partir
+   de aquí `npx prettier --write` sobre `*.md` es seguro.
+
+**Alternativas descartadas.**
+
+- _Dejar los validadores de prosa con una lista de palabras ignoradas._ Descartada: la lista crece
+  con cada párrafo nuevo y no aporta nada que no haga ya una relectura.
+- _Bajar el umbral de jscpd al 0 %._ Descartada: obliga a trocear código simétrico solo para
+  satisfacer al medidor.

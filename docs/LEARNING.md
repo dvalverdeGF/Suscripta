@@ -1,8 +1,10 @@
+# Aprendizaje: pipeline inteligente de análisis de correo
+
 Quiero que revises y actualices la arquitectura y documentación del proyecto para incorporar el **pipeline inteligente de análisis de correo** que describo a continuación.
 
 No empieces todavía a implementar código. Primero analiza cómo encaja en la arquitectura existente y actualiza la documentación correspondiente.
 
-# Objetivo
+## Objetivo
 
 La aplicación recibe correos mediante IMAP y debe identificar automáticamente facturas, recibos, renovaciones y comunicaciones relacionadas con servicios recurrentes.
 
@@ -18,7 +20,7 @@ La regla fundamental es:
 
 ---
 
-# 1. Pipeline general
+## 1. Pipeline general
 
 Diseña el procesamiento siguiendo conceptualmente este flujo:
 
@@ -64,16 +66,16 @@ Este flujo debe quedar reflejado en `ARCHITECTURE.md`.
 
 ---
 
-# 2. Nivel 0 — Ingesta y deduplicación
+## 2. Nivel 0 — Ingesta y deduplicación
 
 Cada correo debe identificarse de forma estable.
 
 Investiga qué combinación de:
 
-* IMAP UID.
-* Message-ID.
-* mailbox.
-* hash de contenido.
+- IMAP UID.
+- Message-ID.
+- mailbox.
+- hash de contenido.
 
 es adecuada para garantizar que un mensaje no vuelva a procesarse innecesariamente.
 
@@ -87,28 +89,28 @@ Documenta la estrategia elegida.
 
 ---
 
-# 3. Nivel 1 — Metadatos
+## 3. Nivel 1 — Metadatos
 
 Antes de descargar/procesar todo el contenido, extraer:
 
-* From.
-* Reply-To.
-* To.
-* Subject.
-* Date.
-* Message-ID.
-* IMAP UID.
-* Content-Type.
-* nombres de adjuntos.
-* tipo de adjuntos.
-* tamaño.
-* dominio del remitente.
+- From.
+- Reply-To.
+- To.
+- Subject.
+- Date.
+- Message-ID.
+- IMAP UID.
+- Content-Type.
+- nombres de adjuntos.
+- tipo de adjuntos.
+- tamaño.
+- dominio del remitente.
 
 Siempre que sea posible, utilizar estos datos antes de descargar contenido pesado.
 
 ---
 
-# 4. Nivel 2 — Filtros deterministas
+## 4. Nivel 2 — Filtros deterministas
 
 Implementar conceptualmente un primer filtro barato.
 
@@ -133,13 +135,13 @@ charge
 
 También considerar:
 
-* remitente;
-* dominio;
-* existencia de PDF;
-* nombre del adjunto;
-* patrones conocidos;
-* listas de remitentes ignorados;
-* listas de proveedores conocidos.
+- remitente;
+- dominio;
+- existencia de PDF;
+- nombre del adjunto;
+- patrones conocidos;
+- listas de remitentes ignorados;
+- listas de proveedores conocidos.
 
 No depender únicamente de palabras clave.
 
@@ -166,7 +168,7 @@ No convertir estos valores en reglas rígidas difíciles de modificar.
 
 ---
 
-# 5. Estados del procesamiento
+## 5. Estados del procesamiento
 
 Define estados explícitos para que podamos observar qué ha ocurrido con cada mensaje.
 
@@ -190,39 +192,39 @@ Diseña una máquina de estados coherente.
 
 Debe ser posible saber:
 
-* qué ocurrió;
-* cuándo ocurrió;
-* qué extractor se utilizó;
-* si intervino IA;
-* qué resultado obtuvo;
-* por qué se tomó una decisión.
+- qué ocurrió;
+- cuándo ocurrió;
+- qué extractor se utilizó;
+- si intervino IA;
+- qué resultado obtuvo;
+- por qué se tomó una decisión.
 
 ---
 
-# 6. Nivel 3 — Extracción determinista
+## 6. Nivel 3 — Extracción determinista
 
 Antes de llamar a IA, extraer mediante código todo lo que sea posible.
 
 Por ejemplo:
 
-* importes;
-* monedas;
-* fechas;
-* números de factura;
-* periodos;
-* emails;
-* dominios;
-* URLs;
-* identificadores;
-* referencias de pedido.
+- importes;
+- monedas;
+- fechas;
+- números de factura;
+- periodos;
+- emails;
+- dominios;
+- URLs;
+- identificadores;
+- referencias de pedido.
 
 Utilizar:
 
-* regex;
-* parsers;
-* HTML parsing;
-* extracción de texto PDF;
-* OCR cuando corresponda.
+- regex;
+- parsers;
+- HTML parsing;
+- extracción de texto PDF;
+- OCR cuando corresponda.
 
 No utilizar IA para extraer algo que pueda obtenerse de forma fiable mediante código.
 
@@ -249,7 +251,7 @@ Adapta el modelo si existe una solución mejor.
 
 ---
 
-# 7. Nivel 4 — Conocimiento de proveedores
+## 7. Nivel 4 — Conocimiento de proveedores
 
 El sistema debe distinguir entre:
 
@@ -291,7 +293,7 @@ Investiga cuál es el modelo adecuado.
 
 ---
 
-# 8. Parsers específicos
+## 8. Parsers específicos
 
 Cuando un proveedor sea suficientemente conocido, debe ser posible utilizar un parser específico.
 
@@ -317,14 +319,14 @@ No quiero crear manualmente cientos de parsers desde el primer día.
 
 Diseña una arquitectura que permita:
 
-* parsers codificados;
-* patrones configurables;
-* conocimiento aprendido;
-* fallback a IA.
+- parsers codificados;
+- patrones configurables;
+- conocimiento aprendido;
+- fallback a IA.
 
 ---
 
-# 9. Nivel 5 — IA económica
+## 9. Nivel 5 — IA económica
 
 Si las reglas y conocimiento existente no son suficientes:
 
@@ -334,13 +336,13 @@ La IA debe recibir únicamente el contenido relevante, no necesariamente el corr
 
 Antes de enviarlo:
 
-* eliminar HTML innecesario;
-* eliminar firmas;
-* eliminar tracking;
-* eliminar contenido irrelevante;
-* limitar longitud;
-* extraer texto útil de PDF;
-* aprovechar los datos ya obtenidos determinísticamente.
+- eliminar HTML innecesario;
+- eliminar firmas;
+- eliminar tracking;
+- eliminar contenido irrelevante;
+- limitar longitud;
+- extraer texto útil de PDF;
+- aprovechar los datos ya obtenidos determinísticamente.
 
 La IA debe devolver exclusivamente una estructura validable.
 
@@ -352,7 +354,7 @@ Por ejemplo:
   "service": "...",
   "plan": "...",
   "documentType": "invoice",
-  "amount": 29.90,
+  "amount": 29.9,
   "currency": "EUR",
   "billingPeriod": "monthly",
   "invoiceDate": "2026-10-03",
@@ -375,16 +377,16 @@ o una abstracción mejor si la arquitectura existente lo requiere.
 
 ---
 
-# 10. Nivel 6 — Escalado a IA avanzada
+## 10. Nivel 6 — Escalado a IA avanzada
 
 Si la IA económica devuelve:
 
-* confianza baja;
-* campos contradictorios;
-* proveedor desconocido;
-* documento complejo;
-* PDF difícil;
-* información insuficiente;
+- confianza baja;
+- campos contradictorios;
+- proveedor desconocido;
+- documento complejo;
+- PDF difícil;
+- información insuficiente;
 
 podemos escalar a un modelo más potente.
 
@@ -404,7 +406,7 @@ No utilizar el modelo avanzado como comportamiento predeterminado.
 
 ---
 
-# 11. Validación posterior a IA
+## 11. Validación posterior a IA
 
 MUY IMPORTANTE:
 
@@ -426,14 +428,14 @@ resultado válido
 
 Validar:
 
-* tipos;
-* importes;
-* moneda;
-* fechas;
-* periodicidades;
-* rangos;
-* campos obligatorios;
-* coherencia interna.
+- tipos;
+- importes;
+- moneda;
+- fechas;
+- periodicidades;
+- rangos;
+- campos obligatorios;
+- coherencia interna.
 
 Si la IA dice:
 
@@ -457,7 +459,7 @@ El sistema decide si son válidos.
 
 ---
 
-# 12. Service Matching
+## 12. Service Matching
 
 Una vez obtenidos datos estructurados, NO crear automáticamente un nuevo servicio.
 
@@ -467,17 +469,17 @@ Crear un componente específico de matching.
 
 Debe poder considerar:
 
-* proveedor;
-* dominio;
-* remitente;
-* nombre del servicio;
-* plan;
-* moneda;
-* importe;
-* periodicidad;
-* historial;
-* documentos anteriores;
-* conocimiento del buzón.
+- proveedor;
+- dominio;
+- remitente;
+- nombre del servicio;
+- plan;
+- moneda;
+- importe;
+- periodicidad;
+- historial;
+- documentos anteriores;
+- conocimiento del buzón.
 
 Calcular una puntuación de coincidencia.
 
@@ -514,7 +516,7 @@ Los umbrales deben ser configurables.
 
 ---
 
-# 13. Discovery
+## 13. Discovery
 
 Cuando el sistema no tenga suficiente confianza:
 
@@ -542,7 +544,7 @@ La confirmación del usuario debe convertirse en conocimiento útil para futuras
 
 ---
 
-# 14. Aprendizaje del buzón
+## 14. Aprendizaje del buzón
 
 Esta es una parte importante del diseño.
 
@@ -591,17 +593,17 @@ El objetivo es:
 
 La aplicación debe aprender de:
 
-* confirmaciones;
-* correcciones;
-* proveedores conocidos;
-* remitentes;
-* patrones;
-* parsers;
-* asociaciones anteriores.
+- confirmaciones;
+- correcciones;
+- proveedores conocidos;
+- remitentes;
+- patrones;
+- parsers;
+- asociaciones anteriores.
 
 ---
 
-# 15. Billing Score
+## 15. Billing Score
 
 Diseña un componente independiente para determinar si un correo parece relacionado con facturación.
 
@@ -636,7 +638,7 @@ Esto permitirá explicar posteriormente al usuario por qué un correo ha sido pr
 
 ---
 
-# 16. Cost Control de IA
+## 16. Cost Control de IA
 
 Esto es CRÍTICO.
 
@@ -677,22 +679,22 @@ NO MÁS IA
 
 El procesamiento puede:
 
-* continuar mediante reglas;
-* quedar pendiente;
-* esperar al siguiente periodo;
-* solicitar una acción al usuario.
+- continuar mediante reglas;
+- quedar pendiente;
+- esperar al siguiente periodo;
+- solicitar una acción al usuario.
 
 Nunca permitir llamadas ilimitadas a IA durante una sincronización.
 
 ---
 
-# 17. Idempotencia y reintentos
+## 17. Idempotencia y reintentos
 
 Todos los pasos del pipeline deben ser:
 
-* idempotentes;
-* reintentables;
-* observables.
+- idempotentes;
+- reintentables;
+- observables.
 
 Si falla la IA:
 
@@ -709,7 +711,7 @@ Diseña mensajes y handlers de forma que un retry no produzca duplicados.
 
 ---
 
-# 18. Procesamiento progresivo
+## 18. Procesamiento progresivo
 
 No debemos descargar ni analizar todo el contenido de todos los correos inmediatamente.
 
@@ -735,31 +737,31 @@ Cada nivel debe ejecutarse solamente cuando sea necesario.
 
 Esto reduce:
 
-* tráfico;
-* almacenamiento;
-* CPU;
-* coste de IA;
-* tiempo de procesamiento.
+- tráfico;
+- almacenamiento;
+- CPU;
+- coste de IA;
+- tiempo de procesamiento.
 
 ---
 
-# 19. Privacidad
+## 19. Privacidad
 
 El pipeline debe minimizar la información que sale del sistema.
 
 Antes de enviar contenido a un proveedor de IA:
 
-* enviar únicamente lo necesario;
-* no enviar correos irrelevantes;
-* no enviar buzones completos;
-* no enviar información que pueda extraerse localmente;
-* registrar qué proveedor/modelo ha procesado el documento.
+- enviar únicamente lo necesario;
+- no enviar correos irrelevantes;
+- no enviar buzones completos;
+- no enviar información que pueda extraerse localmente;
+- registrar qué proveedor/modelo ha procesado el documento.
 
 La arquitectura debe permitir cambiar de proveedor de IA sin modificar el dominio.
 
 ---
 
-# 20. Actualiza la documentación
+## 20. Actualiza la documentación
 
 Actualiza:
 
@@ -773,17 +775,17 @@ Actualiza:
 
 Incluye:
 
-* diagrama del pipeline;
-* estados;
-* interfaces;
-* responsabilidades;
-* estrategia de IA;
-* estrategia de matching;
-* estrategia de aprendizaje del buzón;
-* control de costes;
-* privacidad;
-* idempotencia;
-* observabilidad.
+- diagrama del pipeline;
+- estados;
+- interfaces;
+- responsabilidades;
+- estrategia de IA;
+- estrategia de matching;
+- estrategia de aprendizaje del buzón;
+- control de costes;
+- privacidad;
+- idempotencia;
+- observabilidad.
 
 Añade decisiones arquitectónicas explicando especialmente:
 
@@ -795,7 +797,7 @@ Añade decisiones arquitectónicas explicando especialmente:
 6. Cómo evitamos pagar dos veces por el mismo mensaje.
 7. Cómo limitamos económicamente el uso de IA.
 
-# Restricción
+## Restricción
 
 NO IMPLEMENTES TODAVÍA EL PIPELINE.
 

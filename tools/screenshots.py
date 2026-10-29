@@ -27,6 +27,7 @@ PAGES = [
 
 
 def main() -> int:
+    """Inicia sesión en la cuenta de demostración y deja las capturas en `--out`."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", default="https://localhost")
     parser.add_argument("--out", default="docs/img")

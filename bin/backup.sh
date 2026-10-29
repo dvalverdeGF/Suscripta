@@ -28,7 +28,10 @@ ETIQUETA=""
 CON_DOCUMENTOS=1
 
 log() { printf '\033[36m[backup]\033[0m %s\n' "$*"; }
-error() { printf '\033[31m[backup] ERROR:\033[0m %s\n' "$*" >&2; exit 1; }
+error() {
+    printf '\033[31m[backup] ERROR:\033[0m %s\n' "$*" >&2
+    exit 1
+}
 
 uso() {
     cat <<'EOF'
@@ -44,11 +47,26 @@ EOF
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --out) DESTINO="${2:?--out necesita un directorio}"; shift 2 ;;
-        --keep) CONSERVAR="${2:?--keep necesita un número}"; shift 2 ;;
-        --label) ETIQUETA="${2:?--label necesita un texto}"; shift 2 ;;
-        --sin-documentos) CON_DOCUMENTOS=0; shift ;;
-        -h|--help) uso; exit 0 ;;
+        --out)
+            DESTINO="${2:?--out necesita un directorio}"
+            shift 2
+            ;;
+        --keep)
+            CONSERVAR="${2:?--keep necesita un número}"
+            shift 2
+            ;;
+        --label)
+            ETIQUETA="${2:?--label necesita un texto}"
+            shift 2
+            ;;
+        --sin-documentos)
+            CON_DOCUMENTOS=0
+            shift
+            ;;
+        -h | --help)
+            uso
+            exit 0
+            ;;
         *) error "Opción desconocida: $1" ;;
     esac
 done
@@ -78,18 +96,21 @@ log "Volcando la base de datos…"
 # shellcheck disable=SC2016
 if ! $COMPOSE exec -T database sh -c \
     'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom --no-owner --no-privileges' \
-    | gzip -9 > "$DUMP"; then
+    | gzip -9 >"$DUMP"; then
     rm -f "$DUMP"
     error "Falló el volcado de la base de datos."
 fi
 
-[ -s "$DUMP" ] || { rm -f "$DUMP"; error "El volcado ha salido vacío."; }
+[ -s "$DUMP" ] || {
+    rm -f "$DUMP"
+    error "El volcado ha salido vacío."
+}
 
 if [[ "$CON_DOCUMENTOS" -eq 1 ]]; then
     log "Empaquetando los documentos (var/storage)…"
     if ! $COMPOSE exec -T php sh -c \
         'if [ -d /app/var/storage ]; then tar -czf - -C /app var/storage; else tar -czf - -T /dev/null; fi' \
-        > "$DOCUMENTOS"; then
+        >"$DOCUMENTOS"; then
         rm -f "$DUMP" "$DOCUMENTOS"
         error "Falló el empaquetado de los documentos."
     fi
@@ -105,7 +126,7 @@ RAMO="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo 'desconocido')"
 VERSION_PHP="$($COMPOSE exec -T php php -r 'echo PHP_VERSION;' 2>/dev/null | tr -d '\r\n' || echo 'desconocida')"
 PESOS_DUMP="$(du -h "$DUMP" | cut -f1)"
 
-cat > "$MANIFIESTO" <<EOF
+cat >"$MANIFIESTO" <<EOF
 {
     "sello": "$SELLAMA",
     "etiqueta": "$ETIQUETA",

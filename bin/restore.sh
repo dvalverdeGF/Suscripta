@@ -21,7 +21,10 @@ LIMPIO=0
 CON_DOCUMENTOS=1
 
 log() { printf '\033[36m[restore]\033[0m %s\n' "$*"; }
-error() { printf '\033[31m[restore] ERROR:\033[0m %s\n' "$*" >&2; exit 1; }
+error() {
+    printf '\033[31m[restore] ERROR:\033[0m %s\n' "$*" >&2
+    exit 1
+}
 
 uso() {
     cat <<'EOF'
@@ -36,15 +39,31 @@ EOF
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --limpio) LIMPIO=1; shift ;;
-        --sin-documentos) CON_DOCUMENTOS=0; shift ;;
-        -h|--help) uso; exit 0 ;;
+        --limpio)
+            LIMPIO=1
+            shift
+            ;;
+        --sin-documentos)
+            CON_DOCUMENTOS=0
+            shift
+            ;;
+        -h | --help)
+            uso
+            exit 0
+            ;;
         -*) error "Opción desconocida: $1" ;;
-        *) [[ -n "$ORIGEN" ]] && error "Solo se admite una copia a la vez."; ORIGEN="$1"; shift ;;
+        *)
+            [[ -n "$ORIGEN" ]] && error "Solo se admite una copia a la vez."
+            ORIGEN="$1"
+            shift
+            ;;
     esac
 done
 
-[[ -n "$ORIGEN" ]] || { uso; error "Falta indicar la copia."; }
+[[ -n "$ORIGEN" ]] || {
+    uso
+    error "Falta indicar la copia."
+}
 
 cd "$RAIZ"
 

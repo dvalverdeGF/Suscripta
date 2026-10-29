@@ -45,11 +45,11 @@ competidores pequeños evitan usando **reenvío de correo** en lugar de acceso a
 
 ## 2. Competidores de consumo (EE. UU.)
 
-| Producto | Qué hace | Precio observado | Descubrimiento | Correo |
-|---|---|---|---|---|
-| **Rocket Money** (ex Truebill) | Encuentra suscripciones, las cancela, negocia facturas, presupuestos. 10M+ miembros. | Gratis; Premium 7–14 $/mes; Premium+ 15 $/mes | Conexión bancaria | ❌ |
-| **Bobby** (iOS) | Tracker manual con recordatorios de vencimiento. 4,75★, ~8.005 valoraciones. | Gratis + compras integradas | Manual | ❌ |
-| **Trim** | Antiguo asistente de negociación y detección de suscripciones. | — | Conexión bancaria | ❌ |
+| Producto                       | Qué hace                                                                             | Precio observado                              | Descubrimiento    | Correo |
+| ------------------------------ | ------------------------------------------------------------------------------------ | --------------------------------------------- | ----------------- | ------ |
+| **Rocket Money** (ex Truebill) | Encuentra suscripciones, las cancela, negocia facturas, presupuestos. 10M+ miembros. | Gratis; Premium 7–14 $/mes; Premium+ 15 $/mes | Conexión bancaria | ❌     |
+| **Bobby** (iOS)                | Tracker manual con recordatorios de vencimiento. 4,75★, ~8.005 valoraciones.         | Gratis + compras integradas                   | Manual            | ❌     |
+| **Trim**                       | Antiguo asistente de negociación y detección de suscripciones.                       | —                                             | Conexión bancaria | ❌     |
 
 **Trim fue adquirido por OneMain Financial en abril de 2021**; `asktrim.com` redirige a
 `onemainmymoney.com`. No es un competidor independiente activo.
@@ -61,13 +61,13 @@ Fuentes: [rocketmoney.com/feature/manage-subscriptions](https://www.rocketmoney.
 
 ## 3. Competidores de consumo (Reino Unido / UE)
 
-| Producto | Qué hace | Precio observado | Descubrimiento | Correo |
-|---|---|---|---|---|
-| **Emma** (UK) | Presupuestos; detecta suscripciones desde cuentas bancarias. | Plus 4,99 £/mes (41,99 £/año); Pro 9,99 £/mes; Ultimate 14,99 £/mes | Open banking | ❌ |
-| **Snoop** (UK) | Gestión de dinero, facturas, cambio de proveedores, score. | Gratis; Plus 5,99 £/mes o 47,99 £/año **[INCIERTO]** | Conexión bancaria | ❌ |
-| **Plum** (UK/UE) | Ahorro, inversión, presupuestos. Entidad en Chipre. | Tiers (Plus/Pro/Ultra) **[SIN VERIFICAR]** | **[SIN VERIFICAR]** | ❌ |
-| **Fintonic** (ES) | Finanzas personales; "detecta los cargos recurrentes sola, pero necesita acceso a tus cuentas". | Gratis | Conexión bancaria | ❌ |
-| **Bnext** (ES) | — | — | — | — |
+| Producto          | Qué hace                                                                                        | Precio observado                                                    | Descubrimiento      | Correo |
+| ----------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ------------------- | ------ |
+| **Emma** (UK)     | Presupuestos; detecta suscripciones desde cuentas bancarias.                                    | Plus 4,99 £/mes (41,99 £/año); Pro 9,99 £/mes; Ultimate 14,99 £/mes | Open banking        | ❌     |
+| **Snoop** (UK)    | Gestión de dinero, facturas, cambio de proveedores, score.                                      | Gratis; Plus 5,99 £/mes o 47,99 £/año **[INCIERTO]**                | Conexión bancaria   | ❌     |
+| **Plum** (UK/UE)  | Ahorro, inversión, presupuestos. Entidad en Chipre.                                             | Tiers (Plus/Pro/Ultra) **[SIN VERIFICAR]**                          | **[SIN VERIFICAR]** | ❌     |
+| **Fintonic** (ES) | Finanzas personales; "detecta los cargos recurrentes sola, pero necesita acceso a tus cuentas". | Gratis                                                              | Conexión bancaria   | ❌     |
+| **Bnext** (ES)    | —                                                                                               | —                                                                   | —                   | —      |
 
 **Bnext cerró como neobanco de consumo y pivotó a infraestructura financiera.** El año exacto
 del cierre es inconsistente entre fuentes españolas **[INCIERTO]**. No es un competidor vivo.
@@ -83,17 +83,17 @@ Fuentes: [help.emma-app.com — suscripciones](https://help.emma-app.com/en/arti
 
 ## 4. Plataformas de gestión de gasto SaaS (pyme / gran empresa)
 
-| Producto | Qué hace | Precio observado | Descubrimiento | Correo |
-|---|---|---|---|---|
-| **Cledara** | Gestión SaaS pyme + tarjetas virtuales; captura y concilia facturas de software. SOC 2 I y II. | Gratis condicional o 100 £/mes; módulos 200–1.500 £ | Tarjetas virtuales + plataforma | ❌ (captura facturas, no buzón) |
-| **Vertice** | Compras y negociación SaaS para gran empresa. | Sin precio público (demo) | — | ❌ |
-| **Zluri** | SaaS Management + Identity Governance. | Sin precio público (demo) | — | ❌ |
-| **Spendbase** (`spendbase.co`) | Banca digital y tarjetas virtuales. | 0 $/usuario/mes | — | ❌ |
-| **Spendbase** (`spendbase.app`) | Tracker de suscripciones y gastos para agencias. | Gratis hasta 10 subs; 19 $/mes; 49 $/mes | Manual | ❌ |
-| **Ramp** | Gestión de gasto; extracción OCR de facturas, Bill Pay, integraciones contables. | Gratis | OCR de facturas/recibos | ❌ (OCR, no buzón) |
-| **Brex** | Tarjetas corporativas, gastos, viajes, bill pay. 35.000+ empresas. | Sin precio público | Entrada de facturas con IA | ❌ |
-| **Payhawk** | Gestión de gasto (tarjetas, gastos, facturas). | Programa Growth 149 €/mes (elegible <20 empleados en ES/EEE/UK) | — | ❌ |
-| **Wallester** | **No es un tracker**: plataforma BaaS de emisión de tarjetas. | Gratis para empezar | — | ❌ |
+| Producto                        | Qué hace                                                                                       | Precio observado                                                | Descubrimiento                  | Correo                          |
+| ------------------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------- | ------------------------------- |
+| **Cledara**                     | Gestión SaaS pyme + tarjetas virtuales; captura y concilia facturas de software. SOC 2 I y II. | Gratis condicional o 100 £/mes; módulos 200–1.500 £             | Tarjetas virtuales + plataforma | ❌ (captura facturas, no buzón) |
+| **Vertice**                     | Compras y negociación SaaS para gran empresa.                                                  | Sin precio público (demo)                                       | —                               | ❌                              |
+| **Zluri**                       | SaaS Management + Identity Governance.                                                         | Sin precio público (demo)                                       | —                               | ❌                              |
+| **Spendbase** (`spendbase.co`)  | Banca digital y tarjetas virtuales.                                                            | 0 $/usuario/mes                                                 | —                               | ❌                              |
+| **Spendbase** (`spendbase.app`) | Tracker de suscripciones y gastos para agencias.                                               | Gratis hasta 10 subs; 19 $/mes; 49 $/mes                        | Manual                          | ❌                              |
+| **Ramp**                        | Gestión de gasto; extracción OCR de facturas, Bill Pay, integraciones contables.               | Gratis                                                          | OCR de facturas/recibos         | ❌ (OCR, no buzón)              |
+| **Brex**                        | Tarjetas corporativas, gastos, viajes, bill pay. 35.000+ empresas.                             | Sin precio público                                              | Entrada de facturas con IA      | ❌                              |
+| **Payhawk**                     | Gestión de gasto (tarjetas, gastos, facturas).                                                 | Programa Growth 149 €/mes (elegible <20 empleados en ES/EEE/UK) | —                               | ❌                              |
+| **Wallester**                   | **No es un tracker**: plataforma BaaS de emisión de tarjetas.                                  | Gratis para empezar                                             | —                               | ❌                              |
 
 **Atención:** existen **dos entidades distintas** llamadas Spendbase (`spendbase.co` banca vs
 `spendbase.app` tracker). `spendbase.com` es un dominio aparcado en venta. No confundirlas.
@@ -111,25 +111,25 @@ Fuentes: [cledara.com/pricing](https://www.cledara.com/pricing), [vertice.one/pr
 
 ### 5.1 Escaneo del buzón (OAuth)
 
-| Producto | Qué hace | Precio observado | Correo |
-|---|---|---|---|
-| **Unbilled** (`unbilled.app`) | Escaneo automático del correo (Gmail/Outlook), detección con IA, recordatorios de renovación, multi-moneda, **reenvío**, importación de extractos (CSV/PDF), gestor de seguros. Operado por **Isle Dynamics (Cyprus) Ltd.**, sujeto al RGPD. | Gratis (5 subs, 50 correos); **Pro 1 €/mes** (500 correos); prueba 30 días | ✅ Gmail/Outlook |
-| **Track-Subs** (`track-subs.com`) | "Escanea tus recibos de correo y encuentra cada cargo recurrente. Sin banco. Sin entrada manual." Detección en dos capas (matching determinista de 60+ proveedores + IA). Multi-moneda. | Gratis (10 subs, 1 escaneo/mes); Pro 6,99 $/mes o 59,99 $/año | ✅ Gmail; Outlook/IMAP "próximamente" |
-| **What's My Subs** (`whatsmysubs.com`) | Conecta Gmail; convierte recibos y avisos de renovación en una lista. Alertas de subida de precio. | **[SIN VERIFICAR]** | ✅ Gmail |
-| **Subzero** (`subzero.money`) | "Conecta Gmail. Encontramos cada suscripción." Solo lectura, ~2 minutos. | Gratis | ✅ Gmail |
-| **Subby** (`subby.io`) | Escaneo de Gmail en <60 s. **En lanzamiento** (lista de espera). | Gratis (pre-lanzamiento) | ✅ Gmail |
-| **Bill Radar** (`billsradar.com`) | "Lee solo correos de facturación, extrae lo relevante y nunca almacena el contenido completo." | **[SIN VERIFICAR]** | ✅ (solo facturación) |
-| **Yuki** (`yukihq.com`) | Conecta Gmail, lee recibos y avisos, construye lista viva de suscripciones. | **[SIN VERIFICAR]** | ✅ Gmail |
-| **Subflo** (`github.com/huzaifa525/subflo`) | Open source (MIT). Escaneo de Gmail por IMAP con contraseña de aplicación, detección en 3 capas (búsqueda IMAP → regex 40+ patrones → confirmación LLM), auto-escaneo cada 24 h. | Gratis / autoalojado | ✅ Gmail IMAP |
+| Producto                                    | Qué hace                                                                                                                                                                                                                                     | Precio observado                                                           | Correo                                |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------- |
+| **Unbilled** (`unbilled.app`)               | Escaneo automático del correo (Gmail/Outlook), detección con IA, recordatorios de renovación, multi-moneda, **reenvío**, importación de extractos (CSV/PDF), gestor de seguros. Operado por **Isle Dynamics (Cyprus) Ltd.**, sujeto al RGPD. | Gratis (5 subs, 50 correos); **Pro 1 €/mes** (500 correos); prueba 30 días | ✅ Gmail/Outlook                      |
+| **Track-Subs** (`track-subs.com`)           | "Escanea tus recibos de correo y encuentra cada cargo recurrente. Sin banco. Sin entrada manual." Detección en dos capas (matching determinista de 60+ proveedores + IA). Multi-moneda.                                                      | Gratis (10 subs, 1 escaneo/mes); Pro 6,99 $/mes o 59,99 $/año              | ✅ Gmail; Outlook/IMAP "próximamente" |
+| **What's My Subs** (`whatsmysubs.com`)      | Conecta Gmail; convierte recibos y avisos de renovación en una lista. Alertas de subida de precio.                                                                                                                                           | **[SIN VERIFICAR]**                                                        | ✅ Gmail                              |
+| **Subzero** (`subzero.money`)               | "Conecta Gmail. Encontramos cada suscripción." Solo lectura, ~2 minutos.                                                                                                                                                                     | Gratis                                                                     | ✅ Gmail                              |
+| **Subby** (`subby.io`)                      | Escaneo de Gmail en <60 s. **En lanzamiento** (lista de espera).                                                                                                                                                                             | Gratis (pre-lanzamiento)                                                   | ✅ Gmail                              |
+| **Bill Radar** (`billsradar.com`)           | "Lee solo correos de facturación, extrae lo relevante y nunca almacena el contenido completo."                                                                                                                                               | **[SIN VERIFICAR]**                                                        | ✅ (solo facturación)                 |
+| **Yuki** (`yukihq.com`)                     | Conecta Gmail, lee recibos y avisos, construye lista viva de suscripciones.                                                                                                                                                                  | **[SIN VERIFICAR]**                                                        | ✅ Gmail                              |
+| **Subflo** (`github.com/huzaifa525/subflo`) | Open source (MIT). Escaneo de Gmail por IMAP con contraseña de aplicación, detección en 3 capas (búsqueda IMAP → regex 40+ patrones → confirmación LLM), auto-escaneo cada 24 h.                                                             | Gratis / autoalojado                                                       | ✅ Gmail IMAP                         |
 
 ### 5.2 Reenvío de correo (sin acceso al buzón)
 
-| Producto | Qué hace | Precio observado | Correo |
-|---|---|---|---|
-| **Spendbox** (`spendbox.co`) | Reenvías recibos a una dirección dedicada; parsea 2.400+ proveedores, detecta renovaciones, categoriza. "Sin alias, sin acceso de terceros arriesgado." | Gratis 50 correos/mes (beta) | ✅ reenvío |
-| **LemSubs** (`lemsubs.com`) | Reenvías recibos a una dirección privada; los archiva contra la suscripción. Argumenta explícitamente que **"el scope OAuth de leer todo el correo es un riesgo de privacidad"**. Incluye paso de "confirmar coincidencia". | **[SIN VERIFICAR]** | ✅ reenvío |
-| **SpendKeeper** (`spendkeeper.app`) | App iPhone; filtro de Gmail que reenvía recibos; datos en el dispositivo, sincronización iCloud. | Gratis | ✅ reenvío |
-| **Subscription Freedom** (`subscriptionfreedom.com`) | "Nunca nos conectamos a tu banco ni entramos en tu buzón." Reenvío automático o subida manual (PDF/imagen + IA). | **[SIN VERIFICAR]** | ✅ reenvío |
+| Producto                                             | Qué hace                                                                                                                                                                                                                    | Precio observado             | Correo     |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- | ---------- |
+| **Spendbox** (`spendbox.co`)                         | Reenvías recibos a una dirección dedicada; parsea 2.400+ proveedores, detecta renovaciones, categoriza. "Sin alias, sin acceso de terceros arriesgado."                                                                     | Gratis 50 correos/mes (beta) | ✅ reenvío |
+| **LemSubs** (`lemsubs.com`)                          | Reenvías recibos a una dirección privada; los archiva contra la suscripción. Argumenta explícitamente que **"el scope OAuth de leer todo el correo es un riesgo de privacidad"**. Incluye paso de "confirmar coincidencia". | **[SIN VERIFICAR]**          | ✅ reenvío |
+| **SpendKeeper** (`spendkeeper.app`)                  | App iPhone; filtro de Gmail que reenvía recibos; datos en el dispositivo, sincronización iCloud.                                                                                                                            | Gratis                       | ✅ reenvío |
+| **Subscription Freedom** (`subscriptionfreedom.com`) | "Nunca nos conectamos a tu banco ni entramos en tu buzón." Reenvío automático o subida manual (PDF/imagen + IA).                                                                                                            | **[SIN VERIFICAR]**          | ✅ reenvío |
 
 ### 5.3 Extracción de facturas para pyme
 
@@ -149,13 +149,13 @@ percepción de "leer todo el correo".
 
 ## 6. Open source
 
-| Proyecto | Qué es | Descubrimiento | Licencia / estado |
-|---|---|---|---|
-| **Wallos** (`ellite/Wallos`) | Tracker de suscripciones autoalojado en PHP; categorías, multi-moneda, notificaciones (email/Discord/Pushover/Telegram/Gotify/webhooks), OIDC/OAuth. | **Manual** | Activo |
-| **Subflo** (`huzaifa525/subflo`) | Tracker con IA autoalojado. | **Gmail IMAP + LLM** | **MIT**, activo |
-| **Actual Budget** | Presupuestos con cifrado extremo a extremo. | Importación bancaria | Activo |
-| **Firefly III** | Gestor de finanzas personales autoalojado. | Importación bancaria | Activo |
-| **Maybe Finance** | App de finanzas personales. | Importación bancaria | **AGPLv3, sin mantenimiento activo** (última v0.6.0) |
+| Proyecto                         | Qué es                                                                                                                                               | Descubrimiento       | Licencia / estado                                    |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- | ---------------------------------------------------- |
+| **Wallos** (`ellite/Wallos`)     | Tracker de suscripciones autoalojado en PHP; categorías, multi-moneda, notificaciones (email/Discord/Pushover/Telegram/Gotify/webhooks), OIDC/OAuth. | **Manual**           | Activo                                               |
+| **Subflo** (`huzaifa525/subflo`) | Tracker con IA autoalojado.                                                                                                                          | **Gmail IMAP + LLM** | **MIT**, activo                                      |
+| **Actual Budget**                | Presupuestos con cifrado extremo a extremo.                                                                                                          | Importación bancaria | Activo                                               |
+| **Firefly III**                  | Gestor de finanzas personales autoalojado.                                                                                                           | Importación bancaria | Activo                                               |
+| **Maybe Finance**                | App de finanzas personales.                                                                                                                          | Importación bancaria | **AGPLv3, sin mantenimiento activo** (última v0.6.0) |
 
 **Conclusión:** el único proyecto open source con descubrimiento **por correo** es **Subflo**
 (MIT, Gmail IMAP + LLM). Wallos, el tracker autoalojado más popular, es **manual**. Es un hueco
@@ -170,18 +170,18 @@ Fuentes: [github.com/ellite/Wallos](https://github.com/ellite/Wallos), [wallosap
 Un clúster amplio, mayoritariamente **manual**, **gratuito** y **móvil**. **Ninguno de los
 verificados hace descubrimiento por correo.**
 
-| Producto | Qué hace | Precio observado | Descubrimiento |
-|---|---|---|---|
-| **QuietSub** (`quietsub.app`) | iOS/Android; entrada manual; recordatorios; totales anuales; enlaces de cancelación; "sin acceso bancario". | Gratis; Premium 11,99 €/año | Manual |
-| **Recur** (`recur.es`) | Manual; recordatorio por email 3 días antes; "100 % privado, sin conexión bancaria". | Gratis | Manual |
-| **Subscro** (`subscro.com`) | iOS; calendario, estadísticas, multi-moneda, grupos, iCloud, sin cuenta. | Gratis hasta 3 subs; pago único | Manual |
-| **Subflow** (`subflow.ing`) | Web; "smart add" (pegar/subir contenido → autorrelleno), notificaciones, cosuscripciones, extensión Raycast. | Gratis | Semi-manual |
-| **Renulo** (`renulo.app`) | Web; plantillas, multi-moneda, auth con Supabase. | Gratis | Manual |
-| **TrackMyPlans** (`trackmyplans.com`) | iOS; "100 % privado, funciona sin conexión". | Gratis | Manual |
-| **SubBuddy** (`subbuddy.io`) | Web; "sin vincular tu banco"; gratis 3 subs. | Gratis (3 subs) | Manual |
-| **Subo** (App Store ES) | iPhone; "sin conectar tu cuenta bancaria". | **[SIN VERIFICAR]** | Manual |
-| **FindRecurring** (`findrecurring.com`) | Web; **pegas un extracto bancario** → detecta cargos recurrentes; sin cuenta, no almacena. | Gratis | Extracto pegado |
-| **SubLess** (`subless.me`) | Español; importación por captura/PDF/extracto. | **[SIN VERIFICAR]** | Captura/PDF/extracto |
+| Producto                                | Qué hace                                                                                                     | Precio observado                | Descubrimiento       |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------- | -------------------- |
+| **QuietSub** (`quietsub.app`)           | iOS/Android; entrada manual; recordatorios; totales anuales; enlaces de cancelación; "sin acceso bancario".  | Gratis; Premium 11,99 €/año     | Manual               |
+| **Recur** (`recur.es`)                  | Manual; recordatorio por email 3 días antes; "100 % privado, sin conexión bancaria".                         | Gratis                          | Manual               |
+| **Subscro** (`subscro.com`)             | iOS; calendario, estadísticas, multi-moneda, grupos, iCloud, sin cuenta.                                     | Gratis hasta 3 subs; pago único | Manual               |
+| **Subflow** (`subflow.ing`)             | Web; "smart add" (pegar/subir contenido → autorrelleno), notificaciones, cosuscripciones, extensión Raycast. | Gratis                          | Semi-manual          |
+| **Renulo** (`renulo.app`)               | Web; plantillas, multi-moneda, auth con Supabase.                                                            | Gratis                          | Manual               |
+| **TrackMyPlans** (`trackmyplans.com`)   | iOS; "100 % privado, funciona sin conexión".                                                                 | Gratis                          | Manual               |
+| **SubBuddy** (`subbuddy.io`)            | Web; "sin vincular tu banco"; gratis 3 subs.                                                                 | Gratis (3 subs)                 | Manual               |
+| **Subo** (App Store ES)                 | iPhone; "sin conectar tu cuenta bancaria".                                                                   | **[SIN VERIFICAR]**             | Manual               |
+| **FindRecurring** (`findrecurring.com`) | Web; **pegas un extracto bancario** → detecta cargos recurrentes; sin cuenta, no almacena.                   | Gratis                          | Extracto pegado      |
+| **SubLess** (`subless.me`)              | Español; importación por captura/PDF/extracto.                                                               | **[SIN VERIFICAR]**             | Captura/PDF/extracto |
 
 Fuentes: [quietsub.app/es](https://quietsub.app/es), [recur.es](https://www.recur.es/),
 [subscro.com](https://www.subscro.com/), [subflow.ing/es](https://subflow.ing/es),
@@ -191,88 +191,88 @@ Fuentes: [quietsub.app/es](https://quietsub.app/es), [recur.es](https://www.recu
 
 ## 8. Tabla comparativa
 
-| Producto | Segmento | Precio (observado) | Descubrimiento | ¿Correo? |
-|---|---|---|---|---|
-| Rocket Money | Consumo (US) | Gratis; 7–14 $/mes; 15 $/mes | Banco | ❌ |
-| Bobby | Consumo | Gratis + IAP | Manual | ❌ |
-| Trim | Consumo (US) | — | Banco | ❌ |
-| Emma | Consumo (UK) | 4,99–14,99 £/mes | Open banking | ❌ |
-| Snoop | Consumo (UK) | Gratis; 5,99 £/mes | Banco | ❌ |
-| Plum | Consumo (UK/UE) | Tiers **[SIN VERIFICAR]** | **[SIN VERIFICAR]** | ❌ |
-| Fintonic | Consumo (ES) | Gratis | Banco | ❌ |
-| Bnext | — | — | — | — (cerrado) |
-| Cledara | Pyme/mediana | Gratis condicional o 100 £/mes; módulos 200–1.500 £ | Tarjetas virtuales | ❌ |
-| Vertice | Gran empresa | Sin precio público | — | ❌ |
-| Zluri | Gran empresa | Sin precio público | — | ❌ |
-| Spendbase (.co) | Pyme | 0 $/usuario/mes | — | ❌ |
-| Spendbase (.app) | Pyme/agencia | Gratis (10 subs); 19 $/mes; 49 $/mes | Manual | ❌ |
-| Ramp | Pyme→gran empresa (US) | Gratis | OCR facturas | ❌ |
-| Brex | Pyme→gran empresa | Sin precio público | IA facturas | ❌ |
-| Payhawk | Pyme | 149 €/mes | — | ❌ |
-| Wallester | Empresa/autónomo | Gratis para empezar | — | ❌ |
-| **Unbilled** | Consumo→pyme | Gratis (5 subs); **Pro 1 €/mes** | **Correo + reenvío + extracto** | ✅ Gmail/Outlook |
-| **Track-Subs** | Consumo | Gratis (10 subs); 6,99 $/mes | **Correo** | ✅ Gmail (IMAP pronto) |
-| **What's My Subs** | Consumo | **[SIN VERIFICAR]** | **Correo** | ✅ Gmail |
-| **Subzero** | Consumo | Gratis | **Correo** | ✅ Gmail |
-| **Subby** | Consumo | Gratis (pre-lanzamiento) | **Correo** | ✅ Gmail |
-| **Bill Radar** | Consumo | **[SIN VERIFICAR]** | **Correo (solo facturación)** | ✅ |
-| **Yuki** | Consumo→prosumer | **[SIN VERIFICAR]** | **Correo** | ✅ Gmail |
-| **Subflo** | Autoalojado | Gratis (MIT) | **Gmail IMAP + LLM** | ✅ Gmail IMAP |
-| **Spendbox** | Consumo→pyme | Gratis (50 correos/mes) | **Reenvío** | ✅ reenvío |
-| **LemSubs** | Consumo→pyme | **[SIN VERIFICAR]** | **Reenvío** | ✅ reenvío |
-| **SpendKeeper** | Consumo | Gratis (iPhone) | **Reenvío (filtro Gmail)** | ✅ reenvío |
-| **Gennai** | **Pyme** | **[SIN VERIFICAR]** | **Extracción de facturas** | ✅ |
-| **Subscription Freedom** | Consumo | **[SIN VERIFICAR]** | **Reenvío** | ✅ reenvío |
-| **Wallos** | Autoalojado | Gratis (OSS) | Manual | ❌ |
-| Actual Budget / Firefly III / Maybe | Autoalojado | Gratis (OSS) | Banco | ❌ |
-| QuietSub / Recur / Subscro / Subflow / Renulo / TrackMyPlans / SubBuddy / Subo | Consumo (ES/UE) | Gratis–11,99 €/año | Manual | ❌ |
-| FindRecurring | Consumo | Gratis | Extracto pegado | ❌ |
+| Producto                                                                       | Segmento               | Precio (observado)                                  | Descubrimiento                  | ¿Correo?               |
+| ------------------------------------------------------------------------------ | ---------------------- | --------------------------------------------------- | ------------------------------- | ---------------------- |
+| Rocket Money                                                                   | Consumo (US)           | Gratis; 7–14 $/mes; 15 $/mes                        | Banco                           | ❌                     |
+| Bobby                                                                          | Consumo                | Gratis + IAP                                        | Manual                          | ❌                     |
+| Trim                                                                           | Consumo (US)           | —                                                   | Banco                           | ❌                     |
+| Emma                                                                           | Consumo (UK)           | 4,99–14,99 £/mes                                    | Open banking                    | ❌                     |
+| Snoop                                                                          | Consumo (UK)           | Gratis; 5,99 £/mes                                  | Banco                           | ❌                     |
+| Plum                                                                           | Consumo (UK/UE)        | Tiers **[SIN VERIFICAR]**                           | **[SIN VERIFICAR]**             | ❌                     |
+| Fintonic                                                                       | Consumo (ES)           | Gratis                                              | Banco                           | ❌                     |
+| Bnext                                                                          | —                      | —                                                   | —                               | — (cerrado)            |
+| Cledara                                                                        | Pyme/mediana           | Gratis condicional o 100 £/mes; módulos 200–1.500 £ | Tarjetas virtuales              | ❌                     |
+| Vertice                                                                        | Gran empresa           | Sin precio público                                  | —                               | ❌                     |
+| Zluri                                                                          | Gran empresa           | Sin precio público                                  | —                               | ❌                     |
+| Spendbase (.co)                                                                | Pyme                   | 0 $/usuario/mes                                     | —                               | ❌                     |
+| Spendbase (.app)                                                               | Pyme/agencia           | Gratis (10 subs); 19 $/mes; 49 $/mes                | Manual                          | ❌                     |
+| Ramp                                                                           | Pyme→gran empresa (US) | Gratis                                              | OCR facturas                    | ❌                     |
+| Brex                                                                           | Pyme→gran empresa      | Sin precio público                                  | IA facturas                     | ❌                     |
+| Payhawk                                                                        | Pyme                   | 149 €/mes                                           | —                               | ❌                     |
+| Wallester                                                                      | Empresa/autónomo       | Gratis para empezar                                 | —                               | ❌                     |
+| **Unbilled**                                                                   | Consumo→pyme           | Gratis (5 subs); **Pro 1 €/mes**                    | **Correo + reenvío + extracto** | ✅ Gmail/Outlook       |
+| **Track-Subs**                                                                 | Consumo                | Gratis (10 subs); 6,99 $/mes                        | **Correo**                      | ✅ Gmail (IMAP pronto) |
+| **What's My Subs**                                                             | Consumo                | **[SIN VERIFICAR]**                                 | **Correo**                      | ✅ Gmail               |
+| **Subzero**                                                                    | Consumo                | Gratis                                              | **Correo**                      | ✅ Gmail               |
+| **Subby**                                                                      | Consumo                | Gratis (pre-lanzamiento)                            | **Correo**                      | ✅ Gmail               |
+| **Bill Radar**                                                                 | Consumo                | **[SIN VERIFICAR]**                                 | **Correo (solo facturación)**   | ✅                     |
+| **Yuki**                                                                       | Consumo→prosumer       | **[SIN VERIFICAR]**                                 | **Correo**                      | ✅ Gmail               |
+| **Subflo**                                                                     | Autoalojado            | Gratis (MIT)                                        | **Gmail IMAP + LLM**            | ✅ Gmail IMAP          |
+| **Spendbox**                                                                   | Consumo→pyme           | Gratis (50 correos/mes)                             | **Reenvío**                     | ✅ reenvío             |
+| **LemSubs**                                                                    | Consumo→pyme           | **[SIN VERIFICAR]**                                 | **Reenvío**                     | ✅ reenvío             |
+| **SpendKeeper**                                                                | Consumo                | Gratis (iPhone)                                     | **Reenvío (filtro Gmail)**      | ✅ reenvío             |
+| **Gennai**                                                                     | **Pyme**               | **[SIN VERIFICAR]**                                 | **Extracción de facturas**      | ✅                     |
+| **Subscription Freedom**                                                       | Consumo                | **[SIN VERIFICAR]**                                 | **Reenvío**                     | ✅ reenvío             |
+| **Wallos**                                                                     | Autoalojado            | Gratis (OSS)                                        | Manual                          | ❌                     |
+| Actual Budget / Firefly III / Maybe                                            | Autoalojado            | Gratis (OSS)                                        | Banco                           | ❌                     |
+| QuietSub / Recur / Subscro / Subflow / Renulo / TrackMyPlans / SubBuddy / Subo | Consumo (ES/UE)        | Gratis–11,99 €/año                                  | Manual                          | ❌                     |
+| FindRecurring                                                                  | Consumo                | Gratis                                              | Extracto pegado                 | ❌                     |
 
 ### 8.1 Matriz de capacidades
 
 Comparación por capacidad. **Leyenda:** ✅ verificado en la investigación (§2–§7) · ❌
 verificado como ausente · **?** no verificado o no se pudo confirmar.
 
-> **Aviso metodológico.** Las celdas con **?** significan *no verificado*, no *ausente*. No se
+> **Aviso metodológico.** Las celdas con **?** significan _no verificado_, no _ausente_. No se
 > han inventado funcionalidades: si la investigación no lo confirmó, queda como **?**. Las
 > páginas de precios y de funcionalidades de varios productos no se pudieron leer completas
 > (§12).
 
-| Producto | Intro manual | Gmail | Outlook | IMAP genérico | Descubr. automático | Autón./pyme | ES/UE | Hist. precios | Renovac. | Privacidad | Almac. docs |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| **Consumo con banco** | | | | | | | | | | | |
-| Rocket Money | ❌ | ❌ | ❌ | ❌ | ✅ (banco) | ❌ | ❌ (US) | ? | ? | ? | ? |
-| Emma | ❌ | ❌ | ❌ | ❌ | ✅ (open banking) | ❌ | ✅ (UK) | ? | ? | ? | ? |
-| Snoop | ❌ | ❌ | ❌ | ❌ | ✅ (banco) | ❌ | ✅ (UK) | ? | ? | ? | ? |
-| Fintonic | ❌ | ❌ | ❌ | ❌ | ✅ (banco) | ❌ | ✅ (ES) | ? | ? | ? | ? |
-| **Manuales** | | | | | | | | | | | |
-| Bobby | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ? | ✅ | ? | ? |
-| Wallos (OSS) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ? | ✅ | ✅ (autoalojado) | ? |
-| QuietSub / Recur / Subscro / Subflow / Renulo / TrackMyPlans / SubBuddy / Subo | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ (ES/UE) | ? | ✅ | ? | ? |
-| **Nativas de correo** | | | | | | | | | | | |
-| Unbilled | ❌ | ✅ | ✅ | ❌ | ✅ | ? | ? | ? | ? | ? | ? |
-| Track-Subs | ❌ | ✅ | ? (previsto) | ? (previsto) | ✅ | ❌ | ❌ | ? | ? | ? | ? |
-| What's My Subs | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ? | ? | ? | ? |
-| Subzero | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ? | ? | ? | ? |
-| Subby | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ? | ? | ? | ? |
-| Bill Radar | ❌ | ✅ | ? | ? | ✅ (solo facturación) | ? | ? | ? | ? | ? | ? |
-| Yuki | ❌ | ✅ | ❌ | ❌ | ✅ | ? | ? | ? | ? | ? | ? |
-| Subflo (OSS) | ❌ | ✅ | ❌ | ❌ (Gmail IMAP) | ✅ | ❌ | ❌ | ? | ? | ✅ (autoalojado) | ? |
-| Spendbox | ❌ | ❌ | ❌ | ❌ | ✅ (reenvío) | ✅ | ? | ? | ? | ? | ? |
-| LemSubs | ❌ | ❌ | ❌ | ❌ | ✅ (reenvío) | ✅ | ? | ? | ? | ? | ? |
-| SpendKeeper | ❌ | ❌ | ❌ | ❌ | ✅ (reenvío) | ❌ | ❌ | ? | ? | ? | ? |
-| Subscription Freedom | ❌ | ❌ | ❌ | ❌ | ✅ (reenvío) | ❌ | ❌ | ? | ? | ? | ? |
-| Gennai | ❌ | ? | ? | ? | ✅ (facturas) | ✅ | ? | ? | ? | ? | ? |
-| **Empresa** | | | | | | | | | | | |
-| Cledara | ❌ | ❌ | ❌ | ❌ | ✅ (tarjetas) | ✅ | ✅ (UK) | ? | ? | ? | ? |
-| Spendbase (.app) | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ? | ? | ? | ? | ? |
-| Ramp | ❌ | ❌ | ❌ | ❌ | ✅ (OCR) | ✅ | ❌ (US) | ? | ? | ? | ? |
-| Brex | ❌ | ❌ | ❌ | ❌ | ✅ (IA) | ✅ | ❌ (US) | ? | ? | ? | ? |
-| Payhawk | ❌ | ❌ | ❌ | ❌ | ? | ✅ | ✅ (UE) | ? | ? | ? | ? |
-| Vertice | ❌ | ❌ | ❌ | ❌ | ? | ✅ | ✅ (UK) | ? | ? | ? | ? |
-| Zluri | ❌ | ❌ | ❌ | ❌ | ? | ✅ | ? | ? | ? | ? | ? |
-| **Objetivo (no verificado, es nuestra propuesta)** | | | | | | | | | | | |
-| Suscripta | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (por diseño) | ✅ |
+| Producto                                                                       | Intro manual | Gmail | Outlook      | IMAP genérico   | Descubr. automático   | Autón./pyme | ES/UE      | Hist. precios | Renovac. | Privacidad       | Almac. docs |
+| ------------------------------------------------------------------------------ | ------------ | ----- | ------------ | --------------- | --------------------- | ----------- | ---------- | ------------- | -------- | ---------------- | ----------- |
+| **Consumo con banco**                                                          |              |       |              |                 |                       |             |            |               |          |                  |             |
+| Rocket Money                                                                   | ❌           | ❌    | ❌           | ❌              | ✅ (banco)            | ❌          | ❌ (US)    | ?             | ?        | ?                | ?           |
+| Emma                                                                           | ❌           | ❌    | ❌           | ❌              | ✅ (open banking)     | ❌          | ✅ (UK)    | ?             | ?        | ?                | ?           |
+| Snoop                                                                          | ❌           | ❌    | ❌           | ❌              | ✅ (banco)            | ❌          | ✅ (UK)    | ?             | ?        | ?                | ?           |
+| Fintonic                                                                       | ❌           | ❌    | ❌           | ❌              | ✅ (banco)            | ❌          | ✅ (ES)    | ?             | ?        | ?                | ?           |
+| **Manuales**                                                                   |              |       |              |                 |                       |             |            |               |          |                  |             |
+| Bobby                                                                          | ✅           | ❌    | ❌           | ❌              | ❌                    | ❌          | ❌         | ?             | ✅       | ?                | ?           |
+| Wallos (OSS)                                                                   | ✅           | ❌    | ❌           | ❌              | ❌                    | ❌          | ❌         | ?             | ✅       | ✅ (autoalojado) | ?           |
+| QuietSub / Recur / Subscro / Subflow / Renulo / TrackMyPlans / SubBuddy / Subo | ✅           | ❌    | ❌           | ❌              | ❌                    | ❌          | ✅ (ES/UE) | ?             | ✅       | ?                | ?           |
+| **Nativas de correo**                                                          |              |       |              |                 |                       |             |            |               |          |                  |             |
+| Unbilled                                                                       | ❌           | ✅    | ✅           | ❌              | ✅                    | ?           | ?          | ?             | ?        | ?                | ?           |
+| Track-Subs                                                                     | ❌           | ✅    | ? (previsto) | ? (previsto)    | ✅                    | ❌          | ❌         | ?             | ?        | ?                | ?           |
+| What's My Subs                                                                 | ❌           | ✅    | ❌           | ❌              | ✅                    | ❌          | ❌         | ?             | ?        | ?                | ?           |
+| Subzero                                                                        | ❌           | ✅    | ❌           | ❌              | ✅                    | ❌          | ❌         | ?             | ?        | ?                | ?           |
+| Subby                                                                          | ❌           | ✅    | ❌           | ❌              | ✅                    | ❌          | ❌         | ?             | ?        | ?                | ?           |
+| Bill Radar                                                                     | ❌           | ✅    | ?            | ?               | ✅ (solo facturación) | ?           | ?          | ?             | ?        | ?                | ?           |
+| Yuki                                                                           | ❌           | ✅    | ❌           | ❌              | ✅                    | ?           | ?          | ?             | ?        | ?                | ?           |
+| Subflo (OSS)                                                                   | ❌           | ✅    | ❌           | ❌ (Gmail IMAP) | ✅                    | ❌          | ❌         | ?             | ?        | ✅ (autoalojado) | ?           |
+| Spendbox                                                                       | ❌           | ❌    | ❌           | ❌              | ✅ (reenvío)          | ✅          | ?          | ?             | ?        | ?                | ?           |
+| LemSubs                                                                        | ❌           | ❌    | ❌           | ❌              | ✅ (reenvío)          | ✅          | ?          | ?             | ?        | ?                | ?           |
+| SpendKeeper                                                                    | ❌           | ❌    | ❌           | ❌              | ✅ (reenvío)          | ❌          | ❌         | ?             | ?        | ?                | ?           |
+| Subscription Freedom                                                           | ❌           | ❌    | ❌           | ❌              | ✅ (reenvío)          | ❌          | ❌         | ?             | ?        | ?                | ?           |
+| Gennai                                                                         | ❌           | ?     | ?            | ?               | ✅ (facturas)         | ✅          | ?          | ?             | ?        | ?                | ?           |
+| **Empresa**                                                                    |              |       |              |                 |                       |             |            |               |          |                  |             |
+| Cledara                                                                        | ❌           | ❌    | ❌           | ❌              | ✅ (tarjetas)         | ✅          | ✅ (UK)    | ?             | ?        | ?                | ?           |
+| Spendbase (.app)                                                               | ✅           | ❌    | ❌           | ❌              | ❌                    | ✅          | ?          | ?             | ?        | ?                | ?           |
+| Ramp                                                                           | ❌           | ❌    | ❌           | ❌              | ✅ (OCR)              | ✅          | ❌ (US)    | ?             | ?        | ?                | ?           |
+| Brex                                                                           | ❌           | ❌    | ❌           | ❌              | ✅ (IA)               | ✅          | ❌ (US)    | ?             | ?        | ?                | ?           |
+| Payhawk                                                                        | ❌           | ❌    | ❌           | ❌              | ?                     | ✅          | ✅ (UE)    | ?             | ?        | ?                | ?           |
+| Vertice                                                                        | ❌           | ❌    | ❌           | ❌              | ?                     | ✅          | ✅ (UK)    | ?             | ?        | ?                | ?           |
+| Zluri                                                                          | ❌           | ❌    | ❌           | ❌              | ?                     | ✅          | ?          | ?             | ?        | ?                | ?           |
+| **Objetivo (no verificado, es nuestra propuesta)**                             |              |       |              |                 |                       |             |            |               |          |                  |             |
+| Suscripta                                                                      | ✅           | ✅    | ✅           | ✅              | ✅                    | ✅          | ✅         | ✅            | ✅       | ✅ (por diseño)  | ✅          |
 
 **Lectura de la matriz.** Ninguna fila verificada combina **IMAP genérico** + **descubrimiento
 automático** + **enfoque autónomo/pyme** + **España/UE**. Las nativas de correo se concentran
@@ -382,6 +382,7 @@ semanas" y requiere completar antes la verificación de marca. Por eso muchos co
 pequeños usan **reenvío de correo** en lugar de OAuth de buzón.
 
 **E. Cómo lo enmarcan los competidores (privacidad como marketing).**
+
 - **Track-Subs:** solo lectura "aplicada a nivel de API por Google y Microsoft"; enumera
   exactamente qué lee y qué **no** lee.
 - **Unbilled:** responsable en la UE (Chipre); mapeo del art. 6; ofrece **reenvío** e
@@ -391,6 +392,7 @@ pequeños usan **reenvío de correo** en lugar de OAuth de buzón.
 - **Cledara:** política de privacidad empresarial con contacto de DPO.
 
 **Implicaciones prácticas para el producto:**
+
 1. Ofrecer **reenvío + IMAP/OAuth** para que el usuario elija.
 2. Documentar una **base jurídica del art. 6** clara y una política de **minimización y
    retención**.

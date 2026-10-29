@@ -12,15 +12,15 @@ del producto está en [docs/PRODUCT.md](docs/PRODUCT.md).
 
 ## Estado
 
-| | |
-|---|---|
-| Fases del roadmap | **0 a 25 cerradas** (ver [docs/ROADMAP.md](docs/ROADMAP.md)) |
-| Pendiente | Ninguna fase planificada. Queda la deuda técnica conocida del roadmap y tres preguntas de negocio |
-| Tests | **1 609** (unitarios y funcionales), 6 464 aserciones, todos en verde |
-| Análisis estático | PHPStan **nivel 8**, sin errores |
-| PHP / Symfony | PHP **8.5**, Symfony **8.1** |
-| API pública | `/api/v1`, 13 rutas, OpenAPI en `/api/doc` |
-| Cobros | Checkout con Stripe y webhook idempotente (`/facturacion`) |
+|                   |                                                                                                   |
+| ----------------- | ------------------------------------------------------------------------------------------------- |
+| Fases del roadmap | **0 a 25 cerradas** (ver [docs/ROADMAP.md](docs/ROADMAP.md))                                      |
+| Pendiente         | Ninguna fase planificada. Queda la deuda técnica conocida del roadmap y tres preguntas de negocio |
+| Tests             | **1 609** (unitarios y funcionales), 6 464 aserciones, todos en verde                             |
+| Análisis estático | PHPStan **nivel 8**, sin errores                                                                  |
+| PHP / Symfony     | PHP **8.5**, Symfony **8.1**                                                                      |
+| API pública       | `/api/v1`, 13 rutas, OpenAPI en `/api/doc`                                                        |
+| Cobros            | Checkout con Stripe y webhook idempotente (`/facturacion`)                                        |
 
 ## Qué hace
 
@@ -28,7 +28,7 @@ del producto está en [docs/PRODUCT.md](docs/PRODUCT.md).
    por remitente, asunto y adjuntos antes de gastar un céntimo en analizar.
 2. **Extrae los datos de la factura** en capas: primero reglas y parsers deterministas, luego
    conocimiento de proveedores, y solo si hace falta IA —con presupuesto y consentimiento—.
-3. **Propone un servicio** y te enseña *por qué* lo propone (las señales que han coincidido).
+3. **Propone un servicio** y te enseña _por qué_ lo propone (las señales que han coincidido).
    Tú confirmas; el sistema no da de alta nada a tus espaldas.
 4. **Vigila a partir de ahí**: historial de precios, subidas, renovaciones, próximos cobros,
    duplicados y servicios dormidos.
@@ -41,11 +41,11 @@ del producto está en [docs/PRODUCT.md](docs/PRODUCT.md).
 Las capturas están tomadas con la cuenta de demostración (`make up`, `bin/console app:demo:seed`)
 sobre datos reales del pipeline, no con maquetas.
 
-| Panel | Propuestas |
-|---|---|
-| ![Panel](docs/img/dashboard.png) | ![Propuestas](docs/img/discoveries.png) |
-| **Servicios** | **Avisos** |
-| ![Servicios](docs/img/services.png) | ![Avisos](docs/img/alerts.png) |
+| Panel                               | Propuestas                              |
+| ----------------------------------- | --------------------------------------- |
+| ![Panel](docs/img/dashboard.png)    | ![Propuestas](docs/img/discoveries.png) |
+| **Servicios**                       | **Avisos**                              |
+| ![Servicios](docs/img/services.png) | ![Avisos](docs/img/alerts.png)          |
 
 Y la web que vende el producto, en `/precios`:
 
@@ -61,17 +61,17 @@ make up            # construye si hace falta, levanta y espera a que esté sano
 make migrate       # aplica las 23 migraciones
 ```
 
-Abre **https://localhost** y acepta el certificado autofirmado. El resto de órdenes está en
+Abre `https://localhost` y acepta el certificado autofirmado. El resto de órdenes está en
 `make help`:
 
-| Orden | Qué hace |
-|---|---|
-| `make up` / `make down` | Levanta / detiene el entorno |
-| `make logs` / `make sh` | Sigue los logs / abre una shell en el contenedor |
-| `make db-reset` | Recrea la base de datos con migraciones y fixtures |
-| `make migrate` / `make migration` | Aplica / genera migraciones |
-| `make test` | Suite completa |
-| `make qa` | Estilo + PHPStan + tests (lo que corre la CI) |
+| Orden                             | Qué hace                                           |
+| --------------------------------- | -------------------------------------------------- |
+| `make up` / `make down`           | Levanta / detiene el entorno                       |
+| `make logs` / `make sh`           | Sigue los logs / abre una shell en el contenedor   |
+| `make db-reset`                   | Recrea la base de datos con migraciones y fixtures |
+| `make migrate` / `make migration` | Aplica / genera migraciones                        |
+| `make test`                       | Suite completa                                     |
+| `make qa`                         | Estilo + PHPStan + tests (lo que corre la CI)      |
 
 Sin `make`: `docker compose up -d --wait` y luego
 `docker compose exec php bin/console doctrine:migrations:migrate -n`.
@@ -98,19 +98,19 @@ curl -H "Authorization: Bearer sk_tuClave" https://localhost/api/v1/services
 
 ## Documentación
 
-| Documento | Contenido |
-|---|---|
-| [docs/PRODUCT.md](docs/PRODUCT.md) | Problema, usuario, propuesta de valor, funcionalidades, qué **no** es el producto. |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Módulos, dominio, pipeline de análisis (§13), multi-tenancy, API (§17). |
-| [docs/DECISIONS.md](docs/DECISIONS.md) | Las decisiones y **por qué**, con las alternativas descartadas. |
-| [docs/ROADMAP.md](docs/ROADMAP.md) | Las 26 fases (0–25), qué se entregó en cada una, la deuda técnica y las preguntas abiertas. |
-| [docs/SECURITY.md](docs/SECURITY.md) | Modelo de amenazas, acceso al correo, credenciales, RGPD. |
-| [docs/operations.md](docs/operations.md) | Runbook: despliegue, copias, restauración, incidentes. |
-| [docs/deployment.md](docs/deployment.md) | **Desplegar en producción**, paso a paso, con verificación. |
-| [docs/COMPETITORS.md](docs/COMPETITORS.md) | Alternativas del mercado y el hueco que ocupa Suscripta. |
-| [CHANGELOG.md](CHANGELOG.md) | Qué cambió en cada versión (Keep a Changelog). |
-| [docs/LEARNING.md](docs/LEARNING.md) | Especificación de origen del pipeline: el encargo, no el diseño. |
-| [docs/agents.md](docs/agents.md) | Cómo trabajan los agentes de IA en este repositorio. |
+| Documento                                    | Contenido                                                                                   |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| [docs/PRODUCT.md](docs/PRODUCT.md)           | Problema, usuario, propuesta de valor, funcionalidades, qué **no** es el producto.          |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Módulos, dominio, pipeline de análisis (§13), multi-tenancy, API (§17).                     |
+| [docs/DECISIONS.md](docs/DECISIONS.md)       | Las decisiones y **por qué**, con las alternativas descartadas.                             |
+| [docs/ROADMAP.md](docs/ROADMAP.md)           | Las 26 fases (0–25), qué se entregó en cada una, la deuda técnica y las preguntas abiertas. |
+| [docs/SECURITY.md](docs/SECURITY.md)         | Modelo de amenazas, acceso al correo, credenciales, RGPD.                                   |
+| [docs/operations.md](docs/operations.md)     | Runbook: despliegue, copias, restauración, incidentes.                                      |
+| [docs/deployment.md](docs/deployment.md)     | **Desplegar en producción**, paso a paso, con verificación.                                 |
+| [docs/COMPETITORS.md](docs/COMPETITORS.md)   | Alternativas del mercado y el hueco que ocupa Suscripta.                                    |
+| [CHANGELOG.md](CHANGELOG.md)                 | Qué cambió en cada versión (Keep a Changelog).                                              |
+| [docs/LEARNING.md](docs/LEARNING.md)         | Especificación de origen del pipeline: el encargo, no el diseño.                            |
+| [docs/agents.md](docs/agents.md)             | Cómo trabajan los agentes de IA en este repositorio.                                        |
 
 ## Cómo está construido
 
@@ -133,7 +133,7 @@ entorno que usa este proyecto.
 
 ---
 
-# Symfony Docker (infraestructura)
+## Symfony Docker (infraestructura)
 
 A [Docker](https://www.docker.com/)-based installer and runtime for the [Symfony](https://symfony.com) web framework,
 with [FrankenPHP](https://frankenphp.dev) and [Caddy](https://caddyserver.com/) inside!
@@ -144,7 +144,7 @@ against a local or a remote model, with an optional network sandbox.
 
 ![CI](https://github.com/dunglas/symfony-docker/workflows/CI/badge.svg)
 
-## Features
+### Features
 
 - Production, development and CI ready
 - Just 1 service by default
@@ -163,7 +163,7 @@ against a local or a remote model, with an optional network sandbox.
 
 **Enjoy!**
 
-## Docs
+### Docs
 
 1. [Options available](docs/options.md)
 2. [Using Symfony Docker with an existing project](docs/existing-project.md)
@@ -178,10 +178,10 @@ against a local or a remote model, with an optional network sandbox.
 11. [Troubleshooting](docs/troubleshooting.md)
 12. [Using AI coding agents](docs/agents.md)
 
-## License
+### License
 
 Symfony Docker is available under the MIT License.
 
-## Credits
+### Credits
 
 Created by [Kévin Dunglas](https://dunglas.dev), co-maintained by [Maxime Helias](https://twitter.com/maxhelias) and sponsored by [Les-Tilleuls.coop](https://les-tilleuls.coop).

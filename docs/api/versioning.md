@@ -31,16 +31,16 @@ exactamente esto:
 
 Una regla práctica para tu cliente:
 
-| Cambio | ¿Incompatible? |
-|---|---|
-| Un campo nuevo aparece en una respuesta | No |
-| Un campo opcional nuevo en un cuerpo de entrada | No |
-| Un valor nuevo en un enum | No |
-| Un campo existente cambia de nombre o de tipo | **Sí** |
-| Un campo existente deja de ser opcional | **Sí** |
-| Un campo existente desaparece | **Sí** |
-| Un código de error cambia de significado | **Sí** |
-| Aparece un campo obligatorio en el cuerpo de entrada | **Sí** |
+| Cambio                                               | ¿Incompatible? |
+| ---------------------------------------------------- | -------------- |
+| Un campo nuevo aparece en una respuesta              | No             |
+| Un campo opcional nuevo en un cuerpo de entrada      | No             |
+| Un valor nuevo en un enum                            | No             |
+| Un campo existente cambia de nombre o de tipo        | **Sí**         |
+| Un campo existente deja de ser opcional              | **Sí**         |
+| Un campo existente desaparece                        | **Sí**         |
+| Un código de error cambia de significado             | **Sí**         |
+| Aparece un campo obligatorio en el cuerpo de entrada | **Sí**         |
 
 Si tu cliente **falla** cuando ve un campo que no conoce, no es un problema del servidor: es
 un cliente que no cumple la regla de "ignorar lo desconocido". Arregla el cliente.

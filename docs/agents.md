@@ -28,11 +28,7 @@ There is no official Dev Container feature for OpenCode yet, so install the CLI 
   "postCreateCommand": "npm install -g intelephense && curl -fsSL https://opencode.ai/install | bash",
   "customizations": {
     "vscode": {
-      "extensions": [
-        "sst-dev.opencode",
-        "bmewburn.vscode-intelephense-client",
-        "xdebug.php-debug",
-      ],
+      "extensions": ["sst-dev.opencode", "bmewburn.vscode-intelephense-client", "xdebug.php-debug"],
     },
   },
 }

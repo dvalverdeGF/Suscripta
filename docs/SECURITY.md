@@ -104,12 +104,12 @@ superficie de riesgo:
 se aplica en cascada y se detiene en cuanto hay suficiente confianza (ver `ARCHITECTURE.md`
 §4.11 y el pipeline completo en §13):
 
-| Capa | Datos que salen del sistema |
-|---|---|
-| 1. Determinista (cabeceras, metadatos, texto embebido) | No |
-| 2. Reglas (patrones de proveedor, plantillas, importes, periodicidad) | No |
-| 3. OCR (solo documentos sin capa de texto) | No |
-| 4. IA (solo si las anteriores no alcanzan el umbral) | **Sí, si el proveedor es externo** |
+| Capa                                                                  | Datos que salen del sistema        |
+| --------------------------------------------------------------------- | ---------------------------------- |
+| 1. Determinista (cabeceras, metadatos, texto embebido)                | No                                 |
+| 2. Reglas (patrones de proveedor, plantillas, importes, periodicidad) | No                                 |
+| 3. OCR (solo documentos sin capa de texto)                            | No                                 |
+| 4. IA (solo si las anteriores no alcanzan el umbral)                  | **Sí, si el proveedor es externo** |
 
 Las capas 1–3 se ejecutan **siempre en nuestra infraestructura**. La capa 4 es la única que
 puede implicar transferencia a un tercero, y solo con consentimiento explícito.
@@ -128,7 +128,7 @@ puede implicar transferencia a un tercero, y solo con consentimiento explícito.
 - Antes de enviar contenido se aplica **minimización y redacción**:
   - se elimina el HTML innecesario y se conserva el texto;
   - se eliminan firmas, avisos legales y pies de página;
-  - se eliminan píxeles de seguimiento y enlaces de *tracking*;
+  - se eliminan píxeles de seguimiento y enlaces de _tracking_;
   - se elimina contenido irrelevante (hilos citados, navegación, publicidad);
   - se limita la longitud del texto enviado;
   - se extrae el texto útil del PDF en lugar de enviar el binario;
@@ -169,7 +169,7 @@ económica.
   alcanzarlo **no se hacen más llamadas**: el pipeline continúa por reglas y los mensajes
   afectados quedan en `DEFERRED`. El guard se comprueba **antes** de cada llamada.
 - **Nunca hay llamadas ilimitadas durante una sincronización.** El transporte `ai` tiene
-  concurrencia limitada y *rate limit* propio.
+  concurrencia limitada y _rate limit_ propio.
 - **Caché por `contentHash`.** Antes de cualquier llamada se comprueba si ya existe una
   extracción válida para ese contenido. Un reintento, una resincronización o un mensaje
   duplicado **no consumen IA de nuevo** (D-37).
@@ -182,7 +182,7 @@ económica.
 - **Doctrine Filter** obligatorio que añade el filtro de organización a toda consulta.
 - El `organization_id` se deriva siempre de la sesión autenticada, **nunca** de parámetros de
   la petición.
-- Los mensajes de Messenger llevan el `organizationId` en un *stamp*; el handler lo restaura
+- Los mensajes de Messenger llevan el `organizationId` en un _stamp_; el handler lo restaura
   en el `TenantContext` y falla si no hay tenant válido.
 - **Tests de aislamiento obligatorios** en CI: un usuario de la organización A no puede leer,
   modificar ni borrar datos de la organización B, ni siquiera conociendo el UUID.
@@ -194,32 +194,32 @@ económica.
 **Tres categorías de datos, con políticas distintas.** La separación es deliberada y forma
 parte del diseño:
 
-| Categoría | Qué contiene | Sensibilidad |
-|---|---|---|
-| **Correo** | `EmailAccount`, `EmailMessage`, cursores, extractos de cuerpo | Alta: comunicaciones de terceros |
-| **Documentos** | `Document` (adjuntos y ficheros conservados) | Alta: contenido financiero |
-| **Datos estructurados** | `Service`, `ServicePrice`, `Invoice`, `Discovery`, `Alert` | Media: datos del negocio del usuario |
+| Categoría                      | Qué contiene                                                             | Sensibilidad                                                 |
+| ------------------------------ | ------------------------------------------------------------------------ | ------------------------------------------------------------ |
+| **Correo**                     | `EmailAccount`, `EmailMessage`, cursores, extractos de cuerpo            | Alta: comunicaciones de terceros                             |
+| **Documentos**                 | `Document` (adjuntos y ficheros conservados)                             | Alta: contenido financiero                                   |
+| **Datos estructurados**        | `Service`, `ServicePrice`, `Invoice`, `Discovery`, `Alert`               | Media: datos del negocio del usuario                         |
 | **Metadatos de procesamiento** | `MessageProcessingEvent`, `MailboxKnowledgeEntry`, `AiUsage`, `AiBudget` | Media: revelan patrones del buzón y proveedores de IA usados |
 
 El correo y los documentos son **evidencia temporal**; los datos estructurados son **el
 producto**. Por eso el correo se purga antes y los servicios confirmados sobreviven a la
 desconexión del buzón.
 
-| Dato | Retención por defecto | Eliminación |
-|---|---|---|
-| Credenciales de correo | Mientras la cuenta esté conectada | Borrado inmediato al desconectar |
-| Metadatos de mensajes (`EmailMessage`) | 365 días (configurable) | Purga programada |
-| Extracto de cuerpo (`bodyExcerpt`) | Solo mientras exista un descubrimiento pendiente | Borrado al resolver el descubrimiento |
-| Documentos | Hasta que el usuario los borre | Soft delete + purga física a los 30 días |
-| Facturas | Mientras exista el servicio | Cascada al borrar el servicio |
-| Descubrimientos ignorados | 90 días | Purga programada |
-| Alertas resueltas | 365 días | Purga programada |
-| `AuditLog` | 730 días | Purga programada (append-only hasta entonces) |
-| `MessageProcessingEvent` | 365 días | Purga programada |
-| `MailboxKnowledgeEntry` | Mientras la cuenta esté conectada | Borrado al desconectar la cuenta; poda a los 365 días por `lastUsedAt` |
-| `AiUsage` | 730 días | Purga programada (agregado anonimizado se conserva para métricas) |
-| Caché de extracción | 30 días | Purga programada |
-| `AiBudget` | Mientras exista la organización | Cascada al borrar la organización |
+| Dato                                   | Retención por defecto                            | Eliminación                                                            |
+| -------------------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------- |
+| Credenciales de correo                 | Mientras la cuenta esté conectada                | Borrado inmediato al desconectar                                       |
+| Metadatos de mensajes (`EmailMessage`) | 365 días (configurable)                          | Purga programada                                                       |
+| Extracto de cuerpo (`bodyExcerpt`)     | Solo mientras exista un descubrimiento pendiente | Borrado al resolver el descubrimiento                                  |
+| Documentos                             | Hasta que el usuario los borre                   | Soft delete + purga física a los 30 días                               |
+| Facturas                               | Mientras exista el servicio                      | Cascada al borrar el servicio                                          |
+| Descubrimientos ignorados              | 90 días                                          | Purga programada                                                       |
+| Alertas resueltas                      | 365 días                                         | Purga programada                                                       |
+| `AuditLog`                             | 730 días                                         | Purga programada (append-only hasta entonces)                          |
+| `MessageProcessingEvent`               | 365 días                                         | Purga programada                                                       |
+| `MailboxKnowledgeEntry`                | Mientras la cuenta esté conectada                | Borrado al desconectar la cuenta; poda a los 365 días por `lastUsedAt` |
+| `AiUsage`                              | 730 días                                         | Purga programada (agregado anonimizado se conserva para métricas)      |
+| Caché de extracción                    | 30 días                                          | Purga programada                                                       |
+| `AiBudget`                             | Mientras exista la organización                  | Cascada al borrar la organización                                      |
 
 Los plazos **no son constantes**: viven en `config/packages/privacy.yaml` y se interpretan en
 `PrivacySettings`, porque cambiarlos es una decisión de producto y de cumplimiento, no de
@@ -274,7 +274,7 @@ secretos ni contenido de correo.
   `document_upload`, `email_account` y `privacy_export`.
 - **Cabeceras:** las aplica `SecurityHeadersListener` en cada respuesta:
   - `Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-…'; frame-ancestors
-    'none'; object-src 'none'; form-action 'self'; base-uri 'self'` — **sin `unsafe-inline`**:
+'none'; object-src 'none'; form-action 'self'; base-uri 'self'` — **sin `unsafe-inline`**:
     cada respuesta lleva un nonce aleatorio que la plantilla lee con `csp_nonce()`.
   - `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
     `Referrer-Policy: strict-origin-when-cross-origin`,

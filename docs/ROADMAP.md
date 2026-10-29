@@ -10,8 +10,8 @@
 El orden propuesto en el encargo original se ha ajustado por cuatro motivos:
 
 1. **La vertical end-to-end va antes que la profundidad horizontal.** El producto se valida
-   demostrando la cadena completa *conectar correo → encontrar factura → proponer servicio →
-   confirmar → ver próximos costes*, no acumulando funcionalidades auxiliares. Esa vertical es
+   demostrando la cadena completa _conectar correo → encontrar factura → proponer servicio →
+   confirmar → ver próximos costes_, no acumulando funcionalidades auxiliares. Esa vertical es
    la **fase 3**, no la fase 10. Ver `PRODUCT.md` §3.2.
 2. **El historial de precios es un requisito de modelo de datos, no una funcionalidad tardía.**
    Si el precio se implementa como campo mutable, migrarlo después es costoso. Se implementa
@@ -42,57 +42,57 @@ en su apartado correspondiente.
 
 ### Mapa de la documentación
 
-| Documento | Para qué |
-|---|---|
-| [`PRODUCT.md`](PRODUCT.md) | Qué es el producto, para quién y qué problema resuelve. |
-| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Cómo está construido, módulo por módulo. §17 = la API, §18 = los webhooks, §19 = la web, §20 = los cobros, §21 = el CSRF. |
-| [`DECISIONS.md`](DECISIONS.md) | Por qué se hizo así. D-71 y D-72 = la API; D-73 a D-76 = los webhooks; D-77 = la guarda anti-SSRF; D-78 y D-79 = la suscripción como entidad propia; D-80 a D-82 = el catálogo comercial; D-83 a D-85 = la web; D-86 a D-90 = los cobros; D-91 = el CSRF unificado. |
-| [`ROADMAP.md`](ROADMAP.md) | Este documento: qué está hecho y qué falta. |
-| [`SECURITY.md`](SECURITY.md) | Modelo de amenazas y medidas. |
-| [`operations.md`](operations.md) | Runbook del día a día: desplegar, copiar, restaurar, vigilar. |
-| [`deployment.md`](deployment.md) | El **primer** despliegue en producción, paso a paso. |
-| [`../CHANGELOG.md`](../CHANGELOG.md) | Qué cambió en cada fase (Keep a Changelog). |
-| [`operations.md`](operations.md) | Runbook: despliegue, backups, restauración, incidentes. |
-| [`api/README.md`](api/README.md) | **Guía de integración de la API**, de cero a la primera llamada. |
-| [`api/errors.md`](api/errors.md) | Catálogo de errores: cada código, cuándo y qué hacer. |
-| [`api/versioning.md`](api/versioning.md) | Qué es la versión estable y qué garantiza. |
-| [`api/webhooks.md`](api/webhooks.md) | **Webhooks de salida**: contrato, firma, reintentos e idempotencia. |
-| [`api/deprecation.md`](api/deprecation.md) | Política de deprecación. |
-| [`LEARNING.md`](LEARNING.md) | Lo aprendido en cada fase, para no repetir errores. |
-| [`agents.md`](agents.md) | Cómo trabajan los agentes de IA en este proyecto. |
-| [`COMPETITORS.md`](COMPETITORS.md) | Alternativas del mercado y cómo se diferencia esto. |
-| [`PROMPT.md`](PROMPT.md) | El encargo original, para contexto. |
+| Documento                                  | Para qué                                                                                                                                                                                                                                                            |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`PRODUCT.md`](PRODUCT.md)                 | Qué es el producto, para quién y qué problema resuelve.                                                                                                                                                                                                             |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md)       | Cómo está construido, módulo por módulo. §17 = la API, §18 = los webhooks, §19 = la web, §20 = los cobros, §21 = el CSRF.                                                                                                                                           |
+| [`DECISIONS.md`](DECISIONS.md)             | Por qué se hizo así. D-71 y D-72 = la API; D-73 a D-76 = los webhooks; D-77 = la guarda anti-SSRF; D-78 y D-79 = la suscripción como entidad propia; D-80 a D-82 = el catálogo comercial; D-83 a D-85 = la web; D-86 a D-90 = los cobros; D-91 = el CSRF unificado. |
+| [`ROADMAP.md`](ROADMAP.md)                 | Este documento: qué está hecho y qué falta.                                                                                                                                                                                                                         |
+| [`SECURITY.md`](SECURITY.md)               | Modelo de amenazas y medidas.                                                                                                                                                                                                                                       |
+| [`operations.md`](operations.md)           | Runbook del día a día: desplegar, copiar, restaurar, vigilar.                                                                                                                                                                                                       |
+| [`deployment.md`](deployment.md)           | El **primer** despliegue en producción, paso a paso.                                                                                                                                                                                                                |
+| [`../CHANGELOG.md`](../CHANGELOG.md)       | Qué cambió en cada fase (Keep a Changelog).                                                                                                                                                                                                                         |
+| [`operations.md`](operations.md)           | Runbook: despliegue, backups, restauración, incidentes.                                                                                                                                                                                                             |
+| [`api/README.md`](api/README.md)           | **Guía de integración de la API**, de cero a la primera llamada.                                                                                                                                                                                                    |
+| [`api/errors.md`](api/errors.md)           | Catálogo de errores: cada código, cuándo y qué hacer.                                                                                                                                                                                                               |
+| [`api/versioning.md`](api/versioning.md)   | Qué es la versión estable y qué garantiza.                                                                                                                                                                                                                          |
+| [`api/webhooks.md`](api/webhooks.md)       | **Webhooks de salida**: contrato, firma, reintentos e idempotencia.                                                                                                                                                                                                 |
+| [`api/deprecation.md`](api/deprecation.md) | Política de deprecación.                                                                                                                                                                                                                                            |
+| [`LEARNING.md`](LEARNING.md)               | Lo aprendido en cada fase, para no repetir errores.                                                                                                                                                                                                                 |
+| [`agents.md`](agents.md)                   | Cómo trabajan los agentes de IA en este proyecto.                                                                                                                                                                                                                   |
+| [`COMPETITORS.md`](COMPETITORS.md)         | Alternativas del mercado y cómo se diferencia esto.                                                                                                                                                                                                                 |
+| [`PROMPT.md`](PROMPT.md)                   | El encargo original, para contexto.                                                                                                                                                                                                                                 |
 
 ### Tabla de fases
 
-| Fase | Nombre | Estado | Commit | Verificación al cerrar |
-|---|---|---|---|---|
-| 0 | Base del proyecto | ✅ Completada | `c0918df` | Suite + CI + `schema:validate` en verde |
-| 1 | Identidad y multi-tenancy | ✅ Completada | `cd1bed8` | Registro, verificación, aislamiento por organización |
-| 2 | Servicios manuales (mínimo del dominio) | ✅ Completada | `56cef50` | Alta, edición y baja de servicios |
-| 3 | Vertical end-to-end (walking skeleton) ⭐ | ✅ Completada | `1237f46` | *conectar correo → factura → propuesta → confirmar → costes* |
-| 4 | Dashboard completo | ✅ Completada | `9f07abd` | Costes por categoría, ranking, ventanas de cobro |
-| 5 | Historial de precios y cambios | ✅ Completada | `180dc7f` | Variaciones y evolución del gasto |
-| 6 | Renovaciones, alertas y notificaciones | ✅ Completada | `2d7cb11` | Avisos, canales y preferencias |
-| 7 | Documentos | ✅ Completada | `4957339` | Carga, deduplicación, almacenamiento |
-| 8 | Conexión de correo completa (IMAP y reenvío) | ✅ Completada | `373032d` | Sincronización incremental, multi-proveedor |
-| 9 | Pipeline: ingesta, metadatos, filtros y billing score | ✅ Completada | `926896d` | Niveles 0–2 con métricas |
-| 10 | Extracción determinista y conocimiento de proveedores | ✅ Completada | `3fd535c` | Niveles 3–4 sin IA |
-| 11 | IA económica y avanzada con validación | ✅ Completada | `3c08714` | Niveles 5–7 con panel de integraciones |
-| 12 | Service matching y descubrimientos | ✅ Completada | `920fc0e` | Emparejamiento, recurrencia, deduplicación |
-| 13 | Aprendizaje del buzón | ✅ Completada | `9f2dfee` | Perfil del buzón y aprendizaje |
-| 14 | Control de coste de IA y observabilidad | ✅ Completada | `d7a13bc` | Microcéntimos y límites por organización |
-| 15 | Detección de cambios | ✅ Completada | `1db3473` | Hechos e inferencias con confianza |
-| 16 | Hardening de seguridad y RGPD | ✅ Completada | `a035a36` | Retención, privacidad, exportación y borrado |
-| 17 | Preparación SaaS | ✅ Completada | `9504ff6` | 1385 tests, planes, cuotas, onboarding, backups |
-| 18 | API pública | ✅ Completada | `d840174` + `ffa7127` | 15 casos E2E y **35 tests** de API en verde; 6 defectos corregidos |
-| 19 | Cierre de documentación y publicación | ✅ Completada | `5821de0` | README de producto, CHANGELOG por fase, guía de despliegue, 1 420 tests |
-| 20 | Webhooks de salida | ✅ Completada | `bd646a8` | 29 tests nuevos; firma HMAC, 8 envíos, panel con prueba |
-| 21 | `Subscription` como entidad propia | ✅ Completada | `4c71499` | Servicios y suscripciones como listas distintas |
-| 22 | Catálogo comercial en el backoffice | ✅ Completada | `5e983b0` | Un plan con dos precios publicado sin desplegar |
-| 23 | Web corporativa (11 páginas) | ✅ Completada | `bb643c4` | Once páginas sin sesión, precios desde el catálogo, contacto con correo real |
-| 24 | Checkout con Stripe | ✅ Completada | `5b32389` | 53 tests nuevos, 4 defectos de producción corregidos; cobro, webhook idempotente y conciliación |
-| 25 | CSRF unificado con el gestor de sesión | ✅ Completada | `a5b1207` | Un solo mecanismo; 6 tests nuevos y la receta sin estado eliminada |
+| Fase | Nombre                                                | Estado        | Commit                | Verificación al cerrar                                                                          |
+| ---- | ----------------------------------------------------- | ------------- | --------------------- | ----------------------------------------------------------------------------------------------- |
+| 0    | Base del proyecto                                     | ✅ Completada | `c0918df`             | Suite + CI + `schema:validate` en verde                                                         |
+| 1    | Identidad y multi-tenancy                             | ✅ Completada | `cd1bed8`             | Registro, verificación, aislamiento por organización                                            |
+| 2    | Servicios manuales (mínimo del dominio)               | ✅ Completada | `56cef50`             | Alta, edición y baja de servicios                                                               |
+| 3    | Vertical end-to-end (walking skeleton) ⭐             | ✅ Completada | `1237f46`             | _conectar correo → factura → propuesta → confirmar → costes_                                    |
+| 4    | Dashboard completo                                    | ✅ Completada | `9f07abd`             | Costes por categoría, ranking, ventanas de cobro                                                |
+| 5    | Historial de precios y cambios                        | ✅ Completada | `180dc7f`             | Variaciones y evolución del gasto                                                               |
+| 6    | Renovaciones, alertas y notificaciones                | ✅ Completada | `2d7cb11`             | Avisos, canales y preferencias                                                                  |
+| 7    | Documentos                                            | ✅ Completada | `4957339`             | Carga, deduplicación, almacenamiento                                                            |
+| 8    | Conexión de correo completa (IMAP y reenvío)          | ✅ Completada | `373032d`             | Sincronización incremental, multi-proveedor                                                     |
+| 9    | Pipeline: ingesta, metadatos, filtros y billing score | ✅ Completada | `926896d`             | Niveles 0–2 con métricas                                                                        |
+| 10   | Extracción determinista y conocimiento de proveedores | ✅ Completada | `3fd535c`             | Niveles 3–4 sin IA                                                                              |
+| 11   | IA económica y avanzada con validación                | ✅ Completada | `3c08714`             | Niveles 5–7 con panel de integraciones                                                          |
+| 12   | Service matching y descubrimientos                    | ✅ Completada | `920fc0e`             | Emparejamiento, recurrencia, deduplicación                                                      |
+| 13   | Aprendizaje del buzón                                 | ✅ Completada | `9f2dfee`             | Perfil del buzón y aprendizaje                                                                  |
+| 14   | Control de coste de IA y observabilidad               | ✅ Completada | `d7a13bc`             | Microcéntimos y límites por organización                                                        |
+| 15   | Detección de cambios                                  | ✅ Completada | `1db3473`             | Hechos e inferencias con confianza                                                              |
+| 16   | Hardening de seguridad y RGPD                         | ✅ Completada | `a035a36`             | Retención, privacidad, exportación y borrado                                                    |
+| 17   | Preparación SaaS                                      | ✅ Completada | `9504ff6`             | 1385 tests, planes, cuotas, onboarding, backups                                                 |
+| 18   | API pública                                           | ✅ Completada | `d840174` + `ffa7127` | 15 casos E2E y **35 tests** de API en verde; 6 defectos corregidos                              |
+| 19   | Cierre de documentación y publicación                 | ✅ Completada | `5821de0`             | README de producto, CHANGELOG por fase, guía de despliegue, 1 420 tests                         |
+| 20   | Webhooks de salida                                    | ✅ Completada | `bd646a8`             | 29 tests nuevos; firma HMAC, 8 envíos, panel con prueba                                         |
+| 21   | `Subscription` como entidad propia                    | ✅ Completada | `4c71499`             | Servicios y suscripciones como listas distintas                                                 |
+| 22   | Catálogo comercial en el backoffice                   | ✅ Completada | `5e983b0`             | Un plan con dos precios publicado sin desplegar                                                 |
+| 23   | Web corporativa (11 páginas)                          | ✅ Completada | `bb643c4`             | Once páginas sin sesión, precios desde el catálogo, contacto con correo real                    |
+| 24   | Checkout con Stripe                                   | ✅ Completada | `5b32389`             | 53 tests nuevos, 4 defectos de producción corregidos; cobro, webhook idempotente y conciliación |
+| 25   | CSRF unificado con el gestor de sesión                | ✅ Completada | `a5b1207`             | Un solo mecanismo; 6 tests nuevos y la receta sin estado eliminada                              |
 
 **Lectura rápida de la tabla:** las fases 0 a 25 están **cerradas, commiteadas y verificadas**.
 La fase 18 se cerró corrigiendo los seis defectos que aparecieron al verificarla —dos de
@@ -112,7 +112,6 @@ interfaz cambie.
 ## Fase 0 — Base del proyecto
 
 > **Estado:** ✅ **Completada.**
-
 
 **Objetivo:** proyecto Symfony arrancando sobre la infraestructura existente.
 
@@ -136,7 +135,6 @@ interfaz cambie.
 
 > **Estado:** ✅ **Completada.**
 
-
 **Objetivo:** usuarios, organizaciones y aislamiento funcionando.
 
 - Entidades `User`, `Organization`, `Membership`.
@@ -152,7 +150,6 @@ de aislamiento fallan si se desactiva el filtro.
 ## Fase 2 — Servicios manuales (mínimo del dominio)
 
 > **Estado:** ✅ **Completada.**
-
 
 **Objetivo:** el usuario puede inventariar sus servicios a mano, y el modelo de datos queda
 preparado para el descubrimiento automático.
@@ -171,9 +168,8 @@ una nueva fila de historial y un `ServiceEvent`; los cálculos tienen tests unit
 
 > **Estado:** ✅ **Completada.** Vertical IMAP → factura → propuesta → confirmación →
 > dashboard operativa. 326 pruebas, PHPStan nivel 8 y php-cs-fixer en verde. La verificación
-> con un buzón real queda pendiente de credenciales de un proveedor real (ver *Preguntas
-> abiertas* al final de este documento).
-
+> con un buzón real queda pendiente de credenciales de un proveedor real (ver _Preguntas
+> abiertas_ al final de este documento).
 
 **Objetivo:** demostrar la propuesta de valor completa de punta a punta, con la mínima
 cantidad de código posible. **Esta fase es el instrumento de validación del producto**
@@ -206,8 +202,7 @@ Sistema calcula próximos costes
   un número limitado de mensajes.
 - `EmailMessage` con metadatos mínimos (remitente, asunto, fecha, `messageId`, `bodyHash`).
 - **Esqueleto del pipeline** (`ARCHITECTURE.md` §13) en su versión mínima: identidad y
-  deduplicación (nivel 0), metadatos (nivel 1), filtro determinista con `billingScore` (nivel
-  2) y **una** extracción por reglas para los proveedores más comunes (nivel 3). Sin OCR, sin
+  deduplicación (nivel 0), metadatos (nivel 1), filtro determinista con `billingScore` (nivel 2) y **una** extracción por reglas para los proveedores más comunes (nivel 3). Sin OCR, sin
   IA, sin conocimiento de proveedores persistido.
 - **La máquina de estados y `MessageProcessingEvent` se implementan ya en esta fase**, aunque
   solo se usen cuatro estados. Añadirlos después obligaría a reprocesar todo el histórico.
@@ -233,7 +228,6 @@ las fases siguientes sin resolverlo.
 > número fijo de consultas, independiente del número de servicios y de buzones. Las alertas
 > abiertas en portada llegan con la Fase 6, que es donde existen.
 
-
 **Objetivo:** responder a las ocho preguntas del producto (`PRODUCT.md` §3.1).
 
 - Próximos cobros (30/60 días) con totales.
@@ -249,7 +243,6 @@ dominio; consultas sin N+1.
 
 > **Estado:** ✅ **Completada.** El historial es inmutable y la evolución del gasto es
 > histórica: cada mes usa el precio que estaba vigente entonces, no el de hoy.
-
 
 **Objetivo:** hacer visible la evolución del coste.
 
@@ -339,7 +332,7 @@ documento de otra organización; el fichero no es accesible por URL directa.
   no hay ningún `Document.source` que diga de dónde salió. Es además la métrica que mide la
   propuesta de valor (PRODUCT.md §12): qué parte del historial la descubrió el producto.
 - `DocumentStorageInterface` + `LocalDocumentStorage`: clave con particionado
-  `{orgId}/{h[0:2]}/{h[2:4]}/{hash}{ext}` y guarda contra *path traversal* (rechaza `''`, `..`
+  `{orgId}/{h[0:2]}/{h[2:4]}/{hash}{ext}` y guarda contra _path traversal_ (rechaza `''`, `..`
   y `\0`).
 - `UploadDocument`: lista blanca de MIME (pdf, jpeg, png, webp, tiff, plain, csv, xml, zip),
   tope de 20 MB, deduplicación por SHA-256 (devuelve el documento existente con
@@ -366,7 +359,7 @@ documento de otra organización; el fichero no es accesible por URL directa.
   con evento `RENEWED`, importe negativo → 422, importe ausente → 422, periodo invertido → 422,
   filtro por estado, factura desconocida → 404, y el origen (`manual` / `email_discovery`).
 - `tests/Unit/Documents/…`: `DocumentTest` (14), `InvoiceTest` (32), `LocalDocumentStorageTest`
-  (16, con 5 rechazos de *path traversal*), `UploadDocumentTest` (19), `CreateInvoiceTest` (21),
+  (16, con 5 rechazos de _path traversal_), `UploadDocumentTest` (19), `CreateInvoiceTest` (21),
   `DocumentLifecycleTest` (14).
 
 **Fallos reales encontrados y corregidos**
@@ -375,9 +368,9 @@ documento de otra organización; el fichero no es accesible por URL directa.
    `$invoice->attachToDocument($input->documentId)` **antes** de comprobar que el documento
    existía, así que una factura podía quedar apuntando a un documento inexistente. Se corrigió
    resolviendo el documento primero.
-2. **`submitForm()` recibe una *ruta*, no un `UploadedFile`.** `DomCrawler\Form::getPhpFiles()`
+2. **`submitForm()` recibe una _ruta_, no un `UploadedFile`.** `DomCrawler\Form::getPhpFiles()`
    pasa el valor por `http_build_query`, y `FileFormField::setValue(?string)` espera una ruta. En
-   modo coercitivo PHP convertía el objeto a *string* vía `File::__toString()`, es decir, a la
+   modo coercitivo PHP convertía el objeto a _string_ vía `File::__toString()`, es decir, a la
    ruta temporal, y `getClientOriginalName()` devolvía el nombre del fichero temporal. La prueba
    funcional escribía el fichero en un directorio temporal **con el nombre final** y pasaba esa
    ruta. Además `UploadedFile::getMimeType()` **inspecciona el contenido**, así que el fichero de
@@ -386,7 +379,6 @@ documento de otra organización; el fichero no es accesible por URL directa.
 ## Fase 8 — Conexión de correo completa (IMAP y reenvío)
 
 > **Estado:** ✅ Completada.
-
 
 **Objetivo:** ingesta robusta, incremental y multi-proveedor.
 
@@ -466,7 +458,7 @@ descubrimiento**.
    `TransportNamesStamp`. Como `messenger.yaml` no declara `routing:` para ese mensaje —el
    pipeline se enruta explícitamente por mensaje—, Messenger lo trató como síncrono y ejecutó
    todo el pipeline (billing score, extracción, matching) antes de responder. Riesgo de
-   *timeout* y de trabajo duplicado en cada reintento del proveedor. Se corrigió despachando
+   _timeout_ y de trabajo duplicado en cada reintento del proveedor. Se corrigió despachando
    con `[new TransportNamesStamp(['mail_processing'])]` y se añadió una prueba de regresión que
    comprueba que el mensaje queda en estado `RECEIVED`.
 2. **Desconectar no borraba los mensajes ni los cursores.** `SECURITY.md` §6 y esta misma fase
@@ -569,11 +561,9 @@ medible.
    como el puerto de D-31, pero `ProcessEmailMessage` dependía de la clase concreta. Creado y
    aliado.
 
-
 ## Fase 10 — Extracción determinista y conocimiento de proveedores (niveles 3–4)
 
 > **Estado:** ✅ Completada (2026-10-21).
-
 
 **Objetivo:** extraer por código todo lo que sea fiablemente extraíble, y no volver a pagar por
 lo que ya se sabe.
@@ -617,22 +607,22 @@ y no rompe el lote.
 
 **Verificación ejecutada al cerrar la fase:**
 
-| Comprobación | Resultado |
-|---|---|
-| `php bin/phpunit` | ✅ 884 tests, 3582 assertions |
-| `vendor/bin/phpstan analyse --no-progress` | ✅ 0 errores |
-| `vendor/bin/php-cs-fixer fix --dry-run --diff` | ✅ 0 ficheros pendientes |
-| `bin/console lint:container` | ✅ |
-| `bin/console lint:yaml config/ --parse-tags` | ✅ 32 ficheros |
-| `bin/console lint:twig templates/` | ✅ 39 plantillas |
+| Comprobación                                   | Resultado                     |
+| ---------------------------------------------- | ----------------------------- |
+| `php bin/phpunit`                              | ✅ 884 tests, 3582 assertions |
+| `vendor/bin/phpstan analyse --no-progress`     | ✅ 0 errores                  |
+| `vendor/bin/php-cs-fixer fix --dry-run --diff` | ✅ 0 ficheros pendientes      |
+| `bin/console lint:container`                   | ✅                            |
+| `bin/console lint:yaml config/ --parse-tags`   | ✅ 32 ficheros                |
+| `bin/console lint:twig templates/`             | ✅ 39 plantillas              |
 
 **Correcciones relevantes de la fase:**
 
 1. **El número de factura nunca era el número.** `DeterministicExtractor::INVOICE_NUMBER_PATTERN`
    era una alternancia sin grupo de captura de la etiqueta, de modo que `preg_match_all` devolvía
-   la *etiqueta* («Factura», «Invoice», «nº») como si fuera el candidato. El `foreach` que
+   la _etiqueta_ («Factura», «Invoice», «nº») como si fuera el candidato. El `foreach` que
    filtraba los candidatos descartaba ese valor y, como era el único, `invoiceNumber` quedaba
-   `null`. Se añadió una *lookahead* que exige un dígito y se extrajo la lógica a
+   `null`. Se añadió una _lookahead_ que exige un dígito y se extrajo la lógica a
    `InvoiceNumberReader`, que ahora comparten el extractor determinista y los parsers de
    proveedor.
 2. **El PDF escaneado nunca llegaba al OCR.** La fixture de prueba generaba un PDF con capa de
@@ -648,14 +638,13 @@ y no rompe el lote.
    `entrypoint` del contenedor, que es quien siembra. El test siembra ahora el catálogo en su
    `setUp()`.
 5. **Reloj congelado en los tests dependientes de la fecha.** `GenerateAlertsCommandTest` fallaba
-   conforme pasaban los días, porque «un cobro pasado respecto a *ahora*» dejaba de ser cierto.
+   conforme pasaban los días, porque «un cobro pasado respecto a _ahora_» dejaba de ser cierto.
    `tests/Support/FreezesClock.php` sustituye `test.clock` por un `MockClock` y fija el instante
    en el test, de modo que el fallo que aparezca sea siempre un fallo real.
 
 ## Fase 11 — IA económica y avanzada con validación (niveles 5–7)
 
 > **Estado:** ✅ Completada.
-
 
 **Objetivo:** resolver la incertidumbre que las reglas no cubren, **sin que la IA sea el camino
 por defecto** y sin que pueda corromper el dominio.
@@ -721,19 +710,18 @@ no contiene firmas, tracking ni el correo completo.
 
 **Verificación ejecutada al cerrar la fase:**
 
-| Comprobación | Resultado |
-|---|---|
-| `php bin/phpunit` | ✅ 1026 tests, 3927 assertions |
-| `vendor/bin/phpstan analyse --no-progress` | ✅ 0 errores (nivel 8) |
-| `vendor/bin/php-cs-fixer fix --dry-run --diff` | ✅ 0 ficheros pendientes |
-| `bin/console lint:container` | ✅ |
-| `bin/console lint:yaml config/ --parse-tags` | ✅ 32 ficheros |
-| `bin/console lint:twig templates/` | ✅ 42 plantillas |
+| Comprobación                                   | Resultado                      |
+| ---------------------------------------------- | ------------------------------ |
+| `php bin/phpunit`                              | ✅ 1026 tests, 3927 assertions |
+| `vendor/bin/phpstan analyse --no-progress`     | ✅ 0 errores (nivel 8)         |
+| `vendor/bin/php-cs-fixer fix --dry-run --diff` | ✅ 0 ficheros pendientes       |
+| `bin/console lint:container`                   | ✅                             |
+| `bin/console lint:yaml config/ --parse-tags`   | ✅ 32 ficheros                 |
+| `bin/console lint:twig templates/`             | ✅ 42 plantillas               |
 
 ## Fase 12 — Service matching y descubrimientos (nivel 8)
 
 > **Estado:** ✅ Completada.
-
 
 **Objetivo:** decidir a qué servicio pertenece un documento, **sin crear servicios
 automáticamente**.
@@ -805,19 +793,18 @@ proponerlo; el flujo completo funciona sin tocar la base de datos a mano.
 
 **Verificación ejecutada al cerrar la fase:**
 
-| Comprobación | Resultado |
-|---|---|
-| `php bin/phpunit` | ✅ 1095 tests, 4171 assertions |
-| `vendor/bin/phpstan analyse --no-progress` | ✅ 0 errores (nivel 8) |
-| `vendor/bin/php-cs-fixer fix --dry-run --diff` | ✅ 0 ficheros pendientes |
-| `bin/console lint:container` | ✅ |
-| `bin/console lint:yaml config/ --parse-tags` | ✅ 33 ficheros |
-| `bin/console lint:twig templates/` | ✅ 42 plantillas |
+| Comprobación                                   | Resultado                      |
+| ---------------------------------------------- | ------------------------------ |
+| `php bin/phpunit`                              | ✅ 1095 tests, 4171 assertions |
+| `vendor/bin/phpstan analyse --no-progress`     | ✅ 0 errores (nivel 8)         |
+| `vendor/bin/php-cs-fixer fix --dry-run --diff` | ✅ 0 ficheros pendientes       |
+| `bin/console lint:container`                   | ✅                             |
+| `bin/console lint:yaml config/ --parse-tags`   | ✅ 33 ficheros                 |
+| `bin/console lint:twig templates/`             | ✅ 42 plantillas               |
 
 ## Fase 13 — Aprendizaje del buzón
 
 > **Estado:** ✅ Completada.
-
 
 **Objetivo:** que el coste marginal de procesar un buzón **decrezca con el tiempo**.
 
@@ -887,20 +874,18 @@ un buzón no afecta a otro.
 
 **Verificación ejecutada al cerrar la fase:**
 
-| Comprobación | Resultado |
-|---|---|
-| `php bin/phpunit` | ✅ 1168 tests, 4360 assertions |
-| `vendor/bin/phpstan analyse --no-progress` | ✅ 0 errores (nivel 8) |
-| `vendor/bin/php-cs-fixer fix --dry-run --diff` | ✅ 0 ficheros pendientes |
-| `bin/console lint:container` | ✅ |
-| `bin/console lint:yaml config/ --parse-tags` | ✅ |
-| `bin/console lint:twig templates/` | ✅ |
-
+| Comprobación                                   | Resultado                      |
+| ---------------------------------------------- | ------------------------------ |
+| `php bin/phpunit`                              | ✅ 1168 tests, 4360 assertions |
+| `vendor/bin/phpstan analyse --no-progress`     | ✅ 0 errores (nivel 8)         |
+| `vendor/bin/php-cs-fixer fix --dry-run --diff` | ✅ 0 ficheros pendientes       |
+| `bin/console lint:container`                   | ✅                             |
+| `bin/console lint:yaml config/ --parse-tags`   | ✅                             |
+| `bin/console lint:twig templates/`             | ✅                             |
 
 ## Fase 14 — Control de coste de IA y observabilidad
 
 > **Estado:** ✅ Completada.
-
 
 **Objetivo:** que el coste sea **acotado, medible y predecible**. Es requisito para operar con
 IA en producción, no una optimización posterior.
@@ -920,15 +905,15 @@ IA en producción, no una optimización posterior.
 
 **Verificación:** ninguna ruta del pipeline puede hacer llamadas de IA ilimitadas; al agotar el
 presupuesto el sistema sigue procesando por reglas y deja el resto en `DEFERRED`; reprocesar un
-mensaje ya extraído cuesta cero; se puede responder con datos a *"¿cuánto cuesta procesar el
-buzón de este usuario?"* y *"¿cuánto cuesta de IA un usuario medio al mes?"*.
+mensaje ya extraído cuesta cero; se puede responder con datos a _"¿cuánto cuesta procesar el
+buzón de este usuario?"_ y _"¿cuánto cuesta de IA un usuario medio al mes?"_.
 
 ### Qué se entregó
 
 - **Presupuesto** — `AiBudget` (`src/Ai/Domain/Entity/`): una fila por organización y periodo
   (`YYYY-MM`) con el **tope** en céntimos y el **modo** de agotamiento. Persiste **solo la
   política**: el gasto sale siempre del libro mayor `ai_usage` (D-55). `AiBudgetGuard` es el
-  guardián: responde a «¿puedo llamar?», «¿puedo llamar a *este* nivel?» y «¿cuánto queda?».
+  guardián: responde a «¿puedo llamar?», «¿puedo llamar a _este_ nivel?» y «¿cuánto queda?».
 - **Modos** — `AiBudgetMode`: `SOFT` degrada (sigue la IA económica, se apaga el nivel avanzado) y
   `HARD` para (ninguna llamada; los correos que necesitaban IA quedan `DEFERRED` y se reintentan
   otro mes). El modo lo elige la organización, por mes (D-56). Tope por defecto: 500 céntimos
@@ -959,7 +944,7 @@ buzón de este usuario?"* y *"¿cuánto cuesta de IA un usuario medio al mes?"*.
   la barra de presupuesto, el desglose por necesidad y por nivel, la lista de correos aplazados y
   el botón de volver a ponerlos en cola.
 - **Ajustes de presupuesto** — `AiSettingsController` (`/ai`): la pantalla de ajustes de IA
-  incluye el tope (en euros, vacío = sin tope) y el modo, y avisa por *flash* cuando se sube el
+  incluye el tope (en euros, vacío = sin tope) y el modo, y avisa por _flash_ cuando se sube el
   tope y se sueltan los correos aplazados.
 - **Avisos de coste** — `GenerateCostAlerts` genera los avisos `ai_budget_warning` y
   `ai_budget_exceeded`, uno por mes, y **reabre** el aviso que el sistema había resuelto si la
@@ -992,30 +977,29 @@ buzón de este usuario?"* y *"¿cuánto cuesta de IA un usuario medio al mes?"*.
    sincronización, porque hasta que no haya presupuesto no va a poder avanzar. Hacen falta
    `findDeferred()` y `countByState()` en el repositorio, y un camino de liberación aparte.
 6. **La puerta de IA seguía devolviendo `?ExtractedDocument`.** El cambio a `AiExtractionOutcome`
-  (D-57) dejó la interfaz y sus dobles desalineados: la suite entera moría con un error fatal
-  al cargar `RecordingAiExtraction`.
+   (D-57) dejó la interfaz y sus dobles desalineados: la suite entera moría con un error fatal
+   al cargar `RecordingAiExtraction`.
 7. **`ChainResult::hasDocument()` miraba una variable que no existía.** Devolvía siempre `true`,
-  porque la expresión era `null !== $document` en vez de `null !== $this->document`.
+   porque la expresión era `null !== $document` en vez de `null !== $this->document`.
 8. **La suite completa moría de agotamiento de memoria.** Con el límite de 128 MB del contenedor
-  y un pico de ~125 MB, el resultado dependía del orden de los tests. `phpunit.dist.xml` fija
+   y un pico de ~125 MB, el resultado dependía del orden de los tests. `phpunit.dist.xml` fija
    ahora 512 MB.
 
 **Verificación ejecutada al cerrar la fase:**
 
-| Comprobación | Resultado |
-|---|---|
-| `php bin/phpunit` | ✅ 1216 tests, 4591 assertions |
-| `vendor/bin/phpstan analyse --no-progress` | ✅ 0 errores (nivel 8) |
-| `vendor/bin/php-cs-fixer fix --dry-run --diff` | ✅ 0 ficheros pendientes |
-| `bin/console lint:container` | ✅ |
-| `bin/console lint:yaml config/ --parse-tags` | ✅ |
-| `bin/console lint:twig templates/` | ✅ |
-| `bin/console doctrine:schema:validate` | ✅ |
+| Comprobación                                   | Resultado                      |
+| ---------------------------------------------- | ------------------------------ |
+| `php bin/phpunit`                              | ✅ 1216 tests, 4591 assertions |
+| `vendor/bin/phpstan analyse --no-progress`     | ✅ 0 errores (nivel 8)         |
+| `vendor/bin/php-cs-fixer fix --dry-run --diff` | ✅ 0 ficheros pendientes       |
+| `bin/console lint:container`                   | ✅                             |
+| `bin/console lint:yaml config/ --parse-tags`   | ✅                             |
+| `bin/console lint:twig templates/`             | ✅                             |
+| `bin/console doctrine:schema:validate`         | ✅                             |
 
 ## Fase 15 — Detección de cambios
 
 > **Estado:** ✅ Completada.
-
 
 **Objetivo:** detectar lo que ha cambiado y avisar.
 
@@ -1097,19 +1081,18 @@ muestran como sugerencias, no como hechos.
 
 **Verificación ejecutada al cerrar la fase:**
 
-| Comprobación | Resultado |
-|---|---|
-| `php bin/phpunit` | ✅ 1291 tests, 4807 assertions |
-| `vendor/bin/phpstan analyse --no-progress` | ✅ 0 errores (nivel 8) |
-| `vendor/bin/php-cs-fixer fix --dry-run --diff` | ✅ 0 ficheros pendientes |
-| `bin/console lint:container` | ✅ |
-| `bin/console lint:twig templates/` | ✅ |
-| `bin/console doctrine:migrations:status` | ✅ al día en `app` y en `app_test` |
+| Comprobación                                   | Resultado                          |
+| ---------------------------------------------- | ---------------------------------- |
+| `php bin/phpunit`                              | ✅ 1291 tests, 4807 assertions     |
+| `vendor/bin/phpstan analyse --no-progress`     | ✅ 0 errores (nivel 8)             |
+| `vendor/bin/php-cs-fixer fix --dry-run --diff` | ✅ 0 ficheros pendientes           |
+| `bin/console lint:container`                   | ✅                                 |
+| `bin/console lint:twig templates/`             | ✅                                 |
+| `bin/console doctrine:migrations:status`       | ✅ al día en `app` y en `app_test` |
 
 ## Fase 16 — Hardening de seguridad y RGPD
 
 > **Estado:** ✅ Completada.
-
 
 **Objetivo:** cumplir `SECURITY.md` de punta a punta.
 
@@ -1136,11 +1119,11 @@ La política de datos no puede vivir en el módulo que la usa: el borrado de una
 afecta a siete módulos y cada uno sabe cómo tirar sus propias filas. El patrón es el inverso
 del que se suele usar: **el módulo publica un puerto, el agregador lo llama**.
 
-| Puerto | Responsibility |
-|---|---|
+| Puerto                                                         | Responsibility                                      |
+| -------------------------------------------------------------- | --------------------------------------------------- |
 | `Shared/Application/Privacy/OrganizationDataProviderInterface` | Declarar qué datos exporta el módulo y cuántos hay. |
-| `Shared/Application/Privacy/OrganizationDataRemoverInterface` | Declarar cómo borra el módulo sus datos. |
-| `Shared/Application/Privacy/RetentionPurgerInterface` | Declarar cómo purga el módulo según antigüedad. |
+| `Shared/Application/Privacy/OrganizationDataRemoverInterface`  | Declarar cómo borra el módulo sus datos.            |
+| `Shared/Application/Privacy/RetentionPurgerInterface`          | Declarar cómo purga el módulo según antigüedad.     |
 
 Cada módulo implementa los que le tocan (`src/*/Application/Privacy/`) y los agregadores de
 `src/Privacy/Application/` (`ExportOrganizationData`, `DeleteOrganizationData`,
@@ -1183,16 +1166,16 @@ organización»).
 `config/packages/privacy.yaml` declara los plazos **por categoría de dato**, no por módulo, y
 `PrivacySettings` los interpreta. Los plazos:
 
-| Categoría | Plazo | Por qué |
-|---|---|---|
-| Correo (mensajes y eventos) | 365 días | Los metadatos solo sirven para reconstruir el origen de una propuesta. |
-| Documentos (binario) | 30 días | El borrado lógico deja el binario un mes por si el usuario se arrepiente. |
-| Propuestas ignoradas | 90 días | Ya están resueltas; se conservan por si se quiere revisar qué se descartó. |
-| Avisos resueltos | 365 días | Es el histórico de lo que avisó al usuario. |
-| Libro de auditoría | 730 días | Trazabilidad sin guardarlo para siempre. |
-| Uso de IA | 730 días | Los importes agregados sobreviven para las métricas. |
-| Conocimiento del buzón | 365 días | Si no se usa en un año, ya no identifica a nadie. |
-| Caché de extracción | 30 días | Solo sirve para no repetir trabajo. |
+| Categoría                   | Plazo    | Por qué                                                                    |
+| --------------------------- | -------- | -------------------------------------------------------------------------- |
+| Correo (mensajes y eventos) | 365 días | Los metadatos solo sirven para reconstruir el origen de una propuesta.     |
+| Documentos (binario)        | 30 días  | El borrado lógico deja el binario un mes por si el usuario se arrepiente.  |
+| Propuestas ignoradas        | 90 días  | Ya están resueltas; se conservan por si se quiere revisar qué se descartó. |
+| Avisos resueltos            | 365 días | Es el histórico de lo que avisó al usuario.                                |
+| Libro de auditoría          | 730 días | Trazabilidad sin guardarlo para siempre.                                   |
+| Uso de IA                   | 730 días | Los importes agregados sobreviven para las métricas.                       |
+| Conocimiento del buzón      | 365 días | Si no se usa en un año, ya no identifica a nadie.                          |
+| Caché de extracción         | 30 días  | Solo sirve para no repetir trabajo.                                        |
 
 `app:privacy:purge` ejecuta la purga (es idempotente) y `PurgeExpiredData` devuelve un
 `PurgeReport` con el detalle por categoría. La purga va **en tandas** (`purge_batch_size`),
@@ -1202,15 +1185,15 @@ porque PostgreSQL no admite `LIMIT` en un `DELETE` y un borrado masivo bloquear�
 
 `SecurityHeadersListener` añade en cada respuesta:
 
-| Cabecera | Valor |
-|---|---|
-| `Content-Security-Policy` | `default-src 'self'; script-src 'self' 'nonce-…'; frame-ancestors 'none'; object-src 'none'; form-action 'self'; base-uri 'self'` |
-| `X-Content-Type-Options` | `nosniff` |
-| `X-Frame-Options` | `DENY` |
-| `Referrer-Policy` | `strict-origin-when-cross-origin` |
-| `Permissions-Policy` | `geolocation=(), microphone=(), camera=(), payment=()` |
-| `Cross-Origin-Opener-Policy` | `same-origin` |
-| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` (solo sobre HTTPS) |
+| Cabecera                     | Valor                                                                                                                             |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `Content-Security-Policy`    | `default-src 'self'; script-src 'self' 'nonce-…'; frame-ancestors 'none'; object-src 'none'; form-action 'self'; base-uri 'self'` |
+| `X-Content-Type-Options`     | `nosniff`                                                                                                                         |
+| `X-Frame-Options`            | `DENY`                                                                                                                            |
+| `Referrer-Policy`            | `strict-origin-when-cross-origin`                                                                                                 |
+| `Permissions-Policy`         | `geolocation=(), microphone=(), camera=(), payment=()`                                                                            |
+| `Cross-Origin-Opener-Policy` | `same-origin`                                                                                                                     |
+| `Strict-Transport-Security`  | `max-age=31536000; includeSubDomains` (solo sobre HTTPS)                                                                          |
 
 La CSP **no** usa `unsafe-inline`: cada respuesta lleva un **nonce** aleatorio
 (`SecurityHeadersListener::NONCE_ATTRIBUTE`) que la plantilla lee con la función Twig
@@ -1229,13 +1212,13 @@ La CSP **no** usa `unsafe-inline`: cada respuesta lleva un **nonce** aleatorio
 (que replica los límites reales de producción en lugar de subirlos: un test que prueba un
 límite de 1000 no prueba nada).
 
-| Limitador | Dónde | Objetivo |
-|---|---|---|
-| `login` | Formulario de acceso | Frenar fuerza bruta. |
-| `password_reset` | Formulario de recuperación | Frenar spam y enumeración. |
-| `document_upload` | Subida de documentos | Frenar abuso de almacenamiento. |
-| `privacy_export` | Exportación de datos | Frenar scraping de los datos de la organización. |
-| `email_account` | Alta de cuentas de correo | Frenar abuso de credenciales IMAP. |
+| Limitador         | Dónde                      | Objetivo                                         |
+| ----------------- | -------------------------- | ------------------------------------------------ |
+| `login`           | Formulario de acceso       | Frenar fuerza bruta.                             |
+| `password_reset`  | Formulario de recuperación | Frenar spam y enumeración.                       |
+| `document_upload` | Subida de documentos       | Frenar abuso de almacenamiento.                  |
+| `privacy_export`  | Exportación de datos       | Frenar scraping de los datos de la organización. |
+| `email_account`   | Alta de cuentas de correo  | Frenar abuso de credenciales IMAP.               |
 
 #### 7. Validación de contenido de ficheros
 
@@ -1277,25 +1260,24 @@ pura por antigüedad, no por edición.
 
 ### Verificación ejecutada al cerrar la fase
 
-| Comprobación | Resultado |
-|---|---|
-| `vendor/bin/phpunit` | ✅ 1349 tests, 4997 assertions |
-| `vendor/bin/phpstan analyse --no-progress` | ✅ 0 errores (nivel 8) |
-| `vendor/bin/php-cs-fixer fix --dry-run --diff` | ✅ 0 ficheros pendientes |
-| `bin/console lint:container` | ✅ |
-| `bin/console lint:twig templates/` | ✅ |
-| `bin/console doctrine:schema:validate` | ✅ |
-| Exportación JSON y CSV | ✅ verificado en `PrivacyPanelTest` |
-| Borrado de organización | ✅ verificado en `PrivacyPanelTest` y `PrivacyIsolationTest` |
-| Aislamiento entre organizaciones | ✅ `PrivacyIsolationTest` (4 tests) |
-| Cabeceras de seguridad | ✅ `SecurityHeadersTest` (8 tests) |
-| Rate limiting real | ✅ `RateLimitTest` (6 tests) |
-| Purga de retención effective | ✅ `RetentionPurgeTest` (6 tests, integración con la base de datos) |
+| Comprobación                                   | Resultado                                                           |
+| ---------------------------------------------- | ------------------------------------------------------------------- |
+| `vendor/bin/phpunit`                           | ✅ 1349 tests, 4997 assertions                                      |
+| `vendor/bin/phpstan analyse --no-progress`     | ✅ 0 errores (nivel 8)                                              |
+| `vendor/bin/php-cs-fixer fix --dry-run --diff` | ✅ 0 ficheros pendientes                                            |
+| `bin/console lint:container`                   | ✅                                                                  |
+| `bin/console lint:twig templates/`             | ✅                                                                  |
+| `bin/console doctrine:schema:validate`         | ✅                                                                  |
+| Exportación JSON y CSV                         | ✅ verificado en `PrivacyPanelTest`                                 |
+| Borrado de organización                        | ✅ verificado en `PrivacyPanelTest` y `PrivacyIsolationTest`        |
+| Aislamiento entre organizaciones               | ✅ `PrivacyIsolationTest` (4 tests)                                 |
+| Cabeceras de seguridad                         | ✅ `SecurityHeadersTest` (8 tests)                                  |
+| Rate limiting real                             | ✅ `RateLimitTest` (6 tests)                                        |
+| Purga de retención effective                   | ✅ `RetentionPurgeTest` (6 tests, integración con la base de datos) |
 
 ## Fase 17 — Preparación SaaS
 
 > **Estado:** ✅ Completada.
-
 
 **Objetivo:** dejar el producto listo para planes y crecimiento.
 
@@ -1318,13 +1300,13 @@ El plan es un **techo**, no una etiqueta. `OrganizationPlan` declara qué planes
 (`free`, `pro`) y los límites viven en `config/packages/entitlements.yaml`, de modo que
 cambiar un precio no exige un despliegue.
 
-| Capacidad | Tipo | Gratis | Profesional |
-|---|---|---|---|
-| Servicios | límite | 3 | sin techo |
-| Cuentas de correo | límite | 1 | 5 |
-| Documentos | límite | 20 | 500 |
-| Inteligencia artificial | interruptor | no | sí |
-| Presupuesto de IA | límite (céntimos) | 0 | 10 000 |
+| Capacidad               | Tipo              | Gratis | Profesional |
+| ----------------------- | ----------------- | ------ | ----------- |
+| Servicios               | límite            | 3      | sin techo   |
+| Cuentas de correo       | límite            | 1      | 5           |
+| Documentos              | límite            | 20     | 500         |
+| Inteligencia artificial | interruptor       | no     | sí          |
+| Presupuesto de IA       | límite (céntimos) | 0      | 10 000      |
 
 `EntitlementSettings` **valida en el arranque** que todos los planes declaren todas las
 capacidades: si alguien añade una capacidad al código y olvida la configuración, el
@@ -1408,21 +1390,21 @@ tenía `DEFAULT 'free'` en la base de datos y el mapeo no lo declaraba, así que
 
 ### Verificación ejecutada al cerrar la fase
 
-| Comprobación | Resultado |
-|---|---|
-| `vendor/bin/phpunit` | ✅ 1385 tests, 5175 assertions |
-| `vendor/bin/phpstan analyse --no-progress` | ✅ 0 errores (nivel 8) |
-| `vendor/bin/php-cs-fixer fix --dry-run --diff` | ✅ 0 ficheros pendientes |
-| `bin/console lint:twig templates/` | ✅ 49 plantillas |
-| `bin/console doctrine:schema:validate` | ✅ esquema sincronizado con el mapeo |
-| Límites del plan aplicados en el caso de uso | ✅ `PlanTest` (9 tests), `QuotaGuardTest` (7 tests) |
-| El plan bloquea un buzón que no cabe | ✅ `EmailAccountTest::testThePlanDoesNotAllowASecondMailbox` |
-| Bajar de plan no borra datos | ✅ `PlanTest::testChangingThePlanDoesNotDeleteWhatAlreadyExists` |
-| Guía de bienvenida calculada en vivo | ✅ `OnboardingTest` (5 tests) |
-| Panel de observabilidad | ✅ `ObservabilityPanelTest` (6 tests) |
+| Comprobación                                        | Resultado                                                                                                                                      |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `vendor/bin/phpunit`                                | ✅ 1385 tests, 5175 assertions                                                                                                                 |
+| `vendor/bin/phpstan analyse --no-progress`          | ✅ 0 errores (nivel 8)                                                                                                                         |
+| `vendor/bin/php-cs-fixer fix --dry-run --diff`      | ✅ 0 ficheros pendientes                                                                                                                       |
+| `bin/console lint:twig templates/`                  | ✅ 49 plantillas                                                                                                                               |
+| `bin/console doctrine:schema:validate`              | ✅ esquema sincronizado con el mapeo                                                                                                           |
+| Límites del plan aplicados en el caso de uso        | ✅ `PlanTest` (9 tests), `QuotaGuardTest` (7 tests)                                                                                            |
+| El plan bloquea un buzón que no cabe                | ✅ `EmailAccountTest::testThePlanDoesNotAllowASecondMailbox`                                                                                   |
+| Bajar de plan no borra datos                        | ✅ `PlanTest::testChangingThePlanDoesNotDeleteWhatAlreadyExists`                                                                               |
+| Guía de bienvenida calculada en vivo                | ✅ `OnboardingTest` (5 tests)                                                                                                                  |
+| Panel de observabilidad                             | ✅ `ObservabilityPanelTest` (6 tests)                                                                                                          |
 | Copia de seguridad y restauración en entorno limpio | ✅ probado de verdad: 4 organizaciones, 3 usuarios, 12 mensajes, 9 sincronizaciones, 18 servicios y el documento recuperado con su propietario |
-| Semilla de demostración | ✅ `DemoSeedTest` (6 tests) |
-| Aislamiento entre organizaciones | ✅ `PrivacyIsolationTest` (4 tests) |
+| Semilla de demostración                             | ✅ `DemoSeedTest` (6 tests)                                                                                                                    |
+| Aislamiento entre organizaciones                    | ✅ `PrivacyIsolationTest` (4 tests)                                                                                                            |
 
 ## Fase 18 — API pública
 
@@ -1456,19 +1438,19 @@ API es revocable y auditable; los datos devueltos respetan el aislamiento por or
 La API se autentica con una **clave propia**, emitida desde el backoffice. La tabla
 `api_key` (migración `Version20261024090000`) guarda:
 
-| Columna | Tipo | Para qué |
-|---|---|---|
-| `id` | UUID | Identificador de la credencial. |
-| `organization_id` | UUID | Dueña. **Todo lo que devuelve la API es de esta organización y solo de esta.** |
-| `name` | VARCHAR(100) | Nombre legible («Integración con el ERP de la oficina»). |
-| `prefix` | VARCHAR(20) | Los 12 primeros caracteres de la clave, **en claro**, para reconocerla en una lista sin poder usarla. |
-| `secret_hash` | VARCHAR(64) | HMAC-SHA-256 de la clave completa. **La clave nunca se guarda en claro.** |
-| `scopes` | JSON | `["read"]`, `["read","write"]`. Se guardan como texto y no como enumeración porque el filtro de Doctrine no mapea enumeraciones dentro de un `json` (D-69). |
-| `expires_at` | TIMESTAMP NULL | Caducidad opcional. `NULL` = sin caducidad. |
-| `revoked_at` | TIMESTAMP NULL | Cuándo se revocó. `NULL` = vigente. |
-| `last_used_at` | TIMESTAMP NULL | Última utilización. Solo se escribe si el registro de uso está habilitado. |
-| `created_by_user_id` | UUID NULL | Qué usuario del backoffice la emitió. |
-| `created_at` | TIMESTAMP | Cuándo se emitió. |
+| Columna              | Tipo           | Para qué                                                                                                                                                    |
+| -------------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                 | UUID           | Identificador de la credencial.                                                                                                                             |
+| `organization_id`    | UUID           | Dueña. **Todo lo que devuelve la API es de esta organización y solo de esta.**                                                                              |
+| `name`               | VARCHAR(100)   | Nombre legible («Integración con el ERP de la oficina»).                                                                                                    |
+| `prefix`             | VARCHAR(20)    | Los 12 primeros caracteres de la clave, **en claro**, para reconocerla en una lista sin poder usarla.                                                       |
+| `secret_hash`        | VARCHAR(64)    | HMAC-SHA-256 de la clave completa. **La clave nunca se guarda en claro.**                                                                                   |
+| `scopes`             | JSON           | `["read"]`, `["read","write"]`. Se guardan como texto y no como enumeración porque el filtro de Doctrine no mapea enumeraciones dentro de un `json` (D-69). |
+| `expires_at`         | TIMESTAMP NULL | Caducidad opcional. `NULL` = sin caducidad.                                                                                                                 |
+| `revoked_at`         | TIMESTAMP NULL | Cuándo se revocó. `NULL` = vigente.                                                                                                                         |
+| `last_used_at`       | TIMESTAMP NULL | Última utilización. Solo se escribe si el registro de uso está habilitado.                                                                                  |
+| `created_by_user_id` | UUID NULL      | Qué usuario del backoffice la emitió.                                                                                                                       |
+| `created_at`         | TIMESTAMP      | Cuándo se emitió.                                                                                                                                           |
 
 Índices: `idx_api_key_organization` (buscar por organización) y
 `uniq_api_key_secret_hash` (garantiza que dos claves nunca compartan huella, y da el índice
@@ -1525,7 +1507,7 @@ petición de API nunca arrastra una cookie de sesión.
 - `X-Api-Key: sk_…` — lo que sobrevive a algunos intermediarios (proxies, gateways) que
   borran la cabecera `Authorization`.
 
-El prefijo `bearer ` se compara en minúsculas, así que `bearer`, `Bearer` y `BEARER` funcionan
+El prefijo `bearer` seguido de un espacio se compara en minúsculas, así que `bearer`, `Bearer` y `BEARER` funcionan
 igual. El autenticador usa `SelfValidatingPassport` (no hay contraseña que comprobar) y, al
 validar, **fija la organización en el `TenantContext`**: a partir de ahí, todos los
 repositorios filtran por esa organización. Es el mismo `TenantContext` que usa el backoffice, de
@@ -1539,21 +1521,21 @@ El `access_control` deja públicos `OPTIONS` y las rutas de documentación (`/ap
 
 Todas bajo `/api/v1`, todas con version explícita en la URL.
 
-| Método | Ruta | Ámbito | Qué hace |
-|---|---|---|---|
-| `GET` | `/api/v1/plan` | `read` | Plan de la organización y consumo frente a los límites. |
-| `GET` | `/api/v1/alerts` | `read` | Avisos de renovación y de presupuesto. |
-| `GET` | `/api/v1/mail/accounts` | `read` | Cuentas de correo conectadas y su estado. |
-| `POST` | `/api/v1/mail/accounts/{id}/sync` | `write` | Fuerza una sincronización. |
-| `GET` | `/api/v1/charges/upcoming` | `read` | Próximos cobros. |
-| `GET` | `/api/v1/services` | `read` | Listado de servicios (paginado). |
-| `GET` | `/api/v1/services/{id}` | `read` | Un servicio concreto. |
-| `POST` | `/api/v1/services` | `write` | Alta manual de un servicio. |
-| `GET` | `/api/v1/proposals` | `read` | Propuestas pendientes. |
-| `POST` | `/api/v1/proposals/{id}/confirm` | `write` | Confirma una propuesta y crea el servicio. |
-| `GET` | `/api/v1/documents` | `read` | Documentos procesados (paginado). |
-| `POST` | `/api/v1/documents` | `write` | Carga de un documento. |
-| `GET` | `/api/v1/metrics` | `read` | Métricas del pipeline y coste de IA. |
+| Método | Ruta                              | Ámbito  | Qué hace                                                |
+| ------ | --------------------------------- | ------- | ------------------------------------------------------- |
+| `GET`  | `/api/v1/plan`                    | `read`  | Plan de la organización y consumo frente a los límites. |
+| `GET`  | `/api/v1/alerts`                  | `read`  | Avisos de renovación y de presupuesto.                  |
+| `GET`  | `/api/v1/mail/accounts`           | `read`  | Cuentas de correo conectadas y su estado.               |
+| `POST` | `/api/v1/mail/accounts/{id}/sync` | `write` | Fuerza una sincronización.                              |
+| `GET`  | `/api/v1/charges/upcoming`        | `read`  | Próximos cobros.                                        |
+| `GET`  | `/api/v1/services`                | `read`  | Listado de servicios (paginado).                        |
+| `GET`  | `/api/v1/services/{id}`           | `read`  | Un servicio concreto.                                   |
+| `POST` | `/api/v1/services`                | `write` | Alta manual de un servicio.                             |
+| `GET`  | `/api/v1/proposals`               | `read`  | Propuestas pendientes.                                  |
+| `POST` | `/api/v1/proposals/{id}/confirm`  | `write` | Confirma una propuesta y crea el servicio.              |
+| `GET`  | `/api/v1/documents`               | `read`  | Documentos procesados (paginado).                       |
+| `POST` | `/api/v1/documents`               | `write` | Carga de un documento.                                  |
+| `GET`  | `/api/v1/metrics`                 | `read`  | Métricas del pipeline y coste de IA.                    |
 
 Los controladores usan `#[MapRequestPayload]` y `#[MapQueryString]` (con
 `validationFailedStatusCode: 422` explícito), de modo que la validación la hace el Validator de
@@ -1589,22 +1571,22 @@ tiene constructores semánticos (`unauthorized()`, `forbidden()`, `notFound()`,
 
 Códigos que la API devuelve:
 
-| Código | Cuándo |
-|---|---|
-| `400` | Petición malformada. |
-| `401` | Falta la credencial, no existe, ha caducado o está revocada. |
-| `403` | La clave no tiene el ámbito necesario. |
-| `404` | El recurso no existe **o no es de esta organización** (se indistinguen a propósito). |
-| `405` | Método no permitido en esa ruta. |
-| `402` | Se ha superado un límite del plan (`QuotaExceededException`); el cuerpo dice qué capacidad, cuál era el límite y cuánto se ha usado. |
-| `409` | Conflicto de estado (por ejemplo, confirmar una propuesta ya confirmada). |
-| `422` | El cuerpo no pasa la validación. Incluye `violations[]` con campo y motivo. |
-| `429` | Se ha superado el límite de frecuencia. Incluye `retry_after`. |
-| `500` | Error inesperado. El detalle **no** filtra información interna. |
+| Código | Cuándo                                                                                                                               |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `400`  | Petición malformada.                                                                                                                 |
+| `401`  | Falta la credencial, no existe, ha caducado o está revocada.                                                                         |
+| `403`  | La clave no tiene el ámbito necesario.                                                                                               |
+| `404`  | El recurso no existe **o no es de esta organización** (se indistinguen a propósito).                                                 |
+| `405`  | Método no permitido en esa ruta.                                                                                                     |
+| `402`  | Se ha superado un límite del plan (`QuotaExceededException`); el cuerpo dice qué capacidad, cuál era el límite y cuánto se ha usado. |
+| `409`  | Conflicto de estado (por ejemplo, confirmar una propuesta ya confirmada).                                                            |
+| `422`  | El cuerpo no pasa la validación. Incluye `violations[]` con campo y motivo.                                                          |
+| `429`  | Se ha superado el límite de frecuencia. Incluye `retry_after`.                                                                       |
+| `500`  | Error inesperado. El detalle **no** filtra información interna.                                                                      |
 
 El `401` de una clave caducada, revocada o inexistente dice **lo mismo**: «Falta la credencial o
 no es válida». Un mensaje distinto para «no existe» y «está revocada» sería un oráculo para
- enumerar credenciales ajenas.
+enumerar credenciales ajenas.
 
 El aislamiento se respeta también en los errores: un `404` de un recurso de otra organización
 es indistinguible de un `404` de un recurso inexistente.
@@ -1628,7 +1610,7 @@ IP, según el caso.
 correspondientes. Los orígenes permitidos vienen de `API_CORS_ALLOWED_ORIGINS`, una **lista
 JSON** en el entorno (no un texto), porque el listener tiene que compararlos uno a uno:
 
-```
+```dotenv
 API_CORS_ALLOWED_ORIGINS=["https://integrador.example"]
 ```
 
@@ -1666,14 +1648,14 @@ casos, `curl` de verdad) y con **35 tests funcionales** en `tests/Functional/Api
 dos aparecieron **seis defectos**. Ninguno era teórico: los seis se manifestaban como un fallo
 visible para el integrador o para el operador del backoffice.
 
-| # | Defecto | Dónde | Cómo se arregló | Commit |
-|---|---|---|---|---|
-| 1 | El preflight CORS devolvía `405` | `ApiCorsListener` | Prioridad en `REQUEST` de **9 a 40** | `ffa7127` |
-| 2 | El `422` salía genérico, en inglés y sin `violations` | `ApiExceptionListener` | Desempaquetar la `ValidationFailedException` de `getPrevious()` | `ffa7127` |
-| 3 | El arranque reventaba con el JSON del CORS | `.env.dev` | Comillas **simples** envolviendo el JSON | `ffa7127` |
-| 4 | `violations[].field` usaba el nombre PHP | `ApiExceptionListener` | Traducir la ruta al nombre serializado | `ffa7127` |
-| 5 | `match_reasons` llegaba como `["Array","Array"]` | `DiscoveryView` | Dejar de castear las razones a texto | cierre |
-| 6 | El formulario de alta de clave daba `500` | `ApiKeyFormType` | `choices` con los casos del enum y `choice_value` | cierre |
+| #   | Defecto                                               | Dónde                  | Cómo se arregló                                                 | Commit    |
+| --- | ----------------------------------------------------- | ---------------------- | --------------------------------------------------------------- | --------- |
+| 1   | El preflight CORS devolvía `405`                      | `ApiCorsListener`      | Prioridad en `REQUEST` de **9 a 40**                            | `ffa7127` |
+| 2   | El `422` salía genérico, en inglés y sin `violations` | `ApiExceptionListener` | Desempaquetar la `ValidationFailedException` de `getPrevious()` | `ffa7127` |
+| 3   | El arranque reventaba con el JSON del CORS            | `.env.dev`             | Comillas **simples** envolviendo el JSON                        | `ffa7127` |
+| 4   | `violations[].field` usaba el nombre PHP              | `ApiExceptionListener` | Traducir la ruta al nombre serializado                          | `ffa7127` |
+| 5   | `match_reasons` llegaba como `["Array","Array"]`      | `DiscoveryView`        | Dejar de castear las razones a texto                            | cierre    |
+| 6   | El formulario de alta de clave daba `500`             | `ApiKeyFormType`       | `choices` con los casos del enum y `choice_value`               | cierre    |
 
 #### Defecto 1 — El preflight CORS devolvía `405` en vez de `204`
 
@@ -1685,14 +1667,14 @@ cruzada desde JavaScript funciona**.
 `#[AsEventListener(event: KernelEvents::REQUEST, priority: 9)]`. En `KernelEvents::REQUEST`,
 las prioridades son:
 
-| Listener | Prioridad | Qué hace |
-|---|---|---|
-| `LocaleListener::setDefaultLocale` | 100 | Fija el locale por defecto. |
-| `RouterListener::onKernelRequest` | **32** | Resuelve la ruta y **responde 405 si el método no existe**. |
-| `LocaleAwareListener` | 15 | Aplica el locale de la ruta. |
-| `ApiCorsListener` | **40** (antes 9) | Contesta al preflight. |
-| `Firewall::onKernelRequest` | 8 | Autenticación. |
-| `ApiRateLimitListener` | -8 | Límite de frecuencia. |
+| Listener                           | Prioridad        | Qué hace                                                    |
+| ---------------------------------- | ---------------- | ----------------------------------------------------------- |
+| `LocaleListener::setDefaultLocale` | 100              | Fija el locale por defecto.                                 |
+| `RouterListener::onKernelRequest`  | **32**           | Resuelve la ruta y **responde 405 si el método no existe**. |
+| `LocaleAwareListener`              | 15               | Aplica el locale de la ruta.                                |
+| `ApiCorsListener`                  | **40** (antes 9) | Contesta al preflight.                                      |
+| `Firewall::onKernelRequest`        | 8                | Autenticación.                                              |
+| `ApiRateLimitListener`             | -8               | Límite de frecuencia.                                       |
 
 El router va con prioridad **32** y el listener de CORS iba con **9**: el router se ejecutaba
 primero, no encontraba ninguna ruta `OPTIONS /api/v1/services` (las rutas solo aceptan `GET` y
@@ -1786,7 +1768,7 @@ sobrescritura de `.env.dev` — es decir, el fichero que solo existe en desarrol
 
 **Arreglo.** Envolver el JSON en comillas **simples**, que Dotenv sí respeta:
 
-```
+```dotenv
 API_CORS_ALLOWED_ORIGINS='["https://integrador.example"]'
 ```
 
@@ -1823,7 +1805,7 @@ que el `field` es exactamente `billing_interval_count`.
 #### Defecto 5 — `match_reasons` llegaba como `["Array","Array"]`
 
 **Síntoma.** `GET /api/v1/proposals` publicaba `match_reasons: ["Array", "Array"]` en vez de
-las razones del emparejamiento. La explicación de *por qué* se propone un servicio —lo que el
+las razones del emparejamiento. La explicación de _por qué_ se propone un servicio —lo que el
 integrador enseña a su usuario y lo que justifica la propuesta— se perdía en el camino.
 
 **Causa raíz.** `DiscoveryView::fromDiscovery()` mapeaba las razones con
@@ -1884,13 +1866,13 @@ La URL de un suscriptor ya no puede apuntar a la red interna del servidor: ni al
 `10.0.0.0/8`, ni a `169.254.169.254` (los metadatos de la nube, que es donde están las credenciales
 de la máquina), ni a una IPv4 escondida dentro de una IPv6.
 
-| Pieza | Fichero | Qué hace |
-|---|---|---|
-| La guarda | `src/Webhooks/Application/WebhookUrlGuard.php` | Esquema, resolución de **todas** las direcciones del host, 14 rangos IPv4 y 8 IPv6, IPv4-mapeadas, allowlist por host, literales IP |
-| El puerto | `src/Webhooks/Application/Port/HostResolverInterface.php` | Aísla el DNS para que los tests no dependan de la red de la máquina |
-| El adaptador | `src/Webhooks/Infrastructure/Http/DnsHostResolver.php` | A con `gethostbynamel`, AAAA con `dns_get_record` |
-| El resultado | `src/Webhooks/Application/WebhookTarget.php` | `host` + `ip`: la dirección que se comprobó es la que se usa para conectar |
-| El error | `src/Webhooks/Domain/Exception/UnsafeWebhookUrlException.php` | Cuatro mensajes: esquema, host ausente, destino interno, no resoluble |
+| Pieza        | Fichero                                                       | Qué hace                                                                                                                            |
+| ------------ | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| La guarda    | `src/Webhooks/Application/WebhookUrlGuard.php`                | Esquema, resolución de **todas** las direcciones del host, 14 rangos IPv4 y 8 IPv6, IPv4-mapeadas, allowlist por host, literales IP |
+| El puerto    | `src/Webhooks/Application/Port/HostResolverInterface.php`     | Aísla el DNS para que los tests no dependan de la red de la máquina                                                                 |
+| El adaptador | `src/Webhooks/Infrastructure/Http/DnsHostResolver.php`        | A con `gethostbynamel`, AAAA con `dns_get_record`                                                                                   |
+| El resultado | `src/Webhooks/Application/WebhookTarget.php`                  | `host` + `ip`: la dirección que se comprobó es la que se usa para conectar                                                          |
+| El error     | `src/Webhooks/Domain/Exception/UnsafeWebhookUrlException.php` | Cuatro mensajes: esquema, host ausente, destino interno, no resoluble                                                               |
 
 Se aplica **dos veces**: al dar de alta o editar el suscriptor (`WebhookController`, con el error
 colgado del campo `url`) y en cada entrega (`DeliverWebhook`), donde un destino interno **abandona
@@ -1906,36 +1888,36 @@ es lo normal, y en la entrega se comporta como cualquier fallo de red.
 **Verificación E2E real**, con `curl` contra el contenedor en ejecución, usando claves de API
 reales de la organización «Estudio Demo» (plan `pro`). **15 de 15 en verde:**
 
-| Caso | Esperado | Resultado |
-|---|---|---|
-| `GET` sin credencial | `401` `problem+json` | ✅ |
-| `GET` con clave inexistente | `401` `problem+json` | ✅ |
-| `GET` con clave de lectura | `200` `application/json` | ✅ |
-| `GET` con `X-Api-Key` en vez de `Authorization` | `200` | ✅ |
-| `POST` con clave de solo lectura | `403` `problem+json` | ✅ |
-| `POST` con clave de escritura, importe válido | `201` | ✅ |
-| `POST` con importe como número JSON (`12.5`) | `422` + `violations[]` | ✅ |
-| `GET` de un recurso inexistente | `404` `problem+json` | ✅ |
-| `GET` de un recurso de otra organización | `404` (indistinguible) | ✅ |
-| `OPTIONS` (preflight CORS) | `204` + cabeceras CORS | ✅ |
-| `OPTIONS` con origen no permitido | sin `Access-Control-Allow-Origin` | ✅ |
-| `GET` con clave caducada | `401` | ✅ |
-| `GET` con clave revocada | `401` | ✅ |
-| `GET` `/api/doc.json` | `200` OpenAPI 3 | ✅ |
-| Cabeceras `X-RateLimit-*` en respuesta real | presentes | ✅ |
+| Caso                                            | Esperado                          | Resultado |
+| ----------------------------------------------- | --------------------------------- | --------- |
+| `GET` sin credencial                            | `401` `problem+json`              | ✅        |
+| `GET` con clave inexistente                     | `401` `problem+json`              | ✅        |
+| `GET` con clave de lectura                      | `200` `application/json`          | ✅        |
+| `GET` con `X-Api-Key` en vez de `Authorization` | `200`                             | ✅        |
+| `POST` con clave de solo lectura                | `403` `problem+json`              | ✅        |
+| `POST` con clave de escritura, importe válido   | `201`                             | ✅        |
+| `POST` con importe como número JSON (`12.5`)    | `422` + `violations[]`            | ✅        |
+| `GET` de un recurso inexistente                 | `404` `problem+json`              | ✅        |
+| `GET` de un recurso de otra organización        | `404` (indistinguible)            | ✅        |
+| `OPTIONS` (preflight CORS)                      | `204` + cabeceras CORS            | ✅        |
+| `OPTIONS` con origen no permitido               | sin `Access-Control-Allow-Origin` | ✅        |
+| `GET` con clave caducada                        | `401`                             | ✅        |
+| `GET` con clave revocada                        | `401`                             | ✅        |
+| `GET` `/api/doc.json`                           | `200` OpenAPI 3                   | ✅        |
+| Cabeceras `X-RateLimit-*` en respuesta real     | presentes                         | ✅        |
 
 **Tests funcionales:** **35 tests, 526 aserciones**, todos en verde.
 
-| Fichero | Tests | Qué fija |
-|---|---|---|
-| `ApiAuthenticationTest` | 7 | Sin credencial, inexistente, caducada, revocada, las dos cabeceras, el mismo cuerpo en los cuatro fallos. |
-| `ApiScopeTest` | 4 | `read` no escribe, `write` sí, `write` cubre `read`. |
-| `ApiIsolationTest` | 1 | Dos organizaciones: la una no ve el recurso de la otra (`404`). |
-| `ApiCorsTest` | 5 | Preflight `204`, origen no permitido, `OPTIONS` sin `Origin`, cabeceras en respuestas reales. |
-| `ApiContractTest` | 7 | `data`/`meta`, las seis claves de `meta`, paginación, `422` con `violations[]` en español, `field` serializado, `match_reasons` estructurado, `404` problem+json. |
-| `ApiRateLimitTest` | 3 | El límite se agota exactamente en 300, cada clave tiene su ventana, cabeceras de cuota. |
-| `ApiKeyPanelTest` | 5 | Alta desde el panel, el secreto se enseña una sola vez, no reaparece, `write` arrastra `read`, revocar. |
-| `ApiOpenApiTest` | 3 | `/api/doc.json` responde, declara las rutas de `/api/v1` y los esquemas de seguridad. |
+| Fichero                 | Tests | Qué fija                                                                                                                                                          |
+| ----------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ApiAuthenticationTest` | 7     | Sin credencial, inexistente, caducada, revocada, las dos cabeceras, el mismo cuerpo en los cuatro fallos.                                                         |
+| `ApiScopeTest`          | 4     | `read` no escribe, `write` sí, `write` cubre `read`.                                                                                                              |
+| `ApiIsolationTest`      | 1     | Dos organizaciones: la una no ve el recurso de la otra (`404`).                                                                                                   |
+| `ApiCorsTest`           | 5     | Preflight `204`, origen no permitido, `OPTIONS` sin `Origin`, cabeceras en respuestas reales.                                                                     |
+| `ApiContractTest`       | 7     | `data`/`meta`, las seis claves de `meta`, paginación, `422` con `violations[]` en español, `field` serializado, `match_reasons` estructurado, `404` problem+json. |
+| `ApiRateLimitTest`      | 3     | El límite se agota exactamente en 300, cada clave tiene su ventana, cabeceras de cuota.                                                                           |
+| `ApiKeyPanelTest`       | 5     | Alta desde el panel, el secreto se enseña una sola vez, no reaparece, `write` arrastra `read`, revocar.                                                           |
+| `ApiOpenApiTest`        | 3     | `/api/doc.json` responde, declara las rutas de `/api/v1` y los esquemas de seguridad.                                                                             |
 
 **Lints:** PHPStan nivel 8 limpio, `lint:twig` 52 ficheros OK, `lint:yaml --parse-tags` 38
 ficheros OK, `lint:container` OK, `doctrine:schema:validate` OK, suite completa
@@ -1986,28 +1968,28 @@ usar e integrar.
 líneas de roadmap, arquitectura, decisiones y seguridad—, pero **la puerta de entrada mentía**.
 El `README.md` de la raíz empezaba describiendo Suscripta y a la línea 29 se convertía en el
 README de `symfony-docker`, con sus insignias, su «Getting Started» y su licencia MIT. Y en medio
-de esa mezcla afirmaba: *«Estado actual: documentación y arquitectura. No hay todavía código de
-producto»*. Era falso desde hacía dieciocho fases: había 1 420 tests, 13 rutas de API y una
+de esa mezcla afirmaba: _«Estado actual: documentación y arquitectura. No hay todavía código de
+producto»_. Era falso desde hacía dieciocho fases: había 1 420 tests, 13 rutas de API y una
 aplicación que funciona. Quien llegara al repositorio por primera vez leía, en el único
 documento que iba a leer, que el proyecto no existía.
 
 ### Entregado
 
-| Fichero | Qué es |
-|---|---|
-| `README.md` | Reescrito entero. Qué es Suscripta y qué problema resuelve, estado real (fases 0–19, 1 420 tests, PHPStan 8), arranque en cinco minutos con `make up` + `make migrate`, tabla de órdenes, cómo integrar la API con `curl`, índice de los doce documentos e índice del propio README. El contenido de `symfony-docker` queda al final, **etiquetado como infraestructura** y sin la afirmación falsa. |
-| `CHANGELOG.md` | Formato Keep a Changelog. Una sección por fase (0–18) con `Añadido`/`Cambiado`/`Corregido`, fechadas con el commit real de cierre, y las seis correcciones de la fase 18 descritas por síntoma y arreglo, no por «se arregló». Incluye la convención para escribir la siguiente entrada. |
-| `docs/deployment.md` | Guía del **primer** despliegue, complementaria a `docs/operations.md` (que cubre el día a día): requisitos, preparación del servidor, los dos niveles de secretos, orden del primer arranque, cinco comprobaciones de verificación y una tabla de los siete errores que se cometen la primera vez. |
+| Fichero              | Qué es                                                                                                                                                                                                                                                                                                                                                                                               |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `README.md`          | Reescrito entero. Qué es Suscripta y qué problema resuelve, estado real (fases 0–19, 1 420 tests, PHPStan 8), arranque en cinco minutos con `make up` + `make migrate`, tabla de órdenes, cómo integrar la API con `curl`, índice de los doce documentos e índice del propio README. El contenido de `symfony-docker` queda al final, **etiquetado como infraestructura** y sin la afirmación falsa. |
+| `CHANGELOG.md`       | Formato Keep a Changelog. Una sección por fase (0–18) con `Añadido`/`Cambiado`/`Corregido`, fechadas con el commit real de cierre, y las seis correcciones de la fase 18 descritas por síntoma y arreglo, no por «se arregló». Incluye la convención para escribir la siguiente entrada.                                                                                                             |
+| `docs/deployment.md` | Guía del **primer** despliegue, complementaria a `docs/operations.md` (que cubre el día a día): requisitos, preparación del servidor, los dos niveles de secretos, orden del primer arranque, cinco comprobaciones de verificación y una tabla de los siete errores que se cometen la primera vez.                                                                                                   |
 
 ### Corregido por el camino
 
 Escribir la documentación de entrega obliga a leer lo que se documenta, y aparecieron dos
 defectos:
 
-| # | Defecto | Síntoma | Causa raíz | Arreglo |
-|---|---|---|---|---|
-| 1 | El botón «rellenar credenciales de demo» del login no hacía nada | En desarrollo, al pulsarlo no pasaba nada; ningún error visible | `templates/security/login.html.twig` llamaba a `document.getElementByById(...)` —`ByById` en lugar de `ById`—, que devuelve `null` y el `if (!button) return;` abandonaba en silencio | `getElementById` |
-| 2 | `docs/DECISIONS.md` D-71 tenía una frase rota y una referencia imprecisa | «tendría que(handle cookies»; el panel citado era «el de integraciones» | Frase a medio traducir de un borrador, y el panel real es `/api-keys`, no el de integraciones (que es el de IA) | Frase reescrita; referencia corregida a `/api-keys` |
+| #   | Defecto                                                                  | Síntoma                                                                 | Causa raíz                                                                                                                                                                            | Arreglo                                             |
+| --- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| 1   | El botón «rellenar credenciales de demo» del login no hacía nada         | En desarrollo, al pulsarlo no pasaba nada; ningún error visible         | `templates/security/login.html.twig` llamaba a `document.getElementByById(...)` —`ByById` en lugar de `ById`—, que devuelve `null` y el `if (!button) return;` abandonaba en silencio | `getElementById`                                    |
+| 2   | `docs/DECISIONS.md` D-71 tenía una frase rota y una referencia imprecisa | «tendría que(handle cookies»; el panel citado era «el de integraciones» | Frase a medio traducir de un borrador, y el panel real es `/api-keys`, no el de integraciones (que es el de IA)                                                                       | Frase reescrita; referencia corregida a `/api-keys` |
 
 El primero es exactamente el tipo de defecto que ningún test de PHP detecta y que solo aparece al
 usar la aplicación con las manos: la documentación de entrega lo encontró porque obligó a
@@ -2030,16 +2012,16 @@ recorrer el flujo de arranque paso a paso.
 
 ### Verificación de cierre
 
-| Comprobación | Resultado |
-|---|---|
-| Suite completa | **1 420 tests**, 5 664 aserciones, en verde |
-| PHPStan nivel 8 | Sin errores |
-| `php-cs-fixer --dry-run` | Sin cambios pendientes |
-| `lint:twig templates/` | 52 plantillas correctas |
-| `lint:yaml --parse-tags config/` | 38 ficheros correctos |
-| `lint:container` | Sin errores |
-| `doctrine:schema:validate` | Mapeo y esquema sincronizados |
-| Enlaces del README | Los doce documentos enlazados existen; los 13 nombres de ruta de la API, también |
+| Comprobación                     | Resultado                                                                        |
+| -------------------------------- | -------------------------------------------------------------------------------- |
+| Suite completa                   | **1 420 tests**, 5 664 aserciones, en verde                                      |
+| PHPStan nivel 8                  | Sin errores                                                                      |
+| `php-cs-fixer --dry-run`         | Sin cambios pendientes                                                           |
+| `lint:twig templates/`           | 52 plantillas correctas                                                          |
+| `lint:yaml --parse-tags config/` | 38 ficheros correctos                                                            |
+| `lint:container`                 | Sin errores                                                                      |
+| `doctrine:schema:validate`       | Mapeo y esquema sincronizados                                                    |
+| Enlaces del README               | Los doce documentos enlazados existen; los 13 nombres de ruta de la API, también |
 
 **Verificación de la fase:** alguien que no ha visto el proyecto consigue instalarlo, arrancar la
 aplicación, autenticarse contra la API y entender cada respuesta sin leer el código. El README es
@@ -2061,28 +2043,28 @@ forma de reaccionar a un cobro sin sondear.
 
 ### Entregado
 
-| Pieza | Fichero | Qué hace |
-|---|---|---|
-| Suscriptor | `src/Webhooks/Domain/Entity/Webhook.php` | Nombre, URL, secreto cifrado, eventos suscritos, activo/pausado, última entrega. `isSubscribedTo()` decide a quién le toca. |
-| Entrega | `src/Webhooks/Domain/Entity/WebhookDelivery.php` | Una fila por suscriptor y evento: cuerpo ya serializado, estado (`PENDING`/`DELIVERED`/`ABANDONED`), intentos, próximo intento, código de respuesta, último error y `Idempotency-Key` único. |
-| Firma | `src/Webhooks/Domain/Service/WebhookSigner.php` | HMAC-SHA-256 de `"{timestamp}.{cuerpo}"`, cabecera `X-Suscripta-Signature: t=…,v1=…`, verificación en tiempo constante y tolerancia de 300 s. |
-| Reintentos | `src/Webhooks/Domain/Service/RetryPolicy.php` | Ocho envíos: 30 s, 2 min, 10 min, 1 h, 6 h, 24 h y 24 h. Después, abandono. |
-| Notificador | `src/Webhooks/Application/WebhookNotifier.php` | Crea una entrega por suscriptor activo y encola un mensaje. **Nunca lanza**: un webhook es una notificación, no una transacción. |
-| Entrega | `src/Webhooks/Application/DeliverWebhook.php` | Un intento: entra en la organización con `runAs()`, firma, hace el `POST` con timeout de 10 s y 20 s de duración máxima, y guarda el resultado. |
-| Cola | `src/Webhooks/Application/Message/DeliverWebhookHandler.php` | `#[AsMessageHandler]` sobre el transporte `webhooks`. |
-| Mantenimiento | `src/Webhooks/UI/Command/MaintainWebhookDeliveriesCommand.php` | `app:webhooks:maintain`: reencola lo vencido y abandona lo caducado (más de 7 días pendiente). |
-| Panel | `src/Webhooks/UI/Controller/WebhookController.php` + 4 plantillas | Listado, alta, secreto una sola vez, ficha con historial, revelar secreto, enviar prueba y borrar. |
-| Migración | `migrations/Version20261028215037.php` | Tablas `webhook` y `webhook_delivery` con sus índices. |
+| Pieza         | Fichero                                                           | Qué hace                                                                                                                                                                                     |
+| ------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Suscriptor    | `src/Webhooks/Domain/Entity/Webhook.php`                          | Nombre, URL, secreto cifrado, eventos suscritos, activo/pausado, última entrega. `isSubscribedTo()` decide a quién le toca.                                                                  |
+| Entrega       | `src/Webhooks/Domain/Entity/WebhookDelivery.php`                  | Una fila por suscriptor y evento: cuerpo ya serializado, estado (`PENDING`/`DELIVERED`/`ABANDONED`), intentos, próximo intento, código de respuesta, último error y `Idempotency-Key` único. |
+| Firma         | `src/Webhooks/Domain/Service/WebhookSigner.php`                   | HMAC-SHA-256 de `"{timestamp}.{cuerpo}"`, cabecera `X-Suscripta-Signature: t=…,v1=…`, verificación en tiempo constante y tolerancia de 300 s.                                                |
+| Reintentos    | `src/Webhooks/Domain/Service/RetryPolicy.php`                     | Ocho envíos: 30 s, 2 min, 10 min, 1 h, 6 h, 24 h y 24 h. Después, abandono.                                                                                                                  |
+| Notificador   | `src/Webhooks/Application/WebhookNotifier.php`                    | Crea una entrega por suscriptor activo y encola un mensaje. **Nunca lanza**: un webhook es una notificación, no una transacción.                                                             |
+| Entrega       | `src/Webhooks/Application/DeliverWebhook.php`                     | Un intento: entra en la organización con `runAs()`, firma, hace el `POST` con timeout de 10 s y 20 s de duración máxima, y guarda el resultado.                                              |
+| Cola          | `src/Webhooks/Application/Message/DeliverWebhookHandler.php`      | `#[AsMessageHandler]` sobre el transporte `webhooks`.                                                                                                                                        |
+| Mantenimiento | `src/Webhooks/UI/Command/MaintainWebhookDeliveriesCommand.php`    | `app:webhooks:maintain`: reencola lo vencido y abandona lo caducado (más de 7 días pendiente).                                                                                               |
+| Panel         | `src/Webhooks/UI/Controller/WebhookController.php` + 4 plantillas | Listado, alta, secreto una sola vez, ficha con historial, revelar secreto, enviar prueba y borrar.                                                                                           |
+| Migración     | `migrations/Version20261028215037.php`                            | Tablas `webhook` y `webhook_delivery` con sus índices.                                                                                                                                       |
 
 ### Eventos emitidos
 
-| Evento | Dónde se emite |
-|---|---|
-| `service.created` | `CreateService` |
-| `proposal.created` | `ProcessEmailMessage`, solo cuando la propuesta es nueva (el camino de deduplicación no anuncia nada) |
-| `proposal.confirmed` | `ConfirmDiscovery` |
-| `charge.detected` | `ConfirmDiscovery::applyToExisting()`, solo cuando el importe cambia de verdad |
-| `ai.budget_exhausted` | `AiExtractionService`, **una vez por periodo** (ver abajo) |
+| Evento                | Dónde se emite                                                                                        |
+| --------------------- | ----------------------------------------------------------------------------------------------------- |
+| `service.created`     | `CreateService`                                                                                       |
+| `proposal.created`    | `ProcessEmailMessage`, solo cuando la propuesta es nueva (el camino de deduplicación no anuncia nada) |
+| `proposal.confirmed`  | `ConfirmDiscovery`                                                                                    |
+| `charge.detected`     | `ConfirmDiscovery::applyToExisting()`, solo cuando el importe cambia de verdad                        |
+| `ai.budget_exhausted` | `AiExtractionService`, **una vez por periodo** (ver abajo)                                            |
 
 ### Las tres decisiones que costaron pensar
 
@@ -2090,7 +2072,7 @@ forma de reaccionar a un cobro sin sondear.
    reescribir los casos de uso existentes. Cada caso de uso llama a `notify()` al final, con los
    datos que ya tiene. Es explícito y se ve en el diff; el precio es que hay que acordarse, y por
    eso cada llamada tiene su test. El parámetro es **opcional** (`?WebhookNotifier $webhooks =
-   null`) para no romper la construcción manual de los casos de uso en los tests.
+null`) para no romper la construcción manual de los casos de uso en los tests.
 2. **El reintento manda los mismos bytes.** El cuerpo se serializa una vez y se guarda en la fila
    de entrega. Reintentar reutiliza esa cadena, así que la firma cubre exactamente lo que el
    receptor recibió la primera vez y `Idempotency-Key` no cambia. Serializar de nuevo en cada
@@ -2113,11 +2095,11 @@ a diferencia de la clave de API), **D-76** (el aviso de presupuesto, una vez por
 
 ### Defectos encontrados y corregidos al verificar
 
-| # | Defecto | Síntoma | Causa raíz | Arreglo |
-|---|---|---|---|---|
-| 1 | El número de intentos no cuadraba con los envíos | Un test de la política esperaba abandono y obtenía «pendiente»; el recuento de intentos se quedaba en 7 tras 8 envíos | `abandon()` no incrementaba `attempts`, y `maxAttempts()` se leía como «envíos» cuando contaba **reintentos** | `abandon()` cuenta el intento que lo provoca; el método pasa a llamarse `maxRetries()` y se añade `maxDeliveries()` = reintentos + 1 |
-| 2 | El test de cabeceras no encontraba `Idempotency-Key` | `Undefined array key` | `MockHttpClient` entrega las cabeceras como **lista de cadenas** `"Nombre: valor"`, no como mapa | Helper `headersOf()` que las vuelve a partir; el test comprueba el contrato real |
-| 3 | El test funcional del panel usaba `https://127.0.0.1:1` | `422`: el formulario rechaza la URL | `Assert\Url(requireTld: true)` rechaza direcciones IP, y con razón: un webhook apunta a un dominio público | El test usa `https://host.docker.internal:1`, que resuelve dentro del contenedor y falla al instante (y está en la allowlist de `.env.test` desde D-77) |
+| #   | Defecto                                                 | Síntoma                                                                                                               | Causa raíz                                                                                                    | Arreglo                                                                                                                                                 |
+| --- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | El número de intentos no cuadraba con los envíos        | Un test de la política esperaba abandono y obtenía «pendiente»; el recuento de intentos se quedaba en 7 tras 8 envíos | `abandon()` no incrementaba `attempts`, y `maxAttempts()` se leía como «envíos» cuando contaba **reintentos** | `abandon()` cuenta el intento que lo provoca; el método pasa a llamarse `maxRetries()` y se añade `maxDeliveries()` = reintentos + 1                    |
+| 2   | El test de cabeceras no encontraba `Idempotency-Key`    | `Undefined array key`                                                                                                 | `MockHttpClient` entrega las cabeceras como **lista de cadenas** `"Nombre: valor"`, no como mapa              | Helper `headersOf()` que las vuelve a partir; el test comprueba el contrato real                                                                        |
+| 3   | El test funcional del panel usaba `https://127.0.0.1:1` | `422`: el formulario rechaza la URL                                                                                   | `Assert\Url(requireTld: true)` rechaza direcciones IP, y con razón: un webhook apunta a un dominio público    | El test usa `https://host.docker.internal:1`, que resuelve dentro del contenedor y falla al instante (y está en la allowlist de `.env.test` desde D-77) |
 
 ### Lo que se decidió no hacer
 
@@ -2132,16 +2114,16 @@ a diferencia de la clave de API), **D-76** (el aviso de presupuesto, una vez por
 
 ### Verificación de cierre
 
-| Comprobación | Resultado |
-|---|---|
-| Suite completa | **1 483 tests**, 5 904 aserciones, en verde |
-| Tests nuevos | 6 del firmante, 4 de la política, 7 de la entrega, 11 del panel, 1 del aviso de presupuesto |
-| PHPStan nivel 8 | Sin errores |
-| `php-cs-fixer --dry-run` | Sin cambios pendientes |
-| `lint:container` | Sin errores |
-| `doctrine:schema:validate` | Mapeo y esquema sincronizados |
-| Migración | Aplicada en `dev` y en `test` (20 migraciones) |
-| `debug:router` | Las 7 rutas del panel registradas |
+| Comprobación               | Resultado                                                                                   |
+| -------------------------- | ------------------------------------------------------------------------------------------- |
+| Suite completa             | **1 483 tests**, 5 904 aserciones, en verde                                                 |
+| Tests nuevos               | 6 del firmante, 4 de la política, 7 de la entrega, 11 del panel, 1 del aviso de presupuesto |
+| PHPStan nivel 8            | Sin errores                                                                                 |
+| `php-cs-fixer --dry-run`   | Sin cambios pendientes                                                                      |
+| `lint:container`           | Sin errores                                                                                 |
+| `doctrine:schema:validate` | Mapeo y esquema sincronizados                                                               |
+| Migración                  | Aplicada en `dev` y en `test` (20 migraciones)                                              |
+| `debug:router`             | Las 7 rutas del panel registradas                                                           |
 
 **Verificación de la fase:** un suscriptor se da de alta en el backoffice, recibe su secreto una
 vez, pulsa «Enviar prueba» y ve el código de respuesta de su endpoint; a partir de ahí, crear un
@@ -2164,26 +2146,26 @@ cancelada) que no es el estado de un servicio detectado en el correo.
 del proyecto. Nada de `Services` cambia: la relación es un UUID suelto y opcional, así que las dos
 listas conviven sin tocarse.
 
-| Capa | Piezas |
-|---|---|
-| `Domain/Enum` | `SubscriptionStatus`: `trialing`, `active`, `past_due`, `paused`, `canceled`, con `label()`, `isLive()`, `isPaid()`, `isFinal()` y `badge()`. |
-| `Domain/Entity` | `Subscription`: periodo calculado con `BillingPeriod::advance()`, nombre congelado y diez transiciones (`startTrial`, `activate`, `markPastDue`, `pause`, `resume`, `cancel`, `renew`, `changePlan`, `linkService`, `changeBillingPeriod`). |
-| `Domain/Repository` | `SubscriptionRepositoryInterface` + `SubscriptionFilters` (estado, plan, búsqueda, orden). |
-| `Infrastructure/Repository` | `SubscriptionRepository`: filtro de tenant automático, `findLiveForService()` y `countByStatus()`. |
-| `Application` | `CreateSubscription`, `UpdateSubscription`, `ChangeSubscriptionStatus`, `CancelSubscription`, `RenewSubscription` + `SubscriptionInput`. |
-| `UI` | `SubscriptionController` (8 rutas), `SubscriptionFormType`, `SubscriptionFormData` y 5 plantillas. |
-| Migración | `Version20261028224739`: tabla `subscription` con 3 índices. |
+| Capa                        | Piezas                                                                                                                                                                                                                                      |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Domain/Enum`               | `SubscriptionStatus`: `trialing`, `active`, `past_due`, `paused`, `canceled`, con `label()`, `isLive()`, `isPaid()`, `isFinal()` y `badge()`.                                                                                               |
+| `Domain/Entity`             | `Subscription`: periodo calculado con `BillingPeriod::advance()`, nombre congelado y diez transiciones (`startTrial`, `activate`, `markPastDue`, `pause`, `resume`, `cancel`, `renew`, `changePlan`, `linkService`, `changeBillingPeriod`). |
+| `Domain/Repository`         | `SubscriptionRepositoryInterface` + `SubscriptionFilters` (estado, plan, búsqueda, orden).                                                                                                                                                  |
+| `Infrastructure/Repository` | `SubscriptionRepository`: filtro de tenant automático, `findLiveForService()` y `countByStatus()`.                                                                                                                                          |
+| `Application`               | `CreateSubscription`, `UpdateSubscription`, `ChangeSubscriptionStatus`, `CancelSubscription`, `RenewSubscription` + `SubscriptionInput`.                                                                                                    |
+| `UI`                        | `SubscriptionController` (8 rutas), `SubscriptionFormType`, `SubscriptionFormData` y 5 plantillas.                                                                                                                                          |
+| Migración                   | `Version20261028224739`: tabla `subscription` con 3 índices.                                                                                                                                                                                |
 
 **Las reglas del ciclo de vida**, que es donde está el valor de la fase:
 
-| Transición | Regla |
-|---|---|
-| `trialing → active` | El periodo **empieza hoy**: la prueba no se cobra y arrastrarla dejaría un periodo medio consumido. |
-| `paused → active` | El periodo **se reinicia hoy**: los días de pausa no se cobraron, así que tampoco se deben. |
-| `active → canceled` | `endsAt` = fin del periodo pagado. No corta el acceso hoy: el cliente ya lo ha pagado. |
+| Transición                  | Regla                                                                                                                                                                    |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `trialing → active`         | El periodo **empieza hoy**: la prueba no se cobra y arrastrarla dejaría un periodo medio consumido.                                                                      |
+| `paused → active`           | El periodo **se reinicia hoy**: los días de pausa no se cobraron, así que tampoco se deben.                                                                              |
+| `active → canceled`         | `endsAt` = fin del periodo pagado. No corta el acceso hoy: el cliente ya lo ha pagado.                                                                                   |
 | `active → active` (renovar) | Solo lo activo se renueva, y si el periodo ya venció el nuevo empieza **hoy**, no en la fecha teórica: si no, un worker parado dos meses generaría dos periodos pasados. |
-| `* → canceled` | Idempotente: cancelar dos veces no reescribe la fecha de baja. |
-| `canceled → *` | Prohibido. Una suscripción cancelada no vuelve: se crea otra. |
+| `* → canceled`              | Idempotente: cancelar dos veces no reescribe la fecha de baja.                                                                                                           |
+| `canceled → *`              | Prohibido. Una suscripción cancelada no vuelve: se crea otra.                                                                                                            |
 
 **Lo que se decidió no hacer.**
 
@@ -2202,16 +2184,16 @@ no se guarda).
 
 **Verificación de cierre**
 
-| Comprobación | Resultado |
-|---|---|
-| Suite completa | **1 512 tests**, 6 044 aserciones, en verde (+29 desde la fase 20) |
-| Tests nuevos | 15 unitarios de la entidad (periodo, renovación, pausa, cancelación idempotente, prueba) y 14 funcionales (alta, edición, enlace con servicio, ciclo de vida, listas separadas, aislamiento entre organizaciones) |
-| PHPStan nivel 8 | Sin errores |
-| `php-cs-fixer --dry-run` | Sin cambios pendientes (764 ficheros) |
-| `lint:container` / `lint:twig` / `lint:yaml --parse-tags` | Sin errores (61 plantillas, 38 YAML) |
-| `doctrine:schema:validate` | Mapeo y esquema sincronizados |
-| Migración | Aplicada en `dev` y en `test` (21 migraciones) |
-| `debug:router` | Las 8 rutas del panel registradas |
+| Comprobación                                              | Resultado                                                                                                                                                                                                         |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Suite completa                                            | **1 512 tests**, 6 044 aserciones, en verde (+29 desde la fase 20)                                                                                                                                                |
+| Tests nuevos                                              | 15 unitarios de la entidad (periodo, renovación, pausa, cancelación idempotente, prueba) y 14 funcionales (alta, edición, enlace con servicio, ciclo de vida, listas separadas, aislamiento entre organizaciones) |
+| PHPStan nivel 8                                           | Sin errores                                                                                                                                                                                                       |
+| `php-cs-fixer --dry-run`                                  | Sin cambios pendientes (764 ficheros)                                                                                                                                                                             |
+| `lint:container` / `lint:twig` / `lint:yaml --parse-tags` | Sin errores (61 plantillas, 38 YAML)                                                                                                                                                                              |
+| `doctrine:schema:validate`                                | Mapeo y esquema sincronizados                                                                                                                                                                                     |
+| Migración                                                 | Aplicada en `dev` y en `test` (21 migraciones)                                                                                                                                                                    |
+| `debug:router`                                            | Las 8 rutas del panel registradas                                                                                                                                                                                 |
 
 **Verificación de la fase:** el backoffice enseña servicios y suscripciones como dos listas
 distintas —una suscripción no aparece en `/services` y un servicio no aparece en `/subscriptions`—,
@@ -2234,14 +2216,14 @@ explicable: los límites ya se aplicaban (D-64), pero no había dónde contarlos
 —OVH, Microsoft, GitHub—, que no se factura; `Plan` es el producto que vendemos. La decisión está
 en D-81, junto con el motivo de que `Plan.code` sea el enum `OrganizationPlan`.
 
-| Capa | Piezas |
-|---|---|
-| `Domain/Entity` | `Plan` (código, nombre, slug, gancho, descripción, activo, destacado, orden), `PlanPrice` (importe en unidades menores, moneda, periodo, `validFrom`/`validTo`, `externalPriceId`) y `PlanFeature` (etiqueta, incluida, orden). |
-| `Domain/Enum` | Reutiliza `BillingPeriod` y `OrganizationPlan`. `PlanPrice::SELLABLE_PERIODS` limita la venta a mensual, trimestral y anual. |
-| `Domain/Repository` | `PlanRepositoryInterface`, `PlanPriceRepositoryInterface`, `PlanFeatureRepositoryInterface`. |
-| `Application` | `CreatePlan`, `UpdatePlan`, `PublishPlanPrice`, `ClosePlanPrice`, `AddPlanFeature`, `UpdatePlanFeature`, `DeletePlanFeature`, `LinkSubscriptionsToPlans`. |
-| `UI` | `CatalogController` (9 rutas), `PlanFormType`, `PlanPriceFormType`, `PlanFeatureFormType`, `GrantOperatorCommand`, `SeedCatalogCommand`, `LinkSubscriptionsCommand` y 7 plantillas. |
-| Migración | `Version20261028230248`: `plan`, `plan_price` y `plan_feature`, con índice único en `plan.code` y en `plan.slug`. |
+| Capa                | Piezas                                                                                                                                                                                                                          |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Domain/Entity`     | `Plan` (código, nombre, slug, gancho, descripción, activo, destacado, orden), `PlanPrice` (importe en unidades menores, moneda, periodo, `validFrom`/`validTo`, `externalPriceId`) y `PlanFeature` (etiqueta, incluida, orden). |
+| `Domain/Enum`       | Reutiliza `BillingPeriod` y `OrganizationPlan`. `PlanPrice::SELLABLE_PERIODS` limita la venta a mensual, trimestral y anual.                                                                                                    |
+| `Domain/Repository` | `PlanRepositoryInterface`, `PlanPriceRepositoryInterface`, `PlanFeatureRepositoryInterface`.                                                                                                                                    |
+| `Application`       | `CreatePlan`, `UpdatePlan`, `PublishPlanPrice`, `ClosePlanPrice`, `AddPlanFeature`, `UpdatePlanFeature`, `DeletePlanFeature`, `LinkSubscriptionsToPlans`.                                                                       |
+| `UI`                | `CatalogController` (9 rutas), `PlanFormType`, `PlanPriceFormType`, `PlanFeatureFormType`, `GrantOperatorCommand`, `SeedCatalogCommand`, `LinkSubscriptionsCommand` y 7 plantillas.                                             |
+| Migración           | `Version20261028230248`: `plan`, `plan_price` y `plan_feature`, con índice único en `plan.code` y en `plan.slug`.                                                                                                               |
 
 **Las reglas del catálogo**, que es donde está el valor de la fase:
 
@@ -2270,16 +2252,16 @@ hay exactamente un candidato**: ante la duda no toca nada y lo dice. Se ejecutó
 
 **Verificación de cierre**
 
-| Comprobación | Resultado |
-|---|---|
-| Suite completa | **1 528 tests**, 6 105 aserciones, en verde (+16 desde la fase 21) |
-| Tests nuevos | 11 unitarios (`PlanCatalogTest`: cierre de precios, no duplicar importe, periodos vendibles, orden de características, idempotencia del sembrado, enlace solo con candidato único) y 5 funcionales (`CatalogPanelTest`: 403 sin `ROLE_OPERATOR`, alta de plan con precio y característica, cierre del precio anterior, borrado de característica con CSRF, límites en solo lectura) |
-| PHPStan nivel 8 | Sin errores |
-| `php-cs-fixer` | Sin cambios pendientes (795 ficheros) |
-| `lint:container` / `lint:twig` / `lint:yaml --parse-tags` | Sin errores (68 plantillas, 38 YAML) |
-| `doctrine:schema:validate` | Mapeo y esquema sincronizados |
-| Migración | Aplicada en `dev` y en `test` (22 migraciones) |
-| `debug:router` | Las 9 rutas del panel registradas |
+| Comprobación                                              | Resultado                                                                                                                                                                                                                                                                                                                                                                           |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Suite completa                                            | **1 528 tests**, 6 105 aserciones, en verde (+16 desde la fase 21)                                                                                                                                                                                                                                                                                                                  |
+| Tests nuevos                                              | 11 unitarios (`PlanCatalogTest`: cierre de precios, no duplicar importe, periodos vendibles, orden de características, idempotencia del sembrado, enlace solo con candidato único) y 5 funcionales (`CatalogPanelTest`: 403 sin `ROLE_OPERATOR`, alta de plan con precio y característica, cierre del precio anterior, borrado de característica con CSRF, límites en solo lectura) |
+| PHPStan nivel 8                                           | Sin errores                                                                                                                                                                                                                                                                                                                                                                         |
+| `php-cs-fixer`                                            | Sin cambios pendientes (795 ficheros)                                                                                                                                                                                                                                                                                                                                               |
+| `lint:container` / `lint:twig` / `lint:yaml --parse-tags` | Sin errores (68 plantillas, 38 YAML)                                                                                                                                                                                                                                                                                                                                                |
+| `doctrine:schema:validate`                                | Mapeo y esquema sincronizados                                                                                                                                                                                                                                                                                                                                                       |
+| Migración                                                 | Aplicada en `dev` y en `test` (22 migraciones)                                                                                                                                                                                                                                                                                                                                      |
+| `debug:router`                                            | Las 9 rutas del panel registradas                                                                                                                                                                                                                                                                                                                                                   |
 
 **Verificación de la fase:** un operador entra en `/catalog`, crea un plan con su precio y sus
 características, publica un precio nuevo y ve el anterior pasar al historial; un usuario sin
@@ -2302,14 +2284,14 @@ cuenta.
 **Dónde vive.** En la misma aplicación, en el módulo `src/Website/` (D-83). Un proyecto aparte
 habría duplicado el diseño, el despliegue y —lo caro— el catálogo de precios.
 
-| Capa | Piezas |
-|---|---|
-| `Application` | `PlanCard` (DTO de tarjeta), `BuildPricingPage` (catálogo + límites → tarjetas), `Faq` (seis preguntas), `SendContactMessage`. |
-| `UI/Form` | `ContactMessageData`, `ContactFormType`. |
-| `UI/Controller` | `HomepageController`, `PricingController`, `SiteController`, `ContactController`, `SeoController`. |
-| Plantillas | `base`, `_header`, `_footer`, `_plan_card`, una por página, `seo/sitemap.xml.twig` y los dos correos de contacto. |
-| Estilos | `assets/styles/site.css`, CSS plano de ~1 400 líneas con propiedades CSS como variables (D-85). |
-| Configuración | Dos globales de Twig (`site_url`, `site_contact_email`), 13 reglas `PUBLIC_ACCESS` y un limitador (`contact_form`). |
+| Capa            | Piezas                                                                                                                         |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `Application`   | `PlanCard` (DTO de tarjeta), `BuildPricingPage` (catálogo + límites → tarjetas), `Faq` (seis preguntas), `SendContactMessage`. |
+| `UI/Form`       | `ContactMessageData`, `ContactFormType`.                                                                                       |
+| `UI/Controller` | `HomepageController`, `PricingController`, `SiteController`, `ContactController`, `SeoController`.                             |
+| Plantillas      | `base`, `_header`, `_footer`, `_plan_card`, una por página, `seo/sitemap.xml.twig` y los dos correos de contacto.              |
+| Estilos         | `assets/styles/site.css`, CSS plano de ~1 400 líneas con propiedades CSS como variables (D-85).                                |
+| Configuración   | Dos globales de Twig (`site_url`, `site_contact_email`), 13 reglas `PUBLIC_ACCESS` y un limitador (`contact_form`).            |
 
 **Las once páginas.** `/`, `/producto`, `/como-funciona`, `/precios`, `/integraciones`,
 `/seguridad`, `/preguntas-frecuentes`, `/contacto`, `/aviso-legal`, `/privacidad` y
@@ -2331,14 +2313,14 @@ habría duplicado el diseño, el despliegue y —lo caro— el catálogo de prec
 
 **Defectos encontrados al verificar, y corregidos.**
 
-| # | Defecto | Cómo se vio |
-|---|---|---|
-| 1 | `TemplatedEmail` rechaza un contexto con la clave `email` (es reservada): el envío del formulario daba **500** | Test del envío de contacto; el contexto pasa a `sender` |
-| 2 | El limitador de contacto vive en caché y la caché sobrevive a la suite: a la segunda tanda, el formulario respondía «demasiados mensajes» | El test del envío empezó a fallar solo entre ejecuciones |
-| 3 | Diez ficheros de test pedían `/` esperando el panel, que ya es la portada | Suite completa tras el cambio de ruta |
-| 4 | El test de cabeceras de seguridad comprobaba el `nonce` en `/` como usuario autenticado, que ahora redirige | Suite completa |
-| 5 | Acentos escapados (`\u00e9`) literales en una plantilla, por un heredoc con comillas | Lectura del HTML servido |
-| 6 | `form_start` sin `action` apunta a la URI actual: POST sobre una ruta GET-only da 405 | Prueba manual del formulario |
+| #   | Defecto                                                                                                                                   | Cómo se vio                                              |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| 1   | `TemplatedEmail` rechaza un contexto con la clave `email` (es reservada): el envío del formulario daba **500**                            | Test del envío de contacto; el contexto pasa a `sender`  |
+| 2   | El limitador de contacto vive en caché y la caché sobrevive a la suite: a la segunda tanda, el formulario respondía «demasiados mensajes» | El test del envío empezó a fallar solo entre ejecuciones |
+| 3   | Diez ficheros de test pedían `/` esperando el panel, que ya es la portada                                                                 | Suite completa tras el cambio de ruta                    |
+| 4   | El test de cabeceras de seguridad comprobaba el `nonce` en `/` como usuario autenticado, que ahora redirige                               | Suite completa                                           |
+| 5   | Acentos escapados (`\u00e9`) literales en una plantilla, por un heredoc con comillas                                                      | Lectura del HTML servido                                 |
+| 6   | `form_start` sin `action` apunta a la URI actual: POST sobre una ruta GET-only da 405                                                     | Prueba manual del formulario                             |
 
 **Lo que se decidió no hacer.**
 
@@ -2351,16 +2333,16 @@ habría duplicado el diseño, el despliegue y —lo caro— el catálogo de prec
 
 **Verificación de cierre**
 
-| Comprobación | Resultado |
-|---|---|
-| Suite completa | **1 550 tests**, 6 224 aserciones, en verde (+22 desde la fase 22) |
-| Tests nuevos | `PublicPagesTest`: 22 casos — las once páginas sin sesión, `/` con sesión redirige al panel, `/dashboard` sigue cerrado, precios desde el catálogo, plan sin precio, catálogo vacío, envío de contacto con correo real, rechazo sin consentimiento, límite de cinco mensajes, sitemap, robots y JSON-LD de preguntas |
-| PHPStan nivel 8 | Sin errores |
-| `php-cs-fixer` | Sin cambios pendientes (807 ficheros) |
-| `lint:container` / `lint:twig` / `lint:yaml --parse-tags` | Sin errores (87 plantillas, 38 YAML) |
-| `doctrine:schema:validate` | Mapeo y esquema sincronizados |
-| `debug:router` | Las 13 rutas públicas registradas |
-| HTTP real | Las once páginas, el sitemap y el robots responden 200; el CSS se sirve con digest |
+| Comprobación                                              | Resultado                                                                                                                                                                                                                                                                                                            |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Suite completa                                            | **1 550 tests**, 6 224 aserciones, en verde (+22 desde la fase 22)                                                                                                                                                                                                                                                   |
+| Tests nuevos                                              | `PublicPagesTest`: 22 casos — las once páginas sin sesión, `/` con sesión redirige al panel, `/dashboard` sigue cerrado, precios desde el catálogo, plan sin precio, catálogo vacío, envío de contacto con correo real, rechazo sin consentimiento, límite de cinco mensajes, sitemap, robots y JSON-LD de preguntas |
+| PHPStan nivel 8                                           | Sin errores                                                                                                                                                                                                                                                                                                          |
+| `php-cs-fixer`                                            | Sin cambios pendientes (807 ficheros)                                                                                                                                                                                                                                                                                |
+| `lint:container` / `lint:twig` / `lint:yaml --parse-tags` | Sin errores (87 plantillas, 38 YAML)                                                                                                                                                                                                                                                                                 |
+| `doctrine:schema:validate`                                | Mapeo y esquema sincronizados                                                                                                                                                                                                                                                                                        |
+| `debug:router`                                            | Las 13 rutas públicas registradas                                                                                                                                                                                                                                                                                    |
+| HTTP real                                                 | Las once páginas, el sitemap y el robots responden 200; el CSS se sirve con digest                                                                                                                                                                                                                                   |
 
 **Verificación de la fase:** un visitante sin sesión recorre las once páginas, ve los precios
 reales del catálogo —incluida la rebaja anual calculada— y llega al alta; envía el formulario de
@@ -2382,15 +2364,15 @@ se refleja sin tocar nada.
 
 **Alcance entregado.**
 
-| Pieza | Dónde |
-|---|---|
-| Checkout (sesión alojada) | `GET /checkout/{priceId}` → `StartCheckout` → URL de Stripe |
-| Vuelta del pago | `GET /checkout/gracias` → `CompleteCheckout` (aplica sin esperar al webhook) |
-| Webhook de entrada | `POST /webhooks/stripe` → `StripeSignatureVerifier` + `HandlePaymentEvent` |
-| Panel de facturación | `GET /facturacion` (plan actual y recibos de la organización) |
-| Conciliación | `app:billing:reconcile` (cron; mismo código que el webhook) |
-| Persistencia | `payment_event` (idempotencia) y `sales_invoice` (recibos) |
-| Integración | `stripe` en el panel de integraciones: clave secreta y secreto del webhook, cifrados por organización |
+| Pieza                     | Dónde                                                                                                 |
+| ------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Checkout (sesión alojada) | `GET /checkout/{priceId}` → `StartCheckout` → URL de Stripe                                           |
+| Vuelta del pago           | `GET /checkout/gracias` → `CompleteCheckout` (aplica sin esperar al webhook)                          |
+| Webhook de entrada        | `POST /webhooks/stripe` → `StripeSignatureVerifier` + `HandlePaymentEvent`                            |
+| Panel de facturación      | `GET /facturacion` (plan actual y recibos de la organización)                                         |
+| Conciliación              | `app:billing:reconcile` (cron; mismo código que el webhook)                                           |
+| Persistencia              | `payment_event` (idempotencia) y `sales_invoice` (recibos)                                            |
+| Integración               | `stripe` en el panel de integraciones: clave secreta y secreto del webhook, cifrados por organización |
 
 **Las decisiones que costaron pensar.**
 
@@ -2414,27 +2396,27 @@ se refleja sin tocar nada.
 **Defectos encontrados al verificar, y corregidos.** Los cuatro los encontraron los tests, no una
 prueba manual, y los cuatro eran de producción:
 
-| # | Defecto | Cómo se vio |
-|---|---|---|
-| 1 | `StripeWebhookController` llamaba `$this->handleEvent($event)` sobre un invocable: `Call to undefined method` → **500 en cada evento** | Test del webhook: el primer evento devolvía 500 |
-| 2 | `PaymentEventRepository::claim()` insertaba `applied => false` sin tipo: DBAL lo enlazaba como cadena y PostgreSQL rechazaba `''` (`SQLSTATE[22P02]`) | Test del webhook, primer `INSERT` |
-| 3 | `PaymentEventRepository::save()` usaba `EntityManager::merge()`, **eliminado en ORM 3** | Test del webhook, al marcar el evento como aplicado |
-| 4 | El `INSERT` que choca con el índice único dejaba la transacción de PostgreSQL en aborto (`25P02`) y contaminaba el resto del test | Test del evento duplicado |
+| #   | Defecto                                                                                                                                               | Cómo se vio                                         |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| 1   | `StripeWebhookController` llamaba `$this->handleEvent($event)` sobre un invocable: `Call to undefined method` → **500 en cada evento**                | Test del webhook: el primer evento devolvía 500     |
+| 2   | `PaymentEventRepository::claim()` insertaba `applied => false` sin tipo: DBAL lo enlazaba como cadena y PostgreSQL rechazaba `''` (`SQLSTATE[22P02]`) | Test del webhook, primer `INSERT`                   |
+| 3   | `PaymentEventRepository::save()` usaba `EntityManager::merge()`, **eliminado en ORM 3**                                                               | Test del webhook, al marcar el evento como aplicado |
+| 4   | El `INSERT` que choca con el índice único dejaba la transacción de PostgreSQL en aborto (`25P02`) y contaminaba el resto del test                     | Test del evento duplicado                           |
 
 Los tres primeros habrían dejado el cobro **completamente roto en producción** sin que nada
 avisara: no hay ningún camino que ejercite el webhook salvo que Stripe llame de verdad.
 
 **Tests de la fase.** 53 casos nuevos, todos con red cero:
 
-| Fichero | Casos | Qué fija |
-|---|---|---|
-| `Unit/Billing/.../StripeSignatureVerifierTest` | 11 | La única defensa del endpoint público: firma válida, cuerpo alterado, firma antigua, timestamp futuro, rotación con varias `v1`, cabeceras malformadas |
-| `Unit/Billing/.../StripeGatewayTest` | 14 | El contrato del cuerpo enviado a Stripe: `price_data` vs `price`, metadatos, `year/1`, y los errores de la API |
-| `Functional/Billing/CheckoutTest` | 8 | Los cinco motivos por los que no se manda a nadie a pagar, y el camino feliz |
-| `Functional/Billing/CheckoutReturnTest` | 4 | La vuelta aplica el plan sin webhook, no miente si no consta y no activa una sesión de otra organización |
-| `Functional/Billing/StripeWebhookTest` | 7 | Firma, duplicado, evento ignorado, suscripción creada y actualizada, factura registrada |
-| `Functional/Billing/BillingPanelTest` | 5 | El panel enseña el plan actual y los recibos de la organización, y nada de otra |
-| `Functional/Billing/ReconcileCommandTest` | 4 | La conciliación corrige, no cancela lo que no encuentra y dice qué ha hecho |
+| Fichero                                        | Casos | Qué fija                                                                                                                                               |
+| ---------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Unit/Billing/.../StripeSignatureVerifierTest` | 11    | La única defensa del endpoint público: firma válida, cuerpo alterado, firma antigua, timestamp futuro, rotación con varias `v1`, cabeceras malformadas |
+| `Unit/Billing/.../StripeGatewayTest`           | 14    | El contrato del cuerpo enviado a Stripe: `price_data` vs `price`, metadatos, `year/1`, y los errores de la API                                         |
+| `Functional/Billing/CheckoutTest`              | 8     | Los cinco motivos por los que no se manda a nadie a pagar, y el camino feliz                                                                           |
+| `Functional/Billing/CheckoutReturnTest`        | 4     | La vuelta aplica el plan sin webhook, no miente si no consta y no activa una sesión de otra organización                                               |
+| `Functional/Billing/StripeWebhookTest`         | 7     | Firma, duplicado, evento ignorado, suscripción creada y actualizada, factura registrada                                                                |
+| `Functional/Billing/BillingPanelTest`          | 5     | El panel enseña el plan actual y los recibos de la organización, y nada de otra                                                                        |
+| `Functional/Billing/ReconcileCommandTest`      | 4     | La conciliación corrige, no cancela lo que no encuentra y dice qué ha hecho                                                                            |
 
 **Lo que se decidió no hacer.**
 
@@ -2451,15 +2433,15 @@ avisara: no hay ningún camino que ejercite el webhook salvo que Stripe llame de
 
 **Verificación de cierre**
 
-| Comprobación | Resultado |
-|---|---|
-| Suite completa | **1 603 tests**, 6 445 aserciones, en verde (+53 desde la fase 23) |
-| PHPStan nivel 8 | Sin errores |
-| `php-cs-fixer` | Sin cambios pendientes (848 ficheros) |
-| `lint:container` / `lint:twig` | Sin errores (89 plantillas) |
-| `lint:yaml --parse-tags` | Sin errores (38 YAML) |
-| `doctrine:schema:validate` | Mapeo y esquema sincronizados |
-| Migración | `Version20261028233512` aplicada en `dev` y en `test` |
+| Comprobación                   | Resultado                                                          |
+| ------------------------------ | ------------------------------------------------------------------ |
+| Suite completa                 | **1 603 tests**, 6 445 aserciones, en verde (+53 desde la fase 23) |
+| PHPStan nivel 8                | Sin errores                                                        |
+| `php-cs-fixer`                 | Sin cambios pendientes (848 ficheros)                              |
+| `lint:container` / `lint:twig` | Sin errores (89 plantillas)                                        |
+| `lint:yaml --parse-tags`       | Sin errores (38 YAML)                                              |
+| `doctrine:schema:validate`     | Mapeo y esquema sincronizados                                      |
+| Migración                      | `Version20261028233512` aplicada en `dev` y en `test`              |
 
 **Verificación de la fase:** con la clave de Stripe en modo test pegada en el panel de
 integraciones, un usuario abre `/checkout/{priceId}`, paga en la sesión alojada, vuelve a
@@ -2508,14 +2490,14 @@ comprobar que el token sigue sirviendo después de otras peticiones.
 
 **Tests de la fase.** 6 casos nuevos en `tests/Functional/Identity/CsrfUnificationTest.php`:
 
-| Caso | Qué fija |
-|---|---|
-| `testTheTokenIsStoredInTheSession` | `_csrf/resend_verification` existe en la sesión tras renderizar |
-| `testNoStatelessCookieIsIssued` | No se emite la cookie `csrf-token` del gestor sin estado |
-| `testATokenFromAnEarlierPageStillWorksAfterOtherRequests` | Un formulario abierto hace rato sigue valiendo (302) |
-| `testTheTokenOfTheSamePurposeIsAccepted` | El camino feliz del mismo propósito |
-| `testATokenOfAnotherPurposeIsRejected` | El token de logout no sirve para reenviar el correo (403) |
-| `testAnInventedTokenIsRejected` | Un token inventado no vale (403) |
+| Caso                                                      | Qué fija                                                        |
+| --------------------------------------------------------- | --------------------------------------------------------------- |
+| `testTheTokenIsStoredInTheSession`                        | `_csrf/resend_verification` existe en la sesión tras renderizar |
+| `testNoStatelessCookieIsIssued`                           | No se emite la cookie `csrf-token` del gestor sin estado        |
+| `testATokenFromAnEarlierPageStillWorksAfterOtherRequests` | Un formulario abierto hace rato sigue valiendo (302)            |
+| `testTheTokenOfTheSamePurposeIsAccepted`                  | El camino feliz del mismo propósito                             |
+| `testATokenOfAnotherPurposeIsRejected`                    | El token de logout no sirve para reenviar el correo (403)       |
+| `testAnInventedTokenIsRejected`                           | Un token inventado no vale (403)                                |
 
 **Lo que se decidió no hacer.**
 
@@ -2526,13 +2508,13 @@ comprobar que el token sigue sirviendo después de otras peticiones.
 
 **Verificación de cierre**
 
-| Comprobación | Resultado |
-|---|---|
-| Suite completa | **1 609 tests**, 6 464 aserciones, en verde (+6 desde la fase 24) |
-| PHPStan nivel 8 | Sin errores |
-| `php-cs-fixer` | Sin cambios pendientes (849 ficheros) |
-| `lint:container` / `lint:twig` | Sin errores (89 plantillas) |
-| `debug:config framework csrf_protection` | `stateless_token_ids: {}`, `check_header: false` |
+| Comprobación                             | Resultado                                                         |
+| ---------------------------------------- | ----------------------------------------------------------------- |
+| Suite completa                           | **1 609 tests**, 6 464 aserciones, en verde (+6 desde la fase 24) |
+| PHPStan nivel 8                          | Sin errores                                                       |
+| `php-cs-fixer`                           | Sin cambios pendientes (849 ficheros)                             |
+| `lint:container` / `lint:twig`           | Sin errores (89 plantillas)                                       |
+| `debug:config framework csrf_protection` | `stateless_token_ids: {}`, `check_header: false`                  |
 
 **Verificación de la fase:** cualquier formulario del backoffice —login, perfil, cambio de
 organización, lote de descubrimientos, reenvío de confirmación— se envía con el token de la página y
@@ -2543,15 +2525,15 @@ funciona; un token de otro propósito o inventado devuelve 403; y en la sesión 
 
 Lo que se sabe que está flojo y no justifica una fase propia.
 
-| # | Deuda | Por qué se acepta | Cuándo duele |
-|---|---|---|---|
-| ~~1~~ | ~~**Sin guarda anti-SSRF en los webhooks**~~ — **resuelta** (D-77): la URL se valida al darla de alta y en cada entrega, la conexión se ata a la IP comprobada y no se siguen redirecciones | — | — |
-| 2 | **Rotación del pepper de la API manual** | Son dos comandos y hoy hay pocas claves | Cuando haya muchas integraciones que migrar |
-| 3 | **Ámbitos de API solo `read`/`write`** | Cubre el caso actual | Cuando un integrador pida escritura sin lectura |
-| 4 | **La API comparte cuota con el backoffice** | Es el mismo plan | Si la API se vende como producto aparte |
-| 5 | **Verificación con un buzón real pendiente** | La vertical está probada con un doble de IMAP | Antes de la primera venta: es la hipótesis del producto |
-| ~~6~~ | ~~**Sin capturas de pantalla en el README**~~ — **resuelta**: `docs/img/` con cinco capturas tomadas con Playwright contra la cuenta de demostración, y el comando `app:demo:seed` para regenerarlas | — | — |
-| 7 | **Recarga en caliente de FrankenPHP desde un CDN** | Solo afecta a `dev` | Nunca, salvo auditoría de privacidad |
+| #     | Deuda                                                                                                                                                                                                | Por qué se acepta                             | Cuándo duele                                            |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | ------------------------------------------------------- |
+| ~~1~~ | ~~**Sin guarda anti-SSRF en los webhooks**~~ — **resuelta** (D-77): la URL se valida al darla de alta y en cada entrega, la conexión se ata a la IP comprobada y no se siguen redirecciones          | —                                             | —                                                       |
+| 2     | **Rotación del pepper de la API manual**                                                                                                                                                             | Son dos comandos y hoy hay pocas claves       | Cuando haya muchas integraciones que migrar             |
+| 3     | **Ámbitos de API solo `read`/`write`**                                                                                                                                                               | Cubre el caso actual                          | Cuando un integrador pida escritura sin lectura         |
+| 4     | **La API comparte cuota con el backoffice**                                                                                                                                                          | Es el mismo plan                              | Si la API se vende como producto aparte                 |
+| 5     | **Verificación con un buzón real pendiente**                                                                                                                                                         | La vertical está probada con un doble de IMAP | Antes de la primera venta: es la hipótesis del producto |
+| ~~6~~ | ~~**Sin capturas de pantalla en el README**~~ — **resuelta**: `docs/img/` con cinco capturas tomadas con Playwright contra la cuenta de demostración, y el comando `app:demo:seed` para regenerarlas | —                                             | —                                                       |
+| 7     | **Recarga en caliente de FrankenPHP desde un CDN**                                                                                                                                                   | Solo afecta a `dev`                           | Nunca, salvo auditoría de privacidad                    |
 
 ## Fuera del roadmap (explícitamente descartado)
 
@@ -2573,18 +2555,18 @@ vuelva a abrir el mismo debate.
 
 ### Resueltas por el usuario
 
-| # | Pregunta | Respuesta |
-|---|---|---|
-| 1 | ¿`Subscription` como entidad separada de `Service`? | **Sí, reintroducirla.** Es la fase 21. |
-| 2 | ¿Recarga en caliente de FrankenPHP en desarrollo? | **Se mantiene.** Solo afecta a `dev` y el ahorro de tiempo es real. |
-| 3 | ¿CSRF sin estado o con sesión? | **Unificar con el gestor de sesión.** Es la fase 25. |
-| 4 | ¿`AGENTS.md` y `CLAUDE.md` en la raíz? | **Eliminar los dos.** No aportan al producto. |
-| 5 | Orden de clasificación de documentos | **Corregido**: `INVOICE` antes que `RENEWAL_NOTICE`. Ver abajo. |
-| 7 | ¿Rotación del pepper de la API? | **Manual por ahora.** Se automatiza cuando haya volumen. |
-| 8 | ¿Bastan los ámbitos `read`/`write`? | **Se dejan como están.** Se amplían cuando un integrador los pida. |
-| 9 | ¿La API tiene cuota propia? | **No: contador compartido con el backoffice.** Es el mismo plan. |
-| 10 | ¿Webhooks de salida? | **Sí, ahora.** Es la fase 20, ya entregada. |
-| 11 | ¿Guarda anti-SSRF en las URLs de webhook? | **Implementarla ya**, sin esperar a la fase 24. Hecho: D-77. |
+| #   | Pregunta                                            | Respuesta                                                           |
+| --- | --------------------------------------------------- | ------------------------------------------------------------------- |
+| 1   | ¿`Subscription` como entidad separada de `Service`? | **Sí, reintroducirla.** Es la fase 21.                              |
+| 2   | ¿Recarga en caliente de FrankenPHP en desarrollo?   | **Se mantiene.** Solo afecta a `dev` y el ahorro de tiempo es real. |
+| 3   | ¿CSRF sin estado o con sesión?                      | **Unificar con el gestor de sesión.** Es la fase 25.                |
+| 4   | ¿`AGENTS.md` y `CLAUDE.md` en la raíz?              | **Eliminar los dos.** No aportan al producto.                       |
+| 5   | Orden de clasificación de documentos                | **Corregido**: `INVOICE` antes que `RENEWAL_NOTICE`. Ver abajo.     |
+| 7   | ¿Rotación del pepper de la API?                     | **Manual por ahora.** Se automatiza cuando haya volumen.            |
+| 8   | ¿Bastan los ámbitos `read`/`write`?                 | **Se dejan como están.** Se amplían cuando un integrador los pida.  |
+| 9   | ¿La API tiene cuota propia?                         | **No: contador compartido con el backoffice.** Es el mismo plan.    |
+| 10  | ¿Webhooks de salida?                                | **Sí, ahora.** Es la fase 20, ya entregada.                         |
+| 11  | ¿Guarda anti-SSRF en las URLs de webhook?           | **Implementarla ya**, sin esperar a la fase 24. Hecho: D-77.        |
 
 ### Resueltas y ya implementadas
 

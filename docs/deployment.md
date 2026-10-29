@@ -16,13 +16,13 @@ referencia es [operations.md](operations.md); esto solo cubre lo que se hace **u
 
 ## 1. Qué se necesita
 
-| Pieza | Mínimo | Nota |
-|---|---|---|
-| Servidor | 2 vCPU, 2 GB RAM, 20 GB SSD | El worker de la cola convive con el servidor web. |
-| Sistema | Linux con Docker Engine 24+ y Compose v2.10+ | Es lo único que hay que instalar. |
-| Base de datos | PostgreSQL 16 | Va en su contenedor; no hace falta un servicio externo. |
-| Dominio | Uno, con DNS apuntando al servidor | Caddy pide el certificado solo, hace falta el puerto 80 y el 443 abiertos. |
-| Correo saliente | Un relay SMTP | Para verificación de cuenta, recuperación de contraseña y avisos. |
+| Pieza           | Mínimo                                       | Nota                                                                       |
+| --------------- | -------------------------------------------- | -------------------------------------------------------------------------- |
+| Servidor        | 2 vCPU, 2 GB RAM, 20 GB SSD                  | El worker de la cola convive con el servidor web.                          |
+| Sistema         | Linux con Docker Engine 24+ y Compose v2.10+ | Es lo único que hay que instalar.                                          |
+| Base de datos   | PostgreSQL 16                                | Va en su contenedor; no hace falta un servicio externo.                    |
+| Dominio         | Uno, con DNS apuntando al servidor           | Caddy pide el certificado solo, hace falta el puerto 80 y el 443 abiertos. |
+| Correo saliente | Un relay SMTP                                | Para verificación de cuenta, recuperación de contraseña y avisos.          |
 
 No hace falta PHP, Composer ni Node en el servidor: la imagen se construye con todo dentro.
 
@@ -69,7 +69,7 @@ openssl rand -base64 24     # POSTGRES_PASSWORD
 >
 > Se puede comprobar con `bin/console debug:dotenv`. Si no se define, la API no admite ningún
 > origen de navegador (correcto si solo la consumen servidores).
-
+>
 > **`WEBHOOK_ALLOWED_PRIVATE_HOSTS` se deja vacía en producción.** Es la allowlist de hosts que se
 > saltan la guarda anti-SSRF (D-77): solo tiene sentido en desarrollo o en una instalación
 > autoalojada cuyo receptor viva en la red interna. En un servidor público, un valor aquí es un
@@ -81,10 +81,10 @@ openssl rand -base64 24     # POSTGRES_PASSWORD
 
 Hay dos niveles y conviene no confundirlos:
 
-| Nivel | Dónde | Qué va ahí |
-|---|---|---|
-| Entorno | `.env.local` o el entorno del contenedor | Lo que la infraestructura necesita **antes** de arrancar: `APP_SECRET`, `DATABASE_URL`, `MAILER_DSN`. |
-| Aplicación | `bin/console secrets:set` (cifrado en `config/secrets/`) | Credenciales de proveedores y claves que la aplicación lee en tiempo de ejecución. |
+| Nivel      | Dónde                                                    | Qué va ahí                                                                                            |
+| ---------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Entorno    | `.env.local` o el entorno del contenedor                 | Lo que la infraestructura necesita **antes** de arrancar: `APP_SECRET`, `DATABASE_URL`, `MAILER_DSN`. |
+| Aplicación | `bin/console secrets:set` (cifrado en `config/secrets/`) | Credenciales de proveedores y claves que la aplicación lee en tiempo de ejecución.                    |
 
 Los secretos de la aplicación se guardan cifrados con una clave de descifrado que **vive en el
 entorno** (`APP_SECRET` por defecto). Consecuencia práctica: **el almacén de secretos no sirve de
@@ -168,13 +168,13 @@ cuenta, conectar un buzón y confirmar una propuesta**. Si eso funciona, funcion
 
 ## 6. Después del primer despliegue
 
-| Tarea | Cómo | Cuándo |
-|---|---|---|
-| Copias de seguridad | `bin/backup.sh` en `cron` | Diaria, antes de la primera migración |
-| Verificar la restauración | [operations.md §4](operations.md#4-restauración) | Una vez, y cada vez que cambie el procedimiento |
-| Vigilancia | [operations.md §5](operations.md#5-vigilancia) | Desde el primer día |
-| Rotación de secretos | [operations.md §7](operations.md#7-rotación-de-secretos) | Según política |
-| Revisar `var/log/prod.log` | `docker compose logs php` | Primera semana, a diario |
+| Tarea                      | Cómo                                                     | Cuándo                                          |
+| -------------------------- | -------------------------------------------------------- | ----------------------------------------------- |
+| Copias de seguridad        | `bin/backup.sh` en `cron`                                | Diaria, antes de la primera migración           |
+| Verificar la restauración  | [operations.md §4](operations.md#4-restauración)         | Una vez, y cada vez que cambie el procedimiento |
+| Vigilancia                 | [operations.md §5](operations.md#5-vigilancia)           | Desde el primer día                             |
+| Rotación de secretos       | [operations.md §7](operations.md#7-rotación-de-secretos) | Según política                                  |
+| Revisar `var/log/prod.log` | `docker compose logs php`                                | Primera semana, a diario                        |
 
 Una copia que nunca se ha restaurado no es una copia: es una carpeta con ficheros dentro.
 
@@ -182,12 +182,12 @@ Una copia que nunca se ha restaurado no es una copia: es una carpeta con fichero
 
 ## 7. Errores que se cometen la primera vez
 
-| Síntoma | Causa | Arreglo |
-|---|---|---|
-| El contenedor arranca y muere en bucle | `API_CORS_ALLOWED_ORIGINS` con comillas dobles → JSON inválido | Poner comillas simples y `debug:dotenv` |
-| `500` en todas las páginas tras desplegar | `APP_SECRET` cambiado sin `cache:clear` | `cache:clear` y reiniciar `php` y `worker` |
-| La cola crece y nada se procesa | El worker no se reinició, o `MESSENGER_TRANSPORT_DSN` apunta a otro transporte | `docker compose ... restart worker` |
-| `doctrine:schema:validate` detecta diferencias | Migración pendiente | `make migration` y aplicarla; nunca `schema:update` |
-| El certificado no se emite | Puertos 80/443 cerrados, o DNS aún sin propagar | Abrir puertos y esperar al DNS |
-| La API devuelve `401` con una clave que «funcionaba» | Se cambió `APP_SECRET` sin haber fijado `API_KEY_PEPPER` | Fijar `API_KEY_PEPPER` y reemitir las claves |
-| Las peticiones del navegador a la API fallan por CORS | El origen no está en la lista blanca | Añadirlo a `API_CORS_ALLOWED_ORIGINS` y reiniciar |
+| Síntoma                                               | Causa                                                                          | Arreglo                                             |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------ | --------------------------------------------------- |
+| El contenedor arranca y muere en bucle                | `API_CORS_ALLOWED_ORIGINS` con comillas dobles → JSON inválido                 | Poner comillas simples y `debug:dotenv`             |
+| `500` en todas las páginas tras desplegar             | `APP_SECRET` cambiado sin `cache:clear`                                        | `cache:clear` y reiniciar `php` y `worker`          |
+| La cola crece y nada se procesa                       | El worker no se reinició, o `MESSENGER_TRANSPORT_DSN` apunta a otro transporte | `docker compose ... restart worker`                 |
+| `doctrine:schema:validate` detecta diferencias        | Migración pendiente                                                            | `make migration` y aplicarla; nunca `schema:update` |
+| El certificado no se emite                            | Puertos 80/443 cerrados, o DNS aún sin propagar                                | Abrir puertos y esperar al DNS                      |
+| La API devuelve `401` con una clave que «funcionaba»  | Se cambió `APP_SECRET` sin haber fijado `API_KEY_PEPPER`                       | Fijar `API_KEY_PEPPER` y reemitir las claves        |
+| Las peticiones del navegador a la API fallan por CORS | El origen no está en la lista blanca                                           | Añadirlo a `API_CORS_ALLOWED_ORIGINS` y reiniciar   |

@@ -56,16 +56,16 @@ valor está en el dominio (servicios, costes, renovaciones) y en lo que se const
 
 ### 3.1 Preguntas que el producto debe responder
 
-| Pregunta | Dónde se responde |
-|---|---|
-| ¿Qué servicios estoy pagando? | Listado de servicios + dashboard |
-| ¿Cuánto me cuestan? | Coste mensual equivalente y anual |
-| ¿Cuándo volverán a cobrarme? | Próximos cobros |
-| ¿Qué servicios se van a renovar? | Renovaciones y alertas de renovación |
-| ¿Qué ha cambiado? | Eventos de servicio + alertas de cambio |
-| ¿Qué facturas nuevas ha detectado el sistema? | Descubrimientos pendientes de revisar |
-| ¿Qué gastos recurrentes han aumentado? | Historial de precios + alertas de subida |
-| ¿Qué servicios debería revisar? | Alertas abiertas + descubrimientos pendientes |
+| Pregunta                                      | Dónde se responde                             |
+| --------------------------------------------- | --------------------------------------------- |
+| ¿Qué servicios estoy pagando?                 | Listado de servicios + dashboard              |
+| ¿Cuánto me cuestan?                           | Coste mensual equivalente y anual             |
+| ¿Cuándo volverán a cobrarme?                  | Próximos cobros                               |
+| ¿Qué servicios se van a renovar?              | Renovaciones y alertas de renovación          |
+| ¿Qué ha cambiado?                             | Eventos de servicio + alertas de cambio       |
+| ¿Qué facturas nuevas ha detectado el sistema? | Descubrimientos pendientes de revisar         |
+| ¿Qué gastos recurrentes han aumentado?        | Historial de precios + alertas de subida      |
+| ¿Qué servicios debería revisar?               | Alertas abiertas + descubrimientos pendientes |
 
 ### 3.2 Hipótesis de producto
 
@@ -135,14 +135,14 @@ una **fuente de información**.
 **Compatibilidad objetivo:** cualquier servidor IMAP estándar, siempre que sea técnicamente
 posible.
 
-| Proveedor | Vía |
-|---|---|
-| Gmail | IMAP (contraseña de aplicación) u OAuth |
-| Microsoft 365 / Outlook | IMAP u OAuth |
-| Servidores IMAP propios | IMAP |
-| Correo de hosting (cPanel, Plesk, etc.) | IMAP |
-| Proveedores de correo corporativo | IMAP |
-| Proveedores de dominios/hosting | IMAP |
+| Proveedor                               | Vía                                     |
+| --------------------------------------- | --------------------------------------- |
+| Gmail                                   | IMAP (contraseña de aplicación) u OAuth |
+| Microsoft 365 / Outlook                 | IMAP u OAuth                            |
+| Servidores IMAP propios                 | IMAP                                    |
+| Correo de hosting (cPanel, Plesk, etc.) | IMAP                                    |
+| Proveedores de correo corporativo       | IMAP                                    |
+| Proveedores de dominios/hosting         | IMAP                                    |
 
 **La arquitectura no se diseña alrededor de Gmail** (ver `DECISIONS.md` D-23). Gmail es un
 proveedor más, con sus particularidades (scopes restringidos, evaluación CASA anual para acceso
@@ -165,16 +165,16 @@ cuentas** para no proponer dos veces el mismo servicio porque la factura llegó 
 
 ## 5. Qué NO es el producto
 
-| No es | Por qué |
-|---|---|
-| Un ERP | No hay contabilidad, ni asientos, ni inmovilizado, ni tesorería. |
-| Un programa de contabilidad | No calcula impuestos, ni IVA, ni modelos, ni conciliación bancaria. |
+| No es                         | Por qué                                                                                                       |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Un ERP                        | No hay contabilidad, ni asientos, ni inmovilizado, ni tesorería.                                              |
+| Un programa de contabilidad   | No calcula impuestos, ni IVA, ni modelos, ni conciliación bancaria.                                           |
 | Un gestor documental genérico | Los documentos existen solo como evidencia de un servicio. Sin carpetas, sin búsqueda global, sin OCR masivo. |
-| Un cliente de correo | No se lee, responde, mueve ni borra correo. Solo se analiza. |
-| Un CRM | No hay clientes, oportunidades ni pipeline. |
-| Una plataforma de facturación | No se emiten facturas a tus clientes. |
-| Un agregador bancario | v1 no se conecta a bancos. |
-| Un comparador de precios | No recomienda cambiar de proveedor. |
+| Un cliente de correo          | No se lee, responde, mueve ni borra correo. Solo se analiza.                                                  |
+| Un CRM                        | No hay clientes, oportunidades ni pipeline.                                                                   |
+| Una plataforma de facturación | No se emiten facturas a tus clientes.                                                                         |
+| Un agregador bancario         | v1 no se conecta a bancos.                                                                                    |
+| Un comparador de precios      | No recomienda cambiar de proveedor.                                                                           |
 
 **Regla de decisión:** si una funcionalidad no contribuye directamente a controlar servicios,
 costes, renovaciones o cambios, se cuestiona y por defecto se descarta.
@@ -258,14 +258,14 @@ producto.
 
 Para cada correo procesado, el usuario puede ver:
 
-- **Por qué se procesó o se ignoró**, con los motivos concretos: *"el remitente es un proveedor
-  conocido"*, *"el asunto contiene una palabra de facturación"*, *"tiene un PDF adjunto"*,
-  *"se detectó un importe"*.
+- **Por qué se procesó o se ignoró**, con los motivos concretos: _"el remitente es un proveedor
+  conocido"_, _"el asunto contiene una palabra de facturación"_, _"tiene un PDF adjunto"_,
+  _"se detectó un importe"_.
 - **Qué se extrajo**: proveedor, servicio, importe, moneda, periodicidad, fechas.
 - **Cómo se extrajo**: si bastaron reglas y parsers o si fue necesario un modelo de IA.
 - **De dónde salió**: los correos y documentos concretos que sustentan la propuesta.
 - **Con qué se asoció**: por qué el sistema cree que es el mismo servicio que ya tenía
-  (*"coincide el proveedor y el importe"*).
+  (_"coincide el proveedor y el importe"_).
 
 **Por qué importa.** Un gasto recurrente mal detectado es peor que un gasto no detectado: el
 usuario toma decisiones de dinero con esa información. Un sistema que dice "29,90 €" sin poder
@@ -310,32 +310,32 @@ y editable. Si el sistema se equivoca, el usuario puede ver por qué y corregirl
 
 ## 8. Dashboard: las preguntas que debe responder
 
-| Pregunta | Respuesta en pantalla |
-|---|---|
-| ¿Qué servicios estoy pagando? | Listado y recuento por estado y categoría. |
-| ¿Cuánto me cuestan? | Equivalente mensual y estimación anual. |
-| ¿Cuándo volverán a cobrarme? | Cobros de los próximos 30/60 días con total. |
-| ¿Qué servicios se van a renovar? | Renovaciones próximas con preaviso. |
-| ¿Qué ha cambiado? | Últimos cambios de precio/plan y eventos recientes. |
-| ¿Qué facturas nuevas ha detectado el sistema? | Descubrimientos pendientes de revisar. |
-| ¿Qué gastos recurrentes han aumentado? | Variaciones de precio destacadas. |
-| ¿Qué servicios debería revisar? | Alertas abiertas y descubrimientos pendientes. |
+| Pregunta                                      | Respuesta en pantalla                               |
+| --------------------------------------------- | --------------------------------------------------- |
+| ¿Qué servicios estoy pagando?                 | Listado y recuento por estado y categoría.          |
+| ¿Cuánto me cuestan?                           | Equivalente mensual y estimación anual.             |
+| ¿Cuándo volverán a cobrarme?                  | Cobros de los próximos 30/60 días con total.        |
+| ¿Qué servicios se van a renovar?              | Renovaciones próximas con preaviso.                 |
+| ¿Qué ha cambiado?                             | Últimos cambios de precio/plan y eventos recientes. |
+| ¿Qué facturas nuevas ha detectado el sistema? | Descubrimientos pendientes de revisar.              |
+| ¿Qué gastos recurrentes han aumentado?        | Variaciones de precio destacadas.                   |
+| ¿Qué servicios debería revisar?               | Alertas abiertas y descubrimientos pendientes.      |
 
 **Sin gráficos decorativos.** Solo información accionable.
 
 ## 9. Alertas
 
-| Alerta | Tipo | Inferencia |
-|---|---|---|
-| Próximo cobro | Determinista | No |
-| Próxima renovación | Determinista | No |
-| Renovación anual próxima | Determinista | No |
-| Aumento de precio | Determinista (comparación de precios) | No |
-| Cambio de plan | Determinista si el plan está en la factura | Parcial |
-| Nueva suscripción detectada | Inferencia | Sí |
-| Servicio aparentemente duplicado | Inferencia | Sí |
-| Factura recurrente que deja de recibirse | Inferencia | Sí |
-| Servicio sin actividad reciente | Inferencia | Sí |
+| Alerta                                   | Tipo                                       | Inferencia |
+| ---------------------------------------- | ------------------------------------------ | ---------- |
+| Próximo cobro                            | Determinista                               | No         |
+| Próxima renovación                       | Determinista                               | No         |
+| Renovación anual próxima                 | Determinista                               | No         |
+| Aumento de precio                        | Determinista (comparación de precios)      | No         |
+| Cambio de plan                           | Determinista si el plan está en la factura | Parcial    |
+| Nueva suscripción detectada              | Inferencia                                 | Sí         |
+| Servicio aparentemente duplicado         | Inferencia                                 | Sí         |
+| Factura recurrente que deja de recibirse | Inferencia                                 | Sí         |
+| Servicio sin actividad reciente          | Inferencia                                 | Sí         |
 
 Las alertas inferidas se presentan **explícitamente como sugerencias** (`Alert.isInference`),
 con la evidencia disponible y sin afirmar conclusiones que no se puedan sostener.

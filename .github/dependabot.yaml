@@ -5,7 +5,7 @@ updates:
     schedule:
       interval: weekly
     commit-message:
-      prefix: "chore"
+      prefix: 'chore'
     cooldown:
       default-days: 7
 
@@ -14,7 +14,7 @@ updates:
     schedule:
       interval: weekly
     commit-message:
-      prefix: "chore"
+      prefix: 'chore'
     cooldown:
       default-days: 7
 
@@ -23,6 +23,6 @@ updates:
     schedule:
       interval: weekly
     commit-message:
-      prefix: "chore"
+      prefix: 'chore'
     cooldown:
       default-days: 7

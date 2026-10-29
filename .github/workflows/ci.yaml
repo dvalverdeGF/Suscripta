@@ -100,3 +100,11 @@ jobs:
           VALIDATE_PHP_PHPCS: false
           VALIDATE_PHP_PHPSTAN: false
           VALIDATE_PHP_PSALM: false
+          # El texto del proyecto está en español y los dos validadores de
+          # prosa solo hablan inglés: codespell marca «fase», «historial» o
+          # «comercial» como erratas y textlint (regla `terminology`) pide
+          # «readme» en minúsculas o «repository» en vez de «repo». La prosa
+          # se revisa a mano; el markdown sí se valida (estructura y formato)
+          # con MARKDOWN y MARKDOWN_PRETTIER.
+          VALIDATE_SPELL_CODESPELL: false
+          VALIDATE_NATURAL_LANGUAGE: false

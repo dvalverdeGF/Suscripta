@@ -28,8 +28,8 @@ cerrada, verificada y commiteada. El detalle de lo que queda pendiente está en
   mentira de `.env*`, `README.md`, `docs/api/` y los tests de webhooks, `dotenv-linter` no exige
   comillas donde son carga semántica (`APP_SECRET`, `API_CORS_ALLOWED_ORIGINS`) y `.editorconfig`
   recoge el estilo real (scripts de `bin/` a 4 espacios, CSS/SCSS a 2, XML sin sangrado forzado).
-  `assets/.prettierrc.json` fija el formato del front (`printWidth` 100, comillas simples) para
-  poder aplicar `npx prettier --write` sin pelearse con el resto del repo. En una segunda pasada
+  `.prettierrc.json` fija el formato (`printWidth` 100, comillas simples) para poder aplicar
+  `npx prettier --write` sin pelearse con el resto del repo. En una segunda pasada
   se cerró lo que quedaba y se dejó escrito el criterio de cada validador:
   - `assets/styles/backoffice.css` es el artefacto compilado de `backoffice.scss` (Bootstrap
     dentro): queda fuera del análisis, se revisa la fuente.
@@ -48,6 +48,20 @@ cerrada, verificada y commiteada. El detalle de lo que queda pendiente está en
     `###> paquete ###` al margen y prettier las indentaría— y lo vendorizado o generado.
   - `.github/linters/.gitleaks.toml` casa las rutas con `(^|/)…`: gitleaks las recibe
     absolutas y los patrones ancorados al principio no encajaban.
+  - `.prettierrc.json` pasa de `assets/` a la raíz: prettier es el único formateador y ahora
+    también ordena el markdown y el YAML. Con él se reformatean los 17 documentos (tablas
+    alineadas, listas y énfasis normalizados) y los cuatro YAML que estaban a medias.
+  - `.github/linters/.markdownlint.json` valida el markdown: valores por defecto de super-linter
+    más `MD024` con `siblings_only`, que es lo que necesita un changelog por fases. Se añade el
+    lenguaje a los bloques de código que no lo tenían, se separan las citas encadenadas y
+    `docs/LEARNING.md` gana el título que le faltaba.
+  - `.github/linters/.python-lint` fija el ancho de pylint en 120, el mismo de ruff y flake8: con
+    100, `ruff format` volvía a juntar una línea de 104 y los dos validadores se peleaban.
+  - Los scripts de `bin/` pasan por `shfmt`, con su estilo escrito en `.editorconfig`
+    (`switch_case_indent`, `binary_next_line`).
+  - `SPELL_CODESPELL` y `NATURAL_LANGUAGE` se desactivan: son diccionarios y guías inglesas y
+    sobre prosa española marcan «fase», «historial» o piden «readme» en minúsculas. El criterio
+    completo está en D-92.
 
 ### Corregido
 
@@ -330,7 +344,7 @@ Commit de cierre: `bd646a8`.
 - **Clasificación de documentos.** `DeterministicExtractor::classify()` evaluaba
   `RENEWAL_NOTICE` antes que `INVOICE`, de modo que una factura que menciona «se renovará» se
   tipaba como `OTHER`. El orden pasa a `PRICE_CHANGE → PLAN_CHANGE → INVOICE → RECEIPT →
-  RENEWAL_NOTICE → UNKNOWN`: el tipo del documento lo decide lo que **es**, no lo que anuncia.
+RENEWAL_NOTICE → UNKNOWN`: el tipo del documento lo decide lo que **es**, no lo que anuncia.
 - **El transporte `webhooks` no lo consumía ningún worker.** Estaba declarado en
   `messenger.yaml` y las entregas se encolaban, pero ni el worker de desarrollo ni el de
   producción lo tenían en su lista de `messenger:consume`: en producción se habrían quedado en
@@ -484,7 +498,7 @@ interfaz.
 
 - Emparejamiento de facturas con servicios existentes y detección de recurrencia.
 - Deduplicación de propuestas, caducidad de las antiguas y revisión en lote.
-- Alertas de servicio nuevo y *read model* de descubrimientos.
+- Alertas de servicio nuevo y _read model_ de descubrimientos.
 - Cada propuesta explica **por qué** se propone: señales, pesos y detalle.
 
 ## [Fase 11] — 2026-10-21 — IA económica y avanzada
@@ -508,7 +522,7 @@ interfaz.
 
 ### Añadido
 
-- Niveles 0–2: ingesta, extracción de metadatos, filtros baratos y *billing score*.
+- Niveles 0–2: ingesta, extracción de metadatos, filtros baratos y _billing score_.
 - Métricas del pipeline y decisiones explicables por correo.
 
 ## [Fase 8] — 2026-10-05 — Conexión de correo completa
