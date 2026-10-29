@@ -1,0 +1,136 @@
+{#
+    Segundo paso del asistente: conectar el proveedor elegido.
+
+    La acción principal depende del tipo de proveedor, y esa es justamente la
+    razón de partir el alta en dos pasos (D-93):
+
+    - Gmail y Microsoft se conectan con el consentimiento del propio proveedor
+      (OAuth2). Es el camino corto: no hay contraseñas que generar ni servidor
+      que buscar. Gmail, además, sigue aceptando contraseña de aplicación, así
+      que se ofrece como alternativa.
+    - Microsoft **solo** acepta OAuth2. Sin las credenciales de la aplicación
+      dadas de alta no hay forma de conectar una cuenta, y se dice en vez de
+      ofrecer un formulario que va a fallar.
+    - Yahoo e iCloud solo aceptan contraseña de aplicación: no hay OAuth2 para
+      IMAP que ofrecer.
+    - IMAP genérico pide el servidor y ofrece detectarlo.
+
+    Parámetros: `provider`, `form`, `oauth_configured`, `can_use_password`,
+    `app_password_url`.
+#}
+{% extends 'backoffice/base.html.twig' %}
+
+{% block title %}Conectar {{ provider.label() }} — Suscripta{% endblock %}
+
+{% block content %}
+    {% set subtitles = {
+        imap: 'El correo de tu hosting o el de tu empresa. Si no sabes el servidor, «Detectar servidor» lo busca a partir de la dirección.',
+        gmail: 'Autoriza el acceso desde Google y no tendrás que generar ninguna contraseña.',
+        microsoft: 'Microsoft ya no acepta contraseñas: hay que autorizar el acceso desde tu cuenta de Microsoft.',
+        yahoo: 'Yahoo exige una contraseña de aplicación en lugar de la de tu cuenta.',
+        icloud: 'Apple exige una contraseña específica de aplicación en lugar de la de tu cuenta.',
+    } %}
+
+    <div class="bo-page-header">
+        <div class="bo-page-header__heading">
+            <h1 class="bo-page-header__title">Conectar {{ provider.label() }}</h1>
+            <p class="bo-page-header__subtitle">{{ subtitles[provider.value]|default('') }}</p>
+        </div>
+    </div>
+
+    <p class="small text-body-secondary mb-3">
+        <a class="badge text-bg-light text-body-secondary text-decoration-none"
+           href="{{ path('app_mail_accounts_new') }}">
+            <i class="fa-solid fa-arrow-left me-1" aria-hidden="true"></i>Paso 1
+        </a>
+        Elige el proveedor
+        <span class="mx-1" aria-hidden="true">·</span>
+        <span class="badge text-bg-primary">Paso 2</span>
+        Conéctalo
+    </p>
+
+    {% if not can_use_password %}
+        {# Sin formulario en pantalla, los errores de la petición no se verían. #}
+        {{ form_errors(form) }}
+    {% endif %}
+
+    {#
+        El nombre del botón es el del proveedor de identidad («Google»,
+        «Microsoft»), no el del buzón: es lo que la persona reconoce en la
+        pantalla de consentimiento. `oauthKey()` ya es ese nombre.
+    #}
+    {% set oauth_name = provider.oauthKey()|capitalize %}
+
+    {% if provider.supportsOauth() %}
+        {% if oauth_configured %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h2 class="card-title">Conectar con {{ oauth_name }}</h2>
+                </div>
+                <div class="card-body">
+                    <p class="form-text">
+                        Te llevamos a la página de {{ oauth_name }} para que autorices el acceso.
+                        Volverás aquí con el buzón ya conectado: no hay servidor que buscar ni
+                        contraseña que generar, y puedes retirar el permiso cuando quieras.
+                    </p>
+                    <a class="btn btn-primary"
+                       href="{{ path('app_mail_accounts_connect', {provider: provider.oauthKey()}) }}">
+                        <i class="fa-solid fa-right-to-bracket me-1" aria-hidden="true"></i>
+                        Continuar con {{ oauth_name }}
+                    </a>
+                </div>
+            </div>
+        {% elseif provider.requiresOauth() %}
+            <div class="alert alert-warning" role="alert">
+                <h2 class="alert-heading h6">
+                    <i class="fa-solid fa-triangle-exclamation me-1" aria-hidden="true"></i>
+                    Microsoft todavía no está disponible
+                </h2>
+                <p class="mb-2">
+                    Microsoft ha retirado la autenticación con contraseña, así que una cuenta de
+                    Outlook, Hotmail o Microsoft 365 solo se puede conectar autorizando el acceso
+                    desde la propia cuenta de Microsoft.
+                </p>
+                <p class="mb-0">
+                    Esta instalación aún no tiene dadas de alta las credenciales de esa aplicación.
+                    Pide a quien administre Suscripta que las registre: en cuanto estén, la conexión
+                    funcionará sin cambiar nada más.
+                </p>
+            </div>
+        {% endif %}
+    {% endif %}
+
+    {% if can_use_password %}
+        {% if provider.supportsOauth() and oauth_configured %}
+            <h2 class="h6 text-body-secondary mb-3">… o con una contraseña de aplicación</h2>
+        {% elseif provider.supportsOauth() %}
+            <div class="alert alert-info" role="alert">
+                El inicio de sesión de {{ provider.label() }} no está configurado en esta
+                instalación, así que la conexión se hace con una contraseña de aplicación.
+            </div>
+        {% endif %}
+
+        {% include 'mail/accounts/_form.html.twig' with {
+            form: form,
+            form_id: 'mail-account-form',
+            app_password_url: app_password_url,
+        } only %}
+    {% endif %}
+{% endblock %}
+
+{% block page_actions %}
+    {% if can_use_password %}
+        {{ include('backoffice/_form_actions.html.twig', {
+            form_id: 'mail-account-form',
+            submit_label: 'Conectar buzón',
+            submit_icon: 'fa-plug',
+            back_path: path('app_mail_accounts_new'),
+        }) }}
+    {% else %}
+        <div class="bo-actions">
+            <a class="btn btn-outline-secondary" href="{{ path('app_mail_accounts_new') }}">
+                <i class="fa-solid fa-arrow-left me-1" aria-hidden="true"></i> Volver
+            </a>
+        </div>
+    {% endif %}
+{% endblock %}

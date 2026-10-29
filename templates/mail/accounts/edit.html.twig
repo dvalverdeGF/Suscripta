@@ -16,6 +16,7 @@
     {% include 'mail/accounts/_form.html.twig' with {
         form: form,
         form_id: 'mail-account-form',
+        app_password_url: app_password_url,
     } only %}
 {% endblock %}
 

@@ -1,29 +1,96 @@
+{#
+    Primer paso del asistente de alta: elegir el proveedor.
+
+    El proveedor no es un desplegable dentro del formulario porque cambia lo que
+    hay que pedir después: Gmail, Yahoo e iCloud exigen una contraseña de
+    aplicación, Microsoft solo acepta el consentimiento del propio proveedor y
+    con IMAP genérico hay que buscar el servidor. Preguntarlo antes deja el
+    segundo paso con los campos justos (D-93).
+
+    Las descripciones viven aquí y no en el enum: son texto de interfaz, y el
+    enum es el catálogo de conexión, que también usa el backend.
+#}
 {% extends 'backoffice/base.html.twig' %}
 
 {% block title %}Conectar buzón — Suscripta{% endblock %}
 
 {% block content %}
+    {% set oauth_ready = oauth_providers|map(provider => provider.value) %}
+
+    {% set icons = {
+        imap: 'fa-solid fa-server',
+        gmail: 'fa-brands fa-google',
+        microsoft: 'fa-brands fa-microsoft',
+        yahoo: 'fa-brands fa-yahoo',
+        icloud: 'fa-brands fa-apple',
+    } %}
+
+    {% set blurbs = {
+        gmail: 'Leemos tu correo de Gmail. Con el inicio de sesión de Google no hace falta ninguna contraseña.',
+        microsoft: 'Outlook, Hotmail, Live o Microsoft 365. Microsoft ya no acepta contraseñas: se conecta con tu cuenta de Microsoft.',
+        yahoo: 'Necesitarás una contraseña de aplicación de tu cuenta de Yahoo.',
+        icloud: 'Necesitarás una contraseña específica de aplicación desde tu Apple ID.',
+        imap: 'Cualquier otro servidor IMAP: el correo de tu hosting o el de tu empresa. Detectamos el servidor a partir de la dirección.',
+    } %}
+
     <div class="bo-page-header">
         <div class="bo-page-header__heading">
             <h1 class="bo-page-header__title">Conectar un buzón</h1>
             <p class="bo-page-header__subtitle">
-                Funciona con cualquier servidor IMAP: Gmail, Microsoft 365, el correo de tu hosting
-                o el de tu empresa. Comprobamos la conexión antes de guardar nada.
+                ¿Dónde está tu correo? En el siguiente paso te pediremos solo lo que ese proveedor
+                necesita. Comprobamos la conexión antes de guardar nada.
             </p>
         </div>
     </div>
 
-    {% include 'mail/accounts/_form.html.twig' with {
-        form: form,
-        form_id: 'mail-account-form',
-    } only %}
+    <p class="small text-body-secondary mb-3">
+        <span class="badge text-bg-primary">Paso 1</span>
+        Elige el proveedor
+        <span class="mx-1" aria-hidden="true">·</span>
+        <span class="badge text-bg-light text-body-secondary">Paso 2</span>
+        Conéctalo
+    </p>
+
+    <div class="row row-cols-1 row-cols-lg-2 g-3">
+        {% for provider in providers %}
+            {% set key = provider.value %}
+            <div class="col">
+                <div class="card h-100">
+                    <div class="card-body d-flex flex-column">
+                        <h2 class="card-title h5">
+                            <i class="{{ icons[key]|default('fa-solid fa-envelope') }} me-2" aria-hidden="true"></i>
+                            {{ provider.label() }}
+                        </h2>
+                        <p class="form-text flex-grow-1">{{ blurbs[key]|default('') }}</p>
+
+                        {% if provider.supportsOauth() and key in oauth_ready %}
+                            <p class="mb-2">
+                                <span class="badge text-bg-success">Recomendado</span>
+                                <span class="small text-body-secondary">Entras con tu cuenta, sin contraseñas.</span>
+                            </p>
+                        {% elseif provider.requiresOauth() %}
+                            <p class="mb-2">
+                                <span class="badge text-bg-warning">Requiere configuración</span>
+                                <span class="small text-body-secondary">Todavía no está disponible en esta instalación.</span>
+                            </p>
+                        {% endif %}
+
+                        <a class="btn btn-outline-secondary stretched-link"
+                           href="{{ path('app_mail_accounts_create', {provider: key}) }}">
+                            Continuar
+                            <i class="fa-solid fa-arrow-right ms-1" aria-hidden="true"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
 {% endblock %}
 
 {% block page_actions %}
-    {{ include('backoffice/_form_actions.html.twig', {
-        form_id: 'mail-account-form',
-        submit_label: 'Conectar buzón',
-        submit_icon: 'fa-plug',
-        back_path: path('app_mail_accounts_index'),
-    }) }}
+    <div class="bo-actions">
+        <a class="btn btn-outline-secondary" href="{{ path('app_mail_accounts_index') }}">
+            <i class="fa-solid fa-arrow-left me-1" aria-hidden="true"></i> Volver
+        </a>
+    </div>
 {% endblock %}

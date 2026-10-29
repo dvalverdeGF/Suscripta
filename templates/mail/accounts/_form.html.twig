@@ -1,37 +1,60 @@
 {#
-    El formulario lleva `id` porque el boton de guardar vive en la barra de
+    Formulario de conexión de un buzón.
+
+    El formulario lleva `id` porque el botón de guardar vive en la barra de
     acciones del pie y se le asocia con el atributo HTML `form`.
 
-    Los campos de servidor van dentro de bloques marcados como `manual`: con un
-    proveedor de catalogo (Gmail, Microsoft, Yahoo, iCloud) el servidor lo pone
-    la aplicacion y ensenarlos solo invita a escribir algo que se va a ignorar.
+    Qué campos aparecen depende del proveedor y lo decide el servidor, no el
+    JavaScript: con un proveedor de catálogo (Gmail, Microsoft, Yahoo, iCloud)
+    el servidor, el puerto y el cifrado vienen dados y los campos ni siquiera
+    existen. Los bloques `manual` siguen marcados porque en la edición de un
+    buzón ya conectado el proveedor sí es un desplegable, y ahí el controlador
+    de Stimulus los esconde al cambiar a un proveedor de catálogo.
+
+    Parámetros:
+      form              la vista del formulario (obligatorio).
+      form_id           id del formulario al que apunta el botón de guardar.
+      app_password_url  página oficial donde se genera la contraseña de
+                        aplicación; `null` si el proveedor no la tiene.
 #}
+{% set app_password_url = app_password_url|default(null) %}
+
 {{ form_start(form, {attr: {id: form_id|default('mail-account-form'), class: 'form', 'data-controller': 'mail-provider'}}) }}
     {{ form_errors(form) }}
 
-    {% if oauth_providers is defined and oauth_providers|length > 0 %}
-        {#
-            Camino corto: el proveedor devuelve el permiso y la aplicación ya
-            sabe la dirección, el servidor y el método de autenticación. Es la
-            única forma de conectar una cuenta de Microsoft, que ya no acepta
-            contraseñas (D-93).
-        #}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="card-title">Tu cuenta</h2>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                {% if form.provider is defined %}
+                    {{ form_row(form.provider) }}
+                {% endif %}
+                {{ form_row(form.emailAddress) }}
+                {{ form_row(form.displayName) }}
+                {{ form_row(form.imapUsername) }}
+            </div>
+        </div>
+    </div>
+
+    {% if form.imapHost is defined %}
         <div class="card mb-4">
             <div class="card-header">
-                <h2 class="card-title">Conectar con el proveedor</h2>
+                <h2 class="card-title">Servidor</h2>
             </div>
             <div class="card-body">
-                <p class="form-text">
-                    Autoriza el acceso desde la página del proveedor: no hace falta buscar
-                    el servidor ni generar ninguna contraseña.
-                </p>
-                <div class="d-flex flex-wrap gap-2">
-                    {% for oauth_provider in oauth_providers %}
-                        <a class="button button--ghost"
-                           href="{{ path('app_mail_accounts_connect', {provider: oauth_provider.oauthKey()}) }}">
-                            Conectar con {{ oauth_provider.label() }}
-                        </a>
-                    {% endfor %}
+                <div class="row g-3">
+                    <div class="col-12" data-mail-provider-target="manual">
+                        {{ form_row(form.imapHost) }}
+                        {{ form_widget(form.discover) }}
+                    </div>
+                    <div class="col-12" data-mail-provider-target="manual">
+                        <div class="row g-3">
+                            {{ form_row(form.imapPort) }}
+                            {{ form_row(form.imapEncryption) }}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -39,46 +62,33 @@
 
     <div class="card mb-4">
         <div class="card-header">
-            <h2 class="card-title">Qué buzón</h2>
+            <h2 class="card-title">Acceso y carpeta</h2>
         </div>
         <div class="card-body">
             <div class="row g-3">
-                {{ form_row(form.provider) }}
-                {{ form_row(form.emailAddress) }}
-                {{ form_row(form.displayName) }}
-            </div>
-            <p class="form-text" data-mail-provider-target="appPassword" hidden>
-                <a href="" target="_blank" rel="noopener noreferrer">Cómo generar la contraseña de aplicación</a>
-                en la cuenta de tu proveedor.
-            </p>
-        </div>
-    </div>
-
-    <div class="card mb-4">
-        <div class="card-header">
-            <h2 class="card-title">Cómo se conecta</h2>
-        </div>
-        <div class="card-body">
-            <div class="row g-3">
-                <div class="col-12" data-mail-provider-target="manual">
-                    {{ form_row(form.imapHost) }}
-                    {{ form_widget(form.discover) }}
-                </div>
-                <div class="col-12" data-mail-provider-target="manual">
-                    <div class="row g-3">
-                        {{ form_row(form.imapPort) }}
-                        {{ form_row(form.imapEncryption) }}
-                    </div>
-                </div>
-                {{ form_row(form.imapUsername) }}
                 {{ form_row(form.password) }}
                 {{ form_row(form.imapFolder) }}
             </div>
+
+            {#
+                El enlace se genera aquí cuando el proveedor es fijo y lo
+                actualiza el controlador de Stimulus cuando se elige otro en el
+                desplegable. El objetivo está en el `<a>`, no en el párrafo: es
+                el ancla la que tiene `href`.
+            #}
+            <p class="form-text" data-mail-provider-target="appPasswordNote"{% if app_password_url is null %} hidden{% endif %}>
+                Este proveedor no acepta la contraseña de tu cuenta: hay que generar una
+                <a href="{{ app_password_url|default('#') }}"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   data-mail-provider-target="appPasswordLink">contraseña de aplicación</a>
+                y pegarla aquí.
+            </p>
+
             <p class="form-text">
                 La contraseña se guarda cifrada y solo se usa para leer. Nunca escribimos,
                 movemos ni borramos nada de tu buzón.
             </p>
         </div>
     </div>
-
 {{ form_end(form) }}

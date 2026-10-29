@@ -25,6 +25,16 @@ cerrada, verificada y commiteada. El detalle de lo que queda pendiente está en
   un único `ResolveImapConnection` —antes el «descifra y monta la configuración» estaba copiado
   en cuatro servicios— y guarda el token nuevo antes de devolverlo, porque si no cada
   sincronización gastaría una renovación.
+- **Asistente en dos pasos para conectar un buzón**: primero se elige el proveedor y después se
+  ve **solo** la acción que sirve para ese proveedor —«Continuar con Google» o «Continuar con
+  Microsoft» cuando hay OAuth2 configurado, la contraseña de aplicación con su enlace oficial
+  cuando la admite, y el aviso con la salida cuando el proveedor la exige y no hay credenciales
+  de aplicación registradas—. El proveedor pasa a ser un parámetro de ruta con `requirements` en
+  vez de un desplegable del formulario, así que el cliente no elige con qué reglas se valida su
+  propia petición. Con ello se arreglan dos fallos de la entrega anterior: la tarjeta de OAuth2
+  no llegaba a pintarse (el `include` con `only` no le pasaba el registro de proveedores) y el
+  enlace «Cómo generar la contraseña de aplicación» salía vacío (el `href` se ponía sobre el
+  párrafo en lugar de sobre el enlace).
 - **Detección del servidor IMAP** («Detectar servidor»): primero los registros SRV de RFC 6186
   (`_imaps._tcp`, luego `_imap._tcp`) y, si el dominio no publica ninguno, `imap.<dominio>`,
   `mail.<dominio>` y el propio dominio en 993/TLS y 143/STARTTLS **comprobando que responden**.

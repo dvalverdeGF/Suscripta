@@ -25,14 +25,20 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
 /**
  * Formulario de conexión de un buzón IMAP.
  *
- * El proveedor es lo primero que se elige porque determina todo lo demás: con
- * Gmail, Microsoft, Yahoo o iCloud el servidor, el puerto y el cifrado vienen
- * del catálogo y no se preguntan (D-93). Solo con «IMAP genérico» hay que
- * rellenarlos, y ahí es donde entra la detección automática.
+ * El proveedor determina todo lo demás: con Gmail, Microsoft, Yahoo o iCloud el
+ * servidor, el puerto y el cifrado vienen del catálogo y no se preguntan
+ * (D-93). Solo con «IMAP genérico» hay que rellenarlos, y ahí es donde entra la
+ * detección automática.
+ *
+ * El alta es un asistente de dos pasos: el primero elige el proveedor y el
+ * segundo pide solo lo que ese proveedor necesita. Por eso el tipo acepta la
+ * opción `provider`: cuando viene fijada desde la ruta, el proveedor **no** es
+ * un campo del formulario y los datos de servidor ni siquiera existen. La
+ * edición de un buzón ya conectado sigue ofreciendo el desplegable.
  *
  * La validación del servidor es de objeto y no de campo: con un proveedor de
- * catálogo el campo está oculto y vacío, y un `NotBlank` sobre él rechazaría un
- * formulario perfectamente válido.
+ * catálogo el campo no existe y un `NotBlank` sobre él rechazaría un formulario
+ * perfectamente válido.
  *
  * @extends AbstractType<EmailAccountFormData>
  */
@@ -41,27 +47,35 @@ final class EmailAccountFormType extends AbstractType
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $isNew = $options['is_new'];
+        /** @var EmailAccountProvider|null $provider */
+        $provider = $options['provider'];
+        // Con el proveedor fijado por la ruta, el servidor lo pone el catálogo.
+        $asksForServer = null === $provider || null === $provider->preset();
 
-        $builder
-            ->add('provider', EnumType::class, [
+        if (null === $provider) {
+            $builder->add('provider', EnumType::class, [
                 'label' => 'Proveedor',
                 'class' => EmailAccountProvider::class,
-                'choice_label' => static fn (EmailAccountProvider $provider): string => $provider->label(),
-                'choice_filter' => static fn (?EmailAccountProvider $provider): bool => null !== $provider && $provider->isImplemented(),
+                'choice_label' => static fn (EmailAccountProvider $candidate): string => $candidate->label(),
+                'choice_filter' => static fn (?EmailAccountProvider $candidate): bool => null !== $candidate && $candidate->isImplemented(),
                 'help' => 'Si no es ninguno de la lista, elige «IMAP genérico».',
                 // Cada opción dice si el servidor lo pone el catálogo (`0`) o
-                // lo tiene que escribir el usuario (`1`). Lo lee el controlador
-                // de Stimulus para enseñar u ocultar los campos manuales.
-                'choice_attr' => static fn (EmailAccountProvider $provider): array => [
-                    'data-mail-provider-manual' => null === $provider->preset() ? '1' : '0',
-                    'data-mail-provider-app-password' => $provider->preset()->appPasswordUrl ?? '',
+                // lo tiene que escribir el usuario (`1`), y dónde se genera la
+                // contraseña de aplicación. Lo lee el controlador de Stimulus
+                // para enseñar u ocultar los campos y el enlace.
+                'choice_attr' => static fn (EmailAccountProvider $candidate): array => [
+                    'data-mail-provider-manual' => null === $candidate->preset() ? '1' : '0',
+                    'data-mail-provider-app-password' => $candidate->preset()->appPasswordUrl ?? '',
                 ],
                 'attr' => [
                     'data-mail-provider-target' => 'provider',
                     'data-action' => 'change->mail-provider#refresh',
                 ],
                 'constraints' => [new Assert\NotNull(message: 'Selecciona un proveedor.')],
-            ])
+            ]);
+        }
+
+        $builder
             ->add('emailAddress', EmailType::class, [
                 'label' => 'Dirección de correo',
                 'attr' => ['placeholder' => 'facturas@miempresa.com', 'autocomplete' => 'email'],
@@ -78,30 +92,44 @@ final class EmailAccountFormType extends AbstractType
                 'attr' => ['placeholder' => 'Correo de facturación'],
                 'help' => 'Solo para que lo reconozcas si conectas varios buzones.',
                 'constraints' => [new Assert\Length(max: 120)],
-            ])
-            ->add('imapHost', TextType::class, [
-                'label' => 'Servidor IMAP',
-                'required' => false,
-                'attr' => ['placeholder' => 'imap.miproveedor.com', 'autocapitalize' => 'none'],
-                'help' => 'El nombre del servidor de correo entrante. Si no lo sabes, usa «Detectar servidor».',
-                'constraints' => [new Assert\Length(max: 180)],
-            ])
-            ->add('imapPort', IntegerType::class, [
-                'label' => 'Puerto',
-                'required' => false,
-                'attr' => ['placeholder' => '993', 'inputmode' => 'numeric'],
-                'help' => 'Déjalo vacío para usar el puerto estándar del cifrado elegido.',
-                'constraints' => [
-                    new Assert\Positive(),
-                    new Assert\LessThanOrEqual(value: 65535),
-                ],
-            ])
-            ->add('imapEncryption', EnumType::class, [
-                'label' => 'Cifrado',
-                'class' => ImapEncryption::class,
-                'choice_label' => static fn (ImapEncryption $encryption): string => $encryption->label(),
-                'constraints' => [new Assert\NotNull(message: 'Selecciona un tipo de cifrado.')],
-            ])
+            ]);
+
+        if ($asksForServer) {
+            $builder
+                ->add('imapHost', TextType::class, [
+                    'label' => 'Servidor IMAP',
+                    'required' => false,
+                    'attr' => ['placeholder' => 'imap.miproveedor.com', 'autocapitalize' => 'none'],
+                    'help' => 'El nombre del servidor de correo entrante. Si no lo sabes, usa «Detectar servidor».',
+                    'constraints' => [new Assert\Length(max: 180)],
+                ])
+                ->add('imapPort', IntegerType::class, [
+                    'label' => 'Puerto',
+                    'required' => false,
+                    'attr' => ['placeholder' => '993', 'inputmode' => 'numeric'],
+                    'help' => 'Déjalo vacío para usar el puerto estándar del cifrado elegido.',
+                    'constraints' => [
+                        new Assert\Positive(),
+                        new Assert\LessThanOrEqual(value: 65535),
+                    ],
+                ])
+                ->add('imapEncryption', EnumType::class, [
+                    'label' => 'Cifrado',
+                    'class' => ImapEncryption::class,
+                    'choice_label' => static fn (ImapEncryption $encryption): string => $encryption->label(),
+                    'constraints' => [new Assert\NotNull(message: 'Selecciona un tipo de cifrado.')],
+                ])
+                // Botón que no guarda: solo rellena el servidor a partir de la
+                // dirección. Lleva `formnovalidate` para que el navegador no
+                // exija la contraseña antes de dejar detectar el servidor, y el
+                // controlador lo atiende **antes** de validar.
+                ->add('discover', SubmitType::class, [
+                    'label' => 'Detectar servidor',
+                    'attr' => ['formnovalidate' => 'formnovalidate', 'class' => 'btn btn-outline-secondary'],
+                ]);
+        }
+
+        $builder
             ->add('imapUsername', TextType::class, [
                 'label' => 'Usuario',
                 'required' => false,
@@ -114,16 +142,8 @@ final class EmailAccountFormType extends AbstractType
                 'required' => false,
                 'always_empty' => true,
                 'attr' => ['autocomplete' => 'new-password'],
-                'help' => 'Gmail, Yahoo e iCloud exigen una contraseña de aplicación, no la de tu cuenta. Se guarda cifrada y solo se usa para leer.',
+                'help' => 'Se guarda cifrada y solo se usa para leer. Nunca escribimos, movemos ni borramos nada de tu buzón.',
                 'constraints' => [new Assert\Length(max: 4096)],
-            ])
-            // Botón que no guarda: solo rellena el servidor a partir de la
-            // dirección. Lleva `formnovalidate` para que el navegador no exija
-            // la contraseña antes de dejar detectar el servidor, y el
-            // controlador lo atiende **antes** de validar.
-            ->add('discover', SubmitType::class, [
-                'label' => 'Detectar servidor',
-                'attr' => ['formnovalidate' => 'formnovalidate', 'class' => 'button button--ghost'],
             ])
             ->add('imapFolder', TextType::class, [
                 'label' => 'Carpeta',
@@ -142,10 +162,14 @@ final class EmailAccountFormType extends AbstractType
         $resolver->setDefaults([
             'data_class' => EmailAccountFormData::class,
             'is_new' => true,
+            // Proveedor fijado por la ruta del asistente. `null` = se elige en
+            // el propio formulario (edición de un buzón ya conectado).
+            'provider' => null,
             // Depende de `is_new`, así que se resuelve de forma perezosa.
             'constraints' => static fn (Options $options): array => [
                 new Assert\Callback(static function (EmailAccountFormData $data, ExecutionContextInterface $context) use ($options): void {
-                    $provider = $data->provider;
+                    /** @var EmailAccountProvider|null $provider */
+                    $provider = $options['provider'] ?? $data->provider;
 
                     if (null === $provider) {
                         return;
@@ -180,5 +204,6 @@ final class EmailAccountFormType extends AbstractType
         ]);
 
         $resolver->setAllowedTypes('is_new', 'bool');
+        $resolver->setAllowedTypes('provider', [EmailAccountProvider::class, 'null']);
     }
 }

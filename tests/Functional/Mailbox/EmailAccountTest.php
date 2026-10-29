@@ -68,7 +68,7 @@ final class EmailAccountTest extends WebTestCase
      */
     private function connect(array $overrides = []): EmailAccount
     {
-        $this->client->request('GET', '/mail/accounts/new');
+        $this->client->request('GET', '/mail/accounts/new/imap');
         $this->client->submitForm('Conectar buzón', $overrides + [
             'email_account_form[emailAddress]' => 'facturas@miempresa.com',
             'email_account_form[displayName]' => 'Correo de facturación',
@@ -77,7 +77,6 @@ final class EmailAccountTest extends WebTestCase
             'email_account_form[imapEncryption]' => ImapEncryption::SSL->value,
             'email_account_form[password]' => 'contraseña-de-aplicación',
             'email_account_form[imapFolder]' => 'INBOX',
-            'email_account_form[provider]' => 'imap',
         ]);
 
         self::assertResponseRedirects();
@@ -133,7 +132,7 @@ final class EmailAccountTest extends WebTestCase
     {
         $this->imap->willFailToConnect('No se pudo conectar con el servidor IMAP. Revisa el servidor y el puerto.');
 
-        $this->client->request('GET', '/mail/accounts/new');
+        $this->client->request('GET', '/mail/accounts/new/imap');
         $this->client->submitForm('Conectar buzón', [
             'email_account_form[emailAddress]' => 'facturas@miempresa.com',
             'email_account_form[imapHost]' => 'imap.miempresa.com',
@@ -141,7 +140,6 @@ final class EmailAccountTest extends WebTestCase
             'email_account_form[imapEncryption]' => ImapEncryption::SSL->value,
             'email_account_form[password]' => 'mala',
             'email_account_form[imapFolder]' => 'INBOX',
-            'email_account_form[provider]' => 'imap',
         ]);
 
         self::assertResponseStatusCodeSame(422);
@@ -155,7 +153,7 @@ final class EmailAccountTest extends WebTestCase
 
         $this->imap->reset();
 
-        $this->client->request('GET', '/mail/accounts/new');
+        $this->client->request('GET', '/mail/accounts/new/imap');
         $this->client->submitForm('Conectar buzón', [
             'email_account_form[emailAddress]' => 'facturas@miempresa.com',
             'email_account_form[imapHost]' => 'imap.miempresa.com',
@@ -163,7 +161,6 @@ final class EmailAccountTest extends WebTestCase
             'email_account_form[imapEncryption]' => ImapEncryption::SSL->value,
             'email_account_form[password]' => 'otra',
             'email_account_form[imapFolder]' => 'INBOX',
-            'email_account_form[provider]' => 'imap',
         ]);
 
         self::assertResponseStatusCodeSame(422);
@@ -180,7 +177,7 @@ final class EmailAccountTest extends WebTestCase
 
         $this->imap->reset();
 
-        $this->client->request('GET', '/mail/accounts/new');
+        $this->client->request('GET', '/mail/accounts/new/imap');
         $this->client->submitForm('Conectar buzón', [
             'email_account_form[emailAddress]' => 'segundo@miempresa.com',
             'email_account_form[imapHost]' => 'imap.miempresa.com',
@@ -188,7 +185,6 @@ final class EmailAccountTest extends WebTestCase
             'email_account_form[imapEncryption]' => ImapEncryption::SSL->value,
             'email_account_form[password]' => 'otra',
             'email_account_form[imapFolder]' => 'INBOX',
-            'email_account_form[provider]' => 'imap',
         ]);
 
         self::assertResponseStatusCodeSame(422);
@@ -240,7 +236,6 @@ final class EmailAccountTest extends WebTestCase
             'email_account_form[imapEncryption]' => ImapEncryption::SSL->value,
             'email_account_form[password]' => '',
             'email_account_form[imapFolder]' => 'INBOX',
-            'email_account_form[provider]' => 'imap',
         ]);
 
         self::assertResponseRedirects();
@@ -336,17 +331,6 @@ final class EmailAccountTest extends WebTestCase
 
         $this->client->request('GET', '/mail/accounts/'.$account->getId()->toRfc4122());
         self::assertResponseStatusCodeSame(404);
-    }
-
-    public function testTheFormAsksForAServerNotForAProvider(): void
-    {
-        $this->client->request('GET', '/mail/accounts/new');
-
-        self::assertResponseIsSuccessful();
-        self::assertSelectorExists('input[name="email_account_form[imapHost]"]');
-        self::assertSelectorExists('input[name="email_account_form[imapPort]"]');
-        self::assertSelectorExists('select[name="email_account_form[imapEncryption]"]');
-        self::assertSelectorTextContains('.bo-main', 'cualquier servidor IMAP');
     }
 
     public function testTheSyncCommandIsAvailableForConnectedMailboxes(): void

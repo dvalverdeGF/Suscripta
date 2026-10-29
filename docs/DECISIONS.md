@@ -3231,3 +3231,23 @@ fuente de errores gratuita.
 - _Parchear `webklex/php-imap` con `cweagans/composer-patches`._ Descartada al comprobar que el
   fallo no existe en la versión instalada: el parche habría añadido un plugin de Composer, un
   binario `patch` en la imagen y un fichero que mantener, para arreglar código correcto.
+
+**Ampliación (asistente en dos pasos).** El formulario único se sustituyó por un asistente: el
+primer paso es el catálogo y el segundo la credencial, con una acción distinta según el proveedor
+—«Continuar con Google/Microsoft» cuando hay OAuth2 configurado, la contraseña de aplicación con
+su enlace oficial cuando la admite, y solo el aviso cuando el proveedor exige OAuth2 y no hay
+credenciales de aplicación registradas—. Tres detalles que costaron un fallo cada uno:
+
+1. **El proveedor es un parámetro de ruta, no un campo del formulario.** Si viajara en el cuerpo,
+   el cliente elegiría con qué reglas se valida su propia petición. La ruta
+   `/mail/accounts/new/{provider}` lleva `requirements` con los valores del catálogo y el caso de
+   uso sigue imponiendo el preset por su cuenta (por eso la garantía está probada en
+   `ConnectEmailAccount`, no en la pantalla).
+2. **`{% include … only %}` corta el contexto.** La tarjeta de OAuth2 nunca se pintó porque el
+   `include` del formulario se quedaba con las variables declaradas y el registro de proveedores
+   no estaba entre ellas; el mismo `only` dejó vacío el enlace de la contraseña de aplicación. Lo
+   que la plantilla incluida necesite se pasa **explícito**.
+3. **Un enlace no se rellena desde JavaScript si el objetivo es otro elemento.** El `href` se
+   ponía sobre el párrafo, no sobre el `<a>`. Ahora el servidor pinta la dirección del catálogo y
+   el controlador de Stimulus solo enseña u oculta la nota; sin `provider` en el DOM —el paso 2 no
+   lo tiene— no hace nada.

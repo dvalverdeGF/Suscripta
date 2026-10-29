@@ -33,6 +33,8 @@ use App\Shared\Application\RateLimit\RateLimitGuard;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Exception\InvalidArgumentException;
 
+use function array_filter;
+use function array_values;
 use function count;
 use function is_string;
 use function sprintf;
@@ -80,26 +82,67 @@ final class EmailAccountController extends AbstractController
         ]);
     }
 
-    #[Route('/new', name: 'new', methods: ['GET', 'POST'])]
-    public function new(
+    /**
+     * Primer paso del asistente: elegir el proveedor.
+     *
+     * No es un formulario sino un índice de caminos. El proveedor no es un
+     * desplegable más dentro de un formulario largo porque **cambia lo que hay
+     * que pedir**: con Gmail o Yahoo hace falta una contraseña de aplicación,
+     * con Microsoft solo vale el consentimiento del proveedor, y con IMAP
+     * genérico hay que buscar el servidor. Preguntarlo primero deja el segundo
+     * paso con los campos justos.
+     */
+    #[Route('/new', name: 'new', methods: ['GET'])]
+    public function new(MailOauthProviderRegistry $oauthProviders): Response
+    {
+        return $this->render('mail/accounts/new.html.twig', [
+            'providers' => array_values(array_filter(
+                EmailAccountProvider::cases(),
+                static fn (EmailAccountProvider $provider): bool => $provider->isImplemented(),
+            )),
+            'oauth_providers' => $oauthProviders->configuredProviders(),
+        ]);
+    }
+
+    /**
+     * Segundo paso del asistente: conectar el proveedor elegido.
+     *
+     * El proveedor viene de la ruta y **no** del formulario: con él se decide
+     * qué campos existen, así que aceptarlo del cliente sería dejar que el
+     * formulario eligiera su propia validación. `requirements` cierra la ruta a
+     * los valores del catálogo y el `EmailAccountProvider::from()` de abajo
+     * convierte la cadena en el enum una sola vez.
+     */
+    #[Route(
+        '/new/{provider}',
+        name: 'create',
+        methods: ['GET', 'POST'],
+        requirements: ['provider' => 'imap|gmail|microsoft|yahoo|icloud'],
+    )]
+    public function create(
+        string $provider,
         Request $request,
         ConnectEmailAccount $connectEmailAccount,
         DiscoverImapSettings $discoverImapSettings,
         MailOauthProviderRegistry $oauthProviders,
     ): Response {
+        $target = EmailAccountProvider::from($provider);
+
         $data = new EmailAccountFormData();
-        $form = $this->createForm(EmailAccountFormType::class, $data, ['is_new' => true]);
+        $data->provider = $target;
+
+        $form = $this->createForm(EmailAccountFormType::class, $data, ['is_new' => true, 'provider' => $target]);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $this->discoverClicked($form)) {
-            return $this->discover($data, $discoverImapSettings, $oauthProviders);
+            return $this->discover($target, $data, $discoverImapSettings, $oauthProviders);
         }
 
         if ($form->isSubmitted() && $form->isValid()) {
             if (!$this->rateLimits->acquire('mail_account', $this->organizationKey())) {
                 $form->addError(new FormError('Has conectado demasiados buzones seguidos. Espera un minuto y vuelve a intentarlo.'));
 
-                return $this->render('mail/accounts/new.html.twig', ['form' => $form], new Response(status: Response::HTTP_TOO_MANY_REQUESTS));
+                return $this->renderCreate($target, $form, $oauthProviders, Response::HTTP_TOO_MANY_REQUESTS);
             }
 
             try {
@@ -118,10 +161,28 @@ final class EmailAccountController extends AbstractController
             }
         }
 
-        return $this->render('mail/accounts/new.html.twig', [
+        return $this->renderCreate($target, $form, $oauthProviders);
+    }
+
+    /**
+     * Pinta el segundo paso. Lo usan la respuesta normal, el 422 y el 429, para
+     * que el usuario nunca pierda el proveedor que había elegido.
+     *
+     * @param FormInterface<EmailAccountFormData> $form
+     */
+    private function renderCreate(
+        EmailAccountProvider $provider,
+        FormInterface $form,
+        MailOauthProviderRegistry $oauthProviders,
+        int $status = Response::HTTP_OK,
+    ): Response {
+        return $this->render('mail/accounts/create.html.twig', [
+            'provider' => $provider,
             'form' => $form,
-            'oauth_providers' => $oauthProviders->configuredProviders(),
-        ]);
+            'oauth_configured' => $oauthProviders->isConfigured($provider),
+            'can_use_password' => $provider->acceptsPassword(),
+            'app_password_url' => $provider->preset()?->appPasswordUrl,
+        ], new Response(status: $status));
     }
 
     /**
@@ -135,6 +196,12 @@ final class EmailAccountController extends AbstractController
      */
     private function discoverClicked(FormInterface $form): bool
     {
+        // El botón solo existe con IMAP genérico: con un proveedor de catálogo
+        // no hay nada que detectar.
+        if (!$form->has('discover')) {
+            return false;
+        }
+
         $button = $form->get('discover');
 
         return $button instanceof ClickableInterface && $button->isClicked();
@@ -150,6 +217,7 @@ final class EmailAccountController extends AbstractController
      * que el usuario ya había escrito y el servidor detectado.
      */
     private function discover(
+        EmailAccountProvider $provider,
         EmailAccountFormData $data,
         DiscoverImapSettings $discoverImapSettings,
         MailOauthProviderRegistry $oauthProviders,
@@ -157,14 +225,14 @@ final class EmailAccountController extends AbstractController
         if (!$this->rateLimits->acquire('mail_discovery', $this->organizationKey())) {
             return $this->tooManyRequests(
                 'Has pedido demasiadas detecciones seguidas. Espera un minuto y vuelve a intentarlo.',
-                'app_mail_accounts_new',
-                [],
+                'app_mail_accounts_create',
+                ['provider' => $provider->value],
             );
         }
 
         $fresh = new EmailAccountFormData();
         $fresh->emailAddress = $data->emailAddress;
-        $fresh->provider = $data->provider;
+        $fresh->provider = $provider;
         $fresh->displayName = $data->displayName;
         $fresh->imapUsername = $data->imapUsername;
         $fresh->imapFolder = $data->imapFolder;
@@ -187,10 +255,11 @@ final class EmailAccountController extends AbstractController
             $this->addFlash('error', $exception->getMessage());
         }
 
-        return $this->render('mail/accounts/new.html.twig', [
-            'form' => $this->createForm(EmailAccountFormType::class, $fresh, ['is_new' => true]),
-            'oauth_providers' => $oauthProviders->configuredProviders(),
-        ]);
+        return $this->renderCreate(
+            $provider,
+            $this->createForm(EmailAccountFormType::class, $fresh, ['is_new' => true, 'provider' => $provider]),
+            $oauthProviders,
+        );
     }
 
     /**
@@ -210,7 +279,7 @@ final class EmailAccountController extends AbstractController
         } catch (MailOauthException $exception) {
             $this->addFlash('error', $exception->getMessage());
 
-            return $this->redirectToRoute('app_mail_accounts_new');
+            return $this->redirectToRoute('app_mail_accounts_create', ['provider' => $target->value]);
         }
 
         return $this->redirect($url);
@@ -232,14 +301,14 @@ final class EmailAccountController extends AbstractController
         if (is_string($error) && '' !== $error) {
             $this->addFlash('error', 'Has cancelado la autorización. No se ha conectado ningún buzón.');
 
-            return $this->redirectToRoute('app_mail_accounts_new');
+            return $this->redirectToRoute('app_mail_accounts_create', ['provider' => $target->value]);
         }
 
         if (!$this->rateLimits->acquire('mail_account', $this->organizationKey())) {
             return $this->tooManyRequests(
                 'Has conectado demasiados buzones seguidos. Espera un minuto y vuelve a intentarlo.',
-                'app_mail_accounts_new',
-                [],
+                'app_mail_accounts_create',
+                ['provider' => $target->value],
             );
         }
 
@@ -249,7 +318,7 @@ final class EmailAccountController extends AbstractController
         if (!is_string($code) || '' === $code || !is_string($state) || '' === $state) {
             $this->addFlash('error', 'La autorización ha llegado incompleta. Vuelve a empezar.');
 
-            return $this->redirectToRoute('app_mail_accounts_new');
+            return $this->redirectToRoute('app_mail_accounts_create', ['provider' => $target->value]);
         }
 
         try {
@@ -257,7 +326,7 @@ final class EmailAccountController extends AbstractController
         } catch (ImapConnectionException|InvalidArgumentException $exception) {
             $this->addFlash('error', $exception->getMessage());
 
-            return $this->redirectToRoute('app_mail_accounts_new');
+            return $this->redirectToRoute('app_mail_accounts_create', ['provider' => $target->value]);
         }
 
         $this->addFlash('success', sprintf('El buzón %s se ha conectado. Ya podemos empezar a buscar facturas.', $account->getEmailAddress()));
@@ -397,17 +466,20 @@ final class EmailAccountController extends AbstractController
         $form = $this->createForm(EmailAccountFormType::class, $data, ['is_new' => false]);
         $form->handleRequest($request);
 
+        $context = [
+            'form' => $form,
+            'account' => $account,
+            'oauth_providers' => $oauthProviders->configuredProviders(),
+            'app_password_url' => $account->getProvider()->preset()?->appPasswordUrl,
+        ];
+
         if ($form->isSubmitted() && $form->isValid()) {
             try {
                 $updateEmailAccount($account, $data->toInput(), $this->actorId());
             } catch (ImapConnectionException|InvalidArgumentException $exception) {
                 $form->addError(new FormError($exception->getMessage()));
 
-                return $this->render('mail/accounts/edit.html.twig', [
-                    'form' => $form,
-                    'account' => $account,
-                    'oauth_providers' => $oauthProviders->configuredProviders(),
-                ]);
+                return $this->render('mail/accounts/edit.html.twig', $context);
             }
 
             $this->addFlash('success', 'La configuración del buzón se ha actualizado.');
@@ -415,11 +487,7 @@ final class EmailAccountController extends AbstractController
             return $this->redirectToRoute('app_mail_accounts_show', ['id' => $account->getId()->toRfc4122()]);
         }
 
-        return $this->render('mail/accounts/edit.html.twig', [
-            'form' => $form,
-            'account' => $account,
-            'oauth_providers' => $oauthProviders->configuredProviders(),
-        ]);
+        return $this->render('mail/accounts/edit.html.twig', $context);
     }
 
     #[Route('/{id}/test', name: 'test', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]

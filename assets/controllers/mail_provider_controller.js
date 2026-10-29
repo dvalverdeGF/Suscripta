@@ -1,24 +1,31 @@
 import { Controller } from '@hotwired/stimulus';
 
 /**
- * Enseña los campos que tocan según el proveedor de correo elegido.
+ * Ajusta el formulario al proveedor elegido en el desplegable.
  *
- * Gmail, Microsoft, Yahoo e iCloud ya tienen su servidor en el catálogo: pedir
- * el host, el puerto y el cifrado en esos casos solo invita a escribir algo
- * distinto que la aplicación va a ignorar. Con «IMAP genérico» es al revés: sin
- * servidor no hay conexión, y ahí es donde aparece el botón de detección.
+ * En el alta el proveedor viene fijado por la ruta y el servidor ya ha pintado
+ * solo los campos que tocan, así que aquí no hay nada que hacer: sin
+ * desplegable el controlador sale sin tocar el DOM. Quien sí lo necesita es la
+ * pantalla de edición, donde el proveedor sigue siendo un desplegable y cambiar
+ * a Gmail, Microsoft, Yahoo o iCloud tiene que esconder el servidor —lo pone el
+ * catálogo— y enseñar dónde se genera la contraseña de aplicación.
  *
- * Sin JavaScript el formulario sigue funcionando: los campos manuales están
- * visibles siempre y la validación del servidor es del lado del servidor.
+ * Sin JavaScript no se pierde nada: los campos del servidor están visibles y la
+ * validación de verdad es del lado del servidor, que ignora lo que llegue para
+ * un proveedor de catálogo.
  */
 export default class extends Controller {
-    static targets = ['provider', 'manual', 'appPassword'];
+    static targets = ['provider', 'manual', 'appPasswordNote', 'appPasswordLink'];
 
     connect() {
         this.refresh();
     }
 
     refresh() {
+        if (!this.hasProviderTarget) {
+            return;
+        }
+
         const option = this.providerTarget.selectedOptions[0];
         const isManual = option?.dataset.mailProviderManual === '1';
         const appPasswordUrl = option?.dataset.mailProviderAppPassword ?? '';
@@ -27,9 +34,12 @@ export default class extends Controller {
             element.hidden = !isManual;
         });
 
-        if (this.hasAppPasswordTarget) {
-            this.appPasswordTarget.hidden = '' === appPasswordUrl;
-            this.appPasswordTarget.href = appPasswordUrl;
-        }
+        this.appPasswordNoteTargets.forEach((element) => {
+            element.hidden = '' === appPasswordUrl;
+        });
+
+        this.appPasswordLinkTargets.forEach((element) => {
+            element.href = '' === appPasswordUrl ? '#' : appPasswordUrl;
+        });
     }
 }
