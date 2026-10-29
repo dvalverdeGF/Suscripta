@@ -24,6 +24,13 @@ indent_size = 4
 [{compose.*yaml,.devcontainer/compose.*yaml,.github/**/*.yaml}]
 indent_size = 2
 
+# Los tabuladores del Makefile no son estilo: son sintaxis.
+[Makefile]
+indent_style = tab
+
+[*.toml]
+indent_size = 2
+
 # CSS y SCSS van a dos espacios, como el resto del ecosistema front.
 [*.{css,scss}]
 indent_size = 2

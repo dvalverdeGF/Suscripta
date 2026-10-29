@@ -1,0 +1,14 @@
+{
+    "absolute": true,
+    "format": ["php", "javascript", "css", "scss"],
+    "gitignore": true,
+    "ignore": [
+        "**/assets/vendor/**",
+        "**/assets/styles/backoffice.css",
+        "**/config/reference.php",
+        "**/var/**"
+    ],
+    "minTokens": 100,
+    "reporters": ["console"],
+    "threshold": 2
+}

@@ -1,0 +1,16 @@
+# Los compose los mantiene Symfony Flex: sus marcas `###> paquete ###` las
+# reescribe `composer recipes` pegadas al margen y prettier las indentaría,
+# así que se pelearían en cada actualización de receta. El YAML lo sigue
+# validando yamllint.
+compose.yaml
+compose.override.yaml
+compose.prod.yaml
+
+# Terceros vendorizados y artefactos generados: se revisan sus fuentes.
+assets/vendor/
+assets/styles/backoffice.css
+
+# Generado por Composer/Symfony en cada arranque.
+/vendor/
+/var/
+/public/

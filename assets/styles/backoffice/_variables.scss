@@ -32,7 +32,7 @@ $bo-topbar-height: 56px;
 // ---------------------------------------------------------------------------
 $bo-canvas: #f5f6f7; // fondo de la pagina
 $bo-sunken: #eceef1; // huecos: campos, zonas hundidas dentro de una tarjeta
-$bo-surface: #ffffff; // contenido: tarjetas, paneles, cabeceras de tabla
+$bo-surface: #fff; // contenido: tarjetas, paneles, cabeceras de tabla
 $bo-line: #dfe3e8; // bordes: separan superficies
 $bo-line-strong: #b9c2cc; // bordes de controles interactivos
 
@@ -67,7 +67,7 @@ $font-family-base:
   system-ui,
   -apple-system,
   'Segoe UI',
-  Roboto,
+  'Roboto',
   sans-serif;
 $border-radius: $bo-radius;
 $border-radius-sm: 2px;

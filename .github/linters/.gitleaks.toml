@@ -9,10 +9,10 @@ useDefault = true
 [[allowlists]]
 description = "Secretos de ejemplo: .env de desarrollo, ejemplos de la API y dobles de test"
 paths = [
-  '''^\.env$''',
-  '''^\.env\.dev$''',
-  '''^\.env\.test$''',
-  '''^README\.md$''',
-  '''^docs/api/.*\.md$''',
-  '''^tests/Unit/Webhooks/.*\.php$''',
+  '''(^|/)\.env$''',
+  '''(^|/)\.env\.(dev|test)$''',
+  '''(^|/)README\.md$''',
+  '''(^|/)docs/api/.*\.md$''',
+  '''(^|/)tests/Unit/Webhooks/.*\.php$''',
+  '''(^|/)vendor/''',
 ]

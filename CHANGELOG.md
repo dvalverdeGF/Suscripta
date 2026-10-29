@@ -29,7 +29,25 @@ cerrada, verificada y commiteada. El detalle de lo que queda pendiente está en
   comillas donde son carga semántica (`APP_SECRET`, `API_CORS_ALLOWED_ORIGINS`) y `.editorconfig`
   recoge el estilo real (scripts de `bin/` a 4 espacios, CSS/SCSS a 2, XML sin sangrado forzado).
   `assets/.prettierrc.json` fija el formato del front (`printWidth` 100, comillas simples) para
-  poder aplicar `npx prettier --write` sin pelearse con el resto del repo.
+  poder aplicar `npx prettier --write` sin pelearse con el resto del repo. En una segunda pasada
+  se cerró lo que quedaba y se dejó escrito el criterio de cada validador:
+  - `assets/styles/backoffice.css` es el artefacto compilado de `backoffice.scss` (Bootstrap
+    dentro): queda fuera del análisis, se revisa la fuente.
+  - `.github/linters/.stylelintrc.json` extiende `stylelint-config-standard` (y su variante
+    SCSS) y desactiva lo que es criterio de prettier, de modo que stylelint solo juzga
+    corrección: BEM, notación de color heredada, `#fff` en vez de `#ffffff`, comillas en los
+    nombres de fuente.
+  - `.github/linters/.editorconfig-checker.json` desactiva `Indentation`: en PHP y Twig la
+    sangría es en parte contenido literal (heredocs, comentarios de plantilla) y ya la
+    gobiernan php-cs-fixer y prettier.
+  - `.github/linters/.jscpd.json` limita la detección a PHP/JS/CSS/SCSS con `minTokens` 100,
+    ignora generados (`config/reference.php`, artefactos) y deja el umbral en el 2 %: el
+    proyecto tiene implementaciones simétricas a propósito (repositorios, detectores, tests),
+    así que el umbral funciona como trinquete para que la duplicación no crezca.
+  - `.prettierignore` deja fuera los `compose*.yaml` —Symfony Flex reescribe sus marcas
+    `###> paquete ###` al margen y prettier las indentaría— y lo vendorizado o generado.
+  - `.github/linters/.gitleaks.toml` casa las rutas con `(^|/)…`: gitleaks las recibe
+    absolutas y los patrones ancorados al principio no encajaban.
 
 ### Corregido
 
