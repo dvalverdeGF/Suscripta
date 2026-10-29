@@ -104,10 +104,10 @@ La fase 20 cerró los webhooks de salida, que eran lo único que la fase 19 hab�
 «idea documentada». La 21 separó la suscripción del servicio detectado, la 22 puso el catálogo
 comercial, la 23 la web que lo vende y la 24 el cobro: **el producto ya se vende y se cobra solo**.
 La fase 25 cerró la última deuda de configuración: un solo mecanismo CSRF, el de sesión, y fuera la
-receta sin estado. **El roadmap no tiene fases pendientes.** Lo único diferido conscientemente de la
-fase 19 son las **capturas de pantalla** del README: no se ha añadido ningún binario al repositorio
-y se prefiere que envejezcan mal fuera de él antes que versionar imágenes que se quedan obsoletas a
-la primera fase.
+receta sin estado. **El roadmap no tiene fases pendientes.** Las **capturas de pantalla** del README,
+que la fase 19 había diferido para no versionar binarios que envejecen, se añadieron después: las
+genera un script contra la cuenta de demostración, así que se rehacen en un minuto cuando la
+interfaz cambie.
 
 ## Fase 0 — Base del proyecto
 
@@ -2550,7 +2550,7 @@ Lo que se sabe que está flojo y no justifica una fase propia.
 | 3 | **Ámbitos de API solo `read`/`write`** | Cubre el caso actual | Cuando un integrador pida escritura sin lectura |
 | 4 | **La API comparte cuota con el backoffice** | Es el mismo plan | Si la API se vende como producto aparte |
 | 5 | **Verificación con un buzón real pendiente** | La vertical está probada con un doble de IMAP | Antes de la primera venta: es la hipótesis del producto |
-| 6 | **Sin capturas de pantalla en el README** | Envejecen mal fuera del repositorio | Cuando haya marketing |
+| ~~6~~ | ~~**Sin capturas de pantalla en el README**~~ — **resuelta**: `docs/img/` con cinco capturas tomadas con Playwright contra la cuenta de demostración, y el comando `app:demo:seed` para regenerarlas | — | — |
 | 7 | **Recarga en caliente de FrankenPHP desde un CDN** | Solo afecta a `dev` | Nunca, salvo auditoría de privacidad |
 
 ## Fuera del roadmap (explícitamente descartado)

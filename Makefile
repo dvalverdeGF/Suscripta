@@ -141,6 +141,10 @@ stats: ## Muestra el embudo del pipeline de correo por organización
 
 # ---------------------------------------------------------------- Copias de seguridad
 
+.PHONY: screenshots
+screenshots: ## Regenera las capturas del README (Playwright en el host)
+	python3 tools/screenshots.py
+
 .PHONY: backup
 backup: ## Crea una copia de seguridad (base de datos + documentos)
 	./bin/backup.sh

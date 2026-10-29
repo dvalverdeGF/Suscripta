@@ -117,7 +117,7 @@ docker compose -f compose.yaml -f compose.prod.yaml up -d --build
 # 2. Esperar a que la base de datos esté sana
 docker compose -f compose.yaml -f compose.prod.yaml ps
 
-# 3. Esquema: las 19 migraciones, en orden
+# 3. Esquema: las 23 migraciones, en orden
 docker compose -f compose.yaml -f compose.prod.yaml exec -T php \
     php bin/console doctrine:migrations:migrate --no-interaction
 

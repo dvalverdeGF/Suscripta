@@ -11,6 +11,18 @@ cerrada, verificada y commiteada. El detalle de lo que queda pendiente está en
 
 ## [No publicado]
 
+### Añadido
+
+- **Capturas de pantalla en el README**: `docs/img/` con cinco vistas (panel, propuestas,
+  servicios, avisos y precios) tomadas contra la cuenta de demostración. Se regeneran con
+  `make screenshots` (`tools/screenshots.py`, Playwright), así que no envejecen a mano.
+
+### Corregido
+
+- El README anunciaba «fases 0 a 19», 1 420 tests y 19 migraciones: ahora refleja el estado real
+  (fases 0–25, 1 609 tests, 23 migraciones) e incluye el cobro con Stripe.
+- `docs/deployment.md` seguía diciendo «las 19 migraciones» en el orden de arranque.
+
 ### Pendiente
 
 - **Antes de publicar:** sustituir los marcadores de las tres páginas legales

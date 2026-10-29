@@ -14,12 +14,13 @@ del producto está en [docs/PRODUCT.md](docs/PRODUCT.md).
 
 | | |
 |---|---|
-| Fases del roadmap | **0 a 19 cerradas** (ver [docs/ROADMAP.md](docs/ROADMAP.md)) |
-| Pendiente | Nada comprometido. La fase 20 (webhooks) es una idea, no un compromiso |
-| Tests | **1 420** (unitarios y funcionales), todos en verde |
+| Fases del roadmap | **0 a 25 cerradas** (ver [docs/ROADMAP.md](docs/ROADMAP.md)) |
+| Pendiente | Ninguna fase planificada. Queda la deuda técnica conocida del roadmap y tres preguntas de negocio |
+| Tests | **1 609** (unitarios y funcionales), 6 464 aserciones, todos en verde |
 | Análisis estático | PHPStan **nivel 8**, sin errores |
 | PHP / Symfony | PHP **8.5**, Symfony **8.1** |
 | API pública | `/api/v1`, 13 rutas, OpenAPI en `/api/doc` |
+| Cobros | Checkout con Stripe y webhook idempotente (`/facturacion`) |
 
 ## Qué hace
 
@@ -32,6 +33,23 @@ del producto está en [docs/PRODUCT.md](docs/PRODUCT.md).
 4. **Vigila a partir de ahí**: historial de precios, subidas, renovaciones, próximos cobros,
    duplicados y servicios dormidos.
 5. **Se integra con lo que ya usas**: API pública con claves revocables por ámbito.
+6. **Se vende y se cobra solo**: web corporativa con el catálogo de planes, checkout con Stripe y
+   panel de facturación.
+
+## Cómo se ve
+
+Las capturas están tomadas con la cuenta de demostración (`make up`, `bin/console app:demo:seed`)
+sobre datos reales del pipeline, no con maquetas.
+
+| Panel | Propuestas |
+|---|---|
+| ![Panel](docs/img/dashboard.png) | ![Propuestas](docs/img/discoveries.png) |
+| **Servicios** | **Avisos** |
+| ![Servicios](docs/img/services.png) | ![Avisos](docs/img/alerts.png) |
+
+Y la web que vende el producto, en `/precios`:
+
+![Precios](docs/img/pricing.png)
 
 ## Empezar en cinco minutos
 
@@ -40,7 +58,7 @@ Requisitos: Docker con Compose v2.10+ y `make` (opcional).
 ```bash
 git clone https://github.com/dvalverdeGF/Suscripta.git && cd Suscripta
 make up            # construye si hace falta, levanta y espera a que esté sano
-make migrate       # aplica las 19 migraciones
+make migrate       # aplica las 23 migraciones
 ```
 
 Abre **https://localhost** y acepta el certificado autofirmado. El resto de órdenes está en
@@ -85,7 +103,7 @@ curl -H "Authorization: Bearer sk_tuClave" https://localhost/api/v1/services
 | [docs/PRODUCT.md](docs/PRODUCT.md) | Problema, usuario, propuesta de valor, funcionalidades, qué **no** es el producto. |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Módulos, dominio, pipeline de análisis (§13), multi-tenancy, API (§17). |
 | [docs/DECISIONS.md](docs/DECISIONS.md) | Las decisiones y **por qué**, con las alternativas descartadas. |
-| [docs/ROADMAP.md](docs/ROADMAP.md) | Las 21 fases, qué se entregó en cada una y qué falta. |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | Las 26 fases (0–25), qué se entregó en cada una, la deuda técnica y las preguntas abiertas. |
 | [docs/SECURITY.md](docs/SECURITY.md) | Modelo de amenazas, acceso al correo, credenciales, RGPD. |
 | [docs/operations.md](docs/operations.md) | Runbook: despliegue, copias, restauración, incidentes. |
 | [docs/deployment.md](docs/deployment.md) | **Desplegar en producción**, paso a paso, con verificación. |
