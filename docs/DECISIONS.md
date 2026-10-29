@@ -3101,6 +3101,9 @@ apaga en `.github/workflows/ci.yaml`. Lo que se valida y lo que no:
   `PHP_PHPSTAN` y `PHP_PSALM`.
 - **Fuera, porque no hay nada que revisar**: `CHECKOV` y `TRIVY` (no hay IaC), `BIOME_*` y
   `PYTHON_BLACK` (el formato de Python lo fija `ruff format`).
+- **Los ficheros de configuración se declaran** en el propio workflow (`MARKDOWN_CONFIG_FILE`,
+  `CSS_FILE_NAME`, `JSCPD_CONFIG_FILE`, `GITLEAKS_CONFIG_FILE`, `EDITORCONFIG_FILE_NAME`,
+  `PYTHON_PYLINT_CONFIG_FILE`): super-linter no descubre `.markdownlint.json` por su cuenta.
 
 **Por qué.**
 
@@ -3120,16 +3123,19 @@ apaga en `.github/workflows/ci.yaml`. Lo que se valida y lo que no:
 
 **Consecuencias.**
 
-1. **`.editorconfig` es la fuente del estilo de shfmt.** `switch_case_indent` y `binary_next_line`
+1. **Un validador con su plantilla por defecto no es un validador configurado.** Mientras el
+   workflow no declaró el fichero, markdownlint aplicó la plantilla de super-linter —que prohíbe
+   los títulos repetidos— y el informe no tenía nada que ver con el criterio del proyecto.
+2. **`.editorconfig` es la fuente del estilo de shfmt.** `switch_case_indent` y `binary_next_line`
    están ahí porque son el estilo que ya tenían los scripts; cambiarlos cambia el formateo.
-2. **markdownlint usa los valores por defecto de super-linter** (`MD013` a 400 caracteres) más
+3. **markdownlint usa los valores por defecto de super-linter** (`MD013` a 400 caracteres) más
    `MD024` con `siblings_only`, que es lo que necesita un changelog por fases.
-3. **pylint comparte el ancho de 120 de ruff y flake8.** Con 100, `ruff format` volvía a juntar una
+4. **pylint comparte el ancho de 120 de ruff y flake8.** Con 100, `ruff format` volvía a juntar una
    línea de 104 y los dos validadores se peleaban en bucle.
-4. **Los compose quedan fuera de prettier** (`.prettierignore`): Flex reescribe sus marcas
+5. **Los compose quedan fuera de prettier** (`.prettierignore`): Flex reescribe sus marcas
    `###> paquete ###` al margen y prettier las indentaría en cada actualización de receta. yamllint
    los sigue validando.
-5. **Los documentos se reformatean con prettier** (tablas alineadas, listas y énfasis
+6. **Los documentos se reformatean con prettier** (tablas alineadas, listas y énfasis
    normalizados). Es la primera vez que el markdown del proyecto pasa por un formateador; a partir
    de aquí `npx prettier --write` sobre `*.md` es seguro.
 

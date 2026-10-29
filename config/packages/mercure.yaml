@@ -3,6 +3,9 @@ mercure:
         default:
             url: '%env(default::MERCURE_URL)%'
             public_url: '%env(default::MERCURE_PUBLIC_URL)%'
+            # El hub que trae FrankenPHP (módulo de Caddy) habla el protocolo 0.x y firma con
+            # MERCURE_PUBLISHER_JWT_KEY. El 1.0 exige los claims iss/sub/client_id de RFC 9068.
+            protocol_version: '0.x'
             jwt:
                 secret: '%env(MERCURE_JWT_SECRET)%'
                 publish: '*'

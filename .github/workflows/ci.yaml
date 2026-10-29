@@ -108,3 +108,13 @@ jobs:
           # con MARKDOWN y MARKDOWN_PRETTIER.
           VALIDATE_SPELL_CODESPELL: false
           VALIDATE_NATURAL_LANGUAGE: false
+          # super-linter solo descubre por su cuenta algunos de los ficheros de
+          # configuración; se declaran todos para que no dependa de eso.
+          # MARKDOWN_CONFIG_FILE es imprescindible: su plantilla por defecto
+          # prohíbe los títulos repetidos, y un changelog por fases los tiene.
+          CSS_FILE_NAME: .stylelintrc.json
+          EDITORCONFIG_FILE_NAME: .editorconfig-checker.json
+          GITLEAKS_CONFIG_FILE: .gitleaks.toml
+          JSCPD_CONFIG_FILE: .jscpd.json
+          MARKDOWN_CONFIG_FILE: .markdownlint.json
+          PYTHON_PYLINT_CONFIG_FILE: .python-lint

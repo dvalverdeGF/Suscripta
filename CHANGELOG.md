@@ -62,6 +62,13 @@ cerrada, verificada y commiteada. El detalle de lo que queda pendiente está en
   - `SPELL_CODESPELL` y `NATURAL_LANGUAGE` se desactivan: son diccionarios y guías inglesas y
     sobre prosa española marcan «fase», «historial» o piden «readme» en minúsculas. El criterio
     completo está en D-92.
+  - `.github/workflows/ci.yaml` declara los seis ficheros de configuración en lugar de confiar en
+    que super-linter los descubra: no encontraba `.markdownlint.json` y validaba el markdown con
+    su plantilla, que prohíbe los títulos repetidos de un changelog por fases.
+
+- **Dependabot agrupa sus actualizaciones**: `groups` por ecosistema (los parches y los cambios
+  menores van juntos; un salto de versión mayor abre su propio PR) y `open-pull-requests-limit`.
+  Una semana normal abre un PR por ecosistema en vez de uno por dependencia.
 
 ### Corregido
 
@@ -72,6 +79,10 @@ cerrada, verificada y commiteada. El detalle de lo que queda pendiente está en
 - **Dependencias**: Symfony 8.1.7/8.1.8 → **8.1.10**, que corrige
   [CVE-2026-45070](https://symfony.com/cve-2026-45070) (inyección de cabeceras de correo a través
   de nombres de parámetro no token en `symfony/mime`). `composer audit` queda sin avisos.
+- **Dependencias**: `doctrine/orm` 3.7.5, `dama/doctrine-test-bundle` 8.7.0 y
+  `symfony/mercure-bundle` 0.6.1. El bundle nuevo exige los claims `iss`, `sub` y `client_id` de
+  RFC 9068 cuando el hub habla el protocolo 1.0, así que `config/packages/mercure.yaml` fija
+  `protocol_version: '0.x'`, que es el que habla el hub que trae FrankenPHP.
 - **PHPStan fallaba de forma intermitente** al agotar los 128 MB del `php.ini`: `make phpstan` y
   la CI pasan ahora `--memory-limit=1G`.
 - **`bin/backup.sh` y `bin/restore.sh`** ordenaban las copias con `ls -1t` (shellcheck SC2016/SC2012

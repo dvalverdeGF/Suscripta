@@ -1,14 +1,9 @@
 version: 2
-updates:
-  - package-ecosystem: docker
-    directory: /
-    schedule:
-      interval: weekly
-    commit-message:
-      prefix: 'chore'
-    cooldown:
-      default-days: 7
 
+# Un PR por semana y ecosistema, no uno por dependencia: los parches y los cambios menores van
+# agrupados y solo los saltos de versión mayor abren su propio PR, que es el único que hay que
+# mirar a mano. El límite corta la avalancha cuando una actualización se atasca.
+updates:
   - package-ecosystem: composer
     directory: /
     schedule:
@@ -17,6 +12,25 @@ updates:
       prefix: 'chore'
     cooldown:
       default-days: 7
+    open-pull-requests-limit: 3
+    groups:
+      composer-menores:
+        patterns: ['*']
+        update-types: ['minor', 'patch']
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: 'chore'
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 2
+    groups:
+      docker-menores:
+        patterns: ['*']
+        update-types: ['minor', 'patch']
 
   - package-ecosystem: github-actions
     directory: /
@@ -26,3 +40,8 @@ updates:
       prefix: 'chore'
     cooldown:
       default-days: 7
+    open-pull-requests-limit: 2
+    groups:
+      actions-menores:
+        patterns: ['*']
+        update-types: ['minor', 'patch']
