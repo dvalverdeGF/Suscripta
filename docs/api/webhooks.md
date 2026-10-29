@@ -309,4 +309,6 @@ En producción va en el cron, cada cinco minutos. Ver [`../operations.md`](../op
   no «exactamente una vez».
 - **No hay firma de respuesta ni challenge de verificación de endpoint.** El botón de prueba
   cumple esa función.
-- **No hay webhooks de entrada.** Stripe, en la fase 24, tendrá su propia ruta de recepción.
+- **Los webhooks de entrada son otro mundo.** `POST /webhooks/stripe` (fase 24) recibe eventos de
+  la pasarela con su propia firma HMAC y su propia idempotencia; no comparte nada con esta entrega,
+  que solo sale.
