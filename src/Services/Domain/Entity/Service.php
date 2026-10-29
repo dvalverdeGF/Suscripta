@@ -17,6 +17,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use SortDirection;
 
 use function sprintf;
 
@@ -115,12 +116,12 @@ class Service implements TenantAwareInterface
 
     /** @var Collection<int, ServicePrice> */
     #[ORM\OneToMany(targetEntity: ServicePrice::class, mappedBy: 'service', cascade: ['persist', 'remove'], orphanRemoval: true)]
-    #[ORM\OrderBy(['validFrom' => 'ASC'])]
+    #[ORM\OrderBy(['validFrom' => SortDirection::Ascending])]
     private Collection $prices;
 
     /** @var Collection<int, ServiceEvent> */
     #[ORM\OneToMany(targetEntity: ServiceEvent::class, mappedBy: 'service', cascade: ['persist', 'remove'], orphanRemoval: true)]
-    #[ORM\OrderBy(['occurredAt' => 'DESC'])]
+    #[ORM\OrderBy(['occurredAt' => SortDirection::Descending])]
     private Collection $events;
 
     public function __construct(
