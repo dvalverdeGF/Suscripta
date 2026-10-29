@@ -79,3 +79,12 @@ jobs:
           VALIDATE_BIOME_FORMAT: false
           VALIDATE_BIOME_LINT: false
           VALIDATE_PYTHON_BLACK: false
+          # super-linter lanza `composer install` en cuanto detecta PHP y su
+          # imagen no trae ext-fileinfo/ext-sodium/ext-xml, así que el job moría
+          # antes de lintar nada. El PHP ya se valida en el job Tests (PHPUnit,
+          # PHPStan y php-cs-fixer sobre la imagen real); aquí solo se lintan
+          # el resto de lenguajes.
+          VALIDATE_PHP_BUILTIN: false
+          VALIDATE_PHP_PHPCS: false
+          VALIDATE_PHP_PHPSTAN: false
+          VALIDATE_PHP_PSALM: false
