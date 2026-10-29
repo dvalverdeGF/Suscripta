@@ -71,7 +71,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Lint Code Base
-        uses: super-linter/super-linter/slim@v8
+        uses: super-linter/super-linter/slim@v9
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Lo vendorizado a mano (Bootstrap, FontAwesome) y lo que genera
