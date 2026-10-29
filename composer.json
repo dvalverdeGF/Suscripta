@@ -32,7 +32,7 @@
         "symfony/http-client": "8.1.*",
         "symfony/lock": "8.1.*",
         "symfony/mailer": "8.1.*",
-        "symfony/mercure-bundle": "^0.5",
+        "symfony/mercure-bundle": "^0.6",
         "symfony/messenger": "8.1.*",
         "symfony/monolog-bundle": "^4.1",
         "symfony/notifier": "8.1.*",
