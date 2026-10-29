@@ -3145,3 +3145,89 @@ apaga en `.github/workflows/ci.yaml`. Lo que se valida y lo que no:
   con cada párrafo nuevo y no aporta nada que no haga ya una relectura.
 - _Bajar el umbral de jscpd al 0 %._ Descartada: obliga a trocear código simétrico solo para
   satisfacer al medidor.
+
+---
+
+## D-93 — Un catálogo de proveedores con preset y dos formas de autenticación; autodiscovery sin descargar XML
+
+**Estado:** aceptada. Sustituye la parte de D-23 que daba por hecho que «IMAP estándar» bastaba
+para todos los proveedores.
+
+**Contexto.** D-23 decidió que el IMAP estándar fuera el camino principal de ingesta, y era
+cierto mientras todos los proveedores aceptaran usuario y contraseña. Ya no: Microsoft desactivó
+la autenticación básica para las cuentas personales (`outlook.com`, `hotmail.com`) en 2024 y hoy
+solo admite `AUTHENTICATE XOAUTH2`; Gmail acepta contraseña de aplicación pero la esconde detrás
+de la verificación en dos pasos; Yahoo e iCloud **solo** aceptan contraseña de aplicación. Un
+formulario que pide «servidor, puerto, usuario y contraseña» produce, en el mejor caso, un error
+de credenciales correcto y, en el peor, un usuario convencido de que se ha equivocado al escribir
+su contraseña.
+
+Al mismo tiempo, el servidor IMAP de esos cuatro proveedores es fijo y conocido. Pedirlo es una
+fuente de errores gratuita.
+
+**Decisión.**
+
+1. **`EmailAccountProvider` es un catálogo, no una etiqueta.** Cada caso declara su preset
+   (`host`, `port`, `encryption`, y la URL oficial donde se genera la contraseña de aplicación),
+   si admite OAuth2, si lo exige y si acepta contraseña. La aplicación **impone** el preset: si
+   el formulario manda otro servidor para Gmail, se ignora. El cliente no decide a qué servidor
+   se conecta la aplicación.
+2. **Dos formas de autenticación, un solo envoltorio de credenciales.** `EmailAccountCredentials`
+   es un sobre (JSON dentro de `credentialsEncrypted`) que contiene o una contraseña o un
+   `accessToken` + `refreshToken` + `expiresAt`. Se reutiliza la columna existente y **no hay
+   migración**; un valor que no sea JSON se interpreta como contraseña en claro, que es lo que
+   había antes.
+3. **Un solo punto traduce «buzón» a «parámetros de conexión».** `ResolveImapConnection` descifra,
+   renueva el token si está a punto de caducar (margen de 120 s), **guarda** la credencial nueva
+   antes de devolver la configuración y construye el `ImapConnectionConfig`. Antes ese bloque
+   estaba copiado en cuatro servicios; con una sola forma de autenticación daba igual, con dos
+   cada copia olvidada sería un buzón que funciona al conectarlo y falla al sincronizar.
+4. **OAuth2 es un puerto con dos adaptadores** (Google y Microsoft), recogidos por etiqueta. El
+   flujo es `authorization code` + PKCE, y la dirección del buzón se lee del `id_token` que
+   devuelve el propio endpoint de tokens por TLS; no se valida su firma porque no hace falta:
+   no viene del navegador.
+5. **Autodiscovery sí, autoconfig por HTTP no.** `DiscoverImapSettings` prueba, en este orden,
+   el registro SRV `_imaps._tcp`, el `_imap._tcp` y, si no hay suerte, sondea por convención
+   `imap.<dominio>`, `mail.<dominio>` y `<dominio>` en 993/SSL y luego en 143/STARTTLS. **No** se
+   descarga el XML de autoconfiguración de Thunderbird (`autoconfig.<dominio>`,
+   `/.well-known/autoconfig/...`): es una URL que elige quien escribe el dominio, la petición
+   sale de nuestros servidores y el resultado acaba en una conexión IMAP, es decir, una puerta
+   abierta a SSRF que además no hace falta para nada.
+
+**Consecuencias.**
+
+1. **Microsoft solo se puede conectar con OAuth2.** No es una preferencia: con contraseña
+   devuelve error de credenciales. `requiresOauth()` lo declara y el formulario lo impide antes
+   de intentarlo, con un mensaje que dice qué hay que hacer en vez de «credenciales incorrectas».
+2. **Gmail y Microsoft necesitan credenciales de aplicación registradas.** Sin
+   `MAIL_OAUTH_GOOGLE_CLIENT_ID`/`SECRET` (o las de Microsoft) el botón correspondiente no se
+   pinta y el proveedor sigue funcionando con contraseña de aplicación donde se pueda. El buzón
+   no se queda sin salida: se degrada, no se rompe.
+3. **Yahoo e iCloud no tienen OAuth2 para IMAP.** Su contrato es la contraseña de aplicación, así
+   que el formulario enlaza a la página donde se genera en vez de fingir un botón que no existe.
+4. **La detección es una pista, no una verdad.** El sondeo por convención puede acertar con un
+   servidor que no es el del usuario (un hosting que aloja varios dominios); por eso el
+   resultado **rellena** el campo y el usuario lo confirma con «Probar conexión», no se conecta
+   solo. El `source` del resultado (`srv` o `convención`) se muestra para que se sepa de dónde
+   sale.
+5. **La detección tiene su propio limitador** (`mail_discovery`, 15/min por organización): es la
+   única ruta que hace que nuestros servidores abran conexiones hacia fuera a petición del
+   usuario.
+6. **`webklex/php-imap` ya implementa XOAUTH2** (`ImapProtocol::authenticate()` manda
+   `user=…\1auth=Bearer …\1\1`), así que no hace falta parchear la dependencia: basta con poner
+   `authentication` a `oauth` en la configuración del cliente. Se comprobó leyendo el código
+   instalado antes de añadir un parche que no habría hecho falta.
+
+**Alternativas descartadas.**
+
+- _Seguir con un solo formulario «servidor/puerto/usuario/contraseña» y dejar que el usuario
+  averigüe lo demás._ Descartada: es exactamente el estado que produce los errores que esta
+  decisión elimina, y con Microsoft ni siquiera funciona.
+- _Guardar el token en una columna nueva (`oauthTokenEncrypted`, que ya existe en el esquema)._
+  Descartada: obliga a migración y a que cada lector sepa mirar en dos sitios. Un sobre en la
+  columna existente mantiene una sola fuente de verdad y sigue leyendo los datos antiguos.
+- _Descargar el XML de autoconfiguración._ Descartada por SSRF, y porque el sondeo por convención
+  cubre el mismo caso sin abrir esa puerta.
+- _Parchear `webklex/php-imap` con `cweagans/composer-patches`._ Descartada al comprobar que el
+  fallo no existe en la versión instalada: el parche habría añadido un plugin de Composer, un
+  binario `patch` en la imagen y un fichero que mantener, para arreglar código correcto.

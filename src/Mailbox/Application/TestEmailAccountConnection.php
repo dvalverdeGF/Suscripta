@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace App\Mailbox\Application;
 
 use App\Mailbox\Application\Imap\ImapClientInterface;
-use App\Mailbox\Application\Imap\ImapConnectionConfig;
+use App\Mailbox\Application\Imap\ResolveImapConnection;
 use App\Mailbox\Domain\Entity\EmailAccount;
-use App\Mailbox\Domain\Enum\ImapEncryption;
 use App\Mailbox\Domain\Exception\ImapConnectionException;
 use App\Mailbox\Domain\Repository\EmailAccountRepositoryInterface;
 use App\Shared\Application\Audit\AuditLoggerInterface;
@@ -27,7 +26,7 @@ final readonly class TestEmailAccountConnection
     public function __construct(
         private EmailAccountRepositoryInterface $accounts,
         private ImapClientInterface $imapClient,
-        private CredentialCipherInterface $cipher,
+        private ResolveImapConnection $resolveConnection,
         private AuditLoggerInterface $auditLogger,
     ) {
     }
@@ -43,13 +42,7 @@ final readonly class TestEmailAccountConnection
             throw new InvalidArgumentException('La cuenta no tiene configurado el servidor IMAP o le faltan las credenciales.');
         }
 
-        $config = new ImapConnectionConfig(
-            host: (string) $account->getImapHost(),
-            port: (int) $account->getImapPort(),
-            encryption: $account->getImapEncryption() ?? ImapEncryption::SSL,
-            username: (string) $account->getImapUsername(),
-            password: $this->cipher->decrypt((string) $account->getCredentialsEncrypted()),
-        );
+        $config = ($this->resolveConnection)($account);
 
         try {
             $folders = $this->imapClient->listFolders($config);

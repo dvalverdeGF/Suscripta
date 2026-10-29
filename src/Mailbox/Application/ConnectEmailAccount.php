@@ -9,6 +9,7 @@ use App\Mailbox\Application\Imap\ImapClientInterface;
 use App\Mailbox\Application\Imap\ImapConnectionConfig;
 use App\Mailbox\Domain\Entity\EmailAccount;
 use App\Mailbox\Domain\Exception\ImapConnectionException;
+use App\Mailbox\Domain\Exception\MailOauthException;
 use App\Mailbox\Domain\Repository\EmailAccountRepositoryInterface;
 use App\Shared\Application\Audit\AuditLoggerInterface;
 use App\Shared\Application\Entitlements\Capability;
@@ -16,6 +17,9 @@ use App\Shared\Application\Entitlements\QuotaCheckerInterface;
 use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Enum\AuditAction;
 use App\Shared\Domain\Exception\InvalidArgumentException;
+
+use function sprintf;
+
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -32,6 +36,10 @@ use Symfony\Component\Uid\Uuid;
  * (Fase 17). Al revés, el usuario vería «tu plan no da para más buzones»
  * cuando lo que tiene es un duplicado, que es un error que él sí puede
  * corregir.
+ *
+ * Con un proveedor de catálogo (Gmail, Microsoft, Yahoo, iCloud) el servidor,
+ * el puerto y el cifrado los pone el catálogo y no el formulario: el cliente no
+ * decide a qué servidor se conecta la aplicación (D-93).
  */
 final readonly class ConnectEmailAccount
 {
@@ -47,9 +55,25 @@ final readonly class ConnectEmailAccount
 
     /**
      * @throws ImapConnectionException si el servidor rechaza las credenciales
+     * @throws MailOauthException      si el proveedor exige OAuth2 y no lo hay
      */
     public function __invoke(EmailAccountInput $input, ?Uuid $actorUserId = null): EmailAccount
     {
+        $provider = $input->provider;
+        $credentials = $input->credentials;
+
+        if (null === $credentials) {
+            throw new InvalidArgumentException('Faltan las credenciales del buzón.');
+        }
+
+        if (!$provider->isImplemented()) {
+            throw new InvalidArgumentException(sprintf('El proveedor «%s» todavía no está disponible.', $provider->label()));
+        }
+
+        if ($provider->requiresOauth() && !$credentials->isOauth()) {
+            throw new MailOauthException(sprintf('%s ya no acepta contraseñas: conecta la cuenta con el botón de Microsoft.', $provider->label()));
+        }
+
         $organizationId = $this->tenantContext->requireOrganizationId();
 
         $existing = $this->accounts->findByAddress($input->emailAddress);
@@ -63,14 +87,16 @@ final readonly class ConnectEmailAccount
         $account = new EmailAccount(
             organizationId: $organizationId,
             emailAddress: $input->emailAddress,
-            provider: $input->provider,
+            provider: $provider,
         );
+
+        $preset = $provider->preset();
 
         $account->setDisplayName($input->displayName);
         $account->configureImap(
-            host: $input->imapHost,
-            encryption: $input->imapEncryption,
-            port: $input->imapPort,
+            host: $preset->host ?? $input->imapHost,
+            encryption: $preset->encryption ?? $input->imapEncryption,
+            port: $preset->port ?? $input->imapPort,
             username: $input->imapUsername,
         );
         $account->setImapFolder($input->imapFolder);
@@ -80,7 +106,8 @@ final readonly class ConnectEmailAccount
             port: (int) $account->getImapPort(),
             encryption: $account->getImapEncryption() ?? $input->imapEncryption,
             username: (string) $account->getImapUsername(),
-            password: $input->password,
+            password: $credentials->secret(),
+            authentication: $credentials->authentication(),
         );
 
         try {
@@ -96,7 +123,7 @@ final readonly class ConnectEmailAccount
             throw $e;
         }
 
-        $account->setCredentialsEncrypted($this->cipher->encrypt($input->password));
+        $account->setCredentialsEncrypted($this->cipher->encrypt($credentials->toPlaintext()));
         $account->markActive();
 
         $this->accounts->save($account);
@@ -105,7 +132,12 @@ final readonly class ConnectEmailAccount
             action: AuditAction::EMAIL_ACCOUNT_CONNECTED,
             targetType: 'email_account',
             targetId: $account->getId()->toRfc4122(),
-            metadata: ['address' => $account->getEmailAddress(), 'host' => $config->host],
+            metadata: [
+                'address' => $account->getEmailAddress(),
+                'host' => $config->host,
+                'provider' => $provider->value,
+                'authentication' => $credentials->authentication()->value,
+            ],
             actorUserId: $actorUserId,
         );
 

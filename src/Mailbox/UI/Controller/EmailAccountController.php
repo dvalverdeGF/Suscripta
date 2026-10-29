@@ -11,11 +11,17 @@ use App\Mailbox\Application\DisconnectEmailAccount;
 use App\Mailbox\Application\Forwarding\DisableEmailForwarding;
 use App\Mailbox\Application\Forwarding\EnableEmailForwarding;
 use App\Mailbox\Application\Forwarding\RotateForwardingAddress;
+use App\Mailbox\Application\Imap\Discovery\DiscoverImapSettings;
+use App\Mailbox\Application\Oauth\CompleteMailOauth;
+use App\Mailbox\Application\Oauth\MailOauthProviderRegistry;
+use App\Mailbox\Application\Oauth\StartMailOauth;
 use App\Mailbox\Application\SyncEmailAccount;
 use App\Mailbox\Application\TestEmailAccountConnection;
 use App\Mailbox\Application\UpdateEmailAccount;
 use App\Mailbox\Domain\Entity\EmailAccount;
+use App\Mailbox\Domain\Enum\EmailAccountProvider;
 use App\Mailbox\Domain\Exception\ImapConnectionException;
+use App\Mailbox\Domain\Exception\MailOauthException;
 use App\Mailbox\Domain\Repository\EmailAccountRepositoryInterface;
 use App\Mailbox\Domain\Repository\EmailMessageRepositoryInterface;
 use App\Mailbox\Domain\Repository\EmailSyncRunRepositoryInterface;
@@ -28,13 +34,17 @@ use App\Shared\Application\TenantContext;
 use App\Shared\Domain\Exception\InvalidArgumentException;
 
 use function count;
+use function is_string;
 use function sprintf;
 
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Form\ClickableInterface;
 use Symfony\Component\Form\FormError;
+use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Uid\Uuid;
 
@@ -71,11 +81,19 @@ final class EmailAccountController extends AbstractController
     }
 
     #[Route('/new', name: 'new', methods: ['GET', 'POST'])]
-    public function new(Request $request, ConnectEmailAccount $connectEmailAccount): Response
-    {
+    public function new(
+        Request $request,
+        ConnectEmailAccount $connectEmailAccount,
+        DiscoverImapSettings $discoverImapSettings,
+        MailOauthProviderRegistry $oauthProviders,
+    ): Response {
         $data = new EmailAccountFormData();
         $form = $this->createForm(EmailAccountFormType::class, $data, ['is_new' => true]);
         $form->handleRequest($request);
+
+        if ($form->isSubmitted() && $this->discoverClicked($form)) {
+            return $this->discover($data, $discoverImapSettings, $oauthProviders);
+        }
 
         if ($form->isSubmitted() && $form->isValid()) {
             if (!$this->rateLimits->acquire('mail_account', $this->organizationKey())) {
@@ -102,7 +120,149 @@ final class EmailAccountController extends AbstractController
 
         return $this->render('mail/accounts/new.html.twig', [
             'form' => $form,
+            'oauth_providers' => $oauthProviders->configuredProviders(),
         ]);
+    }
+
+    /**
+     * ¿Se ha pulsado el botón de detección?
+     *
+     * `FormInterface::get()` devuelve la interfaz genérica, pero un
+     * `SubmitType` siempre es un `ClickableInterface`: el `instanceof` es lo
+     * que le dice al analizador estático que `isClicked()` existe de verdad.
+     *
+     * @param FormInterface<EmailAccountFormData> $form
+     */
+    private function discoverClicked(FormInterface $form): bool
+    {
+        $button = $form->get('discover');
+
+        return $button instanceof ClickableInterface && $button->isClicked();
+    }
+
+    /**
+     * Rellena el servidor IMAP a partir de la dirección y devuelve el formulario
+     * limpio.
+     *
+     * No se reutiliza el formulario enviado a propósito: está «sometido» y
+     * arrastraría los errores de la validación anterior («indica el servidor
+     * IMAP») justo cuando acabamos de rellenarlo. Se devuelve uno nuevo con lo
+     * que el usuario ya había escrito y el servidor detectado.
+     */
+    private function discover(
+        EmailAccountFormData $data,
+        DiscoverImapSettings $discoverImapSettings,
+        MailOauthProviderRegistry $oauthProviders,
+    ): Response {
+        if (!$this->rateLimits->acquire('mail_discovery', $this->organizationKey())) {
+            return $this->tooManyRequests(
+                'Has pedido demasiadas detecciones seguidas. Espera un minuto y vuelve a intentarlo.',
+                'app_mail_accounts_new',
+                [],
+            );
+        }
+
+        $fresh = new EmailAccountFormData();
+        $fresh->emailAddress = $data->emailAddress;
+        $fresh->provider = $data->provider;
+        $fresh->displayName = $data->displayName;
+        $fresh->imapUsername = $data->imapUsername;
+        $fresh->imapFolder = $data->imapFolder;
+
+        try {
+            $endpoint = $discoverImapSettings((string) $data->emailAddress);
+
+            $fresh->imapHost = $endpoint->host;
+            $fresh->imapPort = $endpoint->port;
+            $fresh->imapEncryption = $endpoint->encryption;
+
+            $this->addFlash('success', sprintf(
+                'Hemos encontrado el servidor %s:%d (%s) por %s. Comprueba que es el tuyo y escribe la contraseña.',
+                $endpoint->host,
+                $endpoint->port,
+                $endpoint->encryption->label(),
+                $endpoint->source,
+            ));
+        } catch (ImapConnectionException $exception) {
+            $this->addFlash('error', $exception->getMessage());
+        }
+
+        return $this->render('mail/accounts/new.html.twig', [
+            'form' => $this->createForm(EmailAccountFormType::class, $fresh, ['is_new' => true]),
+            'oauth_providers' => $oauthProviders->configuredProviders(),
+        ]);
+    }
+
+    /**
+     * Primer paso del flujo OAuth2: mandar al usuario a autorizar en el proveedor.
+     *
+     * El `redirect_uri` se construye con la ruta real y no con una constante: en
+     * local es `http://localhost:8000/...` y en producción la del sitio, y el
+     * proveedor exige que coincida exactamente con la declarada.
+     */
+    #[Route('/connect/{provider}', name: 'connect', methods: ['GET'])]
+    public function connect(string $provider, StartMailOauth $startOauth): Response
+    {
+        $target = $this->providerFromOauthKey($provider);
+
+        try {
+            $url = $startOauth($target, $this->oauthRedirectUri($target));
+        } catch (MailOauthException $exception) {
+            $this->addFlash('error', $exception->getMessage());
+
+            return $this->redirectToRoute('app_mail_accounts_new');
+        }
+
+        return $this->redirect($url);
+    }
+
+    /**
+     * Segundo paso del flujo OAuth2: el proveedor devuelve aquí al usuario.
+     *
+     * Los errores vuelven como `error` en la query (el usuario ha cancelado),
+     * así que se atienden antes de mirar el `code`.
+     */
+    #[Route('/callback/{provider}', name: 'callback', methods: ['GET'])]
+    public function callback(string $provider, Request $request, CompleteMailOauth $completeOauth): Response
+    {
+        $target = $this->providerFromOauthKey($provider);
+
+        $error = $request->query->get('error');
+
+        if (is_string($error) && '' !== $error) {
+            $this->addFlash('error', 'Has cancelado la autorización. No se ha conectado ningún buzón.');
+
+            return $this->redirectToRoute('app_mail_accounts_new');
+        }
+
+        if (!$this->rateLimits->acquire('mail_account', $this->organizationKey())) {
+            return $this->tooManyRequests(
+                'Has conectado demasiados buzones seguidos. Espera un minuto y vuelve a intentarlo.',
+                'app_mail_accounts_new',
+                [],
+            );
+        }
+
+        $code = $request->query->get('code');
+        $state = $request->query->get('state');
+
+        if (!is_string($code) || '' === $code || !is_string($state) || '' === $state) {
+            $this->addFlash('error', 'La autorización ha llegado incompleta. Vuelve a empezar.');
+
+            return $this->redirectToRoute('app_mail_accounts_new');
+        }
+
+        try {
+            $account = $completeOauth($target, $code, $state, $this->oauthRedirectUri($target), $this->actorId());
+        } catch (ImapConnectionException|InvalidArgumentException $exception) {
+            $this->addFlash('error', $exception->getMessage());
+
+            return $this->redirectToRoute('app_mail_accounts_new');
+        }
+
+        $this->addFlash('success', sprintf('El buzón %s se ha conectado. Ya podemos empezar a buscar facturas.', $account->getEmailAddress()));
+
+        return $this->redirectToRoute('app_mail_accounts_index');
     }
 
     #[Route('/{id}', name: 'show', methods: ['GET'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
@@ -227,8 +387,12 @@ final class EmailAccountController extends AbstractController
     }
 
     #[Route('/{id}/edit', name: 'edit', methods: ['GET', 'POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
-    public function edit(EmailAccount $account, Request $request, UpdateEmailAccount $updateEmailAccount): Response
-    {
+    public function edit(
+        EmailAccount $account,
+        Request $request,
+        UpdateEmailAccount $updateEmailAccount,
+        MailOauthProviderRegistry $oauthProviders,
+    ): Response {
         $data = EmailAccountFormData::fromAccount($account);
         $form = $this->createForm(EmailAccountFormType::class, $data, ['is_new' => false]);
         $form->handleRequest($request);
@@ -242,6 +406,7 @@ final class EmailAccountController extends AbstractController
                 return $this->render('mail/accounts/edit.html.twig', [
                     'form' => $form,
                     'account' => $account,
+                    'oauth_providers' => $oauthProviders->configuredProviders(),
                 ]);
             }
 
@@ -253,6 +418,7 @@ final class EmailAccountController extends AbstractController
         return $this->render('mail/accounts/edit.html.twig', [
             'form' => $form,
             'account' => $account,
+            'oauth_providers' => $oauthProviders->configuredProviders(),
         ]);
     }
 
@@ -339,6 +505,31 @@ final class EmailAccountController extends AbstractController
         $response->setStatusCode(Response::HTTP_TOO_MANY_REQUESTS);
 
         return $response;
+    }
+
+    /**
+     * El proveedor viaja en la URL como su clave de OAuth (`google`,
+     * `microsoft`), no como el valor del enum: es lo que se declara en la
+     * consola del proveedor y lo que aparece en el `redirect_uri`.
+     */
+    private function providerFromOauthKey(string $key): EmailAccountProvider
+    {
+        foreach (EmailAccountProvider::cases() as $provider) {
+            if ($provider->oauthKey() === $key) {
+                return $provider;
+            }
+        }
+
+        throw $this->createNotFoundException(sprintf('El proveedor «%s» no existe.', $key));
+    }
+
+    private function oauthRedirectUri(EmailAccountProvider $provider): string
+    {
+        return $this->generateUrl(
+            'app_mail_accounts_callback',
+            ['provider' => (string) $provider->oauthKey()],
+            UrlGeneratorInterface::ABSOLUTE_URL,
+        );
     }
 
     private function actorId(): ?Uuid

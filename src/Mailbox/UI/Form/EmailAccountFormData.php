@@ -8,13 +8,15 @@ use App\Mailbox\Application\Dto\EmailAccountInput;
 use App\Mailbox\Domain\Entity\EmailAccount;
 use App\Mailbox\Domain\Enum\EmailAccountProvider;
 use App\Mailbox\Domain\Enum\ImapEncryption;
+use App\Mailbox\Domain\ValueObject\EmailAccountCredentials;
 
 /**
  * Puente entre el formulario de conexión de buzón y `EmailAccountInput`.
  *
  * La contraseña **nunca** se rellena desde la entidad: al editar un buzón ya
  * conectado el campo aparece vacío y solo se envía si el usuario quiere
- * cambiarla (SECURITY.md §3).
+ * cambiarla (SECURITY.md §3). Vacío significa «conserva las credenciales que ya
+ * estaban guardadas», que es lo que espera `UpdateEmailAccount`.
  */
 final class EmailAccountFormData
 {
@@ -47,7 +49,7 @@ final class EmailAccountFormData
     {
         return new EmailAccountInput(
             emailAddress: $this->emailAddress ?? '',
-            password: $this->password ?? '',
+            credentials: $this->credentials(),
             imapHost: $this->imapHost ?? '',
             imapEncryption: $this->imapEncryption ?? ImapEncryption::SSL,
             imapPort: $this->imapPort,
@@ -56,5 +58,14 @@ final class EmailAccountFormData
             displayName: $this->displayName,
             provider: $this->provider ?? EmailAccountProvider::IMAP,
         );
+    }
+
+    private function credentials(): ?EmailAccountCredentials
+    {
+        if (null === $this->password || '' === $this->password) {
+            return null;
+        }
+
+        return EmailAccountCredentials::fromPlaintext($this->password);
     }
 }

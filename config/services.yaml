@@ -134,6 +134,11 @@ services:
         # clase, no tocar el núcleo (ARCHITECTURE.md §16).
         App\Shared\Application\Entitlements\EntitlementUsageProviderInterface:
             tags: ['app.entitlement_usage']
+        # Los proveedores de OAuth2 de correo se recogen por etiqueta: añadir
+        # uno nuevo (Yahoo dejó de ofrecerlo, pero iCloud podría) es escribir el
+        # adaptador y nada más (D-93).
+        App\Mailbox\Application\Oauth\MailOauthProviderInterface:
+            tags: ['app.mail_oauth_provider']
 
     # makes classes in src/ available to be used as services
     # this creates a service per class whose id is the fully-qualified class name
@@ -155,6 +160,33 @@ services:
     # funcionales no podrían sustituirlo por un doble y acabarían abriendo
     # conexiones de verdad contra `imap.miempresa.com`.
     App\Mailbox\Application\Imap\ImapClientInterface: '@App\Mailbox\Infrastructure\Imap\WebklexImapClient'
+
+    # ── OAuth2 de correo (D-93) ──────────────────────────────────────────
+    # Las credenciales de las aplicaciones registradas en Google Cloud y en
+    # Entra ID son entorno: en local no hay ninguna y la interfaz esconde los
+    # botones en vez de ofrecer un camino que termina en un error del proveedor.
+    App\Mailbox\Infrastructure\Oauth\GoogleMailOauthProvider:
+        arguments:
+            $clientId: '%env(MAIL_OAUTH_GOOGLE_CLIENT_ID)%'
+            $clientSecret: '%env(MAIL_OAUTH_GOOGLE_CLIENT_SECRET)%'
+
+    App\Mailbox\Infrastructure\Oauth\MicrosoftMailOauthProvider:
+        arguments:
+            $clientId: '%env(MAIL_OAUTH_MICROSOFT_CLIENT_ID)%'
+            $clientSecret: '%env(MAIL_OAUTH_MICROSOFT_CLIENT_SECRET)%'
+            $tenant: '%env(MAIL_OAUTH_MICROSOFT_TENANT)%'
+
+    # El registro se rellena solo con los adaptadores etiquetados: añadir un
+    # proveedor nuevo es escribir la clase y nada más.
+    App\Mailbox\Application\Oauth\MailOauthProviderRegistry:
+        arguments:
+            $providers: !tagged_iterator app.mail_oauth_provider
+
+    # ── Detección del servidor IMAP ──────────────────────────────────────
+    # Los dos puertos son adaptadores reales; la clase que decide la estrategia
+    # (`DiscoverImapSettings`) se prueba con dobles, sin red.
+    App\Mailbox\Application\Imap\Discovery\SrvResolverInterface: '@App\Mailbox\Infrastructure\Imap\Discovery\DnsSrvResolver'
+    App\Mailbox\Application\Imap\Discovery\ImapEndpointProbeInterface: '@App\Mailbox\Infrastructure\Imap\Discovery\SocketImapProbe'
 
     # El limitador de frecuencia de la ingesta por reenvío se declara en
     # `config/packages/rate_limiter.yaml`; aquí solo se le dice a la clase cuál

@@ -411,6 +411,50 @@ Si el despliegue es en Docker, el `cron` va en el contenedor `php` o en el anfit
 por intervalo: dos crons en dos contenedores reencolarían lo mismo dos veces (el reencolado es
 idempotente por estado, pero genera ruido en los registros).
 
+### Correo: qué hay que registrar en Google y en Microsoft
+
+Conectar un buzón de Gmail o de Microsoft **por OAuth2** exige una aplicación registrada en cada
+proveedor. Sin ella el botón correspondiente no se pinta y el buzón se conecta con contraseña de
+aplicación donde se pueda; con Microsoft no se puede, así que sin registro esas cuentas no entran.
+Los valores viven en variables de entorno (`.env`, bloque `###> suscripta/mail ###`):
+
+| Variable                             | Para qué                                      |
+| ------------------------------------ | --------------------------------------------- |
+| `MAIL_OAUTH_GOOGLE_CLIENT_ID`        | Identificador del cliente OAuth de Google.    |
+| `MAIL_OAUTH_GOOGLE_CLIENT_SECRET`    | Secreto del cliente OAuth de Google.          |
+| `MAIL_OAUTH_MICROSOFT_CLIENT_ID`     | Identificador de la aplicación de Entra ID.   |
+| `MAIL_OAUTH_MICROSOFT_CLIENT_SECRET` | Secreto de la aplicación de Entra ID.         |
+| `MAIL_OAUTH_MICROSOFT_TENANT`        | `consumers` por defecto (cuentas personales). |
+
+**Las URL de retorno son fijas** y hay que darlas de alta tal cual, con el dominio real
+(`SITE_URL`), sin barra final:
+
+- `https://suscripta.app/mail/accounts/callback/google`
+- `https://suscripta.app/mail/accounts/callback/microsoft`
+
+**Google Cloud Console** → _APIs y servicios_ → _Credenciales_ → _Crear credenciales_ → _ID de
+cliente OAuth_ → tipo **Aplicación web**. En _URI de redirección autorizados_ se pega la URL de
+`callback/google`. No hace falta habilitar ninguna API de Google: el acceso es IMAP con el ámbito
+`https://mail.google.com/`, que es un permiso delegado, no una API de REST. Mientras la pantalla
+de consentimiento esté en modo **Prueba**, solo autorizan las cuentas de la lista de usuarios de
+prueba (máximo 100); para abrirlo a cualquiera hay que publicarla y pasar la verificación de
+Google, que es el trámite largo.
+
+**Entra ID** (Azure Portal) → _Registros de aplicaciones_ → _Nuevo registro_. En _Tipos de cuenta
+admitidos_ hay que elegir **«Solo cuentas personales de Microsoft»**, que es lo que corresponde al
+tenant `consumers`; si se elige «cualquier organización», las cuentas de empresa y las personales
+acaban en tenants distintos y el `iss` del token deja de coincidir. Después, en _Certificados y
+secretos_, se crea un secreto de cliente y se copia el valor (solo se muestra una vez). En
+_Autenticación_ → _URI de redirección_ se añade la URL de `callback/microsoft` como tipo **Web**.
+El permiso que se usa es `https://outlook.office.com/IMAP.AccessAsUser.All` (delegado); no hay que
+concederlo en el portal, lo pide el propio flujo y lo consiente el usuario.
+
+**Rotación.** El secreto de cliente se rota en el portal (crear el nuevo, actualizar la variable,
+reiniciar `php`, retirar el viejo). Los tokens de los usuarios **no** se invalidan: siguen
+funcionando hasta que caducan y se renuevan con el secreto nuevo. Si se rota el secreto sin
+actualizar la variable, las renovaciones empiezan a fallar con `invalid_client` y el buzón pasa a
+`error` con «vuelve a conectar la cuenta»: no se pierde ningún dato, solo hay que reconectar.
+
 ---
 
 ## 9. Lista de comprobación

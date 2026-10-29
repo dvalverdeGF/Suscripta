@@ -13,6 +13,24 @@ cerrada, verificada y commiteada. El detalle de lo que queda pendiente está en
 
 ### Añadido
 
+- **Buzones de Gmail, Microsoft, Yahoo e iCloud, no solo IMAP genérico**: el formulario empieza
+  preguntando el proveedor y, con uno del catálogo, el servidor, el puerto y el cifrado los pone
+  la aplicación —el cliente no decide a qué servidor se conecta (D-93)—. Microsoft **solo**
+  admite OAuth2 desde 2024, así que se añade el flujo de autorización completo (Google y
+  Microsoft, PKCE y `state` en sesión): el usuario autoriza en su proveedor y el buzón queda
+  conectado sin escribir ninguna contraseña; si la cuenta ya existía, se reautoriza en vez de
+  fallar por duplicado, que es la salida cuando se revoca el acceso. Las credenciales dejan de
+  ser una contraseña y pasan a ser un sobre cifrado que admite las dos formas, con lectura del
+  formato antiguo para no invalidar ningún buzón ya conectado. La renovación del token vive en
+  un único `ResolveImapConnection` —antes el «descifra y monta la configuración» estaba copiado
+  en cuatro servicios— y guarda el token nuevo antes de devolverlo, porque si no cada
+  sincronización gastaría una renovación.
+- **Detección del servidor IMAP** («Detectar servidor»): primero los registros SRV de RFC 6186
+  (`_imaps._tcp`, luego `_imap._tcp`) y, si el dominio no publica ninguno, `imap.<dominio>`,
+  `mail.<dominio>` y el propio dominio en 993/TLS y 143/STARTTLS **comprobando que responden**.
+  El resultado es una sugerencia editable. No se descarga el XML de autoconfiguración: sería un
+  tercer método que implica pedirle un fichero a un servidor ajeno —superficie de SSRF— para un
+  caso que la convención ya cubre.
 - **Capturas de pantalla en el README**: `docs/img/` con cinco vistas (panel, propuestas,
   servicios, avisos y precios) tomadas contra la cuenta de demostración. Se regeneran con
   `make screenshots` (`tools/screenshots.py`, Playwright), así que no envejecen a mano.

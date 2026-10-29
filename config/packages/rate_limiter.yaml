@@ -37,6 +37,17 @@ framework:
             limit: 10
             interval: '1 minute'
 
+        # Deteccion automatica del servidor IMAP (D-93).
+        #
+        # Cada deteccion son unas cuantas consultas DNS y hasta seis conexiones
+        # TCP contra el dominio que el usuario escriba. El limite existe para
+        # que el formulario no se pueda usar como sonda de red: es barato de
+        # hacer y no tiene por que ser ilimitado.
+        mail_discovery:
+            policy: 'sliding_window'
+            limit: 15
+            interval: '1 minute'
+
         # Subida de documentos (Fase 16).
         #
         # Cada documento ocupa almacenamiento permanente. Limitarlo por

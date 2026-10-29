@@ -302,16 +302,16 @@ entidad `EmailAttachment` separada.
 
 | Entidad                  | Campos clave                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `EmailAccount`           | id, organizationId, provider, emailAddress, displayName, status, credentialsEncrypted, oauthTokenEncrypted (nullable), imapHost, imapPort, imapEncryption, imapUsername, forwardingAddress (nullable), forwardingSenders (json), forwardingEnabled, lastSyncAt, lastSyncStatus, lastSyncError, createdAt, updatedAt, deletedAt                                                                                                                                                                                         |
+| `EmailAccount`           | id, organizationId, provider, emailAddress, displayName, status, credentialsEncrypted, imapHost, imapPort, imapEncryption, imapUsername, forwardingAddress (nullable), forwardingSenders (json), forwardingEnabled, lastSyncAt, lastSyncStatus, lastSyncError, createdAt, updatedAt, deletedAt                                                                                                                                                                                                                         |
 | `EmailSyncCursor`        | id, organizationId, emailAccountId, folder, uidValidity, lastSeenUid, backfillCursor (nullable), lastSyncAt, createdAt, updatedAt                                                                                                                                                                                                                                                                                                                                                                                      |
 | `EmailSyncRun`           | id, emailAccountId, startedAt, finishedAt, status, messagesSeen, messagesProcessed, messagesSkipped, messagesBackfilled, discoveriesCreated, error                                                                                                                                                                                                                                                                                                                                                                     |
 | `EmailMessage`           | id, organizationId, emailAccountId, folder, uid (nullable), source, messageId, threadId, fromAddress, fromName, replyTo, senderDomain, toAddresses (json), subject, receivedAt, sizeBytes, contentType, hasAttachments, attachmentNames (json), attachmentTypes (json), bodyHash, contentHash, bodyExcerpt (nullable), billingScore, billingReasons (json), processingState, classification, classificationConfidence, extractionTier, extractorUsed, aiUsed, aiCostMinor, attempts, lastError, processedAt, createdAt |
 | `MessageProcessingEvent` | id, emailMessageId, fromState, toState, reason, extractor, tier, aiUsageId (nullable), durationMs, data (json), occurredAt                                                                                                                                                                                                                                                                                                                                                                                             |
 | `ExtractionCache`        | id, organizationId, contentHash, document (json), tier, confidence, hitCount, lastUsedAt, createdAt                                                                                                                                                                                                                                                                                                                                                                                                                    |
 
-**`EmailAccount.provider`**: `imap`, `forwarding`, `gmail`, `microsoft` (los dos últimos, reservados).
+**`EmailAccount.provider`**: `imap`, `forwarding`, `gmail`, `microsoft`, `yahoo`, `icloud`. Ver §4.5.1.
 **`EmailAccount.status`**: `pending`, `active`, `error`, `disabled`.
-**`EmailMessage.source`**: `imap` (leído del buzón) o `forwarding` (recibido por reenvío). Ver §4.5.1.
+**`EmailMessage.source`**: `imap` (leído del buzón) o `forwarding` (recibido por reenvío). Ver §4.5.2.
 **`EmailMessage.processingState`**: máquina de estados explícita — ver §13.5.
 **`EmailMessage.classification`**: `invoice`, `receipt`, `payment_confirmation`,
 `renewal_notice`, `price_change`, `plan_change`, `expiration_notice`, `other`, `unknown`.
@@ -368,7 +368,51 @@ por reenvío no, porque nunca estuvo en una carpeta IMAP. La restricción
 `NULL` como distinto, así que varios reenvíos conviven en la misma cuenta y carpeta. La
 deduplicación de los reenvíos se apoya entonces en `messageId` y en `contentHash`.
 
-### 4.5.1 Ingesta por reenvío
+### 4.5.1 Proveedores, autenticación y autodiscovery
+
+**El proveedor no es una etiqueta: es un catálogo.** `EmailAccountProvider` declara, para cada
+caso, el servidor, el puerto, el cifrado, la página oficial donde se genera la contraseña de
+aplicación, si admite OAuth2, si lo **exige** y si acepta contraseña. La aplicación impone el
+preset: lo que llegue del formulario para un proveedor conocido se ignora (D-93).
+
+| Proveedor    | Servidor                        | Autenticación aceptada            | Notas                                                        |
+| ------------ | ------------------------------- | --------------------------------- | ------------------------------------------------------------ |
+| `imap`       | el que escriba el usuario       | contraseña                        | Caso general; el servidor se detecta o se teclea.            |
+| `gmail`      | `imap.gmail.com:993` SSL        | contraseña de aplicación u OAuth2 | La contraseña de aplicación exige verificación en dos pasos. |
+| `microsoft`  | `outlook.office365.com:993` SSL | **solo OAuth2**                   | Cuentas personales (`consumers`). `LOGIN` ya no funciona.    |
+| `yahoo`      | `imap.mail.yahoo.com:993` SSL   | contraseña de aplicación          | No hay OAuth2 para IMAP.                                     |
+| `icloud`     | `imap.mail.me.com:993` SSL      | contraseña de aplicación          | Apple exige contraseña específica de aplicación.             |
+| `forwarding` | —                               | —                                 | No abre conexión: recibe correo reenviado (§4.5.2).          |
+
+**Una sola forma de guardar credenciales.** `credentialsEncrypted` guarda un sobre
+(`EmailAccountCredentials`) con **o** una contraseña **o** un `accessToken` + `refreshToken` +
+`expiresAt`. No hay columna nueva ni migración; un valor que no sea JSON se lee como contraseña
+en claro, que es lo que había antes.
+
+**Un solo punto traduce «buzón» a «parámetros de conexión».** `ResolveImapConnection` descifra,
+renueva el token si caduca en menos de 120 s, **persiste** la credencial nueva y construye el
+`ImapConnectionConfig`. Lo usan conectar, actualizar, probar, sincronizar y procesar: antes el
+bloque estaba copiado en cuatro sitios y con dos formas de autenticación cada copia olvidada
+sería un buzón que funciona al conectarlo y falla al sincronizar.
+
+**OAuth2 es un puerto con adaptadores por etiqueta** (`app.mail_oauth_provider`), como los
+canales de notificación o los parsers de proveedor. Flujo `authorization code` + PKCE; la
+dirección del buzón se lee del `id_token` que devuelve el endpoint de tokens por TLS (no se
+valida su firma: no viene del navegador). Sin credenciales de aplicación registradas, el botón
+no se pinta y el proveedor sigue funcionando con contraseña de aplicación donde se pueda.
+
+**Autodiscovery sin descargar XML.** `DiscoverImapSettings` prueba el registro SRV
+`_imaps._tcp`, luego `_imap._tcp` y, si no hay suerte, sondea por convención `imap.<dominio>`,
+`mail.<dominio>` y `<dominio>` en 993/SSL y después en 143/STARTTLS. **No** se descarga el XML de
+autoconfiguración de Thunderbird: es una URL que elige quien escribe el dominio, la petición
+sale de nuestros servidores y el resultado acaba en una conexión IMAP, o sea, una puerta a SSRF
+que no hace falta. El resultado **rellena** el campo y el usuario lo confirma con «Probar
+conexión»; no se conecta solo, porque el sondeo por convención puede acertar con el servidor
+equivocado en un hosting que aloja varios dominios. La ruta tiene su propio limitador
+(`mail_discovery`, 15/min por organización): es la única que abre conexiones hacia fuera a
+petición del usuario.
+
+### 4.5.2 Ingesta por reenvío
 
 La vía de reenvío (D-21) existe para quien no quiere —o no puede— dar acceso a su buzón. El
 usuario activa el reenvío en su proveedor hacia una dirección que **generamos nosotros** y que

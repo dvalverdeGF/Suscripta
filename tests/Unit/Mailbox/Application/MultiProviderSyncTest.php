@@ -8,6 +8,8 @@ use App\Mailbox\Application\CredentialCipherInterface;
 use App\Mailbox\Application\Imap\ImapClientInterface;
 use App\Mailbox\Application\Imap\ImapConnectionConfig;
 use App\Mailbox\Application\Imap\ImapMessageHeader;
+use App\Mailbox\Application\Imap\ResolveImapConnection;
+use App\Mailbox\Application\Oauth\MailOauthProviderRegistry;
 use App\Mailbox\Application\SyncEmailAccount;
 use App\Mailbox\Domain\Entity\EmailAccount;
 use App\Mailbox\Domain\Entity\EmailMessage;
@@ -191,16 +193,28 @@ final class MultiProviderSyncTest extends TestCase
 
     private function sync(): SyncEmailAccount
     {
+        $clock = new Clock(new MockClock(new DateTimeImmutable('2026-10-05 10:00:00')));
+
         return new SyncEmailAccount(
             accounts: $this->accounts,
             messages: $this->messages,
             runs: $this->runs,
             cursors: $this->cursors,
             imapClient: $this->imap,
-            cipher: $this->cipher,
+            resolveConnection: $this->resolveConnection($clock),
             tenantContext: new TenantContext(),
             auditLogger: $this->audit,
-            clock: new Clock(new MockClock(new DateTimeImmutable('2026-10-05 10:00:00'))),
+            clock: $clock,
+        );
+    }
+
+    private function resolveConnection(Clock $clock): ResolveImapConnection
+    {
+        return new ResolveImapConnection(
+            cipher: $this->cipher,
+            accounts: $this->accounts,
+            oauthProviders: new MailOauthProviderRegistry([]),
+            clock: $clock,
         );
     }
 

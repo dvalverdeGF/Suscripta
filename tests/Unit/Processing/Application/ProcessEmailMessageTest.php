@@ -23,6 +23,8 @@ use App\Mailbox\Application\CredentialCipherInterface;
 use App\Mailbox\Application\Imap\ImapClientInterface;
 use App\Mailbox\Application\Imap\ImapConnectionConfig;
 use App\Mailbox\Application\Imap\ImapMessageBody;
+use App\Mailbox\Application\Imap\ResolveImapConnection;
+use App\Mailbox\Application\Oauth\MailOauthProviderRegistry;
 use App\Mailbox\Domain\Entity\EmailAccount;
 use App\Mailbox\Domain\Entity\EmailMessage;
 use App\Mailbox\Domain\Entity\MessageProcessingEvent;
@@ -215,7 +217,7 @@ final class ProcessEmailMessageTest extends TestCase
             discoverySettings: new DiscoverySettings(),
             stateMachine: new MessageStateMachine($this->events, $clock),
             imapClient: $this->imap,
-            cipher: $this->cipher,
+            resolveConnection: $this->resolveConnection($clock),
             extractionCache: $this->cache,
             tenantContext: new TenantContext(),
             auditLogger: $this->audit,
@@ -223,6 +225,16 @@ final class ProcessEmailMessageTest extends TestCase
             aiExtraction: $aiExtraction ?? new NullAiExtraction(),
             knowledgeResolver: $this->knowledgeResolver($clock),
             learnFromMessage: $this->learnFromMessage($clock),
+        );
+    }
+
+    private function resolveConnection(Clock $clock): ResolveImapConnection
+    {
+        return new ResolveImapConnection(
+            cipher: $this->cipher,
+            accounts: $this->accounts,
+            oauthProviders: new MailOauthProviderRegistry([]),
+            clock: $clock,
         );
     }
 
@@ -700,7 +712,7 @@ final class ProcessEmailMessageTest extends TestCase
             discoverySettings: new DiscoverySettings(),
             stateMachine: new MessageStateMachine($this->events, $clock),
             imapClient: $this->imap,
-            cipher: $this->cipher,
+            resolveConnection: $this->resolveConnection($clock),
             extractionCache: $this->cache,
             tenantContext: $tenantContext,
             auditLogger: $this->audit,

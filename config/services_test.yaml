@@ -19,6 +19,19 @@ services:
 
     App\Webhooks\Application\Port\HostResolverInterface: '@App\Tests\Support\Webhooks\ControllableHostResolver'
 
+    # La detección del servidor IMAP consulta el DNS y abre sockets: en los
+    # tests funcionales los dos puertos se sustituyen por dobles que devuelven
+    # lo que el test les dice. Sin esto, pulsar «Detectar servidor» en una
+    # prueba haría una consulta real y la tanda dependería de la red.
+    App\Tests\Support\Mailbox\FakeSrvResolver:
+        public: true
+
+    App\Tests\Support\Mailbox\FakeImapProbe:
+        public: true
+
+    App\Mailbox\Application\Imap\Discovery\SrvResolverInterface: '@App\Tests\Support\Mailbox\FakeSrvResolver'
+    App\Mailbox\Application\Imap\Discovery\ImapEndpointProbeInterface: '@App\Tests\Support\Mailbox\FakeImapProbe'
+
     # Los documentos se escriben en la caché del kernel y no en `var/storage`:
     # así una tanda de tests no deja binarios de prueba en el almacenamiento
     # real, que es justo lo que la retención (SECURITY.md §6) tendría que

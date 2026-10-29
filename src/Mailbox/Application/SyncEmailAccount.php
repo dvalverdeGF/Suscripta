@@ -7,11 +7,11 @@ namespace App\Mailbox\Application;
 use App\Mailbox\Application\Imap\ImapClientInterface;
 use App\Mailbox\Application\Imap\ImapConnectionConfig;
 use App\Mailbox\Application\Imap\ImapMessageHeader;
+use App\Mailbox\Application\Imap\ResolveImapConnection;
 use App\Mailbox\Domain\Entity\EmailAccount;
 use App\Mailbox\Domain\Entity\EmailMessage;
 use App\Mailbox\Domain\Entity\EmailSyncCursor;
 use App\Mailbox\Domain\Entity\EmailSyncRun;
-use App\Mailbox\Domain\Enum\ImapEncryption;
 use App\Mailbox\Domain\Enum\SyncRunStatus;
 use App\Mailbox\Domain\Exception\ImapConnectionException;
 use App\Mailbox\Domain\Exception\ImapFetchException;
@@ -80,7 +80,7 @@ final readonly class SyncEmailAccount
         private EmailSyncRunRepositoryInterface $runs,
         private EmailSyncCursorRepositoryInterface $cursors,
         private ImapClientInterface $imapClient,
-        private CredentialCipherInterface $cipher,
+        private ResolveImapConnection $resolveConnection,
         private TenantContext $tenantContext,
         private AuditLoggerInterface $auditLogger,
         private Clock $clock,
@@ -393,13 +393,7 @@ final readonly class SyncEmailAccount
 
     private function connectionConfig(EmailAccount $account): ImapConnectionConfig
     {
-        return new ImapConnectionConfig(
-            host: (string) $account->getImapHost(),
-            port: (int) $account->getImapPort(),
-            encryption: $account->getImapEncryption() ?? ImapEncryption::SSL,
-            username: (string) $account->getImapUsername(),
-            password: $this->cipher->decrypt((string) $account->getCredentialsEncrypted()),
-        );
+        return ($this->resolveConnection)($account);
     }
 
     /**

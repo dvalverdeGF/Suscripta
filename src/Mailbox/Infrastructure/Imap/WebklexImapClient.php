@@ -8,6 +8,7 @@ use App\Mailbox\Application\Imap\ImapClientInterface;
 use App\Mailbox\Application\Imap\ImapConnectionConfig;
 use App\Mailbox\Application\Imap\ImapMessageBody;
 use App\Mailbox\Application\Imap\ImapMessageHeader;
+use App\Mailbox\Domain\Enum\ImapAuthentication;
 use App\Mailbox\Domain\Enum\ImapEncryption;
 use App\Mailbox\Domain\Exception\ImapConnectionException;
 use App\Mailbox\Domain\Exception\ImapFetchException;
@@ -345,7 +346,7 @@ final class WebklexImapClient implements ImapClientInterface
                     'validate_cert' => true,
                     'username' => $config->username,
                     'password' => $config->password,
-                    'authentication' => null,
+                    'authentication' => $this->authenticationValue($config->authentication),
                     'rfc' => 'RFC822',
                     'timeout' => $config->timeout,
                     'extensions' => [],
@@ -375,6 +376,18 @@ final class WebklexImapClient implements ImapClientInterface
             ImapEncryption::SSL => 'ssl',
             ImapEncryption::STARTTLS => 'starttls',
             ImapEncryption::NONE => '',
+        };
+    }
+
+    /**
+     * `null` deja que el cliente use `LOGIN`; `oauth` lo cambia por
+     * `AUTHENTICATE XOAUTH2`, que es lo único que acepta Microsoft (D-93).
+     */
+    private function authenticationValue(ImapAuthentication $authentication): ?string
+    {
+        return match ($authentication) {
+            ImapAuthentication::PASSWORD => null,
+            ImapAuthentication::OAUTH => 'oauth',
         };
     }
 

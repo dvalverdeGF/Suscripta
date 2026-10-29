@@ -174,6 +174,24 @@ class EmailAccount implements TenantAwareInterface
         return $this->emailAddress;
     }
 
+    /**
+     * Cambia el proveedor del buzón.
+     *
+     * Solo lo usa la reautorización por OAuth2: un buzón dado de alta como
+     * «IMAP genérico» con contraseña que luego se conecta con el botón de
+     * Gmail pasa a ser un buzón de Gmail, y el catálogo de presets tiene que
+     * enterarse para no volver a pedirle el servidor al usuario (D-93).
+     */
+    public function setProvider(EmailAccountProvider $provider): void
+    {
+        if ($provider === $this->provider) {
+            return;
+        }
+
+        $this->provider = $provider;
+        $this->touch();
+    }
+
     public function getDisplayName(): ?string
     {
         return $this->displayName;

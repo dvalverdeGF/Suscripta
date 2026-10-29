@@ -12,13 +12,11 @@ use App\Discovery\Domain\Enum\DiscoveryType;
 use App\Discovery\Domain\Repository\DiscoveryRepositoryInterface;
 use App\Documents\Domain\Enum\DocumentType;
 use App\Documents\Domain\Repository\DocumentRepositoryInterface;
-use App\Mailbox\Application\CredentialCipherInterface;
 use App\Mailbox\Application\Imap\ImapClientInterface;
-use App\Mailbox\Application\Imap\ImapConnectionConfig;
 use App\Mailbox\Application\Imap\ImapMessageHeader;
+use App\Mailbox\Application\Imap\ResolveImapConnection;
 use App\Mailbox\Domain\Entity\EmailMessage;
 use App\Mailbox\Domain\Enum\ExtractionTier;
-use App\Mailbox\Domain\Enum\ImapEncryption;
 use App\Mailbox\Domain\Enum\MessageClassification;
 use App\Mailbox\Domain\Enum\MessageProcessingState;
 use App\Mailbox\Domain\Exception\ImapConnectionException;
@@ -106,7 +104,7 @@ final readonly class ProcessEmailMessage
         private DiscoverySettings $discoverySettings,
         private MessageStateMachine $stateMachine,
         private ImapClientInterface $imapClient,
-        private CredentialCipherInterface $cipher,
+        private ResolveImapConnection $resolveConnection,
         private ExtractionCacheRepositoryInterface $extractionCache,
         private TenantContext $tenantContext,
         private AuditLoggerInterface $auditLogger,
@@ -631,13 +629,7 @@ final readonly class ProcessEmailMessage
 
         try {
             $body = $this->imapClient->fetchBody(
-                new ImapConnectionConfig(
-                    host: (string) $account->getImapHost(),
-                    port: (int) $account->getImapPort(),
-                    encryption: $account->getImapEncryption() ?? ImapEncryption::SSL,
-                    username: (string) $account->getImapUsername(),
-                    password: $this->cipher->decrypt((string) $account->getCredentialsEncrypted()),
-                ),
+                ($this->resolveConnection)($account),
                 $message->getFolder(),
                 $message->getUid(),
             );
