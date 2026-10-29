@@ -85,7 +85,7 @@ test-functional: ## Ejecuta solo los tests funcionales
 .PHONY: phpstan
 phpstan: ## Ejecuta el análisis estático
 	$(EXEC) bin/console cache:warmup --env=dev
-	$(EXEC) vendor/bin/phpstan analyse --no-progress
+	$(EXEC) vendor/bin/phpstan analyse --no-progress --memory-limit=1G
 
 .PHONY: cs
 cs: ## Corrige el estilo de código

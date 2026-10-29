@@ -19,6 +19,11 @@ cerrada, verificada y commiteada. El detalle de lo que queda pendiente está en
 
 ### Corregido
 
+- **Dependencias**: Symfony 8.1.7/8.1.8 → **8.1.10**, que corrige
+  [CVE-2026-45070](https://symfony.com/cve-2026-45070) (inyección de cabeceras de correo a través
+  de nombres de parámetro no token en `symfony/mime`). `composer audit` queda sin avisos.
+- **PHPStan fallaba de forma intermitente** al agotar los 128 MB del `php.ini`: `make phpstan` y
+  la CI pasan ahora `--memory-limit=1G`.
 - El README anunciaba «fases 0 a 19», 1 420 tests y 19 migraciones: ahora refleja el estado real
   (fases 0–25, 1 609 tests, 23 migraciones) e incluye el cobro con Stripe.
 - `docs/deployment.md` seguía diciendo «las 19 migraciones» en el orden de arranque.

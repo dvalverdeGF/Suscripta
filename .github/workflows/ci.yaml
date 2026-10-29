@@ -54,7 +54,7 @@ jobs:
       - name: Run PHPUnit
         run: docker compose exec -T php bin/phpunit
       - name: Run PHPStan
-        run: docker compose exec -T php vendor/bin/phpstan analyse --no-progress
+        run: docker compose exec -T php vendor/bin/phpstan analyse --no-progress --memory-limit=1G
       - name: Check code style
         run: docker compose exec -T php vendor/bin/php-cs-fixer fix --dry-run --diff
   lint:
