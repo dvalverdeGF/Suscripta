@@ -66,6 +66,11 @@ cerrada, verificada y commiteada. El detalle de lo que queda pendiente está en
     que super-linter los descubra: no encontraba `.markdownlint.json` y validaba el markdown con
     su plantilla, que prohíbe los títulos repetidos de un changelog por fases.
 
+- **super-linter pasa a la versión 9**: los tres cambios incompatibles de la versión mayor no nos
+  tocan (el fichero de configuración de stylelint lo declaramos nosotros, jscpd ya leía el
+  `gitignore` de su propio fichero y `nbqa` no se usaba), pero su hadolint nuevo señaló el
+  `Dockerfile`.
+
 - **Dependabot agrupa sus actualizaciones**: `groups` por ecosistema (los parches y los cambios
   menores van juntos; un salto de versión mayor abre su propio PR) y `open-pull-requests-limit`.
   Una semana normal abre un PR por ecosistema en vez de uno por dependencia.
@@ -79,6 +84,10 @@ cerrada, verificada y commiteada. El detalle de lo que queda pendiente está en
 - **Dependencias**: Symfony 8.1.7/8.1.8 → **8.1.10**, que corrige
   [CVE-2026-45070](https://symfony.com/cve-2026-45070) (inyección de cabeceras de correo a través
   de nombres de parámetro no token en `symfony/mime`). `composer audit` queda sin avisos.
+- **`Dockerfile`**: el `HEALTHCHECK` pasa a notación JSON (`php` y su `-r` como argumentos, con
+  comillas simples dentro del código) y el usuario final se declara en números (`USER 33:33`, el
+  uid/gid de `www-data` en Debian), que es lo que el runtime puede resolver sin `/etc/passwd`.
+- **`tools/screenshots.py`** tenía shebang y no era ejecutable: ahora lo es.
 - **Dependencias**: `doctrine/orm` 3.7.5, `dama/doctrine-test-bundle` 8.7.0 y
   `symfony/mercure-bundle` 0.6.1. El bundle nuevo exige los claims `iss`, `sub` y `client_id` de
   RFC 9068 cuando el hub habla el protocolo 1.0, así que `config/packages/mercure.yaml` fija
